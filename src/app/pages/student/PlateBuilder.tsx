@@ -560,11 +560,13 @@ export default function PlateBuilder() {
 
             {/* Drinks & Snacks Section */}
             <div className={`p-6 rounded-2xl border-2 transition-all ${drinksSnacksDisabled
-              ? 'border-[#333333] bg-[#222222]/50 opacity-50 pointer-events-none'
-              : 'border-[#FCD34D] bg-[#222222]'
-              }`}>
+              ? 'border-border bg-muted/20 opacity-50 pointer-events-none'
+              : 'border-primary bg-cardShadow'
+              }`}
+              style={{ backgroundColor: drinksSnacksDisabled ? 'transparent' : 'var(--card)' }}
+            >
               <div className="mb-6">
-                <h3 className="text-2xl font-bold text-[#FAF9F6] mb-2">Add Drinks & Snacks (Optional)</h3>
+                <h3 className="text-2xl font-bold text-card-foreground mb-2">Add Drinks & Snacks (Optional)</h3>
                 <p className="text-sm text-[#9C8F7F]">
                   {drinksSnacksDisabled
                     ? 'Add at least one plate to unlock drinks and snacks'
@@ -577,7 +579,7 @@ export default function PlateBuilder() {
                 <div className="space-y-8">
                   {/* Drinks */}
                   <div>
-                    <h4 className="text-lg font-bold text-[#FAF9F6] mb-4">Drinks</h4>
+                    <h4 className="text-lg font-bold text-card-foreground mb-4">Drinks</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {foodItems.filter(f => f.category === 'drink').map(item => (
                         <GlassCard key={item.id} selected={drinksSnacks[item.id] > 0}>
@@ -590,21 +592,21 @@ export default function PlateBuilder() {
                               />
                             </div>
                             <div>
-                              <h4 className="font-semibold text-[#FAF9F6]">{item.name}</h4>
-                              <p className="text-sm text-[#9C8F7F]">₦{item.price}/{item.unit}</p>
+                              <h4 className="font-semibold text-card-foreground">{item.name}</h4>
+                              <p className="text-sm text-muted-foreground">₦{item.price}/{item.unit}</p>
                             </div>
                             <div className="flex items-center justify-between">
                               <button
                                 onClick={() => updateDrinkSnack(item.id, -1)}
                                 disabled={!drinksSnacks[item.id]}
-                                className="w-8 h-8 rounded-lg bg-[#333333] hover:bg-[#7C3AED] hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                                className="w-8 h-8 rounded-lg bg-muted hover:bg-secondary hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
                               >
                                 <Minus className="w-4 h-4" />
                               </button>
-                              <span className="font-bold text-lg text-[#FAF9F6]">{drinksSnacks[item.id] || 0}</span>
+                              <span className="font-bold text-lg text-card-foreground">{drinksSnacks[item.id] || 0}</span>
                               <button
                                 onClick={() => updateDrinkSnack(item.id, 1)}
-                                className="w-8 h-8 rounded-lg bg-[#FCD34D] hover:bg-[#FCD34D]/80 text-[#1A1A1A] transition-colors flex items-center justify-center"
+                                className="w-8 h-8 rounded-lg bg-primary hover:bg-primary/80 text-primary-foreground transition-colors flex items-center justify-center"
                               >
                                 <Plus className="w-4 h-4" />
                               </button>
@@ -617,7 +619,7 @@ export default function PlateBuilder() {
 
                   {/* Snacks */}
                   <div>
-                    <h4 className="text-lg font-bold text-[#FAF9F6] mb-4">Snacks</h4>
+                    <h4 className="text-lg font-bold text-card-foreground mb-4">Snacks</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {foodItems.filter(f => f.category === 'snack').map(item => (
                         <GlassCard key={item.id} selected={drinksSnacks[item.id] > 0}>
@@ -630,21 +632,21 @@ export default function PlateBuilder() {
                               />
                             </div>
                             <div>
-                              <h4 className="font-semibold text-[#FAF9F6]">{item.name}</h4>
-                              <p className="text-sm text-[#9C8F7F]">₦{item.price}/{item.unit}</p>
+                              <h4 className="font-semibold text-card-foreground">{item.name}</h4>
+                              <p className="text-sm text-muted-foreground">₦{item.price}/{item.unit}</p>
                             </div>
                             <div className="flex items-center justify-between">
                               <button
                                 onClick={() => updateDrinkSnack(item.id, -1)}
                                 disabled={!drinksSnacks[item.id]}
-                                className="w-8 h-8 rounded-lg bg-[#333333] hover:bg-[#7C3AED] hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                                className="w-8 h-8 rounded-lg bg-muted hover:bg-secondary hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
                               >
                                 <Minus className="w-4 h-4" />
                               </button>
-                              <span className="font-bold text-lg text-[#FAF9F6]">{drinksSnacks[item.id] || 0}</span>
+                              <span className="font-bold text-lg text-card-foreground">{drinksSnacks[item.id] || 0}</span>
                               <button
                                 onClick={() => updateDrinkSnack(item.id, 1)}
-                                className="w-8 h-8 rounded-lg bg-[#FCD34D] hover:bg-[#FCD34D]/80 text-[#1A1A1A] transition-colors flex items-center justify-center"
+                                className="w-8 h-8 rounded-lg bg-primary hover:bg-primary/80 text-primary-foreground transition-colors flex items-center justify-center"
                               >
                                 <Plus className="w-4 h-4" />
                               </button>
@@ -678,12 +680,12 @@ export default function PlateBuilder() {
                       open={openPlates[plate.id]}
                       onOpenChange={(open) => setOpenPlates({ ...openPlates, [plate.id]: open })}
                     >
-                      <div className="rounded-xl bg-[#2A2A2A] border border-[#333333] overflow-hidden">
-                        <CollapsibleTrigger className="w-full p-4 hover:bg-[#333333] transition-colors">
+                      <div className="rounded-xl bg-muted/30 border border-border overflow-hidden">
+                        <CollapsibleTrigger className="w-full p-4 hover:bg-muted/50 transition-colors">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3 flex-1">
                               <div className="text-left">
-                                <h4 className="font-bold text-[#FAF9F6]">
+                                <h4 className="font-bold text-card-foreground">
                                   Plate {index + 1} ({plate.type === 'main' ? 'Main' : 'Swallow'})
                                 </h4>
                                 <p className="text-sm text-[#FCD34D] font-semibold">₦{plate.total.toLocaleString()}</p>
@@ -840,7 +842,7 @@ export default function PlateBuilder() {
                     </div>
                   )}
 
-                  <div className="flex justify-between items-center py-4 border-t border-border mt-4">
+                  <div className="flex justify-between items-center py-4 border-t border-border mt-4 gap-4">
                     <span className="text-2xl font-black text-foreground">Total Due</span>
                     <span className="text-4xl font-black text-secondary">
                       ₦{grandTotal.toLocaleString()}

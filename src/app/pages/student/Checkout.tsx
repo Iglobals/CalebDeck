@@ -332,7 +332,7 @@ export default function Checkout() {
                   </div>
                 )}
 
-                <div className="flex justify-between items-center pt-4 border-t border-border">
+                <div className="flex justify-between items-center pt-4 border-t border-border gap-4">
                   <span className="text-2xl font-black">Total Due</span>
                   <div className="text-right">
                     <div className="text-4xl font-black text-secondary leading-none">
