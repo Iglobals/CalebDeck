@@ -27,8 +27,8 @@ export const calculateOrderTotal = async (data: any) => {
         const takeawayFee = plateCount * 200;
         let discount = 0;
 
-        if (deliveryMode === 'GROUP') {
-            discount = deliveryFee * 0.20;
+        if (deliveryMode === 'group' || deliveryMode === 'GROUP') {
+            discount = (700 - 560) * plateCount;
         }
 
         const finalTotal = total + deliveryFee + takeawayFee - discount;

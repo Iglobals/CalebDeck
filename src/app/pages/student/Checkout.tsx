@@ -12,6 +12,9 @@ import { usePaystackPayment } from 'react-paystack';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
 
+const DELIVERY_FEE_SOLO = 700;
+const DELIVERY_FEE_GROUP = 560;
+
 export default function Checkout() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -314,22 +317,27 @@ export default function Checkout() {
 
               {/* Delivery Stats */}
               <div className="space-y-4 pt-6 border-t border-border mb-8">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2 text-muted-foreground font-medium">
+                <div className="flex justify-between items-center text-muted-foreground font-medium">
+                  <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4" />
-                    <span>Hostel Delivery</span>
+                    <span>Delivery (₦{DELIVERY_FEE_SOLO} × {plates.length})</span>
                   </div>
-                  <Badge variant={deliveryMode === 'group' ? 'purple' : 'gray'} className="font-bold">
-                    {deliveryMode === 'group' ? 'BATCH ORDER' : 'SOLO ORDER'}
-                  </Badge>
+                  <span>₦{(DELIVERY_FEE_SOLO * plates.length).toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between items-center">
+
+                {deliveryMode === 'group' && (
+                  <div className="flex justify-between items-center text-green-500 font-bold">
+                    <span>Group Savings</span>
+                    <span>-₦{((DELIVERY_FEE_SOLO - DELIVERY_FEE_GROUP) * plates.length).toLocaleString()}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center pt-4 border-t border-border">
                   <span className="text-2xl font-black">Total Due</span>
                   <div className="text-right">
                     <div className="text-4xl font-black text-secondary leading-none">
                       {calculating ? '...' : `₦${(orderTotal?.totalAmount || 0).toLocaleString()}`}
                     </div>
-                    {deliveryMode === 'group' && <div className="text-[10px] text-secondary font-bold uppercase mt-1">20% Discount Applied</div>}
                   </div>
                 </div>
               </div>

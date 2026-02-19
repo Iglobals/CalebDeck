@@ -817,15 +817,31 @@ export default function PlateBuilder() {
               {plates.length > 0 && (
                 <div className="space-y-4 pt-6 border-t-2 border-border mb-8">
                   <div className="flex justify-between text-muted-foreground font-medium">
-                    <span>Subtotal</span>
-                    <span>₦{(platesSubtotal + drinksSnacksTotal).toLocaleString()}</span>
+                    <span>Plates Subtotal</span>
+                    <span>₦{platesSubtotal.toLocaleString()}</span>
                   </div>
+
+                  {drinksSnacksTotal > 0 && (
+                    <div className="flex justify-between text-muted-foreground font-medium">
+                      <span>Add-ons</span>
+                      <span>₦{drinksSnacksTotal.toLocaleString()}</span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between text-muted-foreground font-medium">
-                    <span>Delivery Fee</span>
-                    <span>₦{totalDelivery.toLocaleString()}</span>
+                    <span>Delivery (₦{DELIVERY_FEE_SOLO} × {plates.length})</span>
+                    <span>₦{(DELIVERY_FEE_SOLO * plates.length).toLocaleString()}</span>
                   </div>
+
+                  {deliveryMode === 'group' && (
+                    <div className="flex justify-between text-green-500 font-bold animate-in fade-in slide-in-from-right-4">
+                      <span>Group Savings</span>
+                      <span>-₦{((DELIVERY_FEE_SOLO - DELIVERY_FEE_GROUP) * plates.length).toLocaleString()}</span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between items-center py-4 border-t border-border mt-4">
-                    <span className="text-2xl font-black">Total</span>
+                    <span className="text-2xl font-black text-foreground">Total Due</span>
                     <span className="text-4xl font-black text-secondary">
                       ₦{grandTotal.toLocaleString()}
                     </span>
