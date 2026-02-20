@@ -59,3 +59,11 @@ export const dispatchHostelOrders = async (data: { hostelId: string }) => {
     const fn = httpsCallable(functions, 'dispatchHostelOrders');
     return fn(data);
 };
+export const verifyPayment = async (data: { reference: string; orderData: any }) => {
+    if (import.meta.env.DEV) {
+        console.log("Mocking payment verification for DEV", data.reference);
+        return { data: { success: true, message: "Payment Verified (MOCK)" } };
+    }
+    const fn = httpsCallable(functions, 'verifyPayment');
+    return fn(data);
+};

@@ -35,7 +35,18 @@ export const getMenu = async (): Promise<MenuItem[]> => {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem));
 };
 
-// Orders (Admin)
+// Orders (Admin - All)
+export const subscribeToAllOrders = (callback: (orders: any[]) => void) => {
+    const q = query(
+        collection(db, 'orders'),
+        orderBy('createdAt', 'desc')
+    );
+    return onSnapshot(q, (snapshot) => {
+        callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+};
+
+// Orders (Admin - by Hostel)
 export const subscribeToHostelOrders = (hostelId: string, callback: (orders: any[]) => void) => {
     const q = query(
         collection(db, 'orders'),

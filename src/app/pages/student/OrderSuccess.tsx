@@ -35,36 +35,7 @@ export default function OrderSuccess() {
   const [showTracking, setShowTracking] = useState(false);
   const [persisted, setPersisted] = useState(false);
 
-  // Persist Order to Firestore
-  useEffect(() => {
-    const saveOrder = async () => {
-      if (persisted || orderId === 'CD-12345') return;
-
-      try {
-        await createOrder({
-          orderId,
-          fullName,
-          phone,
-          hostel,
-          room,
-          total,
-          plates,
-          drinksSnacks,
-          cafeteria,
-          cafeteriaId,
-          sectionId,
-          paymentReference: reference,
-          status: 'PAID',
-          assignedRiderIds: []
-        });
-        setPersisted(true);
-      } catch (error) {
-        console.error("Error persisting order:", error);
-      }
-    };
-
-    saveOrder();
-  }, [orderId, persisted]);
+  // No longer persisting here. Order is persisted in Checkout.tsx after verification.
 
   // Simulate order progress
   useEffect(() => {
@@ -142,7 +113,7 @@ export default function OrderSuccess() {
 
               <Link to="/">
                 <Button variant="ghost" size="lg" className="w-full opacity-60 hover:opacity-100">
-                  Return to Dashboard
+                  Return to cafeteria
                 </Button>
               </Link>
             </div>

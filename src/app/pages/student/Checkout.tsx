@@ -6,8 +6,8 @@ import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
 import { Input, Select, Textarea } from '../../components/design-system/Input';
 import { ArrowLeft, Lock, Shield, CreditCard, MapPin, User, Phone } from 'lucide-react';
-import { getActiveHostels, Hostel } from '../../../services/db';
-import { calculateOrderTotal } from '../../../services/functions';
+import { getActiveHostels, Hostel, createOrder } from '../../../services/db';
+import { calculateOrderTotal, verifyPayment } from '../../../services/functions';
 import { usePaystackPayment } from 'react-paystack';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
@@ -59,6 +59,18 @@ export default function Checkout() {
     fetchHostels();
   }, []);
 
+  // Calculate Order Items for calculation and Paystack metadata
+  const items = React.useMemo(() => {
+    return [
+      ...plates.flatMap((p: any) => p.items.map((pi: any) => ({
+        id: pi.item.id,
+        price: pi.item.price,
+        quantity: pi.quantity
+      }))),
+      ...Object.entries(drinksSnacks).map(([id, qty]) => ({ id, quantity: qty as number }))
+    ];
+  }, [plates, drinksSnacks]);
+
   // Calculate Order Total (Server-Side)
   useEffect(() => {
     const fetchTotal = async () => {
@@ -66,15 +78,6 @@ export default function Checkout() {
 
       setCalculating(true);
       try {
-        const items = [
-          ...plates.flatMap((p: any) => p.items.map((pi: any) => ({
-            id: pi.item.id,
-            price: pi.item.price,
-            quantity: pi.quantity
-          }))),
-          ...Object.entries(drinksSnacks).map(([id, qty]) => ({ id, quantity: qty }))
-        ];
-
         const response = await calculateOrderTotal({
           items,
           deliveryMode,
@@ -93,30 +96,71 @@ export default function Checkout() {
     fetchTotal();
   }, [plates, drinksSnacks, deliveryMode, formData.hostel]);
 
+  const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
+
   const config = {
     reference: (new Date()).getTime().toString(),
     email: "guest@calebdeck.com",
-    amount: (orderTotal?.totalAmount || 0) * 100,
-    publicKey: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY as string,
+    amount: Math.round((orderTotal?.totalAmount || 0) * 100),
+    publicKey: paystackKey as string,
+    metadata: {
+      custom_fields: [
+        {
+          display_name: "Order Items",
+          variable_name: "order_items",
+          value: items.map(i => `${i.id} (x${i.quantity})`).join(', ')
+        },
+        {
+          display_name: "Student Name",
+          variable_name: "student_name",
+          value: formData.fullName
+        },
+        {
+          display_name: "Hostel",
+          variable_name: "hostel",
+          value: `${formData.hostel} - Room ${formData.room}`
+        }
+      ]
+    }
   };
 
   const initializePayment = usePaystackPayment(config);
 
-  const onSuccess = (reference: any) => {
+  const onSuccess = async (reference: any) => {
+    setCalculating(true);
     const orderId = `CD-${Math.floor(10000 + Math.random() * 90000)}`;
-    navigate('/order-success', {
-      state: {
-        orderId,
-        ...formData,
-        total: orderTotal?.totalAmount,
-        reference,
-        plates,
-        drinksSnacks: drinksSnacksItems,
-        cafeteria,
-        cafeteriaId,
-        sectionId
-      }
-    });
+
+    const orderData = {
+      orderId,
+      ...formData,
+      total: orderTotal?.totalAmount,
+      plates,
+      drinksSnacks: drinksSnacksItems,
+      cafeteria,
+      cafeteriaId,
+      sectionId,
+      paymentReference: reference.reference,
+      status: 'PAID' as const,
+      assignedRiderIds: []
+    };
+
+    try {
+      // 1. Securely verify payment on backend
+      await verifyPayment({
+        reference: reference.reference,
+        orderData
+      });
+
+      // 2. Persist to Firestore (Ideally the backend does this, but keeping it here for hybrid/unblocked flow)
+      await createOrder(orderData);
+
+      navigate('/order-success', { state: orderData });
+    } catch (error) {
+      console.error("Verification error:", error);
+      toast.error("Payment verification failed. Please contact support.");
+    } finally {
+      setCalculating(false);
+    }
   };
 
   const onClose = () => {
