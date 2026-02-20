@@ -11,6 +11,8 @@ import { useTheme } from '../../../context/ThemeContext';
 
 import { createOrder } from '../../../services/db';
 
+import { getRiderById, Rider } from '../../../services/db';
+
 const TRACKING_STEPS = ['Preparing', 'Picked Up', 'On The Way', 'Delivered'];
 
 export default function OrderSuccess() {
@@ -28,14 +30,20 @@ export default function OrderSuccess() {
     cafeteria = '',
     cafeteriaId = '',
     sectionId = '',
-    reference = ''
+    reference = '',
+    assignedRiderId = null
   } = location.state || {};
 
   const [currentStep, setCurrentStep] = useState(0);
   const [showTracking, setShowTracking] = useState(false);
-  const [persisted, setPersisted] = useState(false);
+  const [rider, setRider] = useState<Rider | null>(null);
 
-  // No longer persisting here. Order is persisted in Checkout.tsx after verification.
+  // Fetch Rider Details
+  useEffect(() => {
+    if (assignedRiderId) {
+      getRiderById(assignedRiderId).then(setRider);
+    }
+  }, [assignedRiderId]);
 
   // Simulate order progress
   useEffect(() => {
@@ -77,6 +85,21 @@ export default function OrderSuccess() {
               <p className="text-xs text-muted-foreground uppercase tracking-widest font-black mb-1 opacity-60">Ticket Number</p>
               <p className="text-3xl font-black text-foreground">{orderId}</p>
             </div>
+
+            {rider && (
+              <Card className="mb-10 p-6 bg-secondary/5 border-2 border-secondary/20 rounded-[2.5rem] flex items-center justify-between animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center gap-4 text-left">
+                  <div className="w-14 h-14 rounded-2xl bg-secondary text-secondary-foreground flex items-center justify-center font-black text-xl">
+                    {rider.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-secondary uppercase tracking-widest">Assigned Rider</p>
+                    <p className="text-lg font-black">{rider.name}</p>
+                  </div>
+                </div>
+                <Badge variant="gold" className="font-black italic">DISPATCHING</Badge>
+              </Card>
+            )}
 
             <Card className="text-left mb-10 p-8 border-none shadow-2xl bg-card">
               <div className="space-y-6">
@@ -167,25 +190,27 @@ export default function OrderSuccess() {
         {/* Info Cards */}
         <div className="grid md:grid-cols-2 gap-8 mb-12">
           {/* Rider Info */}
-          {currentStep >= 1 ? (
+          {rider ? (
             <Card className="bg-card/50 backdrop-blur-sm border-none shadow-xl border-t-4 border-t-secondary">
               <div className="flex items-start gap-6">
                 <div className="relative">
                   <div className="w-20 h-20 rounded-3xl bg-secondary text-secondary-foreground flex items-center justify-center font-black text-3xl shadow-2xl">
-                    S
+                    {rider.name.charAt(0)}
                   </div>
                   <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-green-500 border-4 border-card flex items-center justify-center">
                     <div className="w-2 h-2 rounded-full bg-white"></div>
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-2xl font-black mb-1">Samuel O.</h3>
+                  <h3 className="text-2xl font-black mb-1">{rider.name}</h3>
                   <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight mb-4">Your Professional Rider</p>
 
-                  <Button variant="secondary" size="md" className="w-full rounded-2xl py-5">
-                    <Phone className="w-4 h-4" />
-                    Connect via Call
-                  </Button>
+                  <a href={`tel:${rider.phone}`} className="block">
+                    <Button variant="secondary" size="md" className="w-full rounded-2xl py-5">
+                      <Phone className="w-4 h-4" />
+                      Connect via Call
+                    </Button>
+                  </a>
                 </div>
               </div>
             </Card>

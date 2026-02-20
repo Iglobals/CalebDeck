@@ -130,6 +130,13 @@ export default function Checkout() {
     setCalculating(true);
     const orderId = `CD-${Math.floor(10000 + Math.random() * 90000)}`;
 
+    // 1. Find assigned rider for this hostel
+    const selectedHostel = hostels.find(h => h.id === formData.hostel);
+    const assignedRiderIds = selectedHostel?.assignedRiderIds || [];
+
+    // Pick a rider (Ideally we check availability, but for now we pick the first one as a reference as per user request to not block payment)
+    const primaryRiderId = assignedRiderIds.length > 0 ? assignedRiderIds[0] : null;
+
     const orderData = {
       orderId,
       ...formData,
@@ -141,7 +148,9 @@ export default function Checkout() {
       sectionId,
       paymentReference: reference.reference,
       status: 'PAID' as const,
-      assignedRiderIds: []
+      assignedRiderId: primaryRiderId, // Store ONE active reference
+      assignedRiderIds: assignedRiderIds, // Store ALL for admin visibility
+      updatedAt: new Date().toISOString()
     };
 
     try {
@@ -151,7 +160,7 @@ export default function Checkout() {
         orderData
       });
 
-      // 2. Persist to Firestore (Ideally the backend does this, but keeping it here for hybrid/unblocked flow)
+      // 2. Persist to Firestore
       await createOrder(orderData);
 
       navigate('/order-success', { state: orderData });

@@ -4,27 +4,39 @@ import { doc, writeBatch } from 'firebase/firestore';
 export const seedData = async () => {
     const batch = writeBatch(db);
 
-    // 1. Hostels
-    const hostels = [
-        { id: 'deborah', name: 'Deborah Hall', gender: 'female', assignedRiderIds: [] },
-        { id: 'mercy', name: 'Mercy Hall', gender: 'female', assignedRiderIds: [] },
-        { id: 'mary', name: 'Mary Hall', gender: 'female', assignedRiderIds: [] },
-        { id: 'esme', name: 'Esme Hall', gender: 'female', assignedRiderIds: [] },
-        { id: 'rebecca', name: 'Rebecca Hall', gender: 'female', assignedRiderIds: [] },
-        { id: 'sussana', name: 'Sussana Hall', gender: 'female', assignedRiderIds: [] },
-        { id: 'levi', name: 'Levi Hall', gender: 'male', assignedRiderIds: [] },
-        { id: 'integrity', name: 'Integrity Hall', gender: 'male', assignedRiderIds: [] },
-        { id: 'elisha', name: 'Elisha Hall', gender: 'male', assignedRiderIds: [] },
-        { id: 'joseph', name: 'Joseph Hall', gender: 'male', assignedRiderIds: [] },
-        { id: 'joshua', name: 'Joshua Hall', gender: 'male', assignedRiderIds: [] },
+    // 2. Riders
+    const riders = [
+        { id: 'rider_samuel', name: 'Samuel Alabi', phone: '08012345678', dept: 'Engineering', status: 'available', assignedHostelIds: ['deborah', 'mercy', 'mary'] },
+        { id: 'rider_daniel', name: 'Daniel Okon', phone: '08123456789', dept: 'Physical Sciences', status: 'busy', assignedHostelIds: ['levi', 'integrity', 'elisha'] },
+        { id: 'rider_favour', name: 'Favour Adeeye', phone: '09034567890', dept: 'Arts', status: 'available', assignedHostelIds: ['sussana', 'rebecca', 'esme'] },
     ];
 
-    hostels.forEach((hostel) => {
+    riders.forEach((rider) => {
+        const ref = doc(db, 'riders', rider.id);
+        batch.set(ref, rider, { merge: true });
+    });
+
+    // Update Hostels with Rider IDs
+    const hostelsWithRiders = [
+        { id: 'deborah', name: 'Deborah Hall', gender: 'female', assignedRiderIds: ['rider_samuel'] },
+        { id: 'mercy', name: 'Mercy Hall', gender: 'female', assignedRiderIds: ['rider_samuel'] },
+        { id: 'mary', name: 'Mary Hall', gender: 'female', assignedRiderIds: ['rider_samuel'] },
+        { id: 'esme', name: 'Esme Hall', gender: 'female', assignedRiderIds: ['rider_favour'] },
+        { id: 'rebecca', name: 'Rebecca Hall', gender: 'female', assignedRiderIds: ['rider_favour'] },
+        { id: 'sussana', name: 'Sussana Hall', gender: 'female', assignedRiderIds: ['rider_favour'] },
+        { id: 'levi', name: 'Levi Hall', gender: 'male', assignedRiderIds: ['rider_daniel'] },
+        { id: 'integrity', name: 'Integrity Hall', gender: 'male', assignedRiderIds: ['rider_daniel'] },
+        { id: 'elisha', name: 'Elisha Hall', gender: 'male', assignedRiderIds: ['rider_daniel'] },
+        { id: 'joseph', name: 'Joseph Hall', gender: 'male', assignedRiderIds: ['rider_daniel'] },
+        { id: 'joshua', name: 'Joshua Hall', gender: 'male', assignedRiderIds: ['rider_daniel'] },
+    ];
+
+    hostelsWithRiders.forEach((hostel) => {
         const ref = doc(db, 'hostels', hostel.id);
         batch.set(ref, { ...hostel, isActive: true }, { merge: true });
     });
 
-    // Data Helpers
+    // 3. Menu Items
     const generateMenuForSection = (cafeteriaId: string, sectionId: 'front' | 'back', priceModifier = 1) => {
         const rawItems = [
             // Bases
