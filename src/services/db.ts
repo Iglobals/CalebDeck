@@ -71,12 +71,15 @@ export const subscribeToHostelOrders = (hostelId: string, callback: (orders: any
 };
 
 // Orders (Rider)
-export const subscribeToRiderOrders = (riderId: string, callback: (orders: any[]) => void) => {
-    // Note: This requires an index usually if combining array-contains with orderBy
+export const subscribeToRiderOrdersByHostels = (hostelIds: string[], callback: (orders: any[]) => void) => {
+    if (!hostelIds || hostelIds.length === 0) {
+        callback([]);
+        return () => { };
+    }
     const q = query(
         collection(db, 'orders'),
-        where('assignedRiderIds', 'array-contains', riderId),
-        where('status', 'in', ['ASSIGNED', 'DELIVERED']), // Maybe just all?
+        where('hostelId', 'in', hostelIds.slice(0, 10)), // Firestore 'in' limit is 10
+        where('status', 'in', ['PAID', 'OUT_FOR_DELIVERY', 'DELIVERED']),
         orderBy('createdAt', 'desc')
     );
     return onSnapshot(q, (snapshot) => {

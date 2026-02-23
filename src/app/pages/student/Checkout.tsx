@@ -205,7 +205,7 @@ export default function Checkout() {
           </div>
           <h2 className="text-3xl font-bold mb-4">No Active Order</h2>
           <p className="text-muted-foreground mb-10 text-lg">Your cart is currently empty. Head back to build your perfect meal.</p>
-          <Link to="/plate-builder" className="inline-block w-full">
+          <Link to="/cafeteria" className="inline-block w-full">
             <Button variant="primary" className="w-full py-6 text-xl rounded-2xl">Start Ordering</Button>
           </Link>
         </Card>
@@ -219,11 +219,9 @@ export default function Checkout() {
       <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border shadow-sm transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/plate-builder">
-              <button className="p-2 hover:bg-muted rounded-xl transition-colors">
-                <ArrowLeft className="w-6 h-6 text-foreground" />
-              </button>
-            </Link>
+            <button onClick={() => window.history.back()} className="p-2 hover:bg-muted rounded-xl transition-colors">
+              <ArrowLeft className="w-6 h-6 text-foreground" />
+            </button>
             <h1 className="text-2xl font-bold tracking-tight">Checkout</h1>
           </div>
           <Logo size="sm" />

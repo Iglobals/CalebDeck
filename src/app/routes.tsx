@@ -37,12 +37,12 @@ export const router = createBrowserRouter([
       },
 
       /* Admin Flow */
+      { path: "/admin/login", Component: AdminLogin },
       {
         path: "/admin",
         element: <AdminRoleWrapper />,
         children: [
           { index: true, Component: AdminDashboard },
-          { path: "login", Component: AdminLogin },
           { path: "orders", Component: AdminOrders },
           { path: "riders", Component: RiderManagement },
           { path: "menu", Component: MenuManagement },
@@ -51,12 +51,12 @@ export const router = createBrowserRouter([
       },
 
       /* Rider Flow */
+      { path: "/rider/login", Component: RiderLogin },
       {
         path: "/rider",
         element: <RiderRoleWrapper />,
         children: [
           { index: true, Component: RiderDashboard },
-          { path: "login", Component: RiderLogin },
         ]
       },
     ]

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router';
+import { Link, useNavigate, useLocation, useParams } from 'react-router';
 import { Logo } from '../../components/design-system/Logo';
 import { GlassCard } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
@@ -13,7 +13,9 @@ import {
   CollapsibleContent
 } from '../../components/ui/collapsible';
 
-import { getMenu, MenuItem } from '../../../services/db';
+import { MenuItem } from '../../../services/db';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../../../services/firebase';
 import { useTheme } from '../../../context/ThemeContext';
 
 interface PlateItem {
@@ -37,8 +39,9 @@ export default function PlateBuilder() {
   const location = useLocation();
   const { studentTheme } = useTheme();
 
+  const params = useParams<{ cafeteriaId: string }>();
   const cafeteria = location.state?.cafeteria || 'Old Cafeteria';
-  const cafeteriaId = location.state?.cafeteriaId || 'old';
+  const cafeteriaId = params.cafeteriaId || location.state?.cafeteriaId || 'old';
   const sectionId = location.state?.sectionId || 'front';
 
   const [foodItems, setFoodItems] = useState<MenuItem[]>([]);
@@ -46,27 +49,18 @@ export default function PlateBuilder() {
   const [platesExpanded, setPlatesExpanded] = useState(true);
   const [addonsExpanded, setAddonsExpanded] = useState(true);
 
+  // Real-time subscription — fetch all items for this cafeteria/section (including unavailable for overlay)
   useEffect(() => {
-    const fetchMenu = async () => {
-      try {
-        setLoading(true);
-        const allMenu = await getMenu();
-        const menu = allMenu.filter(item =>
-          item.cafeteriaId === cafeteriaId &&
-          item.sectionId === sectionId
-        );
-
-        if (menu.length === 0) {
-          console.warn(`No menu items found for ${cafeteriaId}.`);
-        }
-        setFoodItems(menu);
-      } catch (error) {
-        console.error("Failed to fetch menu:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchMenu();
+    const q = query(
+      collection(db, 'menu_items'),
+      where('cafeteriaId', '==', cafeteriaId),
+      where('sectionId', '==', sectionId)
+    );
+    const unsub = onSnapshot(q, (snapshot) => {
+      setFoodItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem)));
+      setLoading(false);
+    });
+    return () => unsub();
   }, [cafeteriaId, sectionId]);
 
   const [builderType, setBuilderType] = useState<'main' | 'swallow'>('main');
@@ -264,7 +258,7 @@ export default function PlateBuilder() {
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {foodItems.filter(f => f.category === 'base').map(item => (
-                      <GlassCard key={item.id} selected={currentBuild[item.id] > 0}>
+                      <GlassCard key={item.id} selected={currentBuild[item.id] > 0} unavailable={!item.isAvailable}>
                         <div className="space-y-3">
                           <div className="aspect-square rounded-xl overflow-hidden shadow-inner">
                             <ImageWithFallback
@@ -308,7 +302,7 @@ export default function PlateBuilder() {
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {foodItems.filter(f => f.category === 'protein').map(item => (
-                      <GlassCard key={item.id} selected={currentBuild[item.id] > 0}>
+                      <GlassCard key={item.id} selected={currentBuild[item.id] > 0} unavailable={!item.isAvailable}>
                         <div className="space-y-3">
                           <div className="aspect-square rounded-xl overflow-hidden shadow-inner">
                             <ImageWithFallback
@@ -352,7 +346,7 @@ export default function PlateBuilder() {
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {foodItems.filter(f => f.category === 'extra').map(item => (
-                      <GlassCard key={item.id} selected={currentBuild[item.id] > 0}>
+                      <GlassCard key={item.id} selected={currentBuild[item.id] > 0} unavailable={!item.isAvailable}>
                         <div className="space-y-3">
                           <div className="aspect-square rounded-xl overflow-hidden shadow-inner">
                             <ImageWithFallback
@@ -398,7 +392,7 @@ export default function PlateBuilder() {
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {foodItems.filter(f => f.category === 'swallow').map(item => (
-                      <GlassCard key={item.id} selected={selectedSwallow === item.id}>
+                      <GlassCard key={item.id} selected={selectedSwallow === item.id} unavailable={!item.isAvailable}>
                         <div className="space-y-3">
                           <div className="aspect-square rounded-xl overflow-hidden shadow-inner">
                             <ImageWithFallback
@@ -453,7 +447,7 @@ export default function PlateBuilder() {
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {foodItems.filter(f => f.category === 'soup').map(item => (
-                      <GlassCard key={item.id} selected={selectedSoup === item.id}>
+                      <GlassCard key={item.id} selected={selectedSoup === item.id} unavailable={!item.isAvailable}>
                         <div className="space-y-3">
                           <div className="aspect-square rounded-xl overflow-hidden shadow-inner">
                             <ImageWithFallback
@@ -508,7 +502,7 @@ export default function PlateBuilder() {
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {foodItems.filter(f => f.category === 'protein').map(item => (
-                      <GlassCard key={item.id} selected={currentBuild[item.id] > 0}>
+                      <GlassCard key={item.id} selected={currentBuild[item.id] > 0} unavailable={!item.isAvailable}>
                         <div className="space-y-3">
                           <div className="aspect-square rounded-xl overflow-hidden shadow-inner">
                             <ImageWithFallback
@@ -582,7 +576,7 @@ export default function PlateBuilder() {
                     <h4 className="text-lg font-bold text-card-foreground mb-4">Drinks</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {foodItems.filter(f => f.category === 'drink').map(item => (
-                        <GlassCard key={item.id} selected={drinksSnacks[item.id] > 0}>
+                        <GlassCard key={item.id} selected={drinksSnacks[item.id] > 0} unavailable={!item.isAvailable}>
                           <div className="space-y-3">
                             <div className="aspect-square rounded-xl overflow-hidden">
                               <ImageWithFallback
@@ -622,7 +616,7 @@ export default function PlateBuilder() {
                     <h4 className="text-lg font-bold text-card-foreground mb-4">Snacks</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {foodItems.filter(f => f.category === 'snack').map(item => (
-                        <GlassCard key={item.id} selected={drinksSnacks[item.id] > 0}>
+                        <GlassCard key={item.id} selected={drinksSnacks[item.id] > 0} unavailable={!item.isAvailable}>
                           <div className="space-y-3">
                             <div className="aspect-square rounded-xl overflow-hidden">
                               <ImageWithFallback

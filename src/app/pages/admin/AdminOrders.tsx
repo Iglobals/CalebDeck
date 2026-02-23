@@ -24,6 +24,7 @@ export default function AdminOrders() {
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [dispatchedOrders, setDispatchedOrders] = useState<Set<string>>(new Set());
     const { adminTheme } = useTheme();
 
     useEffect(() => {
@@ -44,24 +45,19 @@ export default function AdminOrders() {
 
     const handlePrint = (order: any) => {
         const printWindow = window.open('', '_blank');
-        if (!printWindow) return;
-
-        const isDark = adminTheme === 'dark';
+        if (!printWindow) {
+            alert('Please allow popups for this site to print tickets.');
+            return;
+        }
 
         const html = `
             <html>
                 <head>
-                    <title>Order ${order.orderId}</title>
+                    <title>Order Ticket - ${order.orderId}</title>
                     <style>
                         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-                        body { 
-                            font-family: 'Inter', sans-serif; 
-                            background: white; 
-                            color: #1A1A1A; 
-                            padding: 40px;
-                            max-width: 500px;
-                            margin: 0 auto;
-                        }
+                        * { box-sizing: border-box; margin: 0; padding: 0; }
+                        body { font-family: 'Inter', sans-serif; background: white; color: #1A1A1A; padding: 40px; max-width: 480px; margin: 0 auto; }
                         .header { border-bottom: 4px solid #7C3AED; padding-bottom: 20px; margin-bottom: 30px; text-align: center; }
                         .logo { font-size: 28px; font-weight: 900; letter-spacing: -1px; color: #1A1A1A; }
                         .logo span { color: #7C3AED; }
@@ -70,8 +66,9 @@ export default function AdminOrders() {
                         .label { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; color: #9C8F7F; margin-bottom: 8px; }
                         .value { font-size: 18px; font-weight: 900; }
                         .item-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed #eee; font-size: 14px; }
+                        .plate-header { font-size: 11px; font-weight: 900; color: #7C3AED; text-transform: uppercase; letter-spacing: 2px; margin: 14px 0 8px; }
                         .footer { margin-top: 40px; border-top: 2px solid #7C3AED; padding-top: 20px; text-align: center; font-size: 12px; font-weight: 700; color: #9C8F7F; }
-                        .total { font-size: 24px; font-weight: 900; color: #7C3AED; display: block; margin-top: 20px; }
+                        .total { font-size: 24px; font-weight: 900; color: #7C3AED; display: block; margin-top: 20px; text-align: right; }
                     </style>
                 </head>
                 <body>
@@ -79,70 +76,64 @@ export default function AdminOrders() {
                         <div class="logo">CALEB<span>DECK</span></div>
                         <div class="order-id">ORD-${order.orderId?.slice(-6) || 'XXXXXX'}</div>
                     </div>
-                    
                     <div class="section">
-                        <div class="label">Client</div>
-                        <div class="value">${order.fullName}</div>
-                        <div style="font-size: 14px; font-weight: 700;">${order.phone}</div>
+                        <div class="label">Student</div>
+                        <div class="value">${order.fullName || 'N/A'}</div>
+                        <div style="font-size: 14px; font-weight: 700; margin-top: 4px;">${order.phone || ''}</div>
                     </div>
-
                     <div class="section">
-                        <div class="label">Drop-off Point</div>
-                        <div class="value">${order.hostel}</div>
-                        <div style="font-size: 14px; font-weight: 700;">Room ${order.room}</div>
+                        <div class="label">Delivery Location</div>
+                        <div class="value">${order.hostel || 'N/A'}</div>
+                        <div style="font-size: 14px; font-weight: 700; margin-top: 4px;">Room ${order.room || 'N/A'}</div>
                     </div>
-
                     <div class="section">
-                        <div class="label">Order Manifest</div>
+                        <div class="label">Order Details</div>
                         ${(order.plates || []).map((p: any, i: number) => `
-                            <div style="margin-top: 15px;">
-                                <div style="font-size: 12px; font-weight: 900; color: #7C3AED;">PLATE #${i + 1} - ${p.type}</div>
-                                ${p.items.map((it: any) => `
-                                    <div class="item-row">
-                                        <span>${it.item.name} x${it.quantity}</span>
-                                        <span>₦${(it.item.price * it.quantity).toLocaleString()}</span>
-                                    </div>
-                                `).join('')}
-                            </div>
+                            <div class="plate-header">Plate #${i + 1} — ${p.type || ''}</div>
+                            ${(p.items || []).map((it: any) => `
+                                <div class="item-row">
+                                    <span>${it.item?.name || 'Item'} × ${it.quantity}</span>
+                                    <span>₦${((it.item?.price || 0) * it.quantity).toLocaleString()}</span>
+                                </div>
+                            `).join('')}
                         `).join('')}
-                        
                         ${(order.drinksSnacks || []).length > 0 ? `
-                            <div style="margin-top: 15px;">
-                                <div style="font-size: 12px; font-weight: 900; color: #FCD34D;">SUPPLEMENTAL ITEMS</div>
-                                ${order.drinksSnacks.map((it: any) => `
-                                    <div class="item-row">
-                                        <span>${it.name} x${it.quantity}</span>
-                                        <span>₦${(it.price * it.quantity).toLocaleString()}</span>
-                                    </div>
-                                `).join('')}
-                            </div>
+                            <div class="plate-header" style="color:#FCD34D">Extras</div>
+                            ${order.drinksSnacks.map((it: any) => `
+                                <div class="item-row">
+                                    <span>${it.name} × ${it.quantity || 1}</span>
+                                    <span>₦${((it.price || 0) * (it.quantity || 1)).toLocaleString()}</span>
+                                </div>
+                            `).join('')}
                         ` : ''}
                     </div>
-
-                    <div class="total text-right">
-                        <div class="label">Settlement Total</div>
-                        ₦${(order.total || 0).toLocaleString()}
-                    </div>
-
+                    <div class="total">Total: ₦${(order.total || 0).toLocaleString()}</div>
                     <div class="footer">
-                        THANK YOU FOR ORDERING WITH CALEBDECK<br>
+                        Thank you for ordering with CalebDeck<br/>
                         ${new Date().toLocaleString()}
                     </div>
-                    <script>window.print();</script>
                 </body>
             </html>
         `;
 
         printWindow.document.write(html);
         printWindow.document.close();
+        // Small delay needed for fonts to load before print dialog
+        setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+        }, 800);
     };
 
     const handleFinalizeDispatch = async (orderId: string) => {
+        if (dispatchedOrders.has(orderId)) return;
         try {
             await updateOrder(orderId, { status: 'OUT_FOR_DELIVERY' });
-            alert("Order dispatched and status updated in Firestore.");
+            setDispatchedOrders(prev => new Set(prev).add(orderId));
+            // Update selectedOrder state to reflect the new status
+            setSelectedOrder((prev: any) => prev ? { ...prev, status: 'OUT_FOR_DELIVERY' } : null);
         } catch (error) {
-            console.error(error);
+            console.error('Failed to dispatch order:', error);
         }
     };
 
@@ -174,10 +165,7 @@ export default function AdminOrders() {
                         <div className="flex gap-3">
                             <Button variant="ghost" className={`px-5 py-3 rounded-xl font-bold text-xs uppercase tracking-widest ${isDark ? 'text-[#9C8F7F] hover:text-white hover:bg-[#2A2A2A]' : 'text-gray-500'}`}>
                                 <Printer className="w-4 h-4" />
-                                <span className="hidden sm:inline">Export CSV</span>
-                            </Button>
-                            <Button variant="primary" className="px-8 py-3 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] bg-[#7C3AED] hover:bg-[#6D28D9] text-white shadow-lg shadow-[#7C3AED]/20">
-                                Dispatch Batch
+                                <span className="hidden sm:inline">Print All</span>
                             </Button>
                         </div>
                     </div>
@@ -355,8 +343,16 @@ export default function AdminOrders() {
                                 <Button
                                     variant="primary"
                                     onClick={() => handleFinalizeDispatch(selectedOrder.id)}
-                                    className="flex-1 sm:flex-initial px-10 py-4 rounded-xl font-bold uppercase text-[10px] tracking-[0.2em] bg-[#7C3AED] hover:bg-[#6D28D9] text-white shadow-2xl shadow-[#7C3AED]/20">
-                                    Finalize Dispatch
+                                    disabled={dispatchedOrders.has(selectedOrder.id) || selectedOrder.status === 'OUT_FOR_DELIVERY' || selectedOrder.status === 'DELIVERED'}
+                                    className={`flex-1 sm:flex-initial px-10 py-4 rounded-xl font-bold uppercase text-[10px] tracking-[0.2em] shadow-2xl shadow-[#7C3AED]/20 transition-all ${dispatchedOrders.has(selectedOrder.id) || selectedOrder.status === 'OUT_FOR_DELIVERY' || selectedOrder.status === 'DELIVERED'
+                                            ? 'bg-green-500/20 text-green-500 cursor-not-allowed'
+                                            : 'bg-[#7C3AED] hover:bg-[#6D28D9] text-white'
+                                        }`}>
+                                    {dispatchedOrders.has(selectedOrder.id) || selectedOrder.status === 'OUT_FOR_DELIVERY'
+                                        ? '✓ Dispatched'
+                                        : selectedOrder.status === 'DELIVERED'
+                                            ? '✓ Delivered'
+                                            : 'Dispatch Order'}
                                 </Button>
                             </div>
                         </div>

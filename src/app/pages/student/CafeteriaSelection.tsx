@@ -41,7 +41,7 @@ export default function CafeteriaSelection() {
 
   const handleSectionSelect = (sectionId: string) => {
     const cafeteriaName = cafeterias.find(c => c.id === selectedCafeteria)?.name;
-    navigate('/plate-builder', {
+    navigate(`/plate-builder/${selectedCafeteria}`, {
       state: {
         cafeteria: cafeteriaName,
         cafeteriaId: selectedCafeteria,

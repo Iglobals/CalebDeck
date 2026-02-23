@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { subscribeToAllOrders } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
+import { formatDistanceToNow, isToday, isYesterday, format } from 'date-fns';
 
 export default function AdminDashboard() {
   const { adminTheme } = useTheme();
@@ -26,6 +27,23 @@ export default function AdminDashboard() {
     });
     return () => unsub();
   }, []);
+
+  const parseDate = (d: any) => d?.seconds ? new Date(d.seconds * 1000) : d ? new Date(d) : null;
+
+  // Only show orders from the last 24 hours in the recent orders section
+  const recentOrders = orders.filter(o => {
+    const d = parseDate(o.createdAt);
+    if (!d) return false;
+    return Date.now() - d.getTime() < 24 * 60 * 60 * 1000;
+  }).slice(0, 8);
+
+  const formatOrderTime = (d: any) => {
+    const date = parseDate(d);
+    if (!date) return 'N/A';
+    if (isToday(date)) return formatDistanceToNow(date, { addSuffix: true });
+    if (isYesterday(date)) return 'Yesterday ' + format(date, 'h:mm a');
+    return format(date, 'MMM d, h:mm a');
+  };
 
   const isDark = adminTheme === 'dark';
   const today = new Date().toLocaleDateString();
@@ -179,7 +197,7 @@ export default function AdminDashboard() {
 
       {/* Recent Orders Table */}
       <div>
-        <h2 className={`text-xl lg:text-2xl font-bold mb-4 lg:mb-6 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Recent Orders</h2>
+        <h2 className={`text-xl lg:text-2xl font-bold mb-4 lg:mb-6 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Recent Orders <span className={`text-sm font-medium ml-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>(last 24h)</span></h2>
         <Card className={`p-0 overflow-hidden ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'}`}>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -195,7 +213,13 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className={`divide-y ${isDark ? 'divide-[#333333]' : 'divide-gray-50'}`}>
-                {orders.slice(0, 5).map((order) => (
+                {recentOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className={`py-12 text-center text-sm font-medium ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
+                      No orders in the last 24 hours
+                    </td>
+                  </tr>
+                ) : recentOrders.map((order) => (
                   <tr key={order.id} className={`transition-colors ${isDark ? 'hover:bg-[#2A2A2A]' : 'hover:bg-gray-50'}`}>
                     <td className="py-4 px-6">
                       <span className={`font-mono font-bold text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>CD-{order.orderId?.slice(-5) || '38492'}</span>
@@ -217,7 +241,7 @@ export default function AdminDashboard() {
                       </Badge>
                     </td>
                     <td className={`hidden lg:table-cell py-4 px-6 text-xs font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
-                      {order.createdAt ? '2 min ago' : 'Just now'}
+                      {formatOrderTime(order.createdAt)}
                     </td>
                   </tr>
                 ))}
