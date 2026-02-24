@@ -149,8 +149,15 @@ export const updateMenuItem = async (id: string, updates: Partial<MenuItem>) => 
 };
 
 export const addMenuItem = async (item: Omit<MenuItem, 'id'>) => {
-    const docRef = await addDoc(collection(db, 'menu_items'), item); // Original collection name was 'menu_items'
-    return docRef.id;
+    // Generate a readable, structured ID: e.g. "old_front_jollof_rice"
+    const slug = item.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    const cafId = item.cafeteriaId || 'old';
+    const secId = item.sectionId || 'front';
+    const docId = `${cafId}_${secId}_${slug}`;
+
+    const docRef = doc(db, 'menu_items', docId);
+    await setDoc(docRef, { ...item, cafeteriaId: cafId, sectionId: secId }, { merge: true });
+    return docId;
 };
 
 export const deleteMenuItem = async (id: string) => {
