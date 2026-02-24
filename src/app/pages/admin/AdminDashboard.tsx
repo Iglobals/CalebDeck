@@ -8,31 +8,32 @@ import {
   DollarSign,
   TrendingUp,
   Package,
-  Clock,
   CheckCircle,
-  AlertCircle,
-  Users
+  Users,
+  Truck,
+  AlertTriangle,
+  User
 } from 'lucide-react';
-import { subscribeToAllOrders, subscribeToRiders, Rider } from '../../../services/db';
+import { subscribeToAllOrders, subscribeToRiders, subscribeToHostels, dispatchBatch, Rider, Hostel } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
-import { formatDistanceToNow, isToday, isYesterday, format } from 'date-fns';
+import { isToday, isYesterday, format } from 'date-fns';
 
 export default function AdminDashboard() {
   const { adminTheme } = useTheme();
   const [orders, setOrders] = useState<any[]>([]);
   const [riders, setRiders] = useState<Rider[]>([]);
+  const [hostels, setHostels] = useState<Hostel[]>([]);
+  const [dispatchingHostel, setDispatchingHostel] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsub = subscribeToAllOrders((newOrders) => {
-      setOrders(newOrders);
-    });
+    const unsub = subscribeToAllOrders(setOrders);
     const unsubRiders = subscribeToRiders(setRiders);
-    return () => { unsub(); unsubRiders(); };
+    const unsubHostels = subscribeToHostels(setHostels);
+    return () => { unsub(); unsubRiders(); unsubHostels(); };
   }, []);
 
   const parseDate = (d: any) => d?.seconds ? new Date(d.seconds * 1000) : d ? new Date(d) : null;
 
-  // Only show orders from the last 24 hours in the recent orders section
   const recentOrders = orders.filter(o => {
     const d = parseDate(o.createdAt);
     if (!d) return false;
@@ -57,60 +58,89 @@ export default function AdminDashboard() {
   });
 
   const totalRevenue = todayPaidOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-
-  // Assuming delivery fee is ~700 per plate for solo and ~560 for group (average ~600 for profit estimation if not stored)
-  // Or if we want to be precise, we should store deliveryFee in orderData. 
-  // For now, let's calculate based on plates.length * average fee as a proxy, or ideally use the breakdown if available.
   const totalNetProfit = todayPaidOrders.reduce((sum, o) => {
     const deliveryFee = o.deliveryMode === 'group' ? 560 : 700;
     return sum + (deliveryFee * (o.plates?.length || 1));
   }, 0);
 
-  // Calculate hostel batches dynamically
-  const hostelBatches = Array.from(new Set(orders.map(o => o.hostel || 'Main'))).map(hostel => {
-    const hostelOrders = orders.filter(o => (o.hostel || 'Main') === hostel && o.status === 'PAID');
+  // — Rider lookup helper —
+  const getRider = (id?: string) => riders.find(r => r.id === id) || null;
+
+  // — Build hostel cards from Firestore hostels —
+  const hostelCards = hostels.map(hostel => {
+    const pendingOrders = orders.filter(o => o.hostel === hostel.id && o.status === 'PAID');
+    const outOrders = orders.filter(o => o.hostel === hostel.id && o.status === 'OUT_FOR_DELIVERY');
+    const defaultRider = getRider(hostel.defaultRiderId);
+    const assistantRider = getRider(hostel.assistantRiderId);
+
+    // Automatic rider selection: default → assistant → null
+    let dispatchRider: Rider | null = null;
+    if (defaultRider?.status === 'available') {
+      dispatchRider = defaultRider;
+    } else if (assistantRider?.status === 'available') {
+      dispatchRider = assistantRider;
+    }
+
     return {
       hostel,
-      pendingOrders: hostelOrders.length,
-      totalPlates: hostelOrders.reduce((sum, o) => sum + (o.plates?.length || 0), 0),
-      riders: Array.from(new Set(hostelOrders.map(o => o.riderName).filter(Boolean))) as string[]
+      pendingOrders,
+      outOrders,
+      pendingCount: pendingOrders.length,
+      outCount: outOrders.length,
+      totalPlates: pendingOrders.reduce((sum, o) => sum + (o.plates?.length || 0), 0),
+      defaultRider,
+      assistantRider,
+      dispatchRider,
     };
-  }).filter(b => b.pendingOrders > 0).slice(0, 5);
+  });
+
+  const handleDispatch = async (card: typeof hostelCards[0]) => {
+    if (!card.dispatchRider || card.pendingCount === 0) return;
+    setDispatchingHostel(card.hostel.id);
+    try {
+      await dispatchBatch(card.hostel.id, card.hostel.name, card.dispatchRider, card.pendingOrders);
+    } catch (err) {
+      console.error('Dispatch failed:', err);
+    } finally {
+      setDispatchingHostel(null);
+    }
+  };
 
   const kpis = [
     {
       label: "Today's Orders",
       value: todayPaidOrders.length.toString(),
-      change: '+12%',
+      change: `${todayPaidOrders.filter(o => o.status === 'PAID').length} pending`,
       icon: <ShoppingBag className="w-6 h-6" />,
       color: '#7C3AED'
     },
     {
       label: 'Gross Revenue',
       value: `₦${totalRevenue.toLocaleString()}`,
-      change: '+8%',
+      change: `${todayPaidOrders.length} orders`,
       icon: <DollarSign className="w-6 h-6" />,
       color: '#FCD34D'
     },
     {
       label: 'Net Profit (Fees)',
       value: `₦${totalNetProfit.toLocaleString()}`,
-      change: '+15%',
+      change: 'delivery fees',
       icon: <CheckCircle className="w-6 h-6" />,
       color: '#10B981'
     },
     {
-      label: 'Active Riders',
-      value: riders.length.toString(),
-      change: `${riders.filter(r => r.status === 'available').length} online`,
+      label: 'Riders Online',
+      value: `${riders.filter(r => r.status === 'available').length}/${riders.filter(r => r.isActive !== false).length}`,
+      change: `${riders.filter(r => r.status === 'available').length} available`,
       icon: <Users className="w-6 h-6" />,
       color: '#7C3AED'
     },
   ];
 
-  const handleDispatch = (hostel: string) => {
-    alert(`Dispatching batch for ${hostel}. Riders will be automatically notified.`);
-  };
+  // Status indicator helper
+  const StatusDot = ({ status }: { status: string }) => (
+    <span className={`inline-block w-2 h-2 rounded-full ${status === 'available' ? 'bg-green-500' : status === 'busy' ? 'bg-yellow-500' : 'bg-gray-400'}`} />
+  );
 
   return (
     <AdminLayout title="Dashboard">
@@ -125,8 +155,7 @@ export default function AdminDashboard() {
               >
                 {kpi.icon}
               </div>
-              <Badge variant={kpi.change.startsWith('+') ? 'green' : 'gray'} className="text-[10px] font-black tracking-wider px-2 py-1">
-                <TrendingUp className="w-3 h-3" />
+              <Badge variant="gray" className="text-[10px] font-black tracking-wider px-2 py-1">
                 {kpi.change}
               </Badge>
             </div>
@@ -136,62 +165,116 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Hostel Groups */}
+      {/* Hostel Dispatch Cards */}
       <div className="mb-6 lg:mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 lg:mb-6 gap-4">
-          <h2 className={`text-xl lg:text-2xl font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Orders by Hostel</h2>
-          <div className="flex gap-3">
-            <Button variant="ghost" size="sm" className={isDark ? 'text-[#9C8F7F] hover:text-white hover:bg-[#2A2A2A]' : 'text-gray-500'}>
-              <Package className="w-4 h-4" />
-              <span className="hidden sm:inline">View All Batches</span>
-            </Button>
-          </div>
-        </div>
+        <h2 className={`text-xl lg:text-2xl font-bold mb-4 lg:mb-6 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Hostel Dispatch</h2>
 
         <div className="grid gap-4">
-          {hostelBatches.length > 0 ? hostelBatches.map((batch, index) => (
-            <Card key={index} className={isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100 shadow-sm'}>
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center gap-3 mb-3">
-                    <h3 className={`text-lg lg:text-xl font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{batch.hostel}</h3>
-                    {batch.pendingOrders > 0 && (
+          {hostelCards.length > 0 ? hostelCards.map((card) => (
+            <Card key={card.hostel.id} className={`${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100 shadow-sm'}`}>
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                {/* Hostel Info */}
+                <div className="flex-1 space-y-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h3 className={`text-lg lg:text-xl font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{card.hostel.name}</h3>
+                    {card.pendingCount > 0 && (
                       <Badge variant="gold" className="text-[10px] uppercase font-black px-2 py-0.5">
-                        {batch.pendingOrders} pending
+                        {card.pendingCount} pending
+                      </Badge>
+                    )}
+                    {card.outCount > 0 && (
+                      <Badge variant="purple" className="text-[10px] uppercase font-black px-2 py-0.5">
+                        {card.outCount} out for delivery
                       </Badge>
                     )}
                   </div>
+
+                  {/* Rider Info */}
+                  <div className={`flex flex-wrap gap-x-6 gap-y-2 text-sm ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4" />
+                      <span className="font-medium">Default:</span>
+                      {card.defaultRider ? (
+                        <span className="flex items-center gap-1.5">
+                          <span className={`font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{card.defaultRider.name}</span>
+                          <StatusDot status={card.defaultRider.status} />
+                        </span>
+                      ) : (
+                        <span className="italic">Not assigned</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4" />
+                      <span className="font-medium">Assistant:</span>
+                      {card.assistantRider ? (
+                        <span className="flex items-center gap-1.5">
+                          <span className={`font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{card.assistantRider.name}</span>
+                          <StatusDot status={card.assistantRider.status} />
+                        </span>
+                      ) : (
+                        <span className="italic">None</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Stats */}
                   <div className={`flex flex-wrap items-center gap-4 lg:gap-6 text-sm ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                     <div className="flex items-center gap-2">
                       <ShoppingBag className="w-4 h-4" />
-                      <span>{batch.pendingOrders} orders</span>
+                      <span>{card.pendingCount} orders</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Package className="w-4 h-4" />
-                      <span>{batch.totalPlates} plates</span>
+                      <span>{card.totalPlates} plates</span>
                     </div>
-                    {batch.riders.length > 0 && (
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4" />
-                        <span>{batch.riders.join(', ')}</span>
-                      </div>
-                    )}
                   </div>
                 </div>
-                <Button
-                  variant="primary"
-                  onClick={() => handleDispatch(batch.hostel)}
-                  disabled={batch.pendingOrders === 0}
-                  className="w-full sm:w-auto bg-[#FCD34D] text-black hover:bg-[#FCD34D]/90 px-8 py-3.5 rounded-xl font-bold transition-all shadow-lg shadow-[#FCD34D]/20 active:scale-95"
-                >
-                  Dispatch Batch
-                </Button>
+
+                {/* Dispatch Button */}
+                <div className="flex flex-col items-stretch sm:items-end gap-2">
+                  {card.outCount > 0 && card.pendingCount === 0 ? (
+                    <Button
+                      variant="primary"
+                      disabled
+                      className="w-full sm:w-auto bg-green-500/20 text-green-500 cursor-not-allowed px-8 py-3.5 rounded-xl font-bold"
+                    >
+                      <Truck className="w-4 h-4 mr-2" />
+                      Out for Delivery
+                    </Button>
+                  ) : card.pendingCount === 0 ? (
+                    <Button
+                      variant="ghost"
+                      disabled
+                      className={`w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}
+                    >
+                      No Pending Orders
+                    </Button>
+                  ) : !card.dispatchRider ? (
+                    <Button
+                      variant="ghost"
+                      disabled
+                      className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-red-400"
+                    >
+                      <AlertTriangle className="w-4 h-4 mr-2" />
+                      No Rider Available
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="primary"
+                      onClick={() => handleDispatch(card)}
+                      disabled={dispatchingHostel === card.hostel.id}
+                      className="w-full sm:w-auto bg-[#FCD34D] text-black hover:bg-[#FCD34D]/90 px-8 py-3.5 rounded-xl font-bold transition-all shadow-lg shadow-[#FCD34D]/20 active:scale-95"
+                    >
+                      {dispatchingHostel === card.hostel.id ? 'Dispatching...' : `Dispatch Batch → ${card.dispatchRider.name}`}
+                    </Button>
+                  )}
+                </div>
               </div>
             </Card>
           )) : (
             <div className={`p-12 text-center rounded-2xl border-2 border-dashed ${isDark ? 'border-[#333333] text-[#9C8F7F]' : 'border-gray-100 text-gray-400'}`}>
               <Package className="w-12 h-12 mx-auto mb-4 opacity-20" />
-              <p className="font-medium font-black uppercase tracking-widest text-[10px]">No active batches at the moment</p>
+              <p className="font-medium font-black uppercase tracking-widest text-[10px]">No hostels configured yet</p>
             </div>
           )}
         </div>
@@ -224,22 +307,23 @@ export default function AdminDashboard() {
                 ) : recentOrders.map((order) => (
                   <tr key={order.id} className={`transition-colors ${isDark ? 'hover:bg-[#2A2A2A]' : 'hover:bg-gray-50'}`}>
                     <td className="py-4 px-6">
-                      <span className={`font-mono font-bold text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>CD-{order.orderId?.slice(-5) || '38492'}</span>
+                      <span className={`font-mono font-bold text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.orderId || '—'}</span>
                     </td>
-                    <td className={`py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName || 'Chioma A.'}</td>
-                    <td className={`hidden sm:table-cell py-4 px-6 text-sm ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{order.hostel || 'Deborah Hall'}</td>
+                    <td className={`py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName || '—'}</td>
+                    <td className={`hidden sm:table-cell py-4 px-6 text-sm ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{order.hostel || '—'}</td>
                     <td className={`py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.plates?.length || 0}</td>
                     <td className={`py-4 px-6 font-black text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{order.total?.toLocaleString()}</td>
                     <td className="hidden md:table-cell py-4 px-6">
                       <Badge
                         variant={
                           order.status === 'DELIVERED' ? 'green' :
-                            order.status === 'PREPARING' ? 'purple' :
-                              'gold'
+                            order.status === 'OUT_FOR_DELIVERY' ? 'purple' :
+                              order.status === 'PAID' ? 'gold' :
+                                'gray'
                         }
                         className="text-[9px] uppercase font-black tracking-widest px-3 py-1"
                       >
-                        {order.status?.toLowerCase().replace('_', ' ') || 'preparing'}
+                        {order.status?.toLowerCase().replace(/_/g, ' ') || 'paid'}
                       </Badge>
                     </td>
                     <td className={`py-4 px-6 text-xs font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>

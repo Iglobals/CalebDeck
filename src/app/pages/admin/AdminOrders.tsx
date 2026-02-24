@@ -252,22 +252,22 @@ export default function AdminOrders() {
                             <div className="grid md:grid-cols-2 gap-10">
                                 <div className="space-y-8">
                                     <div className="space-y-2">
-                                        <p className="text-[10px] font-black text-[#9C8F7F] uppercase tracking-[0.3em]">Client Recipient</p>
+                                        <p className="text-[10px] font-black text-[#9C8F7F] uppercase tracking-[0.3em]">Student</p>
                                         <h4 className={`text-2xl font-black tracking-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{selectedOrder.fullName}</h4>
                                         <p className="text-sm font-bold text-[#7C3AED]">{selectedOrder.phone}</p>
                                     </div>
                                     <div className="space-y-2">
-                                        <p className="text-[10px] font-black text-[#9C8F7F] uppercase tracking-[0.3em]">Drop-off Point</p>
+                                        <p className="text-[10px] font-black text-[#9C8F7F] uppercase tracking-[0.3em]">Delivery Location</p>
                                         <h4 className={`text-2xl font-black uppercase tracking-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{selectedOrder.hostel}</h4>
                                         <p className={`text-sm font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Room {selectedOrder.room}</p>
                                     </div>
                                 </div>
 
                                 <Card className={`p-8 border-none ${isDark ? 'bg-[#222222]' : 'bg-gray-50'}`}>
-                                    <p className="text-[10px] font-black text-[#9C8F7F] uppercase tracking-[0.3em] mb-4">Financial Status</p>
+                                    <p className="text-[10px] font-black text-[#9C8F7F] uppercase tracking-[0.3em] mb-4">Payment Info</p>
                                     <div className="flex justify-between items-end">
                                         <div>
-                                            <p className={`text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Settlement Total</p>
+                                            <p className={`text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Total Paid</p>
                                             <h3 className="text-3xl font-black text-[#10B981]">₦{selectedOrder.total?.toLocaleString()}</h3>
                                         </div>
                                         <div className="text-right">
@@ -280,7 +280,7 @@ export default function AdminOrders() {
                             <div className="space-y-6">
                                 <div className="flex items-center gap-4 mb-8">
                                     <div className={`flex-1 h-px ${isDark ? 'bg-[#333333]' : 'bg-gray-100'}`}></div>
-                                    <h4 className="text-[10px] font-black text-[#9C8F7F] uppercase tracking-[0.4em]">Order Manifest</h4>
+                                    <h4 className="text-[10px] font-black text-[#9C8F7F] uppercase tracking-[0.4em]">Order Items</h4>
                                     <div className={`flex-1 h-px ${isDark ? 'bg-[#333333]' : 'bg-gray-100'}`}></div>
                                 </div>
 
@@ -309,7 +309,7 @@ export default function AdminOrders() {
 
                                 {selectedOrder.drinksSnacks?.length > 0 && (
                                     <div className={`p-8 rounded-3xl border ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white'}`}>
-                                        <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#FCD34D] mb-6">Supplemental Items</h5>
+                                        <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#FCD34D] mb-6">Add-ons</h5>
                                         <div className="space-y-4">
                                             {selectedOrder.drinksSnacks.map((item: any, idx: number) => (
                                                 <div key={idx} className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10 last:border-0">
@@ -318,6 +318,14 @@ export default function AdminOrders() {
                                                 </div>
                                             ))}
                                         </div>
+                                    </div>
+                                )}
+
+                                {/* Student Notes */}
+                                {selectedOrder.notes && selectedOrder.notes.trim() !== '' && (
+                                    <div className={`p-8 rounded-3xl border ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white'}`}>
+                                        <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#10B981] mb-4">Student Note</h5>
+                                        <p className={`text-sm font-medium leading-relaxed ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>{selectedOrder.notes}</p>
                                     </div>
                                 )}
                             </div>
@@ -345,8 +353,8 @@ export default function AdminOrders() {
                                     onClick={() => handleFinalizeDispatch(selectedOrder.id)}
                                     disabled={dispatchedOrders.has(selectedOrder.id) || selectedOrder.status === 'OUT_FOR_DELIVERY' || selectedOrder.status === 'DELIVERED'}
                                     className={`flex-1 sm:flex-initial px-10 py-4 rounded-xl font-bold uppercase text-[10px] tracking-[0.2em] shadow-2xl shadow-[#7C3AED]/20 transition-all ${dispatchedOrders.has(selectedOrder.id) || selectedOrder.status === 'OUT_FOR_DELIVERY' || selectedOrder.status === 'DELIVERED'
-                                            ? 'bg-green-500/20 text-green-500 cursor-not-allowed'
-                                            : 'bg-[#7C3AED] hover:bg-[#6D28D9] text-white'
+                                        ? 'bg-green-500/20 text-green-500 cursor-not-allowed'
+                                        : 'bg-[#7C3AED] hover:bg-[#6D28D9] text-white'
                                         }`}>
                                     {dispatchedOrders.has(selectedOrder.id) || selectedOrder.status === 'OUT_FOR_DELIVERY'
                                         ? '✓ Dispatched'

@@ -1,4 +1,4 @@
-import { collection, getDocs, query, where, doc, setDoc, updateDoc, onSnapshot, orderBy, addDoc, serverTimestamp, deleteDoc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, setDoc, updateDoc, onSnapshot, orderBy, addDoc, serverTimestamp, deleteDoc, getDoc, writeBatch } from 'firebase/firestore';
 import { db } from './firebase';
 
 // Types
@@ -18,6 +18,8 @@ export interface Hostel {
     id: string;
     name: string;
     assignedRiderIds: string[];
+    defaultRiderId?: string;
+    assistantRiderId?: string;
     isActive: boolean;
 }
 
@@ -26,6 +28,25 @@ export const getActiveHostels = async (): Promise<Hostel[]> => {
     const q = query(collection(db, 'hostels'), where('isActive', '==', true));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Hostel));
+};
+
+// Live hostel subscription (for admin dashboard real-time updates)
+export const subscribeToHostels = (callback: (hostels: Hostel[]) => void) => {
+    const q = query(collection(db, 'hostels'), where('isActive', '==', true));
+    return onSnapshot(q, (snapshot) => {
+        callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Hostel)));
+    });
+};
+
+// Assign default + assistant rider to a hostel
+export const assignHostelRiders = async (hostelId: string, defaultRiderId: string | null, assistantRiderId: string | null) => {
+    const hostelRef = doc(db, 'hostels', hostelId);
+    const riderIds = [defaultRiderId, assistantRiderId].filter(Boolean) as string[];
+    await updateDoc(hostelRef, {
+        defaultRiderId: defaultRiderId || null,
+        assistantRiderId: assistantRiderId || null,
+        assignedRiderIds: riderIds,
+    });
 };
 
 // Menu
@@ -90,20 +111,99 @@ export const subscribeToRiderOrdersByHostels = (hostelIds: string[], callback: (
 export const createOrder = async (orderData: any) => {
     return await addDoc(collection(db, 'orders'), {
         ...orderData,
+        assignedRiderId: null,  // Orders are NOT auto-assigned — dispatch does this
+        batchId: null,
         status: 'PAID',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
     });
 };
 
-// Riders Management
+// Subscribe to a single order's status (for student order tracking)
+export const subscribeToOrderStatus = (orderId: string, callback: (order: any) => void) => {
+    const orderRef = doc(db, 'orders', orderId);
+    return onSnapshot(orderRef, (snapshot) => {
+        if (snapshot.exists()) {
+            callback({ id: snapshot.id, ...snapshot.data() });
+        }
+    });
+};
+
+// ─── Batches ───
+export interface Batch {
+    id: string;
+    hostelId: string;
+    hostelName: string;
+    riderId: string;
+    riderName: string;
+    orderIds: string[];
+    orderCount: number;
+    plateCount: number;
+    status: 'OUT_FOR_DELIVERY' | 'DELIVERED';
+    createdAt: string;
+}
+
+export const createBatch = async (batchData: Omit<Batch, 'id'>) => {
+    const docRef = await addDoc(collection(db, 'batches'), batchData);
+    return docRef.id;
+};
+
+export const subscribeToBatches = (riderId: string, callback: (batches: Batch[]) => void) => {
+    const q = query(
+        collection(db, 'batches'),
+        where('riderId', '==', riderId),
+        orderBy('createdAt', 'desc')
+    );
+    return onSnapshot(q, (snapshot) => {
+        callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Batch)));
+    });
+};
+
+export const updateBatch = async (batchId: string, updates: Partial<Batch>) => {
+    const batchRef = doc(db, 'batches', batchId);
+    await updateDoc(batchRef, updates);
+};
+
+// Dispatch a hostel batch: create batch doc + update all PAID orders
+export const dispatchBatch = async (hostelId: string, hostelName: string, rider: Rider, orders: any[]) => {
+    const batchId = await createBatch({
+        hostelId,
+        hostelName,
+        riderId: rider.id,
+        riderName: rider.name,
+        orderIds: orders.map(o => o.id),
+        orderCount: orders.length,
+        plateCount: orders.reduce((sum, o) => sum + (o.plates?.length || 0), 0),
+        status: 'OUT_FOR_DELIVERY',
+        createdAt: new Date().toISOString(),
+    });
+
+    // Batch-update all orders
+    const batch = writeBatch(db);
+    orders.forEach(order => {
+        const orderRef = doc(db, 'orders', order.id);
+        batch.update(orderRef, {
+            status: 'OUT_FOR_DELIVERY',
+            assignedRiderId: rider.id,
+            batchId,
+            updatedAt: new Date().toISOString(),
+        });
+    });
+    await batch.commit();
+
+    return batchId;
+};
+
+// ─── Riders Management ───
 export interface Rider {
     id: string;
     name: string;
     phone: string;
     dept: string;
     status: 'available' | 'busy' | 'offline';
+    isActive: boolean;
     assignedHostelIds: string[];
+    earnings?: number;
 }
 
 export const getRiderById = async (riderId: string): Promise<Rider | null> => {
@@ -121,11 +221,13 @@ export const subscribeToRiders = (callback: (riders: Rider[]) => void) => {
     });
 };
 
-export const addRider = async (rider: Omit<Rider, 'id' | 'status'>) => {
+export const addRider = async (rider: Omit<Rider, 'id' | 'status' | 'isActive'>) => {
     const docRef = await addDoc(collection(db, 'riders'), {
         ...rider,
         status: 'offline',
+        isActive: false,  // Riders start as pending — admin activates them
         role: 'rider',
+        earnings: 0,
         createdAt: serverTimestamp()
     });
     return docRef.id;

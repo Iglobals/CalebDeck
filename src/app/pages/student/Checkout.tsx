@@ -130,13 +130,6 @@ export default function Checkout() {
     setCalculating(true);
     const orderId = `CD-${Math.floor(10000 + Math.random() * 90000)}`;
 
-    // 1. Find assigned rider for this hostel
-    const selectedHostel = hostels.find(h => h.id === formData.hostel);
-    const assignedRiderIds = selectedHostel?.assignedRiderIds || [];
-
-    // Pick a rider (Ideally we check availability, but for now we pick the first one as a reference as per user request to not block payment)
-    const primaryRiderId = assignedRiderIds.length > 0 ? assignedRiderIds[0] : null;
-
     const orderData = {
       orderId,
       ...formData,
@@ -148,8 +141,7 @@ export default function Checkout() {
       sectionId,
       paymentReference: reference.reference,
       status: 'PAID' as const,
-      assignedRiderId: primaryRiderId, // Store ONE active reference
-      assignedRiderIds: assignedRiderIds, // Store ALL for admin visibility
+      // assignedRiderId is set to null by createOrder — dispatch assigns riders
       updatedAt: new Date().toISOString()
     };
 
