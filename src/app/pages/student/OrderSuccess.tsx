@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router';
 import { Logo } from '../../components/design-system/Logo';
 import { Card } from '../../components/design-system/Card';
@@ -59,6 +59,7 @@ export default function OrderSuccess() {
   const [showTracking, setShowTracking] = useState(false);
   const [rider, setRider] = useState<Rider | null>(null);
   const [orderStatus, setOrderStatus] = useState<string>('PAID');
+  const enjoyMealRef = useRef<HTMLDivElement>(null);
 
   // Immediately fetch the hostel's default rider — don't wait for dispatch
   useEffect(() => {
@@ -86,6 +87,13 @@ export default function OrderSuccess() {
           getRiderById(order.assignedRiderId).then(r => {
             if (r) setRider(r);
           });
+        }
+
+        // Auto-scroll to "Enjoy Your Meal" when delivered
+        if (order.status === 'DELIVERED') {
+          setTimeout(() => {
+            enjoyMealRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 600);
         }
       }
     });
@@ -134,8 +142,8 @@ export default function OrderSuccess() {
                     <p className="text-lg font-black">{rider.name}</p>
                   </div>
                 </div>
-                <Badge variant="gold" className="font-black italic">
-                  {orderStatus === 'ON_THE_WAY' ? 'ON THE WAY' : orderStatus === 'OUT_FOR_DELIVERY' ? 'OUT FOR DELIVERY' : 'RECEIVED'}
+                <Badge variant={orderStatus === 'DELIVERED' ? 'green' : 'gold'} className="font-black italic">
+                  {orderStatus === 'DELIVERED' ? 'DELIVERED' : orderStatus === 'ON_THE_WAY' ? 'ON THE WAY' : orderStatus === 'OUT_FOR_DELIVERY' ? 'OUT FOR DELIVERY' : 'RECEIVED'}
                 </Badge>
               </Card>
             )}
@@ -206,7 +214,7 @@ export default function OrderSuccess() {
         {/* Status Header */}
         <div className="text-center mb-16">
           <div className="mb-6">
-            <Badge variant={currentStep === TRACKING_STEPS.length - 1 ? 'green' : 'gold'} className="px-6 py-2 text-sm font-black uppercase tracking-widest rounded-full shadow-lg">
+            <Badge variant={currentStep === TRACKING_STEPS.length - 1 ? 'green' : 'gold'} className={`px-6 py-2 text-sm font-black uppercase tracking-widest rounded-full shadow-lg ${currentStep === TRACKING_STEPS.length - 1 ? 'shadow-green-500/20' : ''}`}>
               {TRACKING_STEPS[currentStep]}
             </Badge>
           </div>
@@ -296,19 +304,31 @@ export default function OrderSuccess() {
             {TRACKING_STEPS.slice(0, currentStep + 1).reverse().map((step, index) => {
               const actualIndex = currentStep - index;
               const isLatest = index === 0;
+              const isDelivered = currentStep === TRACKING_STEPS.length - 1;
+              const isDeliveredStep = isLatest && isDelivered;
               return (
                 <div key={step} className="flex gap-6">
                   <div className="flex flex-col items-center">
-                    <div className={`w-5 h-5 rounded-full border-4 transition-colors duration-500 ${isLatest ? 'bg-primary border-primary/30' : 'bg-muted border-transparent'}`}></div>
+                    <div className={`w-5 h-5 rounded-full border-4 transition-colors duration-500 ${isDeliveredStep ? 'bg-[#10B981] border-[#10B981]/30' :
+                        isLatest ? 'bg-primary border-primary/30' :
+                          'bg-muted border-transparent'
+                      }`}></div>
                     {index < currentStep && <div className="w-1 h-12 bg-muted rounded-full mt-2"></div>}
                   </div>
                   <div className="flex-1">
-                    <p className={`text-xl font-black ${isLatest ? 'text-foreground' : 'text-muted-foreground opacity-50'}`}>{step}</p>
+                    <p className={`text-xl font-black ${isDeliveredStep ? 'text-[#10B981]' :
+                        isLatest ? 'text-foreground' :
+                          'text-muted-foreground opacity-50'
+                      }`}>{step}</p>
                     <p className="text-sm text-muted-foreground font-medium uppercase tracking-tight">
                       {actualIndex === currentStep ? (
-                        <span className="flex items-center gap-2 text-secondary font-bold">
-                          <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-ping"></span>
-                          {currentStep === TRACKING_STEPS.length - 1 ? 'Complete' : 'In Progress'}
+                        <span className={`flex items-center gap-2 font-bold ${isDelivered ? 'text-[#10B981]' : 'text-secondary'
+                          }`}>
+                          {isDelivered ? (
+                            <><CheckCircle className="w-4 h-4" /> Delivered</>
+                          ) : (
+                            <><span className="w-1.5 h-1.5 rounded-full bg-secondary animate-ping"></span> In Progress</>
+                          )}
                         </span>
                       ) : 'Completed'}
                     </p>
@@ -321,7 +341,7 @@ export default function OrderSuccess() {
 
         {/* Final Success State */}
         {currentStep === TRACKING_STEPS.length - 1 && (
-          <div className="mt-12 text-center animate-in zoom-in duration-700">
+          <div ref={enjoyMealRef} className="mt-12 text-center animate-in zoom-in duration-700">
             <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-2 border-green-500/20 py-12">
               <div className="max-w-md mx-auto px-6">
                 <div className="w-20 h-20 rounded-[2rem] bg-green-500 flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-green-500/30">

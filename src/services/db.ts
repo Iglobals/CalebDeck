@@ -159,6 +159,7 @@ export interface Batch {
     orderCount: number;
     plateCount: number;
     status: 'OUT_FOR_DELIVERY' | 'DELIVERED';
+    isEmergency?: boolean;
     createdAt: string;
 }
 
@@ -184,7 +185,7 @@ export const updateBatch = async (batchId: string, updates: Partial<Batch>) => {
 };
 
 // Dispatch a hostel batch: create batch doc + update all PAID orders
-export const dispatchBatch = async (hostelId: string, hostelName: string, rider: Rider, orders: any[]) => {
+export const dispatchBatch = async (hostelId: string, hostelName: string, rider: Rider, orders: any[], isEmergency: boolean = false) => {
     const batchId = await createBatch({
         hostelId,
         hostelName,
@@ -194,6 +195,7 @@ export const dispatchBatch = async (hostelId: string, hostelName: string, rider:
         orderCount: orders.length,
         plateCount: orders.reduce((sum, o) => sum + (o.plates?.length || 0), 0),
         status: 'OUT_FOR_DELIVERY',
+        isEmergency,
         createdAt: new Date().toISOString(),
     });
 
@@ -315,4 +317,36 @@ export const migrateMainToBase = async (): Promise<number> => {
     });
     await batch.commit();
     return snapshot.size;
+};
+
+// ─── Platform Settings ───
+export interface PlatformSettings {
+    riderRatePerDelivery: number; // ₦ per delivery, default 300
+    [key: string]: any;
+}
+
+export const getPlatformSettings = async (): Promise<PlatformSettings> => {
+    const settingsRef = doc(db, 'settings', 'platform');
+    const snapshot = await getDoc(settingsRef);
+    if (snapshot.exists()) {
+        return snapshot.data() as PlatformSettings;
+    }
+    // Default settings
+    return { riderRatePerDelivery: 300 };
+};
+
+export const subscribeToPlatformSettings = (callback: (settings: PlatformSettings) => void) => {
+    const settingsRef = doc(db, 'settings', 'platform');
+    return onSnapshot(settingsRef, (snapshot) => {
+        if (snapshot.exists()) {
+            callback(snapshot.data() as PlatformSettings);
+        } else {
+            callback({ riderRatePerDelivery: 300 });
+        }
+    });
+};
+
+export const updatePlatformSettings = async (updates: Partial<PlatformSettings>) => {
+    const settingsRef = doc(db, 'settings', 'platform');
+    await setDoc(settingsRef, updates, { merge: true });
 };

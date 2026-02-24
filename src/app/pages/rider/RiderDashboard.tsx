@@ -139,8 +139,8 @@ export default function RiderDashboard() {
               <button
                 onClick={handleStatusToggle}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${riderStatus === 'available'
-                    ? 'bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/30'
-                    : 'bg-[#222222] text-[#9C8F7F] border border-[#333333]'
+                  ? 'bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/30'
+                  : 'bg-[#222222] text-[#9C8F7F] border border-[#333333]'
                   }`}
               >
                 <span className={`w-2 h-2 rounded-full ${riderStatus === 'available' ? 'bg-[#10B981] animate-pulse' : 'bg-[#9C8F7F]'}`}></span>

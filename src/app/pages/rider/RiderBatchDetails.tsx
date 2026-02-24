@@ -125,8 +125,8 @@ export default function RiderBatchDetails() {
 
                         return (
                             <Card key={order.id} className={`overflow-hidden border ${isDelivered
-                                    ? 'bg-[#10B981]/5 border-[#10B981]/10'
-                                    : 'bg-[#1A1A1A] border-[#222222]'
+                                ? 'bg-[#10B981]/5 border-[#10B981]/10'
+                                : 'bg-[#1A1A1A] border-[#222222]'
                                 }`}>
                                 {/* Order Header */}
                                 <button onClick={() => toggleOrder(order.id)} className="w-full text-left flex items-center justify-between">

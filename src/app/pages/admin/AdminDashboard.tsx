@@ -12,7 +12,9 @@ import {
   Users,
   Truck,
   AlertTriangle,
-  User
+  User,
+  Zap,
+  X
 } from 'lucide-react';
 import { subscribeToAllOrders, subscribeToRiders, subscribeToHostels, dispatchBatch, Rider, Hostel } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
@@ -24,6 +26,7 @@ export default function AdminDashboard() {
   const [riders, setRiders] = useState<Rider[]>([]);
   const [hostels, setHostels] = useState<Hostel[]>([]);
   const [dispatchingHostel, setDispatchingHostel] = useState<string | null>(null);
+  const [emergencyCard, setEmergencyCard] = useState<typeof hostelCards[0] | null>(null);
 
   useEffect(() => {
     const unsub = subscribeToAllOrders(setOrders);
@@ -112,6 +115,22 @@ export default function AdminDashboard() {
       setDispatchingHostel(null);
     }
   };
+
+  // Emergency dispatch: admin picks any online rider
+  const handleEmergencyDispatch = async (rider: Rider) => {
+    if (!emergencyCard || emergencyCard.pendingCount === 0) return;
+    setDispatchingHostel(emergencyCard.hostel.id);
+    setEmergencyCard(null);
+    try {
+      await dispatchBatch(emergencyCard.hostel.id, emergencyCard.hostel.name, rider, emergencyCard.pendingOrders, true);
+    } catch (err) {
+      console.error('Emergency dispatch failed:', err);
+    } finally {
+      setDispatchingHostel(null);
+    }
+  };
+
+  const onlineRiders = riders.filter(r => r.status === 'available' && r.isActive !== false);
 
   const kpis = [
     {
@@ -259,11 +278,11 @@ export default function AdminDashboard() {
                   ) : !card.dispatchRider ? (
                     <Button
                       variant="ghost"
-                      disabled
-                      className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-red-400"
+                      onClick={() => setEmergencyCard(card)}
+                      className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all"
                     >
-                      <AlertTriangle className="w-4 h-4 mr-2" />
-                      No Rider Available
+                      <Zap className="w-4 h-4 mr-2" />
+                      Emergency Dispatch
                     </Button>
                   ) : (
                     <Button
