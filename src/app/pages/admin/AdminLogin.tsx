@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Logo } from '../../components/design-system/Logo';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
@@ -8,6 +8,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../../services/firebase';
+import { useAuth } from '../../../context/AuthContext';
 
 export default function AdminLogin() {
     const [email, setEmail] = useState('');
@@ -17,7 +18,15 @@ export default function AdminLogin() {
     const [error, setError] = useState('');
     const navigate = useNavigate();
     const { studentTheme } = useTheme();
+    const { user } = useAuth();
     const isDark = studentTheme === 'dark';
+
+    // Auto-redirect when AuthContext confirms admin role
+    useEffect(() => {
+        if (user && user.role === 'ADMIN') {
+            navigate('/admin', { replace: true });
+        }
+    }, [user, navigate]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -26,12 +35,12 @@ export default function AdminLogin() {
         try {
             const res = await signInWithEmailAndPassword(auth, email, password);
             const userDoc = await getDoc(doc(db, 'users', res.user.uid));
-            if (userDoc.exists() && userDoc.data().role === 'ADMIN') {
-                navigate('/admin');
-            } else {
+            if (!userDoc.exists() || userDoc.data().role !== 'ADMIN') {
                 setError('Access denied. This account does not have admin privileges.');
                 await auth.signOut();
             }
+            // If role is ADMIN, the useEffect above will handle the redirect
+            // when AuthContext picks up the auth state change
         } catch (err: any) {
             setError('Invalid email or password. Please try again.');
         } finally {

@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Logo } from '../../components/design-system/Logo';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
-import { Phone, Lock, ChevronRight, Bike, Mail, User, Briefcase, Globe } from 'lucide-react';
+import { Phone, Lock, ChevronRight, Bike, Mail, User, Briefcase, Globe, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { auth, db } from '../../../services/firebase';
+import { useAuth } from '../../../context/AuthContext';
 import {
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
@@ -17,28 +18,23 @@ export default function RiderLogin() {
     const [mode, setMode] = useState<'login' | 'signup' | 'onboarding'>('login');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [formData, setFormData] = useState({
         fullName: '',
         phone: '',
-        department: 'Logistics',
+        department: '',
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const navigate = useNavigate();
+    const { user } = useAuth();
 
-    const checkUserRoleAndNavigate = async (uid: string) => {
-        const userDoc = await getDoc(doc(db, 'users', uid));
-        if (userDoc.exists()) {
-            const data = userDoc.data();
-            if (data.role === 'RIDER') {
-                navigate('/rider');
-            } else {
-                setError('Unauthorized: This account is not registered as a Rider.');
-            }
-        } else {
-            setMode('onboarding');
+    // If the AuthContext detects a logged-in rider, redirect automatically
+    useEffect(() => {
+        if (user && user.role === 'RIDER') {
+            navigate('/rider', { replace: true });
         }
-    };
+    }, [user, navigate]);
 
     const handleEmailAuth = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -47,13 +43,37 @@ export default function RiderLogin() {
         try {
             if (mode === 'login') {
                 const res = await signInWithEmailAndPassword(auth, email, password);
-                await checkUserRoleAndNavigate(res.user.uid);
+                // Check if user doc exists and has RIDER role
+                const userDoc = await getDoc(doc(db, 'users', res.user.uid));
+                if (userDoc.exists()) {
+                    const data = userDoc.data();
+                    if (data.role !== 'RIDER') {
+                        setError('This account is not registered as a rider.');
+                        await auth.signOut();
+                        setLoading(false);
+                        return;
+                    }
+                    // AuthContext onAuthStateChanged will pick this up and set user.role
+                    // The useEffect above will handle the redirect
+                } else {
+                    // User has Firebase Auth but no Firestore profile — show onboarding
+                    setMode('onboarding');
+                    setLoading(false);
+                    return;
+                }
             } else {
-                const res = await createUserWithEmailAndPassword(auth, email, password);
+                // Signup
+                await createUserWithEmailAndPassword(auth, email, password);
                 setMode('onboarding');
             }
         } catch (err: any) {
-            setError(err.message);
+            if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+                setError('Invalid email or password.');
+            } else if (err.code === 'auth/email-already-in-use') {
+                setError('This email is already registered. Try logging in.');
+            } else {
+                setError(err.message || 'Something went wrong.');
+            }
         } finally {
             setLoading(false);
         }
@@ -65,9 +85,20 @@ export default function RiderLogin() {
         try {
             const provider = new GoogleAuthProvider();
             const res = await signInWithPopup(auth, provider);
-            await checkUserRoleAndNavigate(res.user.uid);
+            const userDoc = await getDoc(doc(db, 'users', res.user.uid));
+            if (userDoc.exists()) {
+                const data = userDoc.data();
+                if (data.role !== 'RIDER') {
+                    setError('This account is not registered as a rider.');
+                    await auth.signOut();
+                    return;
+                }
+                // useEffect will handle redirect when AuthContext updates
+            } else {
+                setMode('onboarding');
+            }
         } catch (err: any) {
-            setError(err.message);
+            setError(err.message || 'Google sign-in failed.');
         } finally {
             setLoading(false);
         }
@@ -76,27 +107,37 @@ export default function RiderLogin() {
     const handleOnboarding = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!auth.currentUser) return;
+        if (!formData.fullName.trim() || !formData.phone.trim()) {
+            setError('Please fill in all required fields.');
+            return;
+        }
         setLoading(true);
+        setError('');
         try {
             await setDoc(doc(db, 'users', auth.currentUser.uid), {
-                ...formData,
+                fullName: formData.fullName.trim(),
+                phone: formData.phone.trim(),
+                department: formData.department.trim(),
                 email: auth.currentUser.email,
                 role: 'RIDER',
                 assignedHostelIds: [],
                 status: 'offline',
                 createdAt: new Date().toISOString()
             });
-            navigate('/rider');
+            // Force a page reload so AuthContext picks up the new Firestore doc
+            window.location.href = '/rider';
         } catch (err: any) {
-            setError(err.message);
+            setError(err.message || 'Failed to save profile.');
         } finally {
             setLoading(false);
         }
     };
 
+    const inputClass = "w-full pl-12 pr-6 py-4 bg-[#1A1A1A] border-2 border-[#222222] rounded-2xl text-white focus:border-[#7C3AED] outline-none transition-all font-bold text-sm placeholder:text-gray-600";
+
     return (
         <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center p-6 relative overflow-hidden">
-            {/* Animated Background Elements */}
+            {/* Background glows */}
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[#7C3AED]/10 rounded-full blur-[120px]"></div>
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#FCD34D]/5 rounded-full blur-[120px]"></div>
 
@@ -105,7 +146,7 @@ export default function RiderLogin() {
                     <Logo size="lg" className="mx-auto" />
                     <div className="flex items-center justify-center gap-2 mt-4">
                         <Bike className="w-4 h-4 text-[#7C3AED]" />
-                        <p className="text-[10px] font-black text-[#9C8F7F] tracking-[0.4em] uppercase">Fleet Intelligence System</p>
+                        <p className="text-[10px] font-black text-[#9C8F7F] tracking-[0.4em] uppercase">Rider Portal</p>
                     </div>
                 </div>
 
@@ -115,13 +156,19 @@ export default function RiderLogin() {
                     {mode === 'onboarding' ? (
                         <form onSubmit={handleOnboarding} className="space-y-6">
                             <div className="text-center mb-6">
-                                <h2 className="text-xl font-black text-white uppercase tracking-widest">Complete Enlistment</h2>
-                                <p className="text-[10px] font-bold text-[#9C8F7F] uppercase tracking-widest mt-1">Personnel Detail Acquisition</p>
+                                <h2 className="text-xl font-black text-white">Complete Your Profile</h2>
+                                <p className="text-[10px] font-bold text-[#9C8F7F] uppercase tracking-widest mt-1">Tell us about yourself</p>
                             </div>
+
+                            {error && (
+                                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-bold text-center">
+                                    {error}
+                                </div>
+                            )}
 
                             <div className="space-y-4">
                                 <div className="space-y-1.5">
-                                    <label className="text-[9px] font-black text-[#9C8F7F] uppercase tracking-widest ml-1">Full Legal Name</label>
+                                    <label className="text-[9px] font-black text-[#9C8F7F] uppercase tracking-widest ml-1">Full Name</label>
                                     <div className="relative">
                                         <User className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9C8F7F]" />
                                         <input
@@ -130,13 +177,13 @@ export default function RiderLogin() {
                                             value={formData.fullName}
                                             onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                                             placeholder="John Doe"
-                                            className="w-full pl-12 pr-6 py-4 bg-[#1A1A1A] border-2 border-[#222222] rounded-2xl text-white focus:border-[#7C3AED] outline-none transition-all font-bold text-sm"
+                                            className={inputClass}
                                         />
                                     </div>
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="text-[9px] font-black text-[#9C8F7F] uppercase tracking-widest ml-1">Phone Connectivity</label>
+                                    <label className="text-[9px] font-black text-[#9C8F7F] uppercase tracking-widest ml-1">Phone Number</label>
                                     <div className="relative">
                                         <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9C8F7F]" />
                                         <input
@@ -145,24 +192,22 @@ export default function RiderLogin() {
                                             value={formData.phone}
                                             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                                             placeholder="080 000 0000"
-                                            className="w-full pl-12 pr-6 py-4 bg-[#1A1A1A] border-2 border-[#222222] rounded-2xl text-white focus:border-[#7C3AED] outline-none transition-all font-bold text-sm"
+                                            className={inputClass}
                                         />
                                     </div>
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="text-[9px] font-black text-[#9C8F7F] uppercase tracking-widest ml-1">Assigned Department</label>
+                                    <label className="text-[9px] font-black text-[#9C8F7F] uppercase tracking-widest ml-1">Department (in school)</label>
                                     <div className="relative">
                                         <Briefcase className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9C8F7F]" />
-                                        <select
+                                        <input
+                                            type="text"
                                             value={formData.department}
                                             onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                                            className="w-full pl-12 pr-6 py-4 bg-[#1A1A1A] border-2 border-[#222222] rounded-2xl text-white focus:border-[#7C3AED] outline-none transition-all font-bold text-sm appearance-none"
-                                        >
-                                            <option value="Logistics">Logistics Division</option>
-                                            <option value="Fleet Management">Fleet Management</option>
-                                            <option value="Express Delivery">Express Delivery</option>
-                                        </select>
+                                            placeholder="e.g. Computer Science"
+                                            className={inputClass}
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -173,7 +218,7 @@ export default function RiderLogin() {
                                 disabled={loading}
                                 className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] bg-[#7C3AED] text-white shadow-xl shadow-[#7C3AED]/20 hover:scale-[1.02] active:scale-95 transition-all"
                             >
-                                {loading ? 'Acquiring...' : 'Finalize Activation'}
+                                {loading ? 'Saving...' : 'Complete Setup'}
                             </Button>
                         </form>
                     ) : (
@@ -181,17 +226,17 @@ export default function RiderLogin() {
                             <div className="flex border-b border-[#222222] mb-6">
                                 <button
                                     type="button"
-                                    onClick={() => setMode('login')}
+                                    onClick={() => { setMode('login'); setError(''); }}
                                     className={`flex-1 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${mode === 'login' ? 'text-[#7C3AED] border-b-2 border-[#7C3AED]' : 'text-[#9C8F7F]'}`}
                                 >
                                     Login
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setMode('signup')}
+                                    onClick={() => { setMode('signup'); setError(''); }}
                                     className={`flex-1 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${mode === 'signup' ? 'text-[#7C3AED] border-b-2 border-[#7C3AED]' : 'text-[#9C8F7F]'}`}
                                 >
-                                    Signup
+                                    Sign Up
                                 </button>
                             </div>
 
@@ -203,7 +248,7 @@ export default function RiderLogin() {
 
                             <div className="space-y-4">
                                 <div className="space-y-1.5">
-                                    <label className="text-[9px] font-black text-[#9C8F7F] uppercase tracking-widest ml-1">Fleet Email</label>
+                                    <label className="text-[9px] font-black text-[#9C8F7F] uppercase tracking-widest ml-1">Email Address</label>
                                     <div className="relative">
                                         <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9C8F7F]" />
                                         <input
@@ -212,23 +257,30 @@ export default function RiderLogin() {
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
                                             placeholder="rider@calebdeck.com"
-                                            className="w-full pl-12 pr-6 py-4 bg-[#1A1A1A] border-2 border-[#222222] rounded-2xl text-white focus:border-[#7C3AED] outline-none transition-all font-bold text-sm"
+                                            className={inputClass}
                                         />
                                     </div>
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="text-[9px] font-black text-[#9C8F7F] uppercase tracking-widest ml-1">Secure Passkey</label>
+                                    <label className="text-[9px] font-black text-[#9C8F7F] uppercase tracking-widest ml-1">Password</label>
                                     <div className="relative">
                                         <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9C8F7F]" />
                                         <input
-                                            type="password"
+                                            type={showPassword ? 'text' : 'password'}
                                             required
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
                                             placeholder="••••••••"
-                                            className="w-full pl-12 pr-6 py-4 bg-[#1A1A1A] border-2 border-[#222222] rounded-2xl text-white focus:border-[#7C3AED] outline-none transition-all font-bold text-sm"
+                                            className={`${inputClass} pr-12`}
                                         />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9C8F7F] hover:text-[#7C3AED] transition-colors"
+                                        >
+                                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -237,32 +289,34 @@ export default function RiderLogin() {
                                 type="submit"
                                 variant="primary"
                                 disabled={loading}
-                                className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] bg-white text-black hover:bg-[#7C3AED] hover:text-white transition-all"
+                                className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] bg-[#7C3AED] text-white shadow-xl shadow-[#7C3AED]/20 hover:scale-[1.02] active:scale-95 transition-all"
                             >
-                                {loading ? 'Processing...' : mode === 'login' ? 'Establish Link' : 'Register Asset'}
+                                {loading ? 'Please wait...' : mode === 'login' ? 'Sign In' : 'Create Account'}
                             </Button>
 
                             <div className="flex items-center gap-4 py-2">
                                 <div className="flex-1 h-px bg-[#222222]"></div>
-                                <span className="text-[9px] font-black text-[#444444] uppercase tracking-widest">Or Secure Via</span>
+                                <span className="text-[9px] font-black text-[#444444] uppercase tracking-widest">Or continue with</span>
                                 <div className="flex-1 h-px bg-[#222222]"></div>
                             </div>
 
                             <button
                                 type="button"
                                 onClick={handleGoogleAuth}
-                                className="w-full py-4 rounded-2xl bg-[#1A1A1A] border-2 border-[#222222] flex items-center justify-center gap-3 hover:border-[#FCD34D] transition-all group/google"
+                                disabled={loading}
+                                className="w-full py-4 rounded-2xl bg-[#1A1A1A] border-2 border-[#222222] flex items-center justify-center gap-3 hover:border-[#7C3AED] transition-all"
                             >
                                 <Globe className="w-4 h-4 text-[#FCD34D]" />
-                                <span className="text-[10px] font-black text-white uppercase tracking-widest">Google Identity</span>
+                                <span className="text-[10px] font-black text-white uppercase tracking-widest">Google Account</span>
                             </button>
                         </form>
                     )}
                 </Card>
 
                 <div className="mt-8 text-center">
-                    <button onClick={() => navigate('/')} className="text-[#444444] hover:text-white text-[9px] font-black uppercase tracking-widest transition-all">
-                        ← Exit to Neutral Zone
+                    <button onClick={() => navigate('/')} className="group flex items-center justify-center gap-2 mx-auto text-[#9C8F7F] hover:text-white text-[10px] font-black uppercase tracking-widest transition-all">
+                        <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-1" />
+                        Back to Student Portal
                     </button>
                 </div>
             </div>

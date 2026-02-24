@@ -14,6 +14,8 @@ import AdminOrders from "./pages/admin/AdminOrders";
 import RiderManagement from "./pages/admin/RiderManagement";
 import MenuManagement from "./pages/admin/MenuManagement";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import AdminOrderHistory from "./pages/admin/AdminOrderHistory";
+import AdminSetup from "./pages/admin/AdminSetup";
 
 import RiderLogin from "./pages/rider/RiderLogin";
 import RiderDashboard from "./pages/rider/RiderDashboard";
@@ -38,6 +40,7 @@ export const router = createBrowserRouter([
 
       /* Admin Flow */
       { path: "/admin/login", Component: AdminLogin },
+      { path: "/admin/setup", Component: AdminSetup },
       {
         path: "/admin",
         element: <AdminRoleWrapper />,
@@ -47,6 +50,7 @@ export const router = createBrowserRouter([
           { path: "riders", Component: RiderManagement },
           { path: "menu", Component: MenuManagement },
           { path: "analytics", Component: AdminAnalytics },
+          { path: "history", Component: AdminOrderHistory },
         ]
       },
 
