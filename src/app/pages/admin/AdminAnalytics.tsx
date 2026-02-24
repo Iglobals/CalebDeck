@@ -1,84 +1,153 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
 import { Badge } from '../../components/design-system/Badge';
 import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    AreaChart, Area, PieChart, Pie, Cell
+    PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { subscribeToAllOrders, getActiveHostels, Hostel } from '../../../services/db';
-import { TrendingUp, ShoppingBag, Users, Clock } from 'lucide-react';
+import { subscribeToAllOrders } from '../../../services/db';
+import { TrendingUp, ShoppingBag, Users, DollarSign, CalendarDays, ChevronDown } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, isWithinInterval } from 'date-fns';
+
+type TimeRange = 'today' | 'week' | 'month';
 
 export default function AdminAnalytics() {
     const [orders, setOrders] = useState<any[]>([]);
-    const [hostels, setHostels] = useState<Hostel[]>([]);
+    const [timeRange, setTimeRange] = useState<TimeRange>('week');
     const { adminTheme } = useTheme();
 
     useEffect(() => {
         const unsub = subscribeToAllOrders(setOrders);
-        getActiveHostels().then(setHostels);
         return () => unsub();
     }, []);
 
     const isDark = adminTheme === 'dark';
 
-    // Derived Metrics
-    const totalOrders = orders.length;
-    const deliveredOrders = orders.filter(o => o.status === 'DELIVERED').length;
-    const fulfillmentRate = totalOrders > 0 ? ((deliveredOrders / totalOrders) * 100).toFixed(1) : '98.5';
+    const parseDate = (d: any) => d?.seconds ? new Date(d.seconds * 1000) : d ? new Date(d) : null;
 
-    // Engagement proxy (orders from repeat names/phones)
-    const uniqueStudents = new Set(orders.map(o => o.phone)).size;
-    const studentEngagementRate = totalOrders > 0 ? ((uniqueStudents / totalOrders) * 100).toFixed(1) : '74.2';
-
-    const averageDeliveryTime = '12.4'; // Placeholder or calculate if timestamps available
-
-    // Data Derivation
-    const hostelData = hostels.map(h => ({
-        name: h.name,
-        orders: orders.filter(o => o.hostel === h.name || o.hostelId === h.id).length
-    })).sort((a, b) => b.orders - a.orders);
-
-    const revenueData = Array.from({ length: 7 }).map((_, i) => {
-        const d = new Date();
-        d.setDate(d.getDate() - (6 - i));
-        const dateStr = d.toLocaleDateString();
-        const dailyOrders = orders.filter(o => {
-            const od = o.createdAt?.seconds ? new Date(o.createdAt.seconds * 1000) : new Date(o.createdAt);
-            return od.toLocaleDateString() === dateStr;
+    // Filter orders by time range
+    const filteredOrders = useMemo(() => {
+        const now = new Date();
+        return orders.filter(o => {
+            const d = parseDate(o.createdAt);
+            if (!d) return false;
+            if (timeRange === 'today') {
+                return d.toLocaleDateString() === now.toLocaleDateString();
+            }
+            if (timeRange === 'week') {
+                return isWithinInterval(d, { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) });
+            }
+            if (timeRange === 'month') {
+                return isWithinInterval(d, { start: startOfMonth(now), end: endOfMonth(now) });
+            }
+            return true;
         });
-        const revenue = dailyOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-        return {
-            name: d.toLocaleDateString('en-US', { weekday: 'short' }),
-            revenue: revenue,
-            profit: dailyOrders.reduce((sum, o) => sum + ((o.deliveryMode === 'group' ? 560 : 700) * (o.plates?.length || 1)), 0)
-        };
-    });
+    }, [orders, timeRange]);
 
-    const orderTypeData = [
-        { name: 'Individual', value: orders.filter(o => o.plates?.length === 1).length || 5 },
-        { name: 'Group Plates', value: orders.filter(o => o.plates?.length > 1 && o.plates?.length <= 3).length || 8 },
-        { name: 'Bulk Orders', value: orders.filter(o => o.plates?.length > 3).length || 3 },
-    ];
+    // ─── PIE CHART: Order type distribution ───
+    // "Just Me" = solo, Group = 2/4/6/8/10
+    const orderTypeBreakdown = useMemo(() => {
+        const solo = filteredOrders.filter(o => o.deliveryMode === 'solo' || !o.deliveryMode).length;
+        const g2 = filteredOrders.filter(o => o.deliveryMode === 'group' && o.groupSize === 2).length;
+        const g4 = filteredOrders.filter(o => o.deliveryMode === 'group' && o.groupSize === 4).length;
+        const g6 = filteredOrders.filter(o => o.deliveryMode === 'group' && o.groupSize === 6).length;
+        const g8 = filteredOrders.filter(o => o.deliveryMode === 'group' && o.groupSize === 8).length;
+        const g10 = filteredOrders.filter(o => o.deliveryMode === 'group' && o.groupSize === 10).length;
 
-    const COLORS = ['#7C3AED', '#FCD34D', '#10B981', '#F87171'];
+        return [
+            { name: 'Just Me', value: solo },
+            { name: 'Group of 2', value: g2 },
+            { name: 'Group of 4', value: g4 },
+            { name: 'Group of 6', value: g6 },
+            { name: 'Group of 8', value: g8 },
+            { name: 'Group of 10', value: g10 },
+        ].filter(d => d.value > 0);
+    }, [filteredOrders]);
+
+    const COLORS = ['#7C3AED', '#FCD34D', '#10B981', '#F87171', '#3B82F6', '#F97316'];
+
+    // ─── REVENUE CHART: Last 7 days ───
+    const revenueData = useMemo(() => {
+        const days = timeRange === 'today' ? 1 : timeRange === 'week' ? 7 : 30;
+        return Array.from({ length: Math.min(days, 14) }).map((_, i) => {
+            const d = subDays(new Date(), Math.min(days, 14) - 1 - i);
+            const dateStr = d.toLocaleDateString();
+            const dayOrders = orders.filter(o => {
+                const od = parseDate(o.createdAt);
+                return od && od.toLocaleDateString() === dateStr && o.status !== 'CANCELLED';
+            });
+            return {
+                name: format(d, days <= 7 ? 'EEE' : 'MMM d'),
+                revenue: dayOrders.reduce((sum, o) => sum + (o.total || 0), 0),
+                orders: dayOrders.length,
+            };
+        });
+    }, [orders, timeRange]);
+
+    // ─── KPIs ───
+    const totalOrders = filteredOrders.length;
+    const totalRevenue = filteredOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    const deliveredOrders = filteredOrders.filter(o => o.status === 'DELIVERED').length;
+    const fulfillmentRate = totalOrders > 0 ? ((deliveredOrders / totalOrders) * 100).toFixed(0) : '0';
+    const uniqueCustomers = new Set(filteredOrders.map(o => o.phone).filter(Boolean)).size;
+    const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
+
+    const timeRangeLabel = timeRange === 'today' ? 'Today' : timeRange === 'week' ? 'This Week' : 'This Month';
+
+    const cardBg = isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100 shadow-sm';
+    const mutedText = isDark ? 'text-[#9C8F7F]' : 'text-gray-500';
+    const headingText = isDark ? 'text-[#FAF9F6]' : 'text-gray-900';
 
     return (
         <AdminLayout title="Analytics">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
-                <Card className={`lg:col-span-2 p-8 border ${isDark ? 'border-[#333333] bg-[#222222]' : 'border-gray-50 bg-white shadow-sm'}`}>
-                    <div className="flex justify-between items-start mb-10">
-                        <div>
-                            <h3 className={`text-lg font-black uppercase tracking-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Revenue Intelligence</h3>
-                            <p className={`text-[10px] font-black uppercase tracking-[0.2em] mt-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Weekly Executive Performance Analysis</p>
+            {/* Time Range Selector */}
+            <div className="flex items-center gap-2 mb-8">
+                {(['today', 'week', 'month'] as TimeRange[]).map(range => (
+                    <button
+                        key={range}
+                        onClick={() => setTimeRange(range)}
+                        className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${timeRange === range
+                                ? 'bg-[#7C3AED] text-white shadow-lg shadow-[#7C3AED]/20'
+                                : isDark
+                                    ? 'bg-[#2A2A2A] text-[#9C8F7F] hover:bg-[#333333]'
+                                    : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                            }`}
+                    >
+                        {range === 'today' ? 'Today' : range === 'week' ? 'This Week' : 'This Month'}
+                    </button>
+                ))}
+            </div>
+
+            {/* KPI Row */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                {[
+                    { label: 'Total Orders', value: totalOrders.toString(), icon: <ShoppingBag className="w-5 h-5" />, color: '#7C3AED' },
+                    { label: 'Revenue', value: `₦${totalRevenue.toLocaleString()}`, icon: <DollarSign className="w-5 h-5" />, color: '#10B981' },
+                    { label: 'Unique Customers', value: uniqueCustomers.toString(), icon: <Users className="w-5 h-5" />, color: '#FCD34D' },
+                    { label: 'Fulfilled', value: `${fulfillmentRate}%`, icon: <TrendingUp className="w-5 h-5" />, color: '#3B82F6' },
+                ].map((kpi, i) => (
+                    <Card key={i} className={`${cardBg} border`}>
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${kpi.color}15`, color: kpi.color }}>
+                                {kpi.icon}
+                            </div>
                         </div>
-                        <Badge variant="green" className="flex gap-2 text-[9px] font-black py-1.5 px-4 uppercase tracking-widest border-none shadow-xl bg-opacity-20 text-[#10B981]">
-                            <TrendingUp className="w-3.5 h-3.5" />
-                            +12.4% Growth
-                        </Badge>
+                        <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${mutedText}`}>{kpi.label}</p>
+                        <p className={`text-2xl font-black tracking-tight ${headingText}`}>{kpi.value}</p>
+                    </Card>
+                ))}
+            </div>
+
+            {/* Main charts grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                {/* Revenue Chart */}
+                <Card className={`lg:col-span-2 p-6 lg:p-8 border ${cardBg}`}>
+                    <div className="mb-6">
+                        <h3 className={`text-lg font-black ${headingText}`}>Revenue Trend</h3>
+                        <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${mutedText}`}>{timeRangeLabel} performance</p>
                     </div>
-                    <div className="h-80 w-full overflow-hidden">
+                    <div className="h-72 w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={revenueData}>
                                 <defs>
@@ -86,149 +155,148 @@ export default function AdminAnalytics() {
                                         <stop offset="5%" stopColor="#7C3AED" stopOpacity={0.2} />
                                         <stop offset="95%" stopColor="#7C3AED" stopOpacity={0} />
                                     </linearGradient>
-                                    <linearGradient id="colorProf" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.2} />
-                                        <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
-                                    </linearGradient>
                                 </defs>
-                                <XAxis dataKey="name" stroke={isDark ? "#444444" : "#9C8F7F"} fontSize={10} fontWeight="bold" axisLine={false} tickLine={false} tick={{ fill: isDark ? '#9C8F7F' : '#6B7280' }} />
-                                <YAxis stroke={isDark ? "#444444" : "#9C8F7F"} fontSize={10} fontWeight="bold" axisLine={false} tickLine={false} tickFormatter={(v) => `₦${v / 1000}k`} tick={{ fill: isDark ? '#9C8F7F' : '#6B7280' }} />
+                                <XAxis dataKey="name" stroke="none" fontSize={10} fontWeight="bold" tick={{ fill: isDark ? '#9C8F7F' : '#6B7280' }} />
+                                <YAxis stroke="none" fontSize={10} fontWeight="bold" tickFormatter={(v) => `₦${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} tick={{ fill: isDark ? '#9C8F7F' : '#6B7280' }} />
                                 <Tooltip
                                     cursor={{ stroke: isDark ? '#333333' : '#E5E7EB', strokeWidth: 2 }}
                                     contentStyle={{
                                         backgroundColor: isDark ? '#1A1A1A' : '#ffffff',
                                         border: isDark ? '1px solid #333333' : '1px solid #e5e7eb',
                                         borderRadius: '1rem',
-                                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.3)',
+                                        padding: '12px 16px',
                                     }}
-                                    itemStyle={{ fontWeight: 'black', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em' }}
+                                    labelStyle={{ fontWeight: 900, fontSize: 11, color: isDark ? '#FAF9F6' : '#111' }}
+                                    formatter={(value: number) => [`₦${value.toLocaleString()}`, 'Revenue']}
                                 />
-                                <Area type="monotone" dataKey="revenue" stroke="#7C3AED" strokeWidth={5} fillOpacity={1} fill="url(#colorRev)" />
-                                <Area type="monotone" dataKey="profit" stroke="#10B981" strokeWidth={5} fillOpacity={1} fill="url(#colorProf)" />
+                                <Area type="monotone" dataKey="revenue" stroke="#7C3AED" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" dot={false} />
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
                 </Card>
 
-                <Card className={`p-8 border ${isDark ? 'border-[#333333] bg-[#222222]' : 'border-gray-50 bg-white shadow-sm'}`}>
-                    <div className="mb-10">
-                        <h3 className={`text-lg font-black uppercase tracking-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Volume Mix</h3>
-                        <p className={`text-[10px] font-black uppercase tracking-[0.2em] mt-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Segmented Order Velocity</p>
+                {/* Order Type Pie Chart */}
+                <Card className={`p-6 lg:p-8 border ${cardBg}`}>
+                    <div className="mb-6">
+                        <h3 className={`text-lg font-black ${headingText}`}>Order Types</h3>
+                        <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${mutedText}`}>What customers order most</p>
                     </div>
-                    <div className="h-64 w-full relative">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={orderTypeData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={70}
-                                    outerRadius={95}
-                                    paddingAngle={10}
-                                    cornerRadius={12}
-                                    dataKey="value"
-                                    stroke="none"
-                                >
-                                    {orderTypeData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip
-                                    contentStyle={{
-                                        backgroundColor: isDark ? '#1A1A1A' : '#ffffff',
-                                        border: isDark ? '1px solid #333333' : '1px solid #e5e7eb',
-                                        borderRadius: '0.75rem',
-                                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)'
-                                    }}
-                                />
-                            </PieChart>
-                        </ResponsiveContainer>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                            <span className={`text-3xl font-black tracking-tighter ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
-                                {orderTypeData.reduce((acc, curr) => acc + curr.value, 0)}
-                            </span>
-                            <span className={`text-[8px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Cumulative Volume</span>
-                        </div>
-                    </div>
-                    <div className="space-y-4 mt-8">
-                        {orderTypeData.map((type, idx) => (
-                            <div key={idx} className="flex justify-between items-center text-[10px]">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-2.5 h-2.5 rounded-full shadow-lg" style={{ backgroundColor: COLORS[idx] }}></div>
-                                    <span className={`font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{type.name}</span>
+                    {orderTypeBreakdown.length > 0 ? (
+                        <>
+                            <div className="h-52 w-full relative">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={orderTypeBreakdown}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={55}
+                                            outerRadius={80}
+                                            paddingAngle={4}
+                                            cornerRadius={8}
+                                            dataKey="value"
+                                            stroke="none"
+                                        >
+                                            {orderTypeBreakdown.map((_, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip
+                                            contentStyle={{
+                                                backgroundColor: isDark ? '#1A1A1A' : '#ffffff',
+                                                border: isDark ? '1px solid #333333' : '1px solid #e5e7eb',
+                                                borderRadius: '0.75rem',
+                                                boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                                                padding: '8px 14px',
+                                            }}
+                                            formatter={(value: number, name: string) => [`${value} orders`, name]}
+                                        />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                                {/* Center label */}
+                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                    <span className={`text-3xl font-black tracking-tighter ${headingText}`}>
+                                        {totalOrders}
+                                    </span>
+                                    <span className={`text-[8px] font-black uppercase tracking-widest ${mutedText}`}>Orders</span>
                                 </div>
-                                <span className={`font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{type.value} UNITS</span>
                             </div>
-                        ))}
-                    </div>
+
+                            {/* Legend */}
+                            <div className="space-y-3 mt-4">
+                                {orderTypeBreakdown.map((type, idx) => {
+                                    const pct = totalOrders > 0 ? ((type.value / totalOrders) * 100).toFixed(0) : '0';
+                                    return (
+                                        <div key={idx} className="flex justify-between items-center">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
+                                                <span className={`text-xs font-bold ${mutedText}`}>{type.name}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className={`text-xs font-black ${headingText}`}>{type.value}</span>
+                                                <span className={`text-[10px] font-bold ${mutedText}`}>{pct}%</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </>
+                    ) : (
+                        <div className={`flex flex-col items-center justify-center py-16 ${mutedText}`}>
+                            <ShoppingBag className="w-10 h-10 mb-3 opacity-20" />
+                            <p className="text-xs font-bold">No orders {timeRangeLabel.toLowerCase()}</p>
+                        </div>
+                    )}
                 </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <Card className={`p-8 border ${isDark ? 'border-[#333333] bg-[#222222]' : 'border-gray-50 bg-white shadow-sm'}`}>
-                    <div className="flex justify-between items-start mb-8">
-                        <h3 className={`text-lg font-black uppercase tracking-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Spatial Distribution</h3>
-                        <p className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Hostel-Level Penetration</p>
-                    </div>
-                    <div className="h-72 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={hostelData} layout="vertical" margin={{ left: -20 }}>
-                                <XAxis type="number" hide />
-                                <YAxis
-                                    dataKey="name"
-                                    type="category"
-                                    stroke={isDark ? '#FAF9F6' : '#1A1A1A'}
-                                    fontSize={10}
-                                    fontWeight="black"
-                                    width={100}
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={{ fill: isDark ? '#FAF9F6' : '#1A1A1A', textAnchor: 'start', dx: 10 }}
-                                />
-                                <Tooltip
-                                    cursor={{ fill: isDark ? '#2A2A2A' : '#F9FAFB' }}
-                                    contentStyle={{
-                                        backgroundColor: isDark ? '#1A1A1A' : '#ffffff',
-                                        border: isDark ? '1px solid #333333' : '1px solid #e5e7eb',
-                                        borderRadius: '0.75rem'
-                                    }}
-                                />
-                                <Bar dataKey="orders" fill="#FCD34D" radius={[0, 8, 8, 0]} barSize={24} />
-                            </BarChart>
-                        </ResponsiveContainer>
+            {/* Bottom stats row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Avg Order Value */}
+                <Card className={`p-6 border ${cardBg}`}>
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-[#7C3AED]/10 flex items-center justify-center">
+                            <DollarSign className="w-6 h-6 text-[#7C3AED]" />
+                        </div>
+                        <div>
+                            <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${mutedText}`}>Avg. Order Value</p>
+                            <p className={`text-2xl font-black tracking-tight ${headingText}`}>₦{avgOrderValue.toLocaleString()}</p>
+                        </div>
                     </div>
                 </Card>
 
-                <div className="grid grid-cols-2 gap-6">
-                    <div className={`p-8 rounded-3xl flex flex-col justify-between transition-transform hover:scale-[1.02] duration-300 ${isDark ? 'bg-[#7C3AED]' : 'bg-[#7C3AED]'} text-white shadow-2xl shadow-[#7C3AED]/30`}>
-                        <Clock className="w-10 h-10 mb-6 opacity-30" />
-                        <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-2">Service Order Flow</p>
-                            <p className="text-4xl font-black tracking-tighter">{averageDeliveryTime} MIN</p>
+                {/* Fulfillment */}
+                <Card className={`p-6 border ${cardBg}`}>
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-[#10B981]/10 flex items-center justify-center">
+                            <TrendingUp className="w-6 h-6 text-[#10B981]" />
                         </div>
-                    </div>
-                    <div className={`p-8 rounded-3xl flex flex-col justify-between transition-transform hover:scale-[1.02] duration-300 ${isDark ? 'bg-[#10B981]' : 'bg-[#10B981]'} text-white shadow-2xl shadow-[#10B981]/30`}>
-                        <ShoppingBag className="w-10 h-10 mb-6 opacity-30" />
                         <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-2">Completion Rate</p>
-                            <p className="text-4xl font-black tracking-tighter">{fulfillmentRate}%</p>
-                        </div>
-                    </div>
-                    <Card className={`p-8 col-span-2 border transition-all hover:shadow-2xl ${isDark ? 'border-[#333333] bg-[#222222]' : 'border-gray-50 bg-white shadow-sm'}`}>
-                        <div className="flex items-center gap-6">
-                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border-2 ${isDark ? 'bg-[#7C3AED]/10 border-[#7C3AED]/20' : 'bg-gray-50 border-gray-100'}`}>
-                                <Users className="w-7 h-7 text-[#7C3AED]" />
-                            </div>
-                            <div className="flex-1">
-                                <p className={`text-[10px] font-black uppercase tracking-[0.3em] mb-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Student Engagement</p>
-                                <div className="flex items-baseline gap-4">
-                                    <p className={`text-3xl font-black tracking-tighter ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{studentEngagementRate}%</p>
-                                    <Badge variant="green" className="text-[9px] font-black uppercase tracking-widest border-none bg-opacity-10 text-[#10B981]">High Retention</Badge>
-                                </div>
+                            <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${mutedText}`}>Fulfillment Rate</p>
+                            <div className="flex items-baseline gap-2">
+                                <p className={`text-2xl font-black tracking-tight ${headingText}`}>{fulfillmentRate}%</p>
+                                {Number(fulfillmentRate) >= 90 && (
+                                    <Badge variant="green" className="text-[9px] font-black uppercase tracking-widest border-none">Excellent</Badge>
+                                )}
                             </div>
                         </div>
-                    </Card>
-                </div>
+                    </div>
+                </Card>
+
+                {/* Period info */}
+                <Card className={`p-6 border ${cardBg}`}>
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-[#FCD34D]/10 flex items-center justify-center">
+                            <CalendarDays className="w-6 h-6 text-[#FCD34D]" />
+                        </div>
+                        <div>
+                            <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${mutedText}`}>Period</p>
+                            <p className={`text-lg font-black tracking-tight ${headingText}`}>{timeRangeLabel}</p>
+                            <p className={`text-[10px] font-bold ${mutedText}`}>{filteredOrders.length} orders processed</p>
+                        </div>
+                    </div>
+                </Card>
             </div>
         </AdminLayout>
     );

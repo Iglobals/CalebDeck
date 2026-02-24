@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useTheme } from '../../../context/ThemeContext';
+import { useAuth } from '../../../context/AuthContext';
 
 interface AdminLayoutProps {
     children: React.ReactNode;
@@ -27,6 +28,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
     const location = useLocation();
     const navigate = useNavigate();
     const { adminTheme, toggleAdminTheme } = useTheme();
+    const { user } = useAuth();
 
     const menuItems = [
         { id: 'dashboard', path: '/admin', icon: <LayoutDashboard className="w-5 h-5" />, label: 'Dashboard' },
@@ -94,12 +96,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
 
                 <div className={`p-4 border-t ${isDark ? 'border-[#333333]' : 'border-gray-200'}`}>
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[#7C3AED] text-white flex items-center justify-center font-bold text-sm">
-                            AD
-                        </div>
-                        <div>
-                            <p className={`font-semibold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Admin User</p>
-                            <p className={`text-xs ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>admin@caleb.edu</p>
+                        <img
+                            src="/calebdeck-logo.jpeg"
+                            alt="CalebDeck"
+                            className="w-10 h-10 rounded-full object-cover border-2 border-[#7C3AED]"
+                        />
+                        <div className="min-w-0">
+                            <p className={`font-semibold text-sm truncate ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{user?.fullName || user?.displayName || 'Admin'}</p>
+                            <p className={`text-xs truncate ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{user?.email || 'admin@calebdeck.com'}</p>
                         </div>
                     </div>
                     {/* Theme Toggle in sidebar for convenience */}
@@ -146,7 +150,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
                                 <Bell className={`w-6 h-6 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-600'}`} />
                                 <span className="absolute top-1 right-1 w-2 h-2 bg-[#FCD34D] rounded-full"></span>
                             </button>
-                            <div className="hidden sm:block w-10 h-10 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#FCD34D]"></div>
+                            <div className="hidden sm:block w-10 h-10 rounded-full overflow-hidden border-2 border-[#7C3AED]">
+                                <img src="/calebdeck-logo.jpeg" alt="CalebDeck" className="w-full h-full object-cover" />
+                            </div>
                         </div>
                     </div>
                 </header>

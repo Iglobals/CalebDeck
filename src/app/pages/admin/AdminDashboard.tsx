@@ -13,19 +13,21 @@ import {
   AlertCircle,
   Users
 } from 'lucide-react';
-import { subscribeToAllOrders } from '../../../services/db';
+import { subscribeToAllOrders, subscribeToRiders, Rider } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 import { formatDistanceToNow, isToday, isYesterday, format } from 'date-fns';
 
 export default function AdminDashboard() {
   const { adminTheme } = useTheme();
   const [orders, setOrders] = useState<any[]>([]);
+  const [riders, setRiders] = useState<Rider[]>([]);
 
   useEffect(() => {
     const unsub = subscribeToAllOrders((newOrders) => {
       setOrders(newOrders);
     });
-    return () => unsub();
+    const unsubRiders = subscribeToRiders(setRiders);
+    return () => { unsub(); unsubRiders(); };
   }, []);
 
   const parseDate = (d: any) => d?.seconds ? new Date(d.seconds * 1000) : d ? new Date(d) : null;
@@ -99,8 +101,8 @@ export default function AdminDashboard() {
     },
     {
       label: 'Active Riders',
-      value: '8', // This should later be dynamic
-      change: 'Fleet Active',
+      value: riders.length.toString(),
+      change: `${riders.filter(r => r.status === 'available').length} online`,
       icon: <Users className="w-6 h-6" />,
       color: '#7C3AED'
     },
