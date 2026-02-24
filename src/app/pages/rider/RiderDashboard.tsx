@@ -3,7 +3,10 @@ import { Logo } from '../../components/design-system/Logo';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
-import { Package, MapPin, Phone, CheckCircle, Clock, LogOut, Truck } from 'lucide-react';
+import {
+  Package, MapPin, Phone, CheckCircle, Clock, LogOut, Truck,
+  DollarSign, TrendingUp, ChevronDown, ChevronUp
+} from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useNavigate } from 'react-router';
 import {
@@ -24,8 +27,9 @@ export default function RiderDashboard() {
   const [orders, setOrders] = useState<any[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [riderStatus, setRiderStatus] = useState<'available' | 'offline'>('offline');
+  const [showCompleted, setShowCompleted] = useState(false);
 
-  // Load rider profile from riders collection
+  // Load rider profile
   useEffect(() => {
     if (!user) return;
     const loadRider = async () => {
@@ -59,12 +63,15 @@ export default function RiderDashboard() {
     await updateRider(user.uid, { status: newStatus });
   };
 
+  const markOnTheWay = async (orderId: string) => {
+    await updateOrder(orderId, { status: 'ON_THE_WAY' });
+  };
+
   const markDelivered = async (orderId: string) => {
     await updateOrder(orderId, { status: 'DELIVERED' });
   };
 
   const markBatchDelivered = async (batch: Batch) => {
-    // Mark all orders in the batch as delivered
     for (const orderId of batch.orderIds) {
       await updateOrder(orderId, { status: 'DELIVERED' });
     }
@@ -76,79 +83,124 @@ export default function RiderDashboard() {
     navigate('/rider/login');
   };
 
-  const activeOrders = orders.filter(o => o.status === 'OUT_FOR_DELIVERY');
-  const deliveredOrders = orders.filter(o => o.status === 'DELIVERED');
-  const activeBatches = batches.filter(b => b.status === 'OUT_FOR_DELIVERY');
+  // Today-only filter
+  const todayStr = new Date().toLocaleDateString();
+  const todayOrders = orders.filter(o => {
+    const d = o.createdAt?.seconds ? new Date(o.createdAt.seconds * 1000) : o.createdAt ? new Date(o.createdAt) : null;
+    return d ? d.toLocaleDateString() === todayStr : false;
+  });
 
+  const activeOrders = todayOrders.filter(o => o.status === 'OUT_FOR_DELIVERY' || o.status === 'ON_THE_WAY');
+  const deliveredOrders = todayOrders.filter(o => o.status === 'DELIVERED');
+  const activeBatches = batches.filter(b => b.status === 'OUT_FOR_DELIVERY');
+  const todayEarnings = deliveredOrders.length * 300;
   const isNotActivated = rider && rider.isActive === false;
 
+  const kpis = [
+    {
+      label: "Orders Today",
+      value: todayOrders.length.toString(),
+      sub: `${activeOrders.length} active`,
+      icon: <Package className="w-5 h-5" />,
+      color: '#7C3AED',
+    },
+    {
+      label: "Today's Earnings",
+      value: `₦${todayEarnings.toLocaleString()}`,
+      sub: `${deliveredOrders.length} delivered`,
+      icon: <DollarSign className="w-5 h-5" />,
+      color: '#10B981',
+    },
+    {
+      label: "Delivery Status",
+      value: activeOrders.length > 0 ? 'Active' : 'Idle',
+      sub: riderStatus === 'available' ? 'Online' : 'Offline',
+      icon: <TrendingUp className="w-5 h-5" />,
+      color: '#FCD34D',
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white">
+    <div className="min-h-screen bg-[#0F0F0F]">
       {/* Header */}
-      <header className="sticky top-0 bg-[#141414] border-b border-[#222222] z-50">
+      <header className="sticky top-0 bg-[#141414]/95 backdrop-blur-xl border-b border-[#222222] z-50">
         <div className="px-5 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <Logo size="sm" />
-            <div className="flex items-center gap-3">
-              <div className="text-right">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Logo size="sm" />
+              <div className={`h-6 w-px bg-[#333333]`}></div>
+              <div>
                 <p className="text-sm font-bold text-[#FAF9F6]">{rider?.name || user?.displayName || 'Rider'}</p>
                 <p className="text-[10px] text-[#9C8F7F] font-bold uppercase tracking-widest">{rider?.dept || 'Logistics'}</p>
               </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Status Toggle */}
+              <button
+                onClick={handleStatusToggle}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${riderStatus === 'available'
+                    ? 'bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/30'
+                    : 'bg-[#222222] text-[#9C8F7F] border border-[#333333]'
+                  }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${riderStatus === 'available' ? 'bg-[#10B981] animate-pulse' : 'bg-[#9C8F7F]'}`}></span>
+                {riderStatus === 'available' ? 'Online' : 'Offline'}
+              </button>
               <button
                 onClick={handleLogout}
-                className="w-10 h-10 rounded-xl bg-[#222222] flex items-center justify-center text-[#9C8F7F] hover:text-red-400 transition-colors"
+                className="w-10 h-10 rounded-xl bg-[#222222] flex items-center justify-center text-[#9C8F7F] hover:text-red-400 hover:bg-red-500/10 transition-all"
               >
                 <LogOut className="w-4 h-4" />
               </button>
             </div>
           </div>
-
-          {/* Status Toggle */}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={handleStatusToggle}
-              className={`py-3 rounded-xl font-bold text-sm transition-all ${riderStatus === 'available'
-                ? 'bg-green-500 text-white shadow-lg shadow-green-500/20'
-                : 'bg-[#222222] text-[#9C8F7F] border border-[#333333]'
-                }`}
-            >
-              🟢 Online
-            </button>
-            <button
-              onClick={handleStatusToggle}
-              className={`py-3 rounded-xl font-bold text-sm transition-all ${riderStatus === 'offline'
-                ? 'bg-[#333333] text-white'
-                : 'bg-[#222222] text-[#9C8F7F] border border-[#333333]'
-                }`}
-            >
-              ⚫ Offline
-            </button>
-          </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="p-5 space-y-6">
+      <main className="p-5 space-y-6 max-w-4xl mx-auto">
         {/* Not Activated Warning */}
         {isNotActivated && (
-          <Card className="bg-[#FCD34D]/10 border-2 border-[#FCD34D]/30">
-            <div className="flex items-start gap-3">
-              <Clock className="w-6 h-6 text-[#FCD34D] flex-shrink-0 mt-0.5" />
+          <Card className="bg-[#FCD34D]/5 border-2 border-[#FCD34D]/20">
+            <div className="flex items-start gap-4 p-1">
+              <div className="w-12 h-12 rounded-xl bg-[#FCD34D]/10 flex items-center justify-center flex-shrink-0">
+                <Clock className="w-6 h-6 text-[#FCD34D]" />
+              </div>
               <div>
                 <h3 className="font-bold text-[#FCD34D] mb-1">Pending Activation</h3>
-                <p className="text-sm text-[#9C8F7F]">Your account is pending admin activation. You'll be able to receive orders once an admin activates your account.</p>
+                <p className="text-sm text-[#9C8F7F] leading-relaxed">Your account is pending admin activation. You'll receive orders once an admin activates your account.</p>
               </div>
             </div>
           </Card>
         )}
 
+        {/* KPI Cards */}
+        <div className="grid grid-cols-3 gap-3">
+          {kpis.map((kpi, i) => (
+            <Card key={i} className="bg-[#1A1A1A] border-[#222222] hover:border-[#333333] transition-all">
+              <div className="flex items-start justify-between mb-3">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{ backgroundColor: `${kpi.color}15`, color: kpi.color }}
+                >
+                  {kpi.icon}
+                </div>
+              </div>
+              <p className="text-[10px] text-[#9C8F7F] font-bold uppercase tracking-widest mb-1">{kpi.label}</p>
+              <p className="text-xl font-black text-[#FAF9F6] tracking-tight">{kpi.value}</p>
+              <p className="text-[10px] text-[#9C8F7F] font-bold mt-1">{kpi.sub}</p>
+            </Card>
+          ))}
+        </div>
+
         {/* Active Batches */}
         {activeBatches.length > 0 && activeBatches.map(batch => (
-          <Card key={batch.id} className="bg-gradient-to-br from-[#FCD34D]/10 to-[#7C3AED]/10 border border-[#FCD34D]/40">
-            <div className="flex items-center justify-between mb-4">
+          <Card key={batch.id} className="bg-[#1A1A1A] border-[#FCD34D]/20 overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#FCD34D] to-[#7C3AED]"></div>
+            <div className="flex items-center justify-between mb-4 pt-2">
               <div>
                 <Badge variant="gold" className="mb-2 text-[9px] font-black uppercase tracking-widest">Active Batch</Badge>
-                <h2 className="text-xl font-bold text-[#FAF9F6]">{batch.hostelName}</h2>
+                <h2 className="text-lg font-bold text-[#FAF9F6]">{batch.hostelName}</h2>
               </div>
               <div className="text-right">
                 <div className="text-3xl font-black text-[#FCD34D]">{batch.plateCount}</div>
@@ -160,82 +212,104 @@ export default function RiderDashboard() {
                 <Package className="w-4 h-4" />
                 <span className="font-bold">{batch.orderCount} orders</span>
               </div>
-              <div className="flex items-center gap-2 text-[#9C8F7F]">
+              <div className="flex items-center gap-2 text-[#FCD34D]">
                 <Truck className="w-4 h-4" />
                 <span className="font-bold">Out for Delivery</span>
               </div>
             </div>
-            <Button
-              variant="primary"
+            <button
               onClick={() => markBatchDelivered(batch)}
-              className="w-full py-3.5 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl transition-all active:scale-95"
+              className="w-full py-3.5 bg-[#10B981] hover:bg-[#059669] text-white font-bold rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
             >
-              <CheckCircle className="w-4 h-4 mr-2" />
+              <CheckCircle className="w-4 h-4" />
               Mark Entire Batch Delivered
-            </Button>
+            </button>
           </Card>
         ))}
 
-        {/* Active Orders */}
+        {/* Active Deliveries */}
         {activeOrders.length > 0 ? (
           <div>
-            <h3 className="text-lg font-bold text-[#FAF9F6] mb-4">
-              Active Deliveries ({activeOrders.length})
-            </h3>
+            <div className="flex items-center gap-3 mb-4">
+              <h3 className="text-lg font-bold text-[#FAF9F6]">Active Deliveries</h3>
+              <Badge variant="purple" className="text-[9px] font-black">{activeOrders.length}</Badge>
+            </div>
             <div className="space-y-3">
               {activeOrders.map((order) => (
-                <Card key={order.id} className="bg-[#1A1A1A] border-[#222222]">
+                <Card key={order.id} className="bg-[#1A1A1A] border-[#222222] hover:border-[#333333] transition-all">
                   <div className="space-y-4">
                     <div className="flex items-start justify-between">
-                      <div>
+                      <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <h4 className="font-bold text-[#FAF9F6]">{order.fullName || 'Student'}</h4>
-                          <Badge variant="purple" className="text-[9px] font-black uppercase">Out for delivery</Badge>
+                          <Badge
+                            variant={order.status === 'ON_THE_WAY' ? 'gold' : 'purple'}
+                            className="text-[9px] font-black uppercase tracking-widest"
+                          >
+                            {order.status === 'ON_THE_WAY' ? 'On The Way' : 'Dispatched'}
+                          </Badge>
                         </div>
-                        <p className="text-xs text-[#9C8F7F] font-bold mb-1">{order.orderId || order.id}</p>
-                        <div className="flex items-center gap-2 text-[#FAF9F6]">
+                        <p className="text-[10px] text-[#9C8F7F] font-bold tracking-wider mb-2 font-mono">
+                          CD-{order.orderId?.slice(-6) || order.id?.slice(-6)}
+                        </p>
+                        <div className="flex items-center gap-2">
                           <MapPin className="w-3.5 h-3.5 text-[#7C3AED]" />
-                          <span className="text-sm font-medium">{order.hostel}{order.roomNumber ? `, Room ${order.roomNumber}` : ''}</span>
+                          <span className="text-sm font-medium text-[#FAF9F6]">
+                            {order.hostelName || order.hostel}{order.room ? `, Room ${order.room}` : ''}
+                          </span>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right pl-4">
                         <div className="text-2xl font-black text-[#FAF9F6]">{order.plates?.length || 0}</div>
-                        <div className="text-[10px] text-[#9C8F7F] font-bold">plates</div>
+                        <div className="text-[10px] text-[#9C8F7F] font-bold uppercase">plates</div>
                       </div>
                     </div>
 
-                    {/* Order items preview */}
+                    {/* Items preview */}
                     {order.plates && order.plates.length > 0 && (
-                      <div className={`p-3 rounded-xl bg-[#222222] text-xs text-[#9C8F7F]`}>
+                      <div className="p-3 rounded-xl bg-[#222222]/80 space-y-1.5">
                         {order.plates.map((plate: any, i: number) => (
-                          <div key={i} className="flex justify-between py-1">
-                            <span>{plate.items?.map((item: any) => item.name).join(', ')}</span>
+                          <div key={i} className="text-xs text-[#9C8F7F]">
+                            <span className="text-[#7C3AED] font-bold mr-2">P{i + 1}</span>
+                            {plate.items?.map((item: any) => item.item?.name || item.name).join(', ')}
                           </div>
                         ))}
+                        {order.drinksSnacks?.length > 0 && (
+                          <div className="text-xs text-[#FCD34D]">
+                            + {order.drinksSnacks.map((d: any) => d.name).join(', ')}
+                          </div>
+                        )}
                       </div>
                     )}
 
-                    <div className="flex gap-3">
+                    {/* Action buttons */}
+                    <div className="flex gap-2">
                       {order.phone && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="flex-1 bg-[#222222] text-[#7C3AED] border-none hover:bg-[#2A2A2A]"
-                          onClick={() => window.location.href = `tel:${order.phone}`}
+                        <a
+                          href={`tel:${order.phone}`}
+                          className="flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl bg-[#222222] text-[#7C3AED] font-bold text-xs hover:bg-[#2A2A2A] transition-all"
                         >
-                          <Phone className="w-4 h-4 mr-1" />
+                          <Phone className="w-4 h-4" />
                           Call
-                        </Button>
+                        </a>
                       )}
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        className="flex-1 bg-green-500 hover:bg-green-600 text-white"
-                        onClick={() => markDelivered(order.id)}
-                      >
-                        <CheckCircle className="w-4 h-4 mr-1" />
-                        Delivered
-                      </Button>
+                      {order.status === 'OUT_FOR_DELIVERY' ? (
+                        <button
+                          onClick={() => markOnTheWay(order.id)}
+                          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-[#FCD34D]/10 text-[#FCD34D] border border-[#FCD34D]/30 font-bold text-xs hover:bg-[#FCD34D]/20 transition-all active:scale-[0.98]"
+                        >
+                          <Truck className="w-4 h-4" />
+                          On The Way
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => markDelivered(order.id)}
+                          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/30 font-bold text-xs hover:bg-[#10B981]/20 transition-all active:scale-[0.98]"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                          Delivered
+                        </button>
+                      )}
                     </div>
                   </div>
                 </Card>
@@ -243,15 +317,15 @@ export default function RiderDashboard() {
             </div>
           </div>
         ) : !isNotActivated && (
-          <Card className="text-center py-12 bg-[#1A1A1A] border-[#222222]">
+          <Card className="text-center py-16 bg-[#1A1A1A] border-[#222222]">
             <div className="w-16 h-16 rounded-2xl bg-[#222222] flex items-center justify-center mx-auto mb-4">
-              <Package className="w-8 h-8 text-[#9C8F7F]" />
+              <Package className="w-8 h-8 text-[#333333]" />
             </div>
             <h3 className="text-lg font-bold text-[#FAF9F6] mb-2">No Active Deliveries</h3>
-            <p className="text-sm text-[#9C8F7F]">
+            <p className="text-sm text-[#9C8F7F] max-w-xs mx-auto">
               {riderStatus === 'available'
-                ? 'Waiting for dispatch from admin...'
-                : 'Go online to receive delivery batches'}
+                ? 'You\'re online. Waiting for dispatch from admin...'
+                : 'Go online to start receiving delivery batches'}
             </p>
           </Card>
         )}
@@ -259,47 +333,77 @@ export default function RiderDashboard() {
         {/* Completed Today */}
         {deliveredOrders.length > 0 && (
           <div>
-            <h3 className="text-lg font-bold text-[#FAF9F6] mb-4">
-              Completed ({deliveredOrders.length})
-            </h3>
-            <div className="space-y-2">
-              {deliveredOrders.slice(0, 5).map((order) => (
-                <Card key={order.id} className="bg-green-500/5 border-green-500/20">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-green-500/20 flex items-center justify-center">
-                        <CheckCircle className="w-5 h-5 text-green-500" />
+            <button
+              onClick={() => setShowCompleted(!showCompleted)}
+              className="flex items-center justify-between w-full mb-3"
+            >
+              <div className="flex items-center gap-3">
+                <h3 className="text-lg font-bold text-[#FAF9F6]">Completed Today</h3>
+                <Badge variant="green" className="text-[9px] font-black">{deliveredOrders.length}</Badge>
+              </div>
+              {showCompleted ? (
+                <ChevronUp className="w-5 h-5 text-[#9C8F7F]" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-[#9C8F7F]" />
+              )}
+            </button>
+            {showCompleted && (
+              <div className="space-y-2">
+                {deliveredOrders.map((order) => (
+                  <Card key={order.id} className="bg-[#10B981]/5 border-[#10B981]/10">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-[#10B981]/10 flex items-center justify-center">
+                          <CheckCircle className="w-5 h-5 text-[#10B981]" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm text-[#FAF9F6]">{order.fullName}</p>
+                          <p className="text-[10px] text-[#9C8F7F] font-bold">{order.hostelName || order.hostel} · Room {order.room}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-bold text-sm text-[#FAF9F6]">{order.fullName}</p>
-                        <p className="text-xs text-[#9C8F7F]">{order.hostel}</p>
+                      <div className="text-right">
+                        <p className="font-bold text-[#10B981] text-sm">{order.plates?.length || 0} plates</p>
+                        <p className="text-[10px] text-[#10B981]/60 font-bold uppercase">₦300</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-bold text-green-500 text-sm">{order.plates?.length || 0} plates</p>
-                      <p className="text-[10px] text-green-500/60 font-bold uppercase">Delivered</p>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-3">
-          <Card className="text-center bg-[#1A1A1A] border-[#222222]">
-            <div className="text-2xl font-black text-[#FAF9F6] mb-1">{orders.length}</div>
-            <div className="text-[10px] text-[#9C8F7F] font-bold uppercase tracking-widest">Total</div>
-          </Card>
-          <Card className="text-center bg-[#1A1A1A] border-[#222222]">
-            <div className="text-2xl font-black text-[#FCD34D] mb-1">{activeOrders.length}</div>
-            <div className="text-[10px] text-[#9C8F7F] font-bold uppercase tracking-widest">Active</div>
-          </Card>
-          <Card className="text-center bg-[#1A1A1A] border-[#222222]">
-            <div className="text-2xl font-black text-green-500 mb-1">{deliveredOrders.length}</div>
-            <div className="text-[10px] text-[#9C8F7F] font-bold uppercase tracking-widest">Done</div>
-          </Card>
+        {/* Earnings Summary */}
+        <Card className="bg-gradient-to-br from-[#7C3AED]/5 to-[#10B981]/5 border-[#222222]">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[10px] text-[#9C8F7F] font-bold uppercase tracking-widest mb-1">Today's Total Earnings</p>
+              <h2 className="text-3xl font-black text-[#10B981]">₦{todayEarnings.toLocaleString()}</h2>
+            </div>
+            <div className="w-14 h-14 rounded-2xl bg-[#10B981]/10 flex items-center justify-center">
+              <DollarSign className="w-7 h-7 text-[#10B981]" />
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-[#222222] flex items-center justify-between text-sm">
+            <span className="text-[#9C8F7F] font-bold">{deliveredOrders.length} deliveries × ₦300</span>
+            <span className="text-[#FAF9F6] font-black">₦{todayEarnings.toLocaleString()}</span>
+          </div>
+        </Card>
+
+        {/* Quick Navigation */}
+        <div className="grid grid-cols-2 gap-3 pb-6">
+          <button
+            onClick={() => navigate('/rider/history')}
+            className="py-4 rounded-xl bg-[#1A1A1A] border border-[#222222] text-[#9C8F7F] font-bold text-xs uppercase tracking-widest hover:border-[#333333] transition-all"
+          >
+            Order History
+          </button>
+          <button
+            onClick={() => navigate('/rider/login')}
+            className="py-4 rounded-xl bg-[#1A1A1A] border border-[#222222] text-[#9C8F7F] font-bold text-xs uppercase tracking-widest hover:border-[#333333] transition-all"
+          >
+            My Profile
+          </button>
         </div>
       </main>
     </div>

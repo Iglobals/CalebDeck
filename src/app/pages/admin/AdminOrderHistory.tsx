@@ -52,6 +52,26 @@ export default function AdminOrderHistory() {
             return (db2?.getTime() || 0) - (da?.getTime() || 0);
         });
 
+    // Time period grouping
+    const getTimePeriod = (date: Date | null): string => {
+        if (!date) return 'Older';
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const monthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+
+        if (date >= today) return 'Today';
+        if (date >= weekAgo) return 'This Week';
+        if (date >= monthAgo) return 'This Month';
+        return 'Older';
+    };
+
+    const timePeriods = ['Today', 'This Week', 'This Month', 'Older'];
+    const groupedOrders = timePeriods.map(period => ({
+        period,
+        orders: filteredOrders.filter(o => getTimePeriod(parseDate(o.createdAt)) === period),
+    })).filter(g => g.orders.length > 0);
+
     const handleTrash = async (orderId: string, currentStatus: string) => {
         try {
             await trashOrder(orderId, currentStatus);
@@ -252,48 +272,110 @@ export default function AdminOrderHistory() {
                                         </div>
                                     </td>
                                 </tr>
-                            ) : filteredOrders.map(order => {
-                                const date = parseDate(order.createdAt);
-                                const isTrashed = order.status === 'TRASHED';
-                                return (
-                                    <tr key={order.id} className={`transition-colors ${isDark ? 'hover:bg-[#2A2A2A]' : 'hover:bg-gray-50'}`}>
-                                        <td className="py-4 px-4 lg:px-6">
-                                            <span className={`font-mono font-bold text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
-                                                CD-{order.orderId?.slice(-5) || '?????'}
-                                            </span>
-                                        </td>
-                                        <td className="py-4 px-4 lg:px-6">
-                                            <div>
-                                                <p className={`font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName || 'N/A'}</p>
-                                                <p className={`text-xs ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>{order.phone || ''}</p>
-                                            </div>
-                                        </td>
-                                        <td className={`hidden md:table-cell py-4 px-4 lg:px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>
-                                            {order.hostel || 'N/A'}
-                                        </td>
-                                        <td className="py-4 px-4 lg:px-6">
-                                            <span className="font-bold text-sm text-[#10B981]">₦{(order.total || 0).toLocaleString()}</span>
-                                        </td>
-                                        <td className="py-4 px-4 lg:px-6">
-                                            {isTrashed ? (
-                                                <Badge className={`text-[9px] font-black uppercase tracking-widest py-1.5 px-3 rounded-full ${isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-500'}`}>
-                                                    {order.previousStatus?.replace(/_/g, ' ') || 'DELETED'}
-                                                </Badge>
-                                            ) : (
-                                                <Badge className={`text-[9px] font-black uppercase tracking-widest py-1.5 px-3 rounded-full ${statusColors[order.status] || (isDark ? 'bg-gray-500/10 text-gray-400' : 'bg-gray-100 text-gray-500')}`}>
-                                                    {(order.status || 'PENDING').replace(/_/g, ' ')}
-                                                </Badge>
-                                            )}
-                                        </td>
-                                        <td className={`py-4 px-4 lg:px-6 text-xs font-bold whitespace-nowrap ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
-                                            {date ? format(date, 'MMM d, yyyy') : 'N/A'}
-                                            <br />
-                                            <span className="text-[10px] opacity-70">{date ? format(date, 'h:mm a') : ''}</span>
-                                        </td>
-                                        <td className="py-4 px-4 lg:px-6">
-                                            <div className="flex items-center gap-1">
-                                                {isTrashed ? (
-                                                    <>
+                            ) : (
+                                viewMode === 'active' ? (
+                                    /* Grouped by time period for active orders */
+                                    groupedOrders.map(({ period, orders: periodOrders }) => (
+                                        <React.Fragment key={period}>
+                                            <tr>
+                                                <td colSpan={7} className={`py-3 px-6 ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-50'}`}>
+                                                    <div className="flex items-center gap-3">
+                                                        <span className={`text-[10px] font-black uppercase tracking-[0.3em] ${period === 'Today' ? 'text-[#7C3AED]' :
+                                                                period === 'This Week' ? 'text-[#FCD34D]' :
+                                                                    period === 'This Month' ? 'text-[#10B981]' : isDark ? 'text-[#9C8F7F]' : 'text-gray-400'
+                                                            }`}>
+                                                            {period}
+                                                        </span>
+                                                        <span className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
+                                                            ({periodOrders.length})
+                                                        </span>
+                                                        <div className={`flex-1 h-px ${isDark ? 'bg-[#333333]' : 'bg-gray-200'}`}></div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {periodOrders.map(order => {
+                                                const date = parseDate(order.createdAt);
+                                                return (
+                                                    <tr key={order.id} className={`transition-colors ${isDark ? 'hover:bg-[#2A2A2A]' : 'hover:bg-gray-50'}`}>
+                                                        <td className="py-4 px-4 lg:px-6">
+                                                            <span className={`font-mono font-bold text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
+                                                                CD-{order.orderId?.slice(-5) || '?????'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-4 px-4 lg:px-6">
+                                                            <div>
+                                                                <p className={`font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName || 'N/A'}</p>
+                                                                <p className={`text-xs ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>{order.phone || ''}</p>
+                                                            </div>
+                                                        </td>
+                                                        <td className={`hidden md:table-cell py-4 px-4 lg:px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>
+                                                            {order.hostelName || order.hostel || 'N/A'}
+                                                        </td>
+                                                        <td className="py-4 px-4 lg:px-6">
+                                                            <span className="font-bold text-sm text-[#10B981]">₦{(order.total || 0).toLocaleString()}</span>
+                                                        </td>
+                                                        <td className="py-4 px-4 lg:px-6">
+                                                            <Badge className={`text-[9px] font-black uppercase tracking-widest py-1.5 px-3 rounded-full ${statusColors[order.status] || (isDark ? 'bg-gray-500/10 text-gray-400' : 'bg-gray-100 text-gray-500')}`}>
+                                                                {(order.status || 'PENDING').replace(/_/g, ' ')}
+                                                            </Badge>
+                                                        </td>
+                                                        <td className={`py-4 px-4 lg:px-6 text-xs font-bold whitespace-nowrap ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
+                                                            {date ? format(date, 'MMM d, yyyy') : 'N/A'}
+                                                            <br />
+                                                            <span className="text-[10px] opacity-70">{date ? format(date, 'h:mm a') : ''}</span>
+                                                        </td>
+                                                        <td className="py-4 px-4 lg:px-6">
+                                                            <div className="flex items-center gap-1">
+                                                                <button onClick={() => handleDownloadPDF(order)} title="Download receipt"
+                                                                    className={`p-2 rounded-lg transition-colors ${isDark ? 'text-[#9C8F7F] hover:text-[#7C3AED] hover:bg-[#7C3AED]/10' : 'text-gray-400 hover:text-[#7C3AED] hover:bg-purple-50'}`}>
+                                                                    <Download className="w-4 h-4" />
+                                                                </button>
+                                                                <button onClick={() => setDeleteConfirm({ id: order.id, status: order.status })} title="Move to trash"
+                                                                    className={`p-2 rounded-lg transition-colors ${isDark ? 'text-red-400 hover:bg-red-500/10' : 'text-red-400 hover:bg-red-50'}`}>
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </React.Fragment>
+                                    ))
+                                ) : (
+                                    /* Flat list for trash */
+                                    filteredOrders.map(order => {
+                                        const date = parseDate(order.createdAt);
+                                        return (
+                                            <tr key={order.id} className={`transition-colors ${isDark ? 'hover:bg-[#2A2A2A]' : 'hover:bg-gray-50'}`}>
+                                                <td className="py-4 px-4 lg:px-6">
+                                                    <span className={`font-mono font-bold text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
+                                                        CD-{order.orderId?.slice(-5) || '?????'}
+                                                    </span>
+                                                </td>
+                                                <td className="py-4 px-4 lg:px-6">
+                                                    <div>
+                                                        <p className={`font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName || 'N/A'}</p>
+                                                        <p className={`text-xs ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>{order.phone || ''}</p>
+                                                    </div>
+                                                </td>
+                                                <td className={`hidden md:table-cell py-4 px-4 lg:px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>
+                                                    {order.hostelName || order.hostel || 'N/A'}
+                                                </td>
+                                                <td className="py-4 px-4 lg:px-6">
+                                                    <span className="font-bold text-sm text-[#10B981]">₦{(order.total || 0).toLocaleString()}</span>
+                                                </td>
+                                                <td className="py-4 px-4 lg:px-6">
+                                                    <Badge className={`text-[9px] font-black uppercase tracking-widest py-1.5 px-3 rounded-full ${isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-500'}`}>
+                                                        {order.previousStatus?.replace(/_/g, ' ') || 'DELETED'}
+                                                    </Badge>
+                                                </td>
+                                                <td className={`py-4 px-4 lg:px-6 text-xs font-bold whitespace-nowrap ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
+                                                    {date ? format(date, 'MMM d, yyyy') : 'N/A'}
+                                                    <br />
+                                                    <span className="text-[10px] opacity-70">{date ? format(date, 'h:mm a') : ''}</span>
+                                                </td>
+                                                <td className="py-4 px-4 lg:px-6">
+                                                    <div className="flex items-center gap-1">
                                                         <button onClick={() => handleRecover(order.id)} title="Recover order"
                                                             className={`p-2 rounded-lg transition-colors ${isDark ? 'text-[#10B981] hover:bg-[#10B981]/10' : 'text-green-500 hover:bg-green-50'}`}>
                                                             <RotateCcw className="w-4 h-4" />
@@ -302,24 +384,13 @@ export default function AdminOrderHistory() {
                                                             className={`p-2 rounded-lg transition-colors ${isDark ? 'text-red-400 hover:bg-red-500/10' : 'text-red-400 hover:bg-red-50'}`}>
                                                             <Trash2 className="w-4 h-4" />
                                                         </button>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <button onClick={() => handleDownloadPDF(order)} title="Download receipt"
-                                                            className={`p-2 rounded-lg transition-colors ${isDark ? 'text-[#9C8F7F] hover:text-[#7C3AED] hover:bg-[#7C3AED]/10' : 'text-gray-400 hover:text-[#7C3AED] hover:bg-purple-50'}`}>
-                                                            <Download className="w-4 h-4" />
-                                                        </button>
-                                                        <button onClick={() => setDeleteConfirm({ id: order.id, status: order.status })} title="Move to trash"
-                                                            className={`p-2 rounded-lg transition-colors ${isDark ? 'text-red-400 hover:bg-red-500/10' : 'text-red-400 hover:bg-red-50'}`}>
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                )
+                            )}
                         </tbody>
                     </table>
                 </div>

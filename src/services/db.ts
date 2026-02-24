@@ -30,6 +30,12 @@ export const getActiveHostels = async (): Promise<Hostel[]> => {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Hostel));
 };
 
+export const getHostelById = async (hostelId: string): Promise<Hostel | null> => {
+    const hostelRef = doc(db, 'hostels', hostelId);
+    const snapshot = await getDoc(hostelRef);
+    return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } as Hostel : null;
+};
+
 // Live hostel subscription (for admin dashboard real-time updates)
 export const subscribeToHostels = (callback: (hostels: Hostel[]) => void) => {
     const q = query(collection(db, 'hostels'), where('isActive', '==', true));

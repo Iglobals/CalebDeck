@@ -68,8 +68,15 @@ export default function AdminDashboard() {
 
   // — Build hostel cards from Firestore hostels —
   const hostelCards = hostels.map(hostel => {
-    const pendingOrders = orders.filter(o => o.hostel === hostel.id && o.status === 'PAID');
-    const outOrders = orders.filter(o => o.hostel === hostel.id && o.status === 'OUT_FOR_DELIVERY');
+    // Only show today's orders in hostel dispatch cards
+    const hostelOrders = orders.filter(o => {
+      const matchesHostel = o.hostel === hostel.id || o.hostel === hostel.name;
+      if (!matchesHostel) return false;
+      const d = parseDate(o.createdAt);
+      return d ? d.toLocaleDateString() === today : false;
+    });
+    const pendingOrders = hostelOrders.filter(o => o.status === 'PAID');
+    const outOrders = hostelOrders.filter(o => o.status === 'OUT_FOR_DELIVERY' || o.status === 'ON_THE_WAY');
     const defaultRider = getRider(hostel.defaultRiderId);
     const assistantRider = getRider(hostel.assistantRiderId);
 

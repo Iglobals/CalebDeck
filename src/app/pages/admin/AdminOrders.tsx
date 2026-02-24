@@ -7,24 +7,24 @@ import {
     ShoppingBag,
     Search,
     MapPin,
-    Users,
-    ChevronRight,
+    ChevronDown,
+    ChevronUp,
     Printer,
-    CheckCircle2,
     Clock,
-    CircleDollarSign,
-    X
+    X,
+    Package
 } from 'lucide-react';
-import { subscribeToAllOrders, updateOrder } from '../../../services/db';
+import { subscribeToAllOrders, subscribeToHostels, Hostel } from '../../../services/db';
 import { formatDistanceToNow } from 'date-fns';
 import { useTheme } from '../../../context/ThemeContext';
 
 export default function AdminOrders() {
     const [orders, setOrders] = useState<any[]>([]);
+    const [hostels, setHostels] = useState<Hostel[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [dispatchedOrders, setDispatchedOrders] = useState<Set<string>>(new Set());
+    const [expandedHostels, setExpandedHostels] = useState<Set<string>>(new Set());
     const { adminTheme } = useTheme();
 
     useEffect(() => {
@@ -32,15 +32,71 @@ export default function AdminOrders() {
             setOrders(newOrders);
             setLoading(false);
         });
-        return () => unsub();
+        const unsubHostels = subscribeToHostels(setHostels);
+        return () => { unsub(); unsubHostels(); };
     }, []);
 
     const isDark = adminTheme === 'dark';
+
+    const parseDate = (date: any) => {
+        if (!date) return null;
+        return date.seconds ? new Date(date.seconds * 1000) : new Date(date);
+    };
 
     const formatDate = (date: any) => {
         if (!date) return 'N/A';
         const d = date.seconds ? new Date(date.seconds * 1000) : new Date(date);
         return formatDistanceToNow(d, { addSuffix: true });
+    };
+
+    const today = new Date().toLocaleDateString();
+
+    // Filter to today's orders only
+    const todayOrders = orders.filter(o => {
+        if (o.status === 'TRASHED' || o.status === 'CANCELLED') return false;
+        const d = parseDate(o.createdAt);
+        if (!d || d.toLocaleDateString() !== today) return false;
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            return (
+                o.fullName?.toLowerCase().includes(q) ||
+                o.orderId?.toLowerCase().includes(q) ||
+                o.hostel?.toLowerCase().includes(q) ||
+                o.hostelName?.toLowerCase().includes(q)
+            );
+        }
+        return true;
+    });
+
+    // Group by hostel
+    const hostelGroups = hostels.map(hostel => {
+        const hostelOrders = todayOrders.filter(o => o.hostel === hostel.id || o.hostel === hostel.name);
+        return { hostel, orders: hostelOrders };
+    }).filter(g => g.orders.length > 0);
+
+    // Orders without a matching hostel
+    const unmatchedOrders = todayOrders.filter(o => {
+        return !hostels.some(h => o.hostel === h.id || o.hostel === h.name);
+    });
+
+    const toggleHostel = (hostelId: string) => {
+        setExpandedHostels(prev => {
+            const next = new Set(prev);
+            if (next.has(hostelId)) next.delete(hostelId);
+            else next.add(hostelId);
+            return next;
+        });
+    };
+
+    const getStatusBadge = (status: string) => {
+        const map: Record<string, { variant: string; label: string }> = {
+            PAID: { variant: 'gold', label: 'Paid' },
+            OUT_FOR_DELIVERY: { variant: 'purple', label: 'Out for Delivery' },
+            ON_THE_WAY: { variant: 'gold', label: 'On The Way' },
+            DELIVERED: { variant: 'green', label: 'Delivered' },
+        };
+        const s = map[status] || { variant: 'gray', label: status };
+        return <Badge variant={s.variant as any} className="text-[9px] font-black uppercase tracking-widest px-3 py-1">{s.label}</Badge>;
     };
 
     const handlePrint = (order: any) => {
@@ -78,154 +134,182 @@ export default function AdminOrders() {
                     </div>
                     <div class="section">
                         <div class="label">Student</div>
-                        <div class="value">${order.fullName || 'N/A'}</div>
-                        <div style="font-size: 14px; font-weight: 700; margin-top: 4px;">${order.phone || ''}</div>
+                        <div class="value">${order.fullName}</div>
                     </div>
                     <div class="section">
-                        <div class="label">Delivery Location</div>
-                        <div class="value">${order.hostel || 'N/A'}</div>
-                        <div style="font-size: 14px; font-weight: 700; margin-top: 4px;">Room ${order.room || 'N/A'}</div>
+                        <div class="label">Delivery</div>
+                        <div class="value">${order.hostelName || order.hostel} — Room ${order.room}</div>
                     </div>
                     <div class="section">
-                        <div class="label">Order Details</div>
-                        ${(order.plates || []).map((p: any, i: number) => `
+                        <div class="label">Items</div>
+                        ${order.plates?.map((p: any, i: number) => `
                             <div class="plate-header">Plate #${i + 1} — ${p.type || ''}</div>
-                            ${(p.items || []).map((it: any) => `
+                            ${p.items?.map((item: any) => `
                                 <div class="item-row">
-                                    <span>${it.item?.name || 'Item'} × ${it.quantity}</span>
-                                    <span>₦${((it.item?.price || 0) * it.quantity).toLocaleString()}</span>
+                                    <span>${item.item?.name || item.name}</span>
+                                    <span>×${item.quantity}</span>
                                 </div>
                             `).join('')}
-                        `).join('')}
-                        ${(order.drinksSnacks || []).length > 0 ? `
-                            <div class="plate-header" style="color:#FCD34D">Extras</div>
-                            ${order.drinksSnacks.map((it: any) => `
-                                <div class="item-row">
-                                    <span>${it.name} × ${it.quantity || 1}</span>
-                                    <span>₦${((it.price || 0) * (it.quantity || 1)).toLocaleString()}</span>
-                                </div>
-                            `).join('')}
-                        ` : ''}
+                        `).join('') || ''}
                     </div>
-                    <div class="total">Total: ₦${(order.total || 0).toLocaleString()}</div>
-                    <div class="footer">
-                        Thank you for ordering with CalebDeck<br/>
-                        ${new Date().toLocaleString()}
-                    </div>
+                    <span class="total">₦${order.total?.toLocaleString()}</span>
+                    <div class="footer">CalebDeck — ${new Date().toLocaleDateString()}</div>
                 </body>
             </html>
         `;
 
         printWindow.document.write(html);
         printWindow.document.close();
-        // Small delay needed for fonts to load before print dialog
         setTimeout(() => {
             printWindow.focus();
             printWindow.print();
         }, 800);
     };
 
-    const handleFinalizeDispatch = async (orderId: string) => {
-        if (dispatchedOrders.has(orderId)) return;
-        try {
-            await updateOrder(orderId, { status: 'OUT_FOR_DELIVERY' });
-            setDispatchedOrders(prev => new Set(prev).add(orderId));
-            // Update selectedOrder state to reflect the new status
-            setSelectedOrder((prev: any) => prev ? { ...prev, status: 'OUT_FOR_DELIVERY' } : null);
-        } catch (error) {
-            console.error('Failed to dispatch order:', error);
-        }
-    };
-
-    const filteredOrders = orders.filter(o =>
-        o.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        o.orderId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        o.hostel?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
     return (
-        <AdminLayout title="Orders">
+        <AdminLayout title="Today's Orders">
             <div className="space-y-6">
-                {/* Search & Actions */}
+                {/* Search */}
                 <Card className={`border ${isDark ? 'border-[#333333] bg-[#222222]' : 'border-gray-100 bg-white shadow-sm'}`}>
-                    <div className="flex flex-col md:flex-row gap-4">
-                        <div className="relative flex-1">
-                            <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
-                            <input
-                                type="text"
-                                placeholder="Search client name, ID, or hostel..."
-                                className={`w-full pl-11 pr-4 py-3 rounded-xl border-2 transition-all outline-none text-sm ${isDark
-                                    ? 'bg-[#2A2A2A] border-[#333333] text-[#FAF9F6] focus:border-[#7C3AED]'
-                                    : 'bg-gray-50 border-gray-100 text-gray-900 focus:border-[#7C3AED]/30'
-                                    }`}
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
-                        <div className="flex gap-3">
-                            <Button variant="ghost" className={`px-5 py-3 rounded-xl font-bold text-xs uppercase tracking-widest ${isDark ? 'text-[#9C8F7F] hover:text-white hover:bg-[#2A2A2A]' : 'text-gray-500'}`}>
-                                <Printer className="w-4 h-4" />
-                                <span className="hidden sm:inline">Print All</span>
-                            </Button>
-                        </div>
+                    <div className="relative">
+                        <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
+                        <input
+                            type="text"
+                            placeholder="Search student name, order ID, or hostel..."
+                            className={`w-full pl-11 pr-4 py-3 rounded-xl border-2 transition-all outline-none text-sm ${isDark
+                                ? 'bg-[#2A2A2A] border-[#333333] text-[#FAF9F6] focus:border-[#7C3AED]'
+                                : 'bg-gray-50 border-gray-100 text-gray-900 focus:border-[#7C3AED]/30'
+                                }`}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
                     </div>
                 </Card>
 
-                {/* Orders Table */}
-                <Card className={`p-0 overflow-hidden border ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'}`}>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead>
-                                <tr className={`border-b ${isDark ? 'border-[#333333]' : 'border-gray-50'}`}>
-                                    <th className={`py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>ID</th>
-                                    <th className={`py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Client</th>
-                                    <th className={`py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Location</th>
-                                    <th className={`py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'} text-center`}>Items</th>
-                                    <th className={`py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Total</th>
-                                    <th className={`py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Status</th>
-                                    <th className="py-4 px-6"></th>
-                                </tr>
-                            </thead>
-                            <tbody className={`divide-y ${isDark ? 'divide-[#333333]' : 'divide-gray-50'}`}>
-                                {filteredOrders.map((order) => (
-                                    <tr
-                                        key={order.id}
-                                        className={`transition-colors group cursor-pointer ${isDark ? 'hover:bg-[#2A2A2A]' : 'hover:bg-gray-50'}`}
-                                        onClick={() => setSelectedOrder(order)}
+                {/* Summary */}
+                <div className="flex items-center gap-4">
+                    <Badge variant="purple" className="text-xs font-black px-3 py-1.5">
+                        {todayOrders.length} orders today
+                    </Badge>
+                    <Badge variant="gold" className="text-xs font-black px-3 py-1.5">
+                        {todayOrders.filter(o => o.status === 'PAID').length} pending
+                    </Badge>
+                    <Badge variant="green" className="text-xs font-black px-3 py-1.5">
+                        {todayOrders.filter(o => o.status === 'DELIVERED').length} delivered
+                    </Badge>
+                </div>
+
+                {/* Hostel Groups */}
+                {hostelGroups.length > 0 ? (
+                    <div className="space-y-4">
+                        {hostelGroups.map(({ hostel, orders: hostelOrders }) => {
+                            const isExpanded = expandedHostels.has(hostel.id);
+                            const paidCount = hostelOrders.filter(o => o.status === 'PAID').length;
+                            const outCount = hostelOrders.filter(o => o.status === 'OUT_FOR_DELIVERY' || o.status === 'ON_THE_WAY').length;
+                            const deliveredCount = hostelOrders.filter(o => o.status === 'DELIVERED').length;
+
+                            return (
+                                <Card key={hostel.id} className={`overflow-hidden border ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100 shadow-sm'}`}>
+                                    {/* Hostel Header — always visible, clickable */}
+                                    <button
+                                        onClick={() => toggleHostel(hostel.id)}
+                                        className="w-full flex items-center justify-between p-5 text-left transition-colors hover:bg-[#7C3AED]/5"
                                     >
-                                        <td className="py-5 px-6">
-                                            <span className={`font-mono font-bold text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>CD-{order.orderId?.slice(-6) || 'N/A'}</span>
-                                        </td>
-                                        <td className="py-5 px-6">
-                                            <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName}</p>
-                                            <p className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{order.phone}</p>
-                                        </td>
-                                        <td className="py-5 px-6">
-                                            <p className={`text-xs font-black uppercase tracking-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.hostel || (order.hostelId === 'old' ? 'Old Cafeteria' : order.hostelId)}</p>
-                                            <p className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Room {order.room}</p>
-                                        </td>
-                                        <td className={`py-5 px-6 text-center text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.plates?.length || 0}</td>
-                                        <td className={`py-5 px-6 text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{order.total?.toLocaleString()}</td>
-                                        <td className="py-5 px-6">
-                                            <Badge
-                                                variant={order.status === 'DELIVERED' ? 'green' : (order.status === 'PAID' ? 'gold' : 'purple')}
-                                                className="text-[9px] font-black uppercase tracking-widest px-3 py-1"
-                                            >
-                                                {order.status?.toLowerCase().replace('_', ' ')}
-                                            </Badge>
-                                        </td>
-                                        <td className="py-5 px-6 text-right">
-                                            <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-[#7C3AED] transition-all group-hover:translate-x-1" />
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-11 h-11 rounded-xl bg-[#7C3AED]/10 flex items-center justify-center">
+                                                <MapPin className="w-5 h-5 text-[#7C3AED]" />
+                                            </div>
+                                            <div>
+                                                <h3 className={`text-lg font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{hostel.name}</h3>
+                                                <div className="flex items-center gap-3 mt-1">
+                                                    <span className={`text-xs font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{hostelOrders.length} orders</span>
+                                                    {paidCount > 0 && <span className="text-xs font-black text-[#FCD34D]">{paidCount} pending</span>}
+                                                    {outCount > 0 && <span className="text-xs font-black text-[#7C3AED]">{outCount} out</span>}
+                                                    {deliveredCount > 0 && <span className="text-xs font-black text-[#10B981]">{deliveredCount} done</span>}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {isExpanded ? (
+                                            <ChevronUp className={`w-5 h-5 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
+                                        ) : (
+                                            <ChevronDown className={`w-5 h-5 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
+                                        )}
+                                    </button>
+
+                                    {/* Orders inside hostel — collapsible */}
+                                    {isExpanded && (
+                                        <div className={`border-t ${isDark ? 'border-[#333333]' : 'border-gray-100'}`}>
+                                            {hostelOrders.map((order) => (
+                                                <div
+                                                    key={order.id}
+                                                    className={`flex items-center justify-between px-5 py-4 cursor-pointer transition-colors ${isDark ? 'hover:bg-[#2A2A2A]' : 'hover:bg-gray-50'} border-b last:border-0 ${isDark ? 'border-[#333333]' : 'border-gray-50'}`}
+                                                    onClick={() => setSelectedOrder(order)}
+                                                >
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${isDark ? 'bg-[#2A2A2A]' : 'bg-gray-50'}`}>
+                                                            <Package className={`w-4 h-4 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
+                                                        </div>
+                                                        <div>
+                                                            <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName}</p>
+                                                            <div className="flex items-center gap-2 mt-0.5">
+                                                                <span className={`font-mono text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+                                                                    CD-{order.orderId?.slice(-6) || 'N/A'}
+                                                                </span>
+                                                                <span className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+                                                                    · Room {order.room} · {order.plates?.length || 0} plates
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{order.total?.toLocaleString()}</span>
+                                                        {getStatusBadge(order.status)}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </Card>
+                            );
+                        })}
+
+                        {/* Unmatched orders */}
+                        {unmatchedOrders.length > 0 && (
+                            <Card className={`overflow-hidden border ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100 shadow-sm'}`}>
+                                <div className="p-5">
+                                    <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Other Orders</h3>
+                                    {unmatchedOrders.map((order) => (
+                                        <div
+                                            key={order.id}
+                                            className={`flex items-center justify-between py-4 cursor-pointer transition-colors ${isDark ? 'hover:bg-[#2A2A2A]' : 'hover:bg-gray-50'} border-b last:border-0 ${isDark ? 'border-[#333333]' : 'border-gray-50'}`}
+                                            onClick={() => setSelectedOrder(order)}
+                                        >
+                                            <div>
+                                                <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName}</p>
+                                                <span className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+                                                    {order.hostelName || order.hostel} · Room {order.room}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{order.total?.toLocaleString()}</span>
+                                                {getStatusBadge(order.status)}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </Card>
+                        )}
                     </div>
-                </Card>
+                ) : (
+                    <Card className={`text-center py-20 border ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'}`}>
+                        <ShoppingBag className={`w-12 h-12 mx-auto mb-4 ${isDark ? 'text-[#333333]' : 'text-gray-200'}`} />
+                        <p className={`text-lg font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>No orders today</p>
+                        <p className={`text-sm mt-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Orders will appear here once students place them</p>
+                    </Card>
+                )}
             </div>
 
-            {/* Order Details Modal */}
+            {/* Order Details Modal — READ ONLY, no dispatch */}
             {selectedOrder && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/80 backdrop-blur-md transition-all" onClick={() => setSelectedOrder(null)}></div>
@@ -238,7 +322,7 @@ export default function AdminOrders() {
                                     <ShoppingBag className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h3 className={`text-lg lg:text-xl font-black tracking-tight mb-1 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Order Logistics</h3>
+                                    <h3 className={`text-lg lg:text-xl font-black tracking-tight mb-1 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Order Details</h3>
                                     <p className={`text-xs font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{selectedOrder.orderId}</p>
                                 </div>
                             </div>
@@ -258,7 +342,7 @@ export default function AdminOrders() {
                                     </div>
                                     <div className="space-y-2">
                                         <p className="text-[10px] font-black text-[#9C8F7F] uppercase tracking-[0.3em]">Delivery Location</p>
-                                        <h4 className={`text-2xl font-black uppercase tracking-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{selectedOrder.hostel}</h4>
+                                        <h4 className={`text-2xl font-black uppercase tracking-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{selectedOrder.hostelName || selectedOrder.hostel}</h4>
                                         <p className={`text-sm font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Room {selectedOrder.room}</p>
                                     </div>
                                 </div>
@@ -271,7 +355,7 @@ export default function AdminOrders() {
                                             <h3 className="text-3xl font-black text-[#10B981]">₦{selectedOrder.total?.toLocaleString()}</h3>
                                         </div>
                                         <div className="text-right">
-                                            <Badge variant="gold" className="text-[10px] font-black uppercase tracking-widest px-3 py-1 bg-[#FCD34D]/20 text-[#FCD34D] border-[#FCD34D]/30">PAID</Badge>
+                                            {getStatusBadge(selectedOrder.status)}
                                         </div>
                                     </div>
                                 </Card>
@@ -285,8 +369,7 @@ export default function AdminOrders() {
                                 </div>
 
                                 {selectedOrder.plates?.map((plate: any, pidx: number) => (
-                                    <div key={pidx} className={`p-8 rounded-3xl border transition-all hover:bg-[#2A2A2A]/5 ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white shadow-sm'
-                                        }`}>
+                                    <div key={pidx} className={`p-8 rounded-3xl border transition-all ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white shadow-sm'}`}>
                                         <div className="flex justify-between items-center mb-6">
                                             <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#7C3AED]">Plate #{pidx + 1} — {plate.type}</h5>
                                             <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-black'}`}>₦{plate.total?.toLocaleString()}</span>
@@ -295,12 +378,12 @@ export default function AdminOrders() {
                                             {plate.items?.map((item: any, iidx: number) => (
                                                 <div key={iidx} className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10 last:border-0">
                                                     <div>
-                                                        <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{item.item.name}</p>
+                                                        <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{item.item?.name || item.name}</p>
                                                         {item.options?.length > 0 && (
                                                             <p className="text-[10px] font-bold text-[#9C8F7F] mt-1">{item.options.join(', ')}</p>
                                                         )}
                                                     </div>
-                                                    <span className={`text-xs font-black px-2 py-1 rounded bg-[#7C3AED]/10 text-[#7C3AED]`}>×{item.quantity}</span>
+                                                    <span className="text-xs font-black px-2 py-1 rounded bg-[#7C3AED]/10 text-[#7C3AED]">×{item.quantity}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -321,7 +404,6 @@ export default function AdminOrders() {
                                     </div>
                                 )}
 
-                                {/* Student Notes */}
                                 {selectedOrder.notes && selectedOrder.notes.trim() !== '' && (
                                     <div className={`p-8 rounded-3xl border ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white'}`}>
                                         <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#10B981] mb-4">Student Note</h5>
@@ -331,38 +413,21 @@ export default function AdminOrders() {
                             </div>
                         </div>
 
-                        {/* Footer */}
-                        <div className={`p-8 flex flex-col sm:flex-row items-center justify-between gap-6 border-t ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-gray-50 border-gray-100'
-                            }`}>
+                        {/* Footer — Print only, no dispatch */}
+                        <div className={`p-8 flex items-center justify-between border-t ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-gray-50 border-gray-100'}`}>
                             <div className="flex items-center gap-3">
                                 <Clock className="w-5 h-5 text-[#9C8F7F]" />
                                 <span className={`text-xs font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                                     Placed {formatDate(selectedOrder.createdAt)}
                                 </span>
                             </div>
-                            <div className="flex gap-4 w-full sm:w-auto">
-                                <Button
-                                    variant="ghost"
-                                    onClick={() => handlePrint(selectedOrder)}
-                                    className={`flex-1 sm:flex-initial px-6 py-4 rounded-xl font-bold uppercase text-[10px] tracking-widest ${isDark ? 'text-[#9C8F7F] hover:text-white hover:bg-[#2A2A2A]' : 'text-gray-500'
-                                        }`}>
-                                    Print Ticket
-                                </Button>
-                                <Button
-                                    variant="primary"
-                                    onClick={() => handleFinalizeDispatch(selectedOrder.id)}
-                                    disabled={dispatchedOrders.has(selectedOrder.id) || selectedOrder.status === 'OUT_FOR_DELIVERY' || selectedOrder.status === 'DELIVERED'}
-                                    className={`flex-1 sm:flex-initial px-10 py-4 rounded-xl font-bold uppercase text-[10px] tracking-[0.2em] shadow-2xl shadow-[#7C3AED]/20 transition-all ${dispatchedOrders.has(selectedOrder.id) || selectedOrder.status === 'OUT_FOR_DELIVERY' || selectedOrder.status === 'DELIVERED'
-                                        ? 'bg-green-500/20 text-green-500 cursor-not-allowed'
-                                        : 'bg-[#7C3AED] hover:bg-[#6D28D9] text-white'
-                                        }`}>
-                                    {dispatchedOrders.has(selectedOrder.id) || selectedOrder.status === 'OUT_FOR_DELIVERY'
-                                        ? '✓ Dispatched'
-                                        : selectedOrder.status === 'DELIVERED'
-                                            ? '✓ Delivered'
-                                            : 'Dispatch Order'}
-                                </Button>
-                            </div>
+                            <Button
+                                variant="ghost"
+                                onClick={() => handlePrint(selectedOrder)}
+                                className={`px-6 py-4 rounded-xl font-bold uppercase text-[10px] tracking-widest ${isDark ? 'text-[#9C8F7F] hover:text-white hover:bg-[#2A2A2A]' : 'text-gray-500'}`}>
+                                <Printer className="w-4 h-4 mr-2" />
+                                Print Ticket
+                            </Button>
                         </div>
                     </Card>
                 </div>

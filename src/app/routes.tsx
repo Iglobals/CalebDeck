@@ -19,6 +19,8 @@ import AdminSetup from "./pages/admin/AdminSetup";
 
 import RiderLogin from "./pages/rider/RiderLogin";
 import RiderDashboard from "./pages/rider/RiderDashboard";
+import RiderOrderHistory from "./pages/rider/RiderOrderHistory";
+import RiderBatchDetails from "./pages/rider/RiderBatchDetails";
 
 export const router = createBrowserRouter([
   {
@@ -62,6 +64,8 @@ export const router = createBrowserRouter([
         element: <RiderRoleWrapper />,
         children: [
           { index: true, Component: RiderDashboard },
+          { path: "history", Component: RiderOrderHistory },
+          { path: "batch/:batchId", Component: RiderBatchDetails },
         ]
       },
     ]

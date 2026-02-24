@@ -129,10 +129,12 @@ export default function Checkout() {
   const onSuccess = async (reference: any) => {
     setCalculating(true);
     const orderId = `CD-${Math.floor(10000 + Math.random() * 90000)}`;
+    const selectedHostel = hostels.find(h => h.id === formData.hostel);
 
     const orderData = {
       orderId,
       ...formData,
+      hostelName: selectedHostel?.name || formData.hostel,
       total: orderTotal?.totalAmount,
       plates,
       drinksSnacks: drinksSnacksItems,
@@ -153,9 +155,9 @@ export default function Checkout() {
       });
 
       // 2. Persist to Firestore
-      await createOrder(orderData);
+      const orderRef = await createOrder(orderData);
 
-      navigate('/order-success', { state: orderData });
+      navigate('/order-success', { state: { ...orderData, firestoreOrderId: orderRef.id } });
     } catch (error) {
       console.error("Verification error:", error);
       toast.error("Payment verification failed. Please contact support.");

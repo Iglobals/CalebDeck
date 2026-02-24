@@ -6,23 +6,36 @@ import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
 import { ProgressStepper } from '../../components/design-system/ProgressStepper';
 import { CheckCircle, MapPin, Clock, Phone, Sparkles } from 'lucide-react';
-import { ThemeToggle } from '../../components/ThemeToggle';
 import { useTheme } from '../../../context/ThemeContext';
+import { subscribeToOrderStatus, getRiderById, getHostelById, Rider } from '../../../services/db';
 
-import { createOrder } from '../../../services/db';
+const TRACKING_STEPS = ['Received', 'Out for Delivery', 'On The Way', 'Delivered'];
 
-import { getRiderById, Rider } from '../../../services/db';
-
-const TRACKING_STEPS = ['Preparing', 'Picked Up', 'On The Way', 'Delivered'];
+// Map Firestore status to step index
+const STATUS_TO_STEP: Record<string, number> = {
+  PAID: 0,
+  OUT_FOR_DELIVERY: 1,
+  ON_THE_WAY: 2,
+  DELIVERED: 3,
+};
 
 export default function OrderSuccess() {
   const location = useLocation();
   const { studentTheme } = useTheme();
+
+  // Restore from localStorage if page was refreshed (no location.state)
+  const savedOrder = !location.state ? (() => {
+    try { return JSON.parse(localStorage.getItem('calebdeck_last_order') || 'null'); } catch { return null; }
+  })() : null;
+
+  const orderData = location.state || savedOrder || {};
+
   const {
     orderId = 'CD-12345',
     fullName = 'Student',
     phone = '',
-    hostel = 'Deborah Hall',
+    hostel = '',
+    hostelName = '',
     room = '204',
     total = 0,
     plates = [],
@@ -31,29 +44,53 @@ export default function OrderSuccess() {
     cafeteriaId = '',
     sectionId = '',
     reference = '',
-    assignedRiderId = null
-  } = location.state || {};
+    firestoreOrderId = null,
+  } = orderData;
 
+  // Persist to localStorage so page survives refresh
+  useEffect(() => {
+    if (location.state) {
+      localStorage.setItem('calebdeck_last_order', JSON.stringify(location.state));
+    }
+  }, [location.state]);
+
+  const displayHostel = hostelName || hostel || 'Your Hostel';
   const [currentStep, setCurrentStep] = useState(0);
   const [showTracking, setShowTracking] = useState(false);
   const [rider, setRider] = useState<Rider | null>(null);
+  const [orderStatus, setOrderStatus] = useState<string>('PAID');
 
-  // Fetch Rider Details
+  // Immediately fetch the hostel's default rider — don't wait for dispatch
   useEffect(() => {
-    if (assignedRiderId) {
-      getRiderById(assignedRiderId).then(setRider);
-    }
-  }, [assignedRiderId]);
+    if (!hostel) return;
+    const fetchHostelRider = async () => {
+      const hostelDoc = await getHostelById(hostel);
+      if (hostelDoc?.defaultRiderId) {
+        const defaultRider = await getRiderById(hostelDoc.defaultRiderId);
+        if (defaultRider) setRider(defaultRider);
+      }
+    };
+    fetchHostelRider();
+  }, [hostel]);
 
-  // Simulate order progress
+  // Subscribe to real-time order status updates
   useEffect(() => {
-    if (showTracking && currentStep < TRACKING_STEPS.length - 1) {
-      const timer = setTimeout(() => {
-        setCurrentStep(prev => prev + 1);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [showTracking, currentStep]);
+    if (!firestoreOrderId) return;
+    const unsub = subscribeToOrderStatus(firestoreOrderId, (order) => {
+      if (order) {
+        setOrderStatus(order.status);
+        setCurrentStep(STATUS_TO_STEP[order.status] ?? 0);
+
+        // If admin dispatched to a different rider, update
+        if (order.assignedRiderId) {
+          getRiderById(order.assignedRiderId).then(r => {
+            if (r) setRider(r);
+          });
+        }
+      }
+    });
+    return unsub;
+  }, [firestoreOrderId]);
 
   const estimatedTime = 25 - (currentStep * 6);
 
@@ -93,11 +130,13 @@ export default function OrderSuccess() {
                     {rider.name.charAt(0)}
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-secondary uppercase tracking-widest">Assigned Rider</p>
+                    <p className="text-[10px] font-black text-secondary uppercase tracking-widest">Your Rider</p>
                     <p className="text-lg font-black">{rider.name}</p>
                   </div>
                 </div>
-                <Badge variant="gold" className="font-black italic">DISPATCHING</Badge>
+                <Badge variant="gold" className="font-black italic">
+                  {orderStatus === 'ON_THE_WAY' ? 'ON THE WAY' : orderStatus === 'OUT_FOR_DELIVERY' ? 'OUT FOR DELIVERY' : 'RECEIVED'}
+                </Badge>
               </Card>
             )}
 
@@ -109,7 +148,7 @@ export default function OrderSuccess() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Delivery Point</p>
-                    <p className="text-xl font-bold">{hostel}, Room {room}</p>
+                    <p className="text-xl font-bold">{displayHostel}, Room {room}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
@@ -142,7 +181,7 @@ export default function OrderSuccess() {
             </div>
           </div>
         </main>
-      </div >
+      </div>
     );
   }
 
@@ -168,7 +207,7 @@ export default function OrderSuccess() {
         <div className="text-center mb-16">
           <div className="mb-6">
             <Badge variant={currentStep === TRACKING_STEPS.length - 1 ? 'green' : 'gold'} className="px-6 py-2 text-sm font-black uppercase tracking-widest rounded-full shadow-lg">
-              {currentStep === TRACKING_STEPS.length - 1 ? 'Delivered' : 'En Route'}
+              {TRACKING_STEPS[currentStep]}
             </Badge>
           </div>
           <h2 className="text-5xl font-black mb-4 tracking-tight">
@@ -203,12 +242,12 @@ export default function OrderSuccess() {
                 </div>
                 <div className="flex-1">
                   <h3 className="text-2xl font-black mb-1">{rider.name}</h3>
-                  <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight mb-4">Your Professional Rider</p>
+                  <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight mb-4">Your Rider</p>
 
                   <a href={`tel:${rider.phone}`} className="block">
                     <Button variant="secondary" size="md" className="w-full rounded-2xl py-5">
                       <Phone className="w-4 h-4" />
-                      Connect via Call
+                      Call Rider
                     </Button>
                   </a>
                 </div>
@@ -217,7 +256,7 @@ export default function OrderSuccess() {
           ) : (
             <Card className="bg-muted/30 border-dashed border-2 border-border flex flex-col items-center justify-center p-12 text-center">
               <div className="w-12 h-12 border-4 border-muted border-t-primary rounded-full animate-spin mb-4"></div>
-              <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">Waiting for rider pickup</p>
+              <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">Waiting for rider assignment</p>
             </Card>
           )}
 
@@ -231,7 +270,7 @@ export default function OrderSuccess() {
               <div className="flex items-start gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-1">Destination</p>
-                  <p className="text-lg font-bold">{hostel}</p>
+                  <p className="text-lg font-bold">{displayHostel}</p>
                   <p className="text-muted-foreground font-medium leading-none">Room {room}</p>
                 </div>
               </div>
@@ -250,7 +289,7 @@ export default function OrderSuccess() {
         {/* Activity Feed */}
         <Card className="border-none shadow-2xl p-8 bg-card">
           <h3 className="text-xl font-black mb-8 flex items-center gap-2">
-            < Sparkles className="w-5 h-5 text-primary" />
+            <Sparkles className="w-5 h-5 text-primary" />
             Live Activity
           </h3>
           <div className="space-y-8">
@@ -269,14 +308,11 @@ export default function OrderSuccess() {
                       {actualIndex === currentStep ? (
                         <span className="flex items-center gap-2 text-secondary font-bold">
                           <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-ping"></span>
-                          In Progress
+                          {currentStep === TRACKING_STEPS.length - 1 ? 'Complete' : 'In Progress'}
                         </span>
                       ) : 'Completed'}
                     </p>
                   </div>
-                  <p className="text-sm text-muted-foreground font-bold">
-                    {new Date(Date.now() - (currentStep - actualIndex) * 300000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                  </p>
                 </div>
               );
             })}
@@ -303,9 +339,6 @@ export default function OrderSuccess() {
                       Done
                     </Button>
                   </Link>
-                  <Button variant="secondary" className="flex-1 py-5 rounded-2xl">
-                    Share Experience
-                  </Button>
                 </div>
               </div>
             </Card>
