@@ -42,7 +42,7 @@ export default function AdminDashboard() {
   const formatOrderTime = (d: any) => {
     const date = parseDate(d);
     if (!date) return 'N/A';
-    if (isToday(date)) return formatDistanceToNow(date, { addSuffix: true });
+    if (isToday(date)) return 'Today ' + format(date, 'h:mm a');
     if (isYesterday(date)) return 'Yesterday ' + format(date, 'h:mm a');
     return format(date, 'MMM d, h:mm a');
   };
@@ -211,7 +211,7 @@ export default function AdminDashboard() {
                   <th className={`text-left py-4 px-6 text-xs font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Plates</th>
                   <th className={`text-left py-4 px-6 text-xs font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Amount</th>
                   <th className={`hidden md:table-cell text-left py-4 px-6 text-xs font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Status</th>
-                  <th className={`hidden lg:table-cell text-left py-4 px-6 text-xs font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Time</th>
+                  <th className={`text-left py-4 px-6 text-xs font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Date & Time</th>
                 </tr>
               </thead>
               <tbody className={`divide-y ${isDark ? 'divide-[#333333]' : 'divide-gray-50'}`}>
@@ -242,7 +242,7 @@ export default function AdminDashboard() {
                         {order.status?.toLowerCase().replace('_', ' ') || 'preparing'}
                       </Badge>
                     </td>
-                    <td className={`hidden lg:table-cell py-4 px-6 text-xs font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
+                    <td className={`py-4 px-6 text-xs font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
                       {formatOrderTime(order.createdAt)}
                     </td>
                   </tr>
