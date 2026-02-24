@@ -175,3 +175,18 @@ export const permanentlyDeleteOrder = async (orderId: string) => {
     const orderRef = doc(db, 'orders', orderId);
     await deleteDoc(orderRef);
 };
+
+// Migration: fix 'main' category → 'base'
+export const migrateMainToBase = async (): Promise<number> => {
+    const q = query(collection(db, 'menu_items'), where('category', '==', 'main'));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return 0;
+
+    const { writeBatch } = await import('firebase/firestore');
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(d => {
+        batch.update(d.ref, { category: 'base' });
+    });
+    await batch.commit();
+    return snapshot.size;
+};

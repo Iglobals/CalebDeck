@@ -3,15 +3,18 @@ import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
 import { Badge } from '../../components/design-system/Badge';
 import { Button } from '../../components/design-system/Button';
-import { Download, Search, Filter, ChevronDown, Trash2, RotateCcw, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Download, Search, Filter, ChevronDown, Trash2, RotateCcw, AlertTriangle, CheckCircle, Package, Clock } from 'lucide-react';
 import { subscribeToAllOrders, trashOrder, recoverOrder, permanentlyDeleteOrder } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 import { format } from 'date-fns';
+
+type ViewMode = 'active' | 'trash';
 
 export default function AdminOrderHistory() {
     const [orders, setOrders] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [viewMode, setViewMode] = useState<ViewMode>('active');
     const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; status: string } | null>(null);
     const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false });
     const { adminTheme } = useTheme();
@@ -22,7 +25,6 @@ export default function AdminOrderHistory() {
     }, []);
 
     const isDark = adminTheme === 'dark';
-
     const parseDate = (d: any) => d?.seconds ? new Date(d.seconds * 1000) : d ? new Date(d) : null;
 
     const showToast = (message: string) => {
@@ -30,13 +32,18 @@ export default function AdminOrderHistory() {
         setTimeout(() => setToast({ message: '', visible: false }), 3000);
     };
 
-    const filteredOrders = orders
+    // Split orders into active and trashed
+    const activeOrders = orders.filter(o => o.status !== 'TRASHED');
+    const trashedOrders = orders.filter(o => o.status === 'TRASHED');
+    const currentOrders = viewMode === 'active' ? activeOrders : trashedOrders;
+
+    const filteredOrders = currentOrders
         .filter(o => {
             const matchesSearch = !searchQuery ||
                 (o.fullName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (o.orderId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (o.hostel || '').toLowerCase().includes(searchQuery.toLowerCase());
-            const matchesStatus = statusFilter === 'all' || o.status === statusFilter;
+            const matchesStatus = viewMode === 'trash' || statusFilter === 'all' || o.status === statusFilter;
             return matchesSearch && matchesStatus;
         })
         .sort((a, b) => {
@@ -138,7 +145,7 @@ export default function AdminOrderHistory() {
         TRASHED: isDark ? 'bg-gray-500/10 text-gray-400' : 'bg-gray-100 text-gray-500',
     };
 
-    const allStatuses = ['all', ...Array.from(new Set(orders.map(o => o.status).filter(Boolean)))];
+    const activeStatuses = ['all', ...Array.from(new Set(activeOrders.map(o => o.status).filter(Boolean)))];
 
     return (
         <AdminLayout title="Order History">
@@ -151,43 +158,66 @@ export default function AdminOrderHistory() {
                 </div>
             )}
 
+            {/* Active / Trash Tab Toggle */}
+            <div className={`flex gap-2 mb-8 p-1.5 rounded-2xl w-fit ${isDark ? 'bg-[#2A2A2A]' : 'bg-gray-100'}`}>
+                <button
+                    onClick={() => { setViewMode('active'); setStatusFilter('all'); }}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'active'
+                        ? 'bg-[#7C3AED] text-white shadow-lg shadow-[#7C3AED]/20'
+                        : isDark ? 'text-[#9C8F7F] hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
+                >
+                    <Clock className="w-4 h-4" />
+                    Orders ({activeOrders.length})
+                </button>
+                <button
+                    onClick={() => { setViewMode('trash'); setStatusFilter('all'); }}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'trash'
+                        ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
+                        : isDark ? 'text-[#9C8F7F] hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
+                >
+                    <Trash2 className="w-4 h-4" />
+                    Trash ({trashedOrders.length})
+                </button>
+            </div>
+
             {/* Filters */}
             <div className="flex flex-col md:flex-row gap-4 mb-8">
                 <div className="relative flex-1">
                     <Search className={`absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
-                    <input
-                        type="text"
-                        placeholder="Search by name, order ID, or hostel..."
+                    <input type="text" placeholder="Search by name, order ID, or hostel..."
                         className={`w-full pl-12 pr-6 py-4 rounded-xl border-2 outline-none text-sm transition-all ${isDark
                             ? 'bg-[#2A2A2A] border-[#333333] text-[#FAF9F6] focus:border-[#7C3AED]'
                             : 'bg-white border-gray-100 text-gray-900 focus:border-[#7C3AED]/30 shadow-sm'}`}
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+                        onChange={(e) => setSearchQuery(e.target.value)} />
                 </div>
-                <div className="relative">
-                    <Filter className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
-                    <select
-                        className={`pl-10 pr-10 py-4 rounded-xl border-2 outline-none text-sm font-bold appearance-none transition-all ${isDark
-                            ? 'bg-[#2A2A2A] border-[#333333] text-[#FAF9F6] focus:border-[#7C3AED]'
-                            : 'bg-white border-gray-100 text-gray-900 focus:border-[#7C3AED]/30 shadow-sm'}`}
-                        value={statusFilter}
-                        onChange={e => setStatusFilter(e.target.value)}
-                    >
-                        {allStatuses.map(s => (
-                            <option key={s} value={s}>{s === 'all' ? 'All Statuses' : s.replace(/_/g, ' ')}</option>
-                        ))}
-                    </select>
-                    <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
-                </div>
+                {viewMode === 'active' && (
+                    <div className="relative">
+                        <Filter className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
+                        <select
+                            className={`pl-10 pr-10 py-4 rounded-xl border-2 outline-none text-sm font-bold appearance-none transition-all ${isDark
+                                ? 'bg-[#2A2A2A] border-[#333333] text-[#FAF9F6] focus:border-[#7C3AED]'
+                                : 'bg-white border-gray-100 text-gray-900 focus:border-[#7C3AED]/30 shadow-sm'}`}
+                            value={statusFilter}
+                            onChange={e => setStatusFilter(e.target.value)}
+                        >
+                            {activeStatuses.map(s => (
+                                <option key={s} value={s}>{s === 'all' ? 'All Statuses' : s.replace(/_/g, ' ')}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
+                    </div>
+                )}
             </div>
 
             {/* Summary */}
             <p className={`text-sm font-bold mb-4 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
-                Showing {filteredOrders.length} of {orders.length} orders
+                {viewMode === 'active'
+                    ? `Showing ${filteredOrders.length} of ${activeOrders.length} orders`
+                    : `${filteredOrders.length} order${filteredOrders.length !== 1 ? 's' : ''} in trash`}
             </p>
 
-            {/* Orders Table */}
+            {/* Table */}
             <Card className={`p-0 overflow-hidden ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'}`}>
                 <div className="overflow-x-auto">
                     <table className="w-full">
@@ -205,15 +235,28 @@ export default function AdminOrderHistory() {
                         <tbody className={`divide-y ${isDark ? 'divide-[#333333]' : 'divide-gray-50'}`}>
                             {filteredOrders.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className={`py-16 text-center text-sm font-medium ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
-                                        No orders found
+                                    <td colSpan={7} className={`py-16 text-center ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
+                                        <div className="flex flex-col items-center gap-3">
+                                            {viewMode === 'trash' ? (
+                                                <>
+                                                    <Trash2 className="w-10 h-10 opacity-20" />
+                                                    <p className="text-sm font-bold">Trash is empty</p>
+                                                    <p className="text-xs opacity-60">Deleted orders will appear here</p>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Package className="w-10 h-10 opacity-20" />
+                                                    <p className="text-sm font-bold">No orders found</p>
+                                                </>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ) : filteredOrders.map(order => {
                                 const date = parseDate(order.createdAt);
                                 const isTrashed = order.status === 'TRASHED';
                                 return (
-                                    <tr key={order.id} className={`transition-colors ${isTrashed ? (isDark ? 'opacity-50' : 'opacity-60') : ''} ${isDark ? 'hover:bg-[#2A2A2A]' : 'hover:bg-gray-50'}`}>
+                                    <tr key={order.id} className={`transition-colors ${isDark ? 'hover:bg-[#2A2A2A]' : 'hover:bg-gray-50'}`}>
                                         <td className="py-4 px-4 lg:px-6">
                                             <span className={`font-mono font-bold text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
                                                 CD-{order.orderId?.slice(-5) || '?????'}
@@ -232,9 +275,15 @@ export default function AdminOrderHistory() {
                                             <span className="font-bold text-sm text-[#10B981]">₦{(order.total || 0).toLocaleString()}</span>
                                         </td>
                                         <td className="py-4 px-4 lg:px-6">
-                                            <Badge className={`text-[9px] font-black uppercase tracking-widest py-1.5 px-3 rounded-full ${statusColors[order.status] || (isDark ? 'bg-gray-500/10 text-gray-400' : 'bg-gray-100 text-gray-500')}`}>
-                                                {(order.status || 'PENDING').replace(/_/g, ' ')}
-                                            </Badge>
+                                            {isTrashed ? (
+                                                <Badge className={`text-[9px] font-black uppercase tracking-widest py-1.5 px-3 rounded-full ${isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-500'}`}>
+                                                    {order.previousStatus?.replace(/_/g, ' ') || 'DELETED'}
+                                                </Badge>
+                                            ) : (
+                                                <Badge className={`text-[9px] font-black uppercase tracking-widest py-1.5 px-3 rounded-full ${statusColors[order.status] || (isDark ? 'bg-gray-500/10 text-gray-400' : 'bg-gray-100 text-gray-500')}`}>
+                                                    {(order.status || 'PENDING').replace(/_/g, ' ')}
+                                                </Badge>
+                                            )}
                                         </td>
                                         <td className={`py-4 px-4 lg:px-6 text-xs font-bold whitespace-nowrap ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
                                             {date ? format(date, 'MMM d, yyyy') : 'N/A'}
@@ -244,29 +293,28 @@ export default function AdminOrderHistory() {
                                         <td className="py-4 px-4 lg:px-6">
                                             <div className="flex items-center gap-1">
                                                 {isTrashed ? (
-                                                    <button
-                                                        onClick={() => handleRecover(order.id)}
-                                                        title="Recover order"
-                                                        className={`p-2 rounded-lg transition-colors ${isDark ? 'text-[#10B981] hover:bg-[#10B981]/10' : 'text-green-500 hover:bg-green-50'}`}
-                                                    >
-                                                        <RotateCcw className="w-4 h-4" />
-                                                    </button>
+                                                    <>
+                                                        <button onClick={() => handleRecover(order.id)} title="Recover order"
+                                                            className={`p-2 rounded-lg transition-colors ${isDark ? 'text-[#10B981] hover:bg-[#10B981]/10' : 'text-green-500 hover:bg-green-50'}`}>
+                                                            <RotateCcw className="w-4 h-4" />
+                                                        </button>
+                                                        <button onClick={() => setDeleteConfirm({ id: order.id, status: 'TRASHED' })} title="Delete permanently"
+                                                            className={`p-2 rounded-lg transition-colors ${isDark ? 'text-red-400 hover:bg-red-500/10' : 'text-red-400 hover:bg-red-50'}`}>
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </>
                                                 ) : (
-                                                    <button
-                                                        onClick={() => handleDownloadPDF(order)}
-                                                        title="Download receipt"
-                                                        className={`p-2 rounded-lg transition-colors ${isDark ? 'text-[#9C8F7F] hover:text-[#7C3AED] hover:bg-[#7C3AED]/10' : 'text-gray-400 hover:text-[#7C3AED] hover:bg-purple-50'}`}
-                                                    >
-                                                        <Download className="w-4 h-4" />
-                                                    </button>
+                                                    <>
+                                                        <button onClick={() => handleDownloadPDF(order)} title="Download receipt"
+                                                            className={`p-2 rounded-lg transition-colors ${isDark ? 'text-[#9C8F7F] hover:text-[#7C3AED] hover:bg-[#7C3AED]/10' : 'text-gray-400 hover:text-[#7C3AED] hover:bg-purple-50'}`}>
+                                                            <Download className="w-4 h-4" />
+                                                        </button>
+                                                        <button onClick={() => setDeleteConfirm({ id: order.id, status: order.status })} title="Move to trash"
+                                                            className={`p-2 rounded-lg transition-colors ${isDark ? 'text-red-400 hover:bg-red-500/10' : 'text-red-400 hover:bg-red-50'}`}>
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </>
                                                 )}
-                                                <button
-                                                    onClick={() => setDeleteConfirm({ id: order.id, status: order.status })}
-                                                    title={isTrashed ? 'Delete permanently' : 'Move to trash'}
-                                                    className={`p-2 rounded-lg transition-colors ${isDark ? 'text-red-400 hover:bg-red-500/10' : 'text-red-400 hover:bg-red-50'}`}
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -287,34 +335,28 @@ export default function AdminOrderHistory() {
                                 <AlertTriangle className="w-7 h-7 text-red-500" />
                             </div>
                             <h3 className={`font-black text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                                {deleteConfirm.status === 'TRASHED' ? 'Delete Permanently?' : 'Delete Order?'}
+                                {deleteConfirm.status === 'TRASHED' ? 'Delete Permanently?' : 'Move to Trash?'}
                             </h3>
                             <p className={`text-sm mt-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                                 {deleteConfirm.status === 'TRASHED'
                                     ? 'This order will be permanently removed and cannot be recovered.'
-                                    : 'Choose to move to trash (recoverable) or delete permanently.'}
+                                    : 'This order will be moved to the Trash tab. You can recover it later.'}
                             </p>
                         </div>
-
                         <div className="space-y-3">
-                            {deleteConfirm.status !== 'TRASHED' && (
-                                <button
-                                    onClick={() => handleTrash(deleteConfirm.id, deleteConfirm.status)}
-                                    className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all ${isDark ? 'bg-[#2A2A2A] text-[#FCD34D] hover:bg-[#333333]' : 'bg-yellow-50 text-yellow-600 hover:bg-yellow-100'}`}
-                                >
+                            {deleteConfirm.status === 'TRASHED' ? (
+                                <button onClick={() => handlePermanentDelete(deleteConfirm.id)}
+                                    className="w-full py-3.5 rounded-xl font-bold text-sm bg-red-500 text-white hover:bg-red-600 transition-all">
+                                    Delete Permanently
+                                </button>
+                            ) : (
+                                <button onClick={() => handleTrash(deleteConfirm.id, deleteConfirm.status)}
+                                    className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all ${isDark ? 'bg-[#2A2A2A] text-[#FCD34D] hover:bg-[#333333]' : 'bg-yellow-50 text-yellow-600 hover:bg-yellow-100'}`}>
                                     Move to Trash
                                 </button>
                             )}
-                            <button
-                                onClick={() => handlePermanentDelete(deleteConfirm.id)}
-                                className="w-full py-3.5 rounded-xl font-bold text-sm bg-red-500 text-white hover:bg-red-600 transition-all"
-                            >
-                                Delete Permanently
-                            </button>
-                            <button
-                                onClick={() => setDeleteConfirm(null)}
-                                className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all ${isDark ? 'text-[#9C8F7F] hover:bg-[#2A2A2A]' : 'text-gray-500 hover:bg-gray-50'}`}
-                            >
+                            <button onClick={() => setDeleteConfirm(null)}
+                                className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all ${isDark ? 'text-[#9C8F7F] hover:bg-[#2A2A2A]' : 'text-gray-500 hover:bg-gray-50'}`}>
                                 Cancel
                             </button>
                         </div>
@@ -322,7 +364,6 @@ export default function AdminOrderHistory() {
                 </div>
             )}
 
-            {/* Toast animation */}
             <style>{`
                 @keyframes slideInDown {
                     from { opacity: 0; transform: translateY(-20px); }
