@@ -157,3 +157,21 @@ export const deleteMenuItem = async (id: string) => {
     const menuRef = doc(db, 'menu_items', id); // Original collection name was 'menu_items'
     await deleteDoc(menuRef);
 };
+
+// Order Trash Management
+export const trashOrder = async (orderId: string, previousStatus: string) => {
+    const orderRef = doc(db, 'orders', orderId);
+    await updateDoc(orderRef, { status: 'TRASHED', previousStatus, updatedAt: serverTimestamp() });
+};
+
+export const recoverOrder = async (orderId: string) => {
+    const orderRef = doc(db, 'orders', orderId);
+    const snap = await getDoc(orderRef);
+    const prev = snap.exists() ? snap.data().previousStatus || 'PAID' : 'PAID';
+    await updateDoc(orderRef, { status: prev, previousStatus: null, updatedAt: serverTimestamp() });
+};
+
+export const permanentlyDeleteOrder = async (orderId: string) => {
+    const orderRef = doc(db, 'orders', orderId);
+    await deleteDoc(orderRef);
+};

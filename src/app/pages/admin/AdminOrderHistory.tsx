@@ -3,8 +3,8 @@ import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
 import { Badge } from '../../components/design-system/Badge';
 import { Button } from '../../components/design-system/Button';
-import { Download, Search, Filter, ChevronDown } from 'lucide-react';
-import { subscribeToAllOrders } from '../../../services/db';
+import { Download, Search, Filter, ChevronDown, Trash2, RotateCcw, AlertTriangle, CheckCircle } from 'lucide-react';
+import { subscribeToAllOrders, trashOrder, recoverOrder, permanentlyDeleteOrder } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 import { format } from 'date-fns';
 
@@ -12,6 +12,8 @@ export default function AdminOrderHistory() {
     const [orders, setOrders] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; status: string } | null>(null);
+    const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false });
     const { adminTheme } = useTheme();
 
     useEffect(() => {
@@ -22,6 +24,11 @@ export default function AdminOrderHistory() {
     const isDark = adminTheme === 'dark';
 
     const parseDate = (d: any) => d?.seconds ? new Date(d.seconds * 1000) : d ? new Date(d) : null;
+
+    const showToast = (message: string) => {
+        setToast({ message, visible: true });
+        setTimeout(() => setToast({ message: '', visible: false }), 3000);
+    };
 
     const filteredOrders = orders
         .filter(o => {
@@ -37,6 +44,29 @@ export default function AdminOrderHistory() {
             const db2 = parseDate(b.createdAt);
             return (db2?.getTime() || 0) - (da?.getTime() || 0);
         });
+
+    const handleTrash = async (orderId: string, currentStatus: string) => {
+        try {
+            await trashOrder(orderId, currentStatus);
+            showToast('Order moved to trash');
+            setDeleteConfirm(null);
+        } catch (e) { console.error(e); }
+    };
+
+    const handleRecover = async (orderId: string) => {
+        try {
+            await recoverOrder(orderId);
+            showToast('Order recovered');
+        } catch (e) { console.error(e); }
+    };
+
+    const handlePermanentDelete = async (orderId: string) => {
+        try {
+            await permanentlyDeleteOrder(orderId);
+            showToast('Order permanently deleted');
+            setDeleteConfirm(null);
+        } catch (e) { console.error(e); }
+    };
 
     const handleDownloadPDF = (order: any) => {
         const printWindow = window.open('', '_blank');
@@ -99,17 +129,28 @@ export default function AdminOrderHistory() {
 
     const statusColors: Record<string, string> = {
         PENDING: isDark ? 'bg-yellow-500/10 text-yellow-500' : 'bg-yellow-50 text-yellow-600',
+        PAID: isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600',
         CONFIRMED: isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600',
         PREPARING: isDark ? 'bg-orange-500/10 text-orange-400' : 'bg-orange-50 text-orange-600',
         OUT_FOR_DELIVERY: isDark ? 'bg-purple-500/10 text-purple-400' : 'bg-purple-50 text-purple-600',
         DELIVERED: isDark ? 'bg-green-500/10 text-green-400' : 'bg-green-50 text-green-600',
         CANCELLED: isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-600',
+        TRASHED: isDark ? 'bg-gray-500/10 text-gray-400' : 'bg-gray-100 text-gray-500',
     };
 
     const allStatuses = ['all', ...Array.from(new Set(orders.map(o => o.status).filter(Boolean)))];
 
     return (
         <AdminLayout title="Order History">
+            {/* Toast */}
+            {toast.visible && (
+                <div className="fixed top-6 right-6 z-[200] flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl bg-[#7C3AED] text-white"
+                    style={{ animation: 'slideInDown 0.3s ease-out' }}>
+                    <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                    <span className="font-bold text-sm">{toast.message}</span>
+                </div>
+            )}
+
             {/* Filters */}
             <div className="flex flex-col md:flex-row gap-4 mb-8">
                 <div className="relative flex-1">
@@ -152,13 +193,13 @@ export default function AdminOrderHistory() {
                     <table className="w-full">
                         <thead>
                             <tr className={`text-left ${isDark ? 'bg-[#2A2A2A]' : 'bg-gray-50'}`}>
-                                <th className={`py-4 px-6 text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Order ID</th>
-                                <th className={`py-4 px-6 text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Student</th>
-                                <th className={`hidden md:table-cell py-4 px-6 text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Hostel</th>
-                                <th className={`py-4 px-6 text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Total</th>
-                                <th className={`py-4 px-6 text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Status</th>
-                                <th className={`hidden lg:table-cell py-4 px-6 text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Date</th>
-                                <th className={`py-4 px-6 text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Receipt</th>
+                                <th className={`py-4 px-4 lg:px-6 text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Order ID</th>
+                                <th className={`py-4 px-4 lg:px-6 text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Student</th>
+                                <th className={`hidden md:table-cell py-4 px-4 lg:px-6 text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Hostel</th>
+                                <th className={`py-4 px-4 lg:px-6 text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Total</th>
+                                <th className={`py-4 px-4 lg:px-6 text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Status</th>
+                                <th className={`py-4 px-4 lg:px-6 text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Date</th>
+                                <th className={`py-4 px-4 lg:px-6 text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Actions</th>
                             </tr>
                         </thead>
                         <tbody className={`divide-y ${isDark ? 'divide-[#333333]' : 'divide-gray-50'}`}>
@@ -170,41 +211,63 @@ export default function AdminOrderHistory() {
                                 </tr>
                             ) : filteredOrders.map(order => {
                                 const date = parseDate(order.createdAt);
+                                const isTrashed = order.status === 'TRASHED';
                                 return (
-                                    <tr key={order.id} className={`transition-colors ${isDark ? 'hover:bg-[#2A2A2A]' : 'hover:bg-gray-50'}`}>
-                                        <td className="py-4 px-6">
+                                    <tr key={order.id} className={`transition-colors ${isTrashed ? (isDark ? 'opacity-50' : 'opacity-60') : ''} ${isDark ? 'hover:bg-[#2A2A2A]' : 'hover:bg-gray-50'}`}>
+                                        <td className="py-4 px-4 lg:px-6">
                                             <span className={`font-mono font-bold text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
                                                 CD-{order.orderId?.slice(-5) || '?????'}
                                             </span>
                                         </td>
-                                        <td className="py-4 px-6">
+                                        <td className="py-4 px-4 lg:px-6">
                                             <div>
                                                 <p className={`font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName || 'N/A'}</p>
                                                 <p className={`text-xs ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>{order.phone || ''}</p>
                                             </div>
                                         </td>
-                                        <td className={`hidden md:table-cell py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>
+                                        <td className={`hidden md:table-cell py-4 px-4 lg:px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>
                                             {order.hostel || 'N/A'}
                                         </td>
-                                        <td className="py-4 px-6">
+                                        <td className="py-4 px-4 lg:px-6">
                                             <span className="font-bold text-sm text-[#10B981]">₦{(order.total || 0).toLocaleString()}</span>
                                         </td>
-                                        <td className="py-4 px-6">
+                                        <td className="py-4 px-4 lg:px-6">
                                             <Badge className={`text-[9px] font-black uppercase tracking-widest py-1.5 px-3 rounded-full ${statusColors[order.status] || (isDark ? 'bg-gray-500/10 text-gray-400' : 'bg-gray-100 text-gray-500')}`}>
                                                 {(order.status || 'PENDING').replace(/_/g, ' ')}
                                             </Badge>
                                         </td>
-                                        <td className={`hidden lg:table-cell py-4 px-6 text-xs font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
-                                            {date ? format(date, 'MMM d, h:mm a') : 'N/A'}
+                                        <td className={`py-4 px-4 lg:px-6 text-xs font-bold whitespace-nowrap ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
+                                            {date ? format(date, 'MMM d, yyyy') : 'N/A'}
+                                            <br />
+                                            <span className="text-[10px] opacity-70">{date ? format(date, 'h:mm a') : ''}</span>
                                         </td>
-                                        <td className="py-4 px-6">
-                                            <Button
-                                                variant="ghost"
-                                                onClick={() => handleDownloadPDF(order)}
-                                                className={`p-2 rounded-lg transition-colors ${isDark ? 'text-[#9C8F7F] hover:text-[#7C3AED] hover:bg-[#7C3AED]/10' : 'text-gray-400 hover:text-[#7C3AED] hover:bg-purple-50'}`}
-                                            >
-                                                <Download className="w-4 h-4" />
-                                            </Button>
+                                        <td className="py-4 px-4 lg:px-6">
+                                            <div className="flex items-center gap-1">
+                                                {isTrashed ? (
+                                                    <button
+                                                        onClick={() => handleRecover(order.id)}
+                                                        title="Recover order"
+                                                        className={`p-2 rounded-lg transition-colors ${isDark ? 'text-[#10B981] hover:bg-[#10B981]/10' : 'text-green-500 hover:bg-green-50'}`}
+                                                    >
+                                                        <RotateCcw className="w-4 h-4" />
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleDownloadPDF(order)}
+                                                        title="Download receipt"
+                                                        className={`p-2 rounded-lg transition-colors ${isDark ? 'text-[#9C8F7F] hover:text-[#7C3AED] hover:bg-[#7C3AED]/10' : 'text-gray-400 hover:text-[#7C3AED] hover:bg-purple-50'}`}
+                                                    >
+                                                        <Download className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => setDeleteConfirm({ id: order.id, status: order.status })}
+                                                    title={isTrashed ? 'Delete permanently' : 'Move to trash'}
+                                                    className={`p-2 rounded-lg transition-colors ${isDark ? 'text-red-400 hover:bg-red-500/10' : 'text-red-400 hover:bg-red-50'}`}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 );
@@ -213,6 +276,59 @@ export default function AdminOrderHistory() {
                     </table>
                 </div>
             </Card>
+
+            {/* Delete Confirm Dialog */}
+            {deleteConfirm && (
+                <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDeleteConfirm(null)}></div>
+                    <div className={`relative w-full max-w-sm rounded-3xl p-8 shadow-2xl ${isDark ? 'bg-[#222222]' : 'bg-white'}`}>
+                        <div className="text-center mb-6">
+                            <div className="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+                                <AlertTriangle className="w-7 h-7 text-red-500" />
+                            </div>
+                            <h3 className={`font-black text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                {deleteConfirm.status === 'TRASHED' ? 'Delete Permanently?' : 'Delete Order?'}
+                            </h3>
+                            <p className={`text-sm mt-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+                                {deleteConfirm.status === 'TRASHED'
+                                    ? 'This order will be permanently removed and cannot be recovered.'
+                                    : 'Choose to move to trash (recoverable) or delete permanently.'}
+                            </p>
+                        </div>
+
+                        <div className="space-y-3">
+                            {deleteConfirm.status !== 'TRASHED' && (
+                                <button
+                                    onClick={() => handleTrash(deleteConfirm.id, deleteConfirm.status)}
+                                    className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all ${isDark ? 'bg-[#2A2A2A] text-[#FCD34D] hover:bg-[#333333]' : 'bg-yellow-50 text-yellow-600 hover:bg-yellow-100'}`}
+                                >
+                                    Move to Trash
+                                </button>
+                            )}
+                            <button
+                                onClick={() => handlePermanentDelete(deleteConfirm.id)}
+                                className="w-full py-3.5 rounded-xl font-bold text-sm bg-red-500 text-white hover:bg-red-600 transition-all"
+                            >
+                                Delete Permanently
+                            </button>
+                            <button
+                                onClick={() => setDeleteConfirm(null)}
+                                className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all ${isDark ? 'text-[#9C8F7F] hover:bg-[#2A2A2A]' : 'text-gray-500 hover:bg-gray-50'}`}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Toast animation */}
+            <style>{`
+                @keyframes slideInDown {
+                    from { opacity: 0; transform: translateY(-20px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+            `}</style>
         </AdminLayout>
     );
 }
