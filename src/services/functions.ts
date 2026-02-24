@@ -1,24 +1,16 @@
 /// <reference types="vite/client" />
-import { httpsCallable } from 'firebase/functions';
-import { functions } from './firebase';
 
-// Mock implementations for development until Cloud Functions are deployed
+// In DEV: we mock server-side calculations locally
+// In PRODUCTION: we call Vercel API routes (server-side, secure)
+
 export const calculateOrderTotal = async (data: any) => {
-    // In a real app, this calls the backend. 
-    // For now, we might need a temporary client-side calculation to unblock frontend dev
-    // BUT the requirements said "Server-side mandatory".
-    // So we will try to call the function, and if it fails (not deployed), we might fail or mock.
-
     if (import.meta.env.DEV) {
-        console.log("Mocking server-side calculation for DEV");
-        const { items, deliveryMode, hostelId } = data;
+        console.log('[CalebDeck] DEV: Mocking server-side calculation');
+        const { items, deliveryMode } = data;
         let total = 0;
         let plateCount = 0;
 
-        // Simple mock logic
         items.forEach((item: any) => {
-            // item structure depends on PlateBuilder output
-            // Assuming simplistic structure for mock
             plateCount += item.quantity || 1;
             total += (item.price || 0) * (item.quantity || 1);
         });
@@ -47,23 +39,84 @@ export const calculateOrderTotal = async (data: any) => {
         };
     }
 
-    const fn = httpsCallable(functions, 'calculateOrderTotal');
-    return fn(data);
+    // PRODUCTION: Call Vercel API route
+    console.log('[CalebDeck] Calling /api/calculate-total...');
+    try {
+        const response = await fetch('/api/calculate-total', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('[CalebDeck] /api/calculate-total failed:', response.status, errorData);
+            throw new Error(errorData.error || `Server error: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('[CalebDeck] Total calculated:', result.data?.totalAmount);
+        return result;
+    } catch (error: any) {
+        console.error('[CalebDeck] calculateOrderTotal error:', error.message);
+        throw error;
+    }
+};
+
+export const verifyPayment = async (data: { reference: string; orderData: any }) => {
+    if (import.meta.env.DEV) {
+        console.log('[CalebDeck] DEV: Mocking payment verification for', data.reference);
+        return { data: { success: true, message: "Payment Verified (MOCK)" } };
+    }
+
+    console.log('[CalebDeck] Calling /api/verify-payment...');
+    try {
+        const response = await fetch('/api/verify-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('[CalebDeck] /api/verify-payment failed:', response.status, errorData);
+            throw new Error(errorData.error || `Verification failed: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('[CalebDeck] Payment verified:', result.data?.paystackRef);
+        return result;
+    } catch (error: any) {
+        console.error('[CalebDeck] verifyPayment error:', error.message);
+        throw error;
+    }
 };
 
 export const dispatchHostelOrders = async (data: { hostelId: string }) => {
     if (import.meta.env.DEV) {
-        console.log("Mocking dispatch for DEV", data);
+        console.log('[CalebDeck] DEV: Mocking dispatch for', data);
         return { data: { success: true, message: "Mock Dispatch Sent" } };
     }
-    const fn = httpsCallable(functions, 'dispatchHostelOrders');
-    return fn(data);
-};
-export const verifyPayment = async (data: { reference: string; orderData: any }) => {
-    if (import.meta.env.DEV) {
-        console.log("Mocking payment verification for DEV", data.reference);
-        return { data: { success: true, message: "Payment Verified (MOCK)" } };
+
+    console.log('[CalebDeck] Calling /api/dispatch-orders...');
+    try {
+        const response = await fetch('/api/dispatch-orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('[CalebDeck] /api/dispatch-orders failed:', response.status, errorData);
+            throw new Error(errorData.error || `Dispatch failed: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('[CalebDeck] Orders dispatched:', result.data?.count);
+        return result;
+    } catch (error: any) {
+        console.error('[CalebDeck] dispatchHostelOrders error:', error.message);
+        throw error;
     }
-    const fn = httpsCallable(functions, 'verifyPayment');
-    return fn(data);
 };
