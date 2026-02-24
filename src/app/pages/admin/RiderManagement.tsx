@@ -10,8 +10,9 @@ import {
     UserCheck,
     UserPlus,
     MapPin,
+    Trash2
 } from 'lucide-react';
-import { subscribeToRiders, subscribeToAllOrders, subscribeToHostels, updateRider, assignHostelRiders, Rider, Hostel } from '../../../services/db';
+import { subscribeToRiders, subscribeToAllOrders, subscribeToHostels, updateRider, deleteRider, assignHostelRiders, Rider, Hostel } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 
 export default function RiderManagement() {
@@ -37,6 +38,11 @@ export default function RiderManagement() {
 
     const handleActivateToggle = async (rider: Rider) => {
         await updateRider(rider.id, { isActive: !rider.isActive });
+    };
+
+    const handleDeleteRider = async (rider: Rider) => {
+        if (!confirm(`Delete rider "${rider.name}"? This cannot be undone.`)) return;
+        await deleteRider(rider.id);
     };
 
     const handleAssignDefaultRider = async (hostelId: string, riderId: string) => {
@@ -110,14 +116,22 @@ export default function RiderManagement() {
                                                     <p className={`text-xs ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{rider.phone} • {rider.dept}</p>
                                                 </div>
                                             </div>
-                                            <Button
-                                                variant="primary"
-                                                onClick={() => handleActivateToggle(rider)}
-                                                className="px-4 py-2 rounded-lg font-bold text-[10px] uppercase bg-[#10B981] hover:bg-[#059669] text-white"
-                                            >
-                                                <UserCheck className="w-3 h-3 mr-1" />
-                                                Activate
-                                            </Button>
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    variant="primary"
+                                                    onClick={() => handleActivateToggle(rider)}
+                                                    className="px-4 py-2 rounded-lg font-bold text-[10px] uppercase bg-[#10B981] hover:bg-[#059669] text-white"
+                                                >
+                                                    <UserCheck className="w-3 h-3 mr-1" />
+                                                    Activate
+                                                </Button>
+                                                <button
+                                                    onClick={() => handleDeleteRider(rider)}
+                                                    className="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </div>
                                     </Card>
                                 ))}
@@ -172,13 +186,21 @@ export default function RiderManagement() {
                                             <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{rider.phone}</span>
                                         </div>
 
-                                        <Button
-                                            variant="ghost"
-                                            onClick={() => handleActivateToggle(rider)}
-                                            className={`w-full py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] ${isDark ? 'text-red-400 hover:bg-red-500/10' : 'text-red-500 hover:bg-red-50'}`}
-                                        >
-                                            Deactivate
-                                        </Button>
+                                        <div className="flex gap-3">
+                                            <Button
+                                                variant="ghost"
+                                                onClick={() => handleActivateToggle(rider)}
+                                                className={`flex-1 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F] hover:bg-[#2A2A2A]' : 'text-gray-500 hover:bg-gray-50'}`}
+                                            >
+                                                Deactivate
+                                            </Button>
+                                            <button
+                                                onClick={() => handleDeleteRider(rider)}
+                                                className={`px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${isDark ? 'text-red-400 hover:bg-red-500/10' : 'text-red-500 hover:bg-red-50'}`}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </Card>
                                 );
                             })}

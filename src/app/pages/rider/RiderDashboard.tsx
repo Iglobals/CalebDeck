@@ -1,235 +1,283 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Logo } from '../../components/design-system/Logo';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
-import { Package, MapPin, Phone, CheckCircle, Clock } from 'lucide-react';
-
-interface Order {
-  id: string;
-  student: string;
-  hostel: string;
-  room: string;
-  plates: number;
-  phone: string;
-  status: 'pending' | 'picked-up' | 'delivered';
-}
+import { Package, MapPin, Phone, CheckCircle, Clock, LogOut, Truck } from 'lucide-react';
+import { useAuth } from '../../../context/AuthContext';
+import { useNavigate } from 'react-router';
+import {
+  subscribeToRiderOrders,
+  subscribeToBatches,
+  updateRider,
+  updateOrder,
+  updateBatch,
+  getRiderById,
+  Rider,
+  Batch,
+} from '../../../services/db';
 
 export default function RiderDashboard() {
-  const [riderStatus, setRiderStatus] = useState<'available' | 'busy' | 'offline'>('available');
-  const [orders, setOrders] = useState<Order[]>([
-    { id: 'CD-38492', student: 'Chioma A.', hostel: 'Deborah Hall', room: '204', plates: 2, phone: '08012345678', status: 'pending' },
-    { id: 'CD-38493', student: 'Faith M.', hostel: 'Deborah Hall', room: '310', plates: 1, phone: '08087654321', status: 'pending' },
-    { id: 'CD-38494', student: 'Sarah K.', hostel: 'Deborah Hall', room: '156', plates: 3, phone: '08098765432', status: 'pending' },
-  ]);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [rider, setRider] = useState<Rider | null>(null);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [batches, setBatches] = useState<Batch[]>([]);
+  const [riderStatus, setRiderStatus] = useState<'available' | 'offline'>('offline');
 
-  const currentBatch = {
-    hostel: 'Deborah Hall',
-    totalOrders: orders.filter(o => o.status !== 'delivered').length,
-    totalPlates: orders.filter(o => o.status !== 'delivered').reduce((sum, o) => sum + o.plates, 0)
+  // Load rider profile from riders collection
+  useEffect(() => {
+    if (!user) return;
+    const loadRider = async () => {
+      const riderData = await getRiderById(user.uid);
+      if (riderData) {
+        setRider(riderData);
+        setRiderStatus(riderData.status === 'available' ? 'available' : 'offline');
+      }
+    };
+    loadRider();
+  }, [user]);
+
+  // Subscribe to orders assigned to this rider
+  useEffect(() => {
+    if (!user) return;
+    const unsub = subscribeToRiderOrders(user.uid, setOrders);
+    return unsub;
+  }, [user]);
+
+  // Subscribe to batches
+  useEffect(() => {
+    if (!user) return;
+    const unsub = subscribeToBatches(user.uid, setBatches);
+    return unsub;
+  }, [user]);
+
+  const handleStatusToggle = async () => {
+    if (!user) return;
+    const newStatus = riderStatus === 'available' ? 'offline' : 'available';
+    setRiderStatus(newStatus);
+    await updateRider(user.uid, { status: newStatus });
   };
 
-  const handleStatusChange = (status: 'available' | 'busy' | 'offline') => {
-    setRiderStatus(status);
+  const markDelivered = async (orderId: string) => {
+    await updateOrder(orderId, { status: 'DELIVERED' });
   };
 
-  const markPickedUp = (orderId: string) => {
-    setOrders(orders.map(order =>
-      order.id === orderId ? { ...order, status: 'picked-up' as const } : order
-    ));
+  const markBatchDelivered = async (batch: Batch) => {
+    // Mark all orders in the batch as delivered
+    for (const orderId of batch.orderIds) {
+      await updateOrder(orderId, { status: 'DELIVERED' });
+    }
+    await updateBatch(batch.id, { status: 'DELIVERED' });
   };
 
-  const markDelivered = (orderId: string) => {
-    setOrders(orders.map(order =>
-      order.id === orderId ? { ...order, status: 'delivered' as const } : order
-    ));
+  const handleLogout = async () => {
+    await logout();
+    navigate('/rider/login');
   };
 
-  const activeOrders = orders.filter(o => o.status !== 'delivered');
-  const completedOrders = orders.filter(o => o.status === 'delivered');
+  const activeOrders = orders.filter(o => o.status === 'OUT_FOR_DELIVERY');
+  const deliveredOrders = orders.filter(o => o.status === 'DELIVERED');
+  const activeBatches = batches.filter(b => b.status === 'OUT_FOR_DELIVERY');
+
+  const isNotActivated = rider && rider.isActive === false;
 
   return (
-    <div className="min-h-screen bg-[#FAF9F6]">
+    <div className="min-h-screen bg-[#0A0A0A] text-white">
       {/* Header */}
-      <header className="sticky top-0 bg-white border-b border-[#E5E2DC] z-50">
-        <div className="px-6 py-4">
+      <header className="sticky top-0 bg-[#141414] border-b border-[#222222] z-50">
+        <div className="px-5 py-4">
           <div className="flex items-center justify-between mb-4">
             <Logo size="sm" />
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <p className="text-sm font-semibold text-[#121212]">John Doe</p>
-                <p className="text-xs text-[#9C8F7F]">Rider ID: R-001</p>
+                <p className="text-sm font-bold text-[#FAF9F6]">{rider?.name || user?.displayName || 'Rider'}</p>
+                <p className="text-[10px] text-[#9C8F7F] font-bold uppercase tracking-widest">{rider?.dept || 'Logistics'}</p>
               </div>
-              <div className="w-10 h-10 rounded-full bg-[#7C3AED] text-white flex items-center justify-center font-bold">
-                JD
-              </div>
+              <button
+                onClick={handleLogout}
+                className="w-10 h-10 rounded-xl bg-[#222222] flex items-center justify-center text-[#9C8F7F] hover:text-red-400 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
           </div>
 
           {/* Status Toggle */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={() => handleStatusChange('available')}
-              className={`py-3 px-4 rounded-xl font-semibold transition-all ${riderStatus === 'available'
-                  ? 'bg-green-500 text-white'
-                  : 'bg-white text-[#121212] border-2 border-[#E5E2DC]'
+              onClick={handleStatusToggle}
+              className={`py-3 rounded-xl font-bold text-sm transition-all ${riderStatus === 'available'
+                ? 'bg-green-500 text-white shadow-lg shadow-green-500/20'
+                : 'bg-[#222222] text-[#9C8F7F] border border-[#333333]'
                 }`}
             >
-              Available
+              🟢 Online
             </button>
             <button
-              onClick={() => handleStatusChange('busy')}
-              className={`py-3 px-4 rounded-xl font-semibold transition-all ${riderStatus === 'busy'
-                  ? 'bg-[#FCD34D] text-white'
-                  : 'bg-white text-[#121212] border-2 border-[#E5E2DC]'
+              onClick={handleStatusToggle}
+              className={`py-3 rounded-xl font-bold text-sm transition-all ${riderStatus === 'offline'
+                ? 'bg-[#333333] text-white'
+                : 'bg-[#222222] text-[#9C8F7F] border border-[#333333]'
                 }`}
             >
-              Busy
-            </button>
-            <button
-              onClick={() => handleStatusChange('offline')}
-              className={`py-3 px-4 rounded-xl font-semibold transition-all ${riderStatus === 'offline'
-                  ? 'bg-gray-500 text-white'
-                  : 'bg-white text-[#121212] border-2 border-[#E5E2DC]'
-                }`}
-            >
-              Offline
+              ⚫ Offline
             </button>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="p-6 space-y-6">
-        {/* Current Batch */}
-        {activeOrders.length > 0 && (
-          <Card className="bg-gradient-to-br from-[#FCD34D]/20 to-[#7C3AED]/20 border-2 border-[#FCD34D]">
-            <div className="flex items-center justify-between mb-4">
+      <main className="p-5 space-y-6">
+        {/* Not Activated Warning */}
+        {isNotActivated && (
+          <Card className="bg-[#FCD34D]/10 border-2 border-[#FCD34D]/30">
+            <div className="flex items-start gap-3">
+              <Clock className="w-6 h-6 text-[#FCD34D] flex-shrink-0 mt-0.5" />
               <div>
-                <Badge variant="gold" className="mb-2">CURRENT BATCH</Badge>
-                <h2 className="text-2xl font-bold text-[#121212]">{currentBatch.hostel}</h2>
-              </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold text-[#121212]">{currentBatch.totalPlates}</div>
-                <div className="text-sm text-[#9C8F7F]">plates</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-6 text-sm">
-              <div className="flex items-center gap-2 text-[#121212]">
-                <Package className="w-5 h-5" />
-                <span className="font-semibold">{currentBatch.totalOrders} orders</span>
-              </div>
-              <div className="flex items-center gap-2 text-[#121212]">
-                <MapPin className="w-5 h-5" />
-                <span className="font-semibold">{currentBatch.hostel}</span>
+                <h3 className="font-bold text-[#FCD34D] mb-1">Pending Activation</h3>
+                <p className="text-sm text-[#9C8F7F]">Your account is pending admin activation. You'll be able to receive orders once an admin activates your account.</p>
               </div>
             </div>
           </Card>
         )}
 
+        {/* Active Batches */}
+        {activeBatches.length > 0 && activeBatches.map(batch => (
+          <Card key={batch.id} className="bg-gradient-to-br from-[#FCD34D]/10 to-[#7C3AED]/10 border border-[#FCD34D]/40">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <Badge variant="gold" className="mb-2 text-[9px] font-black uppercase tracking-widest">Active Batch</Badge>
+                <h2 className="text-xl font-bold text-[#FAF9F6]">{batch.hostelName}</h2>
+              </div>
+              <div className="text-right">
+                <div className="text-3xl font-black text-[#FCD34D]">{batch.plateCount}</div>
+                <div className="text-[10px] text-[#9C8F7F] font-bold uppercase tracking-widest">plates</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-6 text-sm mb-4">
+              <div className="flex items-center gap-2 text-[#9C8F7F]">
+                <Package className="w-4 h-4" />
+                <span className="font-bold">{batch.orderCount} orders</span>
+              </div>
+              <div className="flex items-center gap-2 text-[#9C8F7F]">
+                <Truck className="w-4 h-4" />
+                <span className="font-bold">Out for Delivery</span>
+              </div>
+            </div>
+            <Button
+              variant="primary"
+              onClick={() => markBatchDelivered(batch)}
+              className="w-full py-3.5 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl transition-all active:scale-95"
+            >
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Mark Entire Batch Delivered
+            </Button>
+          </Card>
+        ))}
+
         {/* Active Orders */}
         {activeOrders.length > 0 ? (
           <div>
-            <h3 className="text-xl font-bold text-[#121212] mb-4">
+            <h3 className="text-lg font-bold text-[#FAF9F6] mb-4">
               Active Deliveries ({activeOrders.length})
             </h3>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {activeOrders.map((order) => (
-                <Card key={order.id}>
+                <Card key={order.id} className="bg-[#1A1A1A] border-[#222222]">
                   <div className="space-y-4">
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="flex items-center gap-2 mb-2">
-                          <h4 className="font-bold text-[#121212] text-lg">{order.student}</h4>
-                          <Badge variant={order.status === 'picked-up' ? 'gold' : 'purple'}>
-                            {order.status === 'picked-up' ? 'Picked Up' : 'Pending'}
-                          </Badge>
+                          <h4 className="font-bold text-[#FAF9F6]">{order.fullName || 'Student'}</h4>
+                          <Badge variant="purple" className="text-[9px] font-black uppercase">Out for delivery</Badge>
                         </div>
-                        <p className="text-sm text-[#9C8F7F] mb-1">Order ID: {order.id}</p>
-                        <div className="flex items-center gap-2 text-[#121212]">
-                          <MapPin className="w-4 h-4 text-[#7C3AED]" />
-                          <span className="font-medium">{order.hostel}, Room {order.room}</span>
+                        <p className="text-xs text-[#9C8F7F] font-bold mb-1">{order.orderId || order.id}</p>
+                        <div className="flex items-center gap-2 text-[#FAF9F6]">
+                          <MapPin className="w-3.5 h-3.5 text-[#7C3AED]" />
+                          <span className="text-sm font-medium">{order.hostel}{order.roomNumber ? `, Room ${order.roomNumber}` : ''}</span>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-2xl font-bold text-[#121212]">{order.plates}</div>
-                        <div className="text-xs text-[#9C8F7F]">plates</div>
+                        <div className="text-2xl font-black text-[#FAF9F6]">{order.plates?.length || 0}</div>
+                        <div className="text-[10px] text-[#9C8F7F] font-bold">plates</div>
                       </div>
                     </div>
 
+                    {/* Order items preview */}
+                    {order.plates && order.plates.length > 0 && (
+                      <div className={`p-3 rounded-xl bg-[#222222] text-xs text-[#9C8F7F]`}>
+                        {order.plates.map((plate: any, i: number) => (
+                          <div key={i} className="flex justify-between py-1">
+                            <span>{plate.items?.map((item: any) => item.name).join(', ')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     <div className="flex gap-3">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => window.location.href = `tel:${order.phone}`}
-                      >
-                        <Phone className="w-4 h-4" />
-                        Call
-                      </Button>
-                      {order.status === 'pending' ? (
+                      {order.phone && (
                         <Button
-                          variant="primary"
+                          variant="ghost"
                           size="sm"
-                          className="flex-1"
-                          onClick={() => markPickedUp(order.id)}
+                          className="flex-1 bg-[#222222] text-[#7C3AED] border-none hover:bg-[#2A2A2A]"
+                          onClick={() => window.location.href = `tel:${order.phone}`}
                         >
-                          <Package className="w-4 h-4" />
-                          Mark Picked Up
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          className="flex-1 bg-green-500 hover:bg-green-600"
-                          onClick={() => markDelivered(order.id)}
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                          Mark Delivered
+                          <Phone className="w-4 h-4 mr-1" />
+                          Call
                         </Button>
                       )}
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        className="flex-1 bg-green-500 hover:bg-green-600 text-white"
+                        onClick={() => markDelivered(order.id)}
+                      >
+                        <CheckCircle className="w-4 h-4 mr-1" />
+                        Delivered
+                      </Button>
                     </div>
                   </div>
                 </Card>
               ))}
             </div>
           </div>
-        ) : (
-          <Card className="text-center py-12">
-            <div className="w-16 h-16 rounded-full bg-[#E5E2DC] flex items-center justify-center mx-auto mb-4">
+        ) : !isNotActivated && (
+          <Card className="text-center py-12 bg-[#1A1A1A] border-[#222222]">
+            <div className="w-16 h-16 rounded-2xl bg-[#222222] flex items-center justify-center mx-auto mb-4">
               <Package className="w-8 h-8 text-[#9C8F7F]" />
             </div>
-            <h3 className="text-xl font-bold text-[#121212] mb-2">No Active Deliveries</h3>
-            <p className="text-[#9C8F7F]">
+            <h3 className="text-lg font-bold text-[#FAF9F6] mb-2">No Active Deliveries</h3>
+            <p className="text-sm text-[#9C8F7F]">
               {riderStatus === 'available'
-                ? 'Waiting for new orders...'
-                : 'Set status to Available to receive orders'}
+                ? 'Waiting for dispatch from admin...'
+                : 'Go online to receive delivery batches'}
             </p>
           </Card>
         )}
 
         {/* Completed Today */}
-        {completedOrders.length > 0 && (
+        {deliveredOrders.length > 0 && (
           <div>
-            <h3 className="text-xl font-bold text-[#121212] mb-4">
-              Completed Today ({completedOrders.length})
+            <h3 className="text-lg font-bold text-[#FAF9F6] mb-4">
+              Completed ({deliveredOrders.length})
             </h3>
-            <div className="space-y-3">
-              {completedOrders.map((order) => (
-                <Card key={order.id} className="bg-green-50 border-2 border-green-200">
+            <div className="space-y-2">
+              {deliveredOrders.slice(0, 5).map((order) => (
+                <Card key={order.id} className="bg-green-500/5 border-green-500/20">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center">
-                        <CheckCircle className="w-6 h-6 text-white" />
+                      <div className="w-9 h-9 rounded-xl bg-green-500/20 flex items-center justify-center">
+                        <CheckCircle className="w-5 h-5 text-green-500" />
                       </div>
                       <div>
-                        <p className="font-semibold text-[#121212]">{order.student}</p>
-                        <p className="text-sm text-[#9C8F7F]">{order.hostel}, Room {order.room}</p>
+                        <p className="font-bold text-sm text-[#FAF9F6]">{order.fullName}</p>
+                        <p className="text-xs text-[#9C8F7F]">{order.hostel}</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-green-700">{order.plates} plates</p>
-                      <p className="text-xs text-green-600">Delivered</p>
+                      <p className="font-bold text-green-500 text-sm">{order.plates?.length || 0} plates</p>
+                      <p className="text-[10px] text-green-500/60 font-bold uppercase">Delivered</p>
                     </div>
                   </div>
                 </Card>
@@ -239,41 +287,20 @@ export default function RiderDashboard() {
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
-          <Card className="text-center">
-            <div className="text-3xl font-bold text-[#121212] mb-1">
-              {orders.length}
-            </div>
-            <div className="text-sm text-[#9C8F7F]">Total Today</div>
+        <div className="grid grid-cols-3 gap-3">
+          <Card className="text-center bg-[#1A1A1A] border-[#222222]">
+            <div className="text-2xl font-black text-[#FAF9F6] mb-1">{orders.length}</div>
+            <div className="text-[10px] text-[#9C8F7F] font-bold uppercase tracking-widest">Total</div>
           </Card>
-          <Card className="text-center">
-            <div className="text-3xl font-bold text-[#FCD34D] mb-1">
-              {activeOrders.length}
-            </div>
-            <div className="text-sm text-[#9C8F7F]">Active</div>
+          <Card className="text-center bg-[#1A1A1A] border-[#222222]">
+            <div className="text-2xl font-black text-[#FCD34D] mb-1">{activeOrders.length}</div>
+            <div className="text-[10px] text-[#9C8F7F] font-bold uppercase tracking-widest">Active</div>
           </Card>
-          <Card className="text-center">
-            <div className="text-3xl font-bold text-green-600 mb-1">
-              {completedOrders.length}
-            </div>
-            <div className="text-sm text-[#9C8F7F]">Completed</div>
+          <Card className="text-center bg-[#1A1A1A] border-[#222222]">
+            <div className="text-2xl font-black text-green-500 mb-1">{deliveredOrders.length}</div>
+            <div className="text-[10px] text-[#9C8F7F] font-bold uppercase tracking-widest">Done</div>
           </Card>
         </div>
-
-        {/* Tips */}
-        <Card className="bg-gradient-to-br from-[#7C3AED]/10 to-[#FCD34D]/10 border-2 border-[#7C3AED]/30">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#7C3AED] flex items-center justify-center flex-shrink-0">
-              <Clock className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h4 className="font-bold text-[#121212] mb-1">Quick Tip</h4>
-              <p className="text-sm text-[#9C8F7F]">
-                Deliver orders from the same hostel together to save time and maximize efficiency!
-              </p>
-            </div>
-          </div>
-        </Card>
       </main>
     </div>
   );

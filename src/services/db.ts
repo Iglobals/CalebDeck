@@ -119,6 +119,19 @@ export const createOrder = async (orderData: any) => {
     });
 };
 
+
+// Subscribe to orders assigned to a specific rider
+export const subscribeToRiderOrders = (riderId: string, callback: (orders: any[]) => void) => {
+    const q = query(
+        collection(db, 'orders'),
+        where('assignedRiderId', '==', riderId),
+        orderBy('createdAt', 'desc')
+    );
+    return onSnapshot(q, (snapshot) => {
+        callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+};
+
 // Subscribe to a single order's status (for student order tracking)
 export const subscribeToOrderStatus = (orderId: string, callback: (order: any) => void) => {
     const orderRef = doc(db, 'orders', orderId);
@@ -239,9 +252,7 @@ export const updateRider = async (id: string, updates: Partial<Rider>) => {
 };
 
 export const deleteRider = async (riderId: string) => {
-    const riderRef = doc(db, 'riders', riderId);
-    // Note: Should also remove from hostels assignedRiderIds
-    return await updateDoc(riderRef, { isActive: false }); // Or actual delete
+    await deleteDoc(doc(db, 'riders', riderId));
 };
 
 // Menu Management
