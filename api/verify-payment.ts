@@ -1,16 +1,16 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import * as admin from 'firebase-admin';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import axios from 'axios';
 
-// Inline Firebase Admin init (Vercel isolates each function — no shared modules)
-if (!admin.apps.length) {
+// Init Firebase Admin (modular imports for ESM compatibility)
+if (getApps().length === 0) {
     const projectId = process.env.FB_SA_PROJECT_ID;
     const clientEmail = process.env.FB_SA_CLIENT_EMAIL;
     let privateKey = process.env.FB_SA_PRIVATE_KEY || '';
     privateKey = privateKey.replace(/\\n/g, '\n');
 
     if (projectId && clientEmail && privateKey) {
-        admin.initializeApp({ credential: admin.credential.cert({ projectId, clientEmail, privateKey }) });
+        initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
     }
 }
 
@@ -45,7 +45,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: 'Payment was not successful', status: data.status });
         }
 
-        // Verify amount matches (Paystack = kobo, orderData.total = naira)
         const expectedKobo = Math.round((orderData?.total || 0) * 100);
         const actualKobo = data.amount;
         if (expectedKobo > 0 && actualKobo !== expectedKobo) {

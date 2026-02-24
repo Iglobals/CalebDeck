@@ -1,19 +1,20 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import * as admin from 'firebase-admin';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
-// Inline Firebase Admin init (Vercel isolates each function — no shared modules)
-if (!admin.apps.length) {
+// Init Firebase Admin (modular imports for ESM compatibility)
+if (getApps().length === 0) {
     const projectId = process.env.FB_SA_PROJECT_ID;
     const clientEmail = process.env.FB_SA_CLIENT_EMAIL;
     let privateKey = process.env.FB_SA_PRIVATE_KEY || '';
     privateKey = privateKey.replace(/\\n/g, '\n');
 
     if (projectId && clientEmail && privateKey) {
-        admin.initializeApp({ credential: admin.credential.cert({ projectId, clientEmail, privateKey }) });
+        initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
     }
 }
 
-const db = admin.apps.length > 0 ? admin.firestore() : null;
+const db = getApps().length > 0 ? getFirestore() : null;
 
 const DELIVERY_FEE_SOLO = 700;
 const DELIVERY_FEE_GROUP = 560;
@@ -46,7 +47,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const doc = await docRef.get();
 
             if (!doc.exists) {
-                // Fallback to client price for items with old random IDs
                 const qty = item.quantity || 1;
                 foodTotal += (item.price || 0) * qty;
                 plateCount += qty;
