@@ -56,6 +56,7 @@ export const router = createBrowserRouter([
 
       /* Rider Flow */
       { path: "/rider/login", Component: RiderLogin },
+      { path: "/rider/signup", element: <RiderLogin initialMode="signup" /> },
       {
         path: "/rider",
         element: <RiderRoleWrapper />,

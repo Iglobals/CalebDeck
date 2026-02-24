@@ -6,7 +6,7 @@ import { ShieldCheck, Lock, Mail, ChevronRight, ArrowLeft, Eye, EyeOff } from 'l
 import { useNavigate } from 'react-router';
 import { useTheme } from '../../../context/ThemeContext';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../../../services/firebase';
 import { useAuth } from '../../../context/AuthContext';
 
@@ -35,12 +35,24 @@ export default function AdminLogin() {
         try {
             const res = await signInWithEmailAndPassword(auth, email, password);
             const userDoc = await getDoc(doc(db, 'users', res.user.uid));
-            if (!userDoc.exists() || userDoc.data().role !== 'ADMIN') {
+
+            if (userDoc.exists() && userDoc.data().role === 'ADMIN') {
+                // All good — useEffect will handle redirect
+            } else if (!userDoc.exists() && res.user.email === 'admin@calebdeck.com') {
+                // Auto-repair: admin doc is missing, recreate it
+                await setDoc(doc(db, 'users', res.user.uid), {
+                    email: res.user.email,
+                    role: 'ADMIN',
+                    fullName: 'CalebDeck Admin',
+                    createdAt: new Date().toISOString(),
+                }, { merge: true });
+                // Reload so AuthContext picks it up
+                window.location.href = '/admin';
+                return;
+            } else {
                 setError('Access denied. This account does not have admin privileges.');
                 await auth.signOut();
             }
-            // If role is ADMIN, the useEffect above will handle the redirect
-            // when AuthContext picks up the auth state change
         } catch (err: any) {
             setError('Invalid email or password. Please try again.');
         } finally {

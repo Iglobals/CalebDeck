@@ -14,8 +14,8 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 
-export default function RiderLogin() {
-    const [mode, setMode] = useState<'login' | 'signup' | 'onboarding'>('login');
+export default function RiderLogin({ initialMode = 'login' }: { initialMode?: 'login' | 'signup' }) {
+    const [mode, setMode] = useState<'login' | 'signup' | 'onboarding'>(initialMode);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -114,16 +114,33 @@ export default function RiderLogin() {
         setLoading(true);
         setError('');
         try {
+            // 1. Create the users doc (for AuthContext role check)
             await setDoc(doc(db, 'users', auth.currentUser.uid), {
                 fullName: formData.fullName.trim(),
                 phone: formData.phone.trim(),
                 department: formData.department.trim(),
                 email: auth.currentUser.email,
                 role: 'RIDER',
-                assignedHostelIds: [],
                 status: 'offline',
                 createdAt: new Date().toISOString()
             });
+
+            // 2. Also create a riders doc (for admin rider management)
+            //    Use the auth UID as the rider doc ID so they stay linked
+            await setDoc(doc(db, 'riders', auth.currentUser.uid), {
+                name: formData.fullName.trim(),
+                phone: formData.phone.trim(),
+                dept: formData.department.trim(),
+                email: auth.currentUser.email,
+                authUid: auth.currentUser.uid,
+                status: 'offline',
+                isActive: false,  // Pending — admin activates
+                assignedHostelIds: [],
+                earnings: 0,
+                role: 'rider',
+                createdAt: new Date().toISOString()
+            });
+
             // Force a page reload so AuthContext picks up the new Firestore doc
             window.location.href = '/rider';
         } catch (err: any) {
