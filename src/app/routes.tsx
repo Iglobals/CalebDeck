@@ -7,6 +7,8 @@ import CafeteriaSelection from "./pages/student/CafeteriaSelection";
 import PlateBuilder from "./pages/student/PlateBuilder";
 import Checkout from "./pages/student/Checkout";
 import OrderSuccess from "./pages/student/OrderSuccess";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -68,6 +70,10 @@ export const router = createBrowserRouter([
           { path: "batch/:batchId", Component: RiderBatchDetails },
         ]
       },
+
+      /* Legal Pages */
+      { path: "/privacy", Component: PrivacyPolicy },
+      { path: "/terms", Component: TermsOfService },
     ]
   },
 ]);
