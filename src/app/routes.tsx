@@ -9,6 +9,8 @@ import Checkout from "./pages/student/Checkout";
 import OrderSuccess from "./pages/student/OrderSuccess";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
+import Support from "./pages/Support";
+import LearnMore from "./pages/LearnMore";
 
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -71,9 +73,11 @@ export const router = createBrowserRouter([
         ]
       },
 
-      /* Legal Pages */
+      /* Legal & info pages */
       { path: "/privacy", Component: PrivacyPolicy },
       { path: "/terms", Component: TermsOfService },
+      { path: "/support", Component: Support },
+      { path: "/learn-more", Component: LearnMore },
     ]
   },
 ]);

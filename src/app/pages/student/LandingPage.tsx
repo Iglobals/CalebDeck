@@ -101,9 +101,11 @@ export default function LandingPage() {
                   Order Now <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
-              <Button variant="secondary" size="lg">
-                Learn More
-              </Button>
+              <Link to="/learn-more">
+                <Button variant="secondary" size="lg">
+                  Learn More
+                </Button>
+              </Link>
             </div>
             <div className="flex items-center gap-6 pt-4">
               <div className="text-center">
@@ -240,7 +242,7 @@ export default function LandingPage() {
             <div className="flex gap-10 text-sm font-semibold uppercase tracking-wider">
               <Link to="/privacy" className="text-muted-foreground hover:text-secondary transition-colors">Privacy</Link>
               <Link to="/terms" className="text-muted-foreground hover:text-secondary transition-colors">Terms</Link>
-              <a href="mailto:support@calebdeck.com" className="text-muted-foreground hover:text-secondary transition-colors">Support</a>
+              <Link to="/support" className="text-muted-foreground hover:text-secondary transition-colors">Support</Link>
             </div>
             <div className="text-sm text-muted-foreground font-medium">
               © 2026 CalebDeck. Premium campus delivery.
