@@ -26,7 +26,7 @@ export default function AdminDashboard() {
   const [riders, setRiders] = useState<Rider[]>([]);
   const [hostels, setHostels] = useState<Hostel[]>([]);
   const [dispatchingHostel, setDispatchingHostel] = useState<string | null>(null);
-  const [emergencyCard, setEmergencyCard] = useState<typeof hostelCards[0] | null>(null);
+  const [emergencyCard, setEmergencyCard] = useState<any | null>(null);
 
   useEffect(() => {
     const unsub = subscribeToAllOrders(setOrders);
@@ -362,6 +362,77 @@ export default function AdminDashboard() {
           </div>
         </Card>
       </div>
+
+      {/* Emergency Dispatch Modal */}
+      {emergencyCard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <Card className={`w-full max-w-lg shadow-2xl overflow-hidden ${isDark ? 'bg-[#1A1A1A] border-[#333333]' : 'bg-white border-gray-100'}`}>
+            <div className={`flex items-center justify-between p-5 border-b ${isDark ? 'border-[#333333]' : 'border-gray-100'}`}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+                  <Zap className="w-5 h-5 text-red-500" />
+                </div>
+                <div>
+                  <h3 className={`font-bold text-lg leading-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Emergency Dispatch</h3>
+                  <p className={`text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+                    {emergencyCard.hostel.name} · {emergencyCard.pendingCount} Orders
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEmergencyCard(null)}
+                className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-[#333333] text-[#9C8F7F] hover:text-[#FAF9F6]' : 'hover:bg-gray-100 text-gray-500 hover:text-gray-900'}`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5">
+              <p className={`text-sm mb-4 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>
+                Both assigned riders are currently unavailable. Select any online rider below to aggressively dispatch this batch.
+              </p>
+
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                {onlineRiders.length > 0 ? onlineRiders.map(rider => (
+                  <div key={rider.id} className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${isDark ? 'bg-[#222222] border-[#333333] hover:border-[#7C3AED]/50' : 'bg-gray-50 border-gray-100 hover:border-primary/50'}`}>
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${isDark ? 'bg-[#333333] text-[#FAF9F6]' : 'bg-gray-200 text-gray-700'}`}>
+                          {rider.name.charAt(0)}
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-green-500 border-2 border-[#1A1A1A]"></div>
+                      </div>
+                      <div>
+                        <p className={`font-bold text-sm leading-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{rider.name}</p>
+                        <p className={`text-[10px] uppercase font-bold tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+                          {rider.dept}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="primary"
+                      onClick={() => handleEmergencyDispatch(rider)}
+                      className="px-4 py-2 text-xs font-bold rounded-lg bg-red-500 hover:bg-red-600 shadow-md shadow-red-500/20"
+                    >
+                      Assign Batch
+                    </Button>
+                  </div>
+                )) : (
+                  <div className={`p-6 text-center border-2 border-dashed rounded-xl ${isDark ? 'border-[#333333]' : 'border-gray-200'}`}>
+                    <AlertTriangle className={`w-8 h-8 mx-auto mb-3 opacity-50 ${isDark ? 'text-red-400' : 'text-red-500'}`} />
+                    <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>No Riders Online</p>
+                    <p className={`text-[11px] mt-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>There are absolutely no active riders online right now.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className={`p-4 border-t flex justify-end gap-3 bg-opacity-50 ${isDark ? 'border-[#333333] bg-[#0F0F0F]' : 'border-gray-100 bg-gray-50'}`}>
+              <Button onClick={() => setEmergencyCard(null)} variant="ghost" className={isDark ? 'text-[#9C8F7F]' : 'text-gray-600'}>
+                Cancel
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </AdminLayout>
   );
 }

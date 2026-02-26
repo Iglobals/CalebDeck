@@ -1,20 +1,20 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion, HTMLMotionProps } from 'motion/react';
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps extends Omit<HTMLMotionProps<"button">, "ref"> {
   variant?: 'primary' | 'secondary' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
   children: React.ReactNode;
 }
 
-export function Button({
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
   variant = 'primary',
   size = 'md',
   children,
   className = '',
   disabled,
   ...props
-}: ButtonProps) {
+}, ref) => {
   const baseClasses = 'font-semibold transition-all duration-200 inline-flex items-center justify-center gap-2';
 
   const variantClasses = {
@@ -40,4 +40,4 @@ export function Button({
       {children}
     </motion.button>
   );
-}
+});

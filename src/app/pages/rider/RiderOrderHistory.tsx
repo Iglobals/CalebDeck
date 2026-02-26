@@ -7,13 +7,20 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useNavigate } from 'react-router';
-import { subscribeToRiderOrders } from '../../../services/db';
+import { subscribeToRiderOrders, PlatformSettings, subscribeToPlatformSettings } from '../../../services/db';
 import { format, formatDistanceToNow } from 'date-fns';
 
 export default function RiderOrderHistory() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [orders, setOrders] = useState<any[]>([]);
+    const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+
+    // Subscribe to settings
+    useEffect(() => {
+        const unsub = subscribeToPlatformSettings(setPlatformSettings);
+        return unsub;
+    }, []);
 
     useEffect(() => {
         if (!user) return;
@@ -49,7 +56,8 @@ export default function RiderOrderHistory() {
         });
 
     const sortedKeys = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
-    const totalEarnings = deliveredOrders.length * 300;
+    const riderRate = platformSettings?.riderRatePerDelivery || 300;
+    const totalEarnings = deliveredOrders.length * riderRate;
 
     return (
         <div className="min-h-screen bg-[#0F0F0F]">
@@ -85,7 +93,7 @@ export default function RiderOrderHistory() {
                 {sortedKeys.length > 0 ? sortedKeys.map(dateKey => {
                     const dateOrders = grouped[dateKey];
                     const firstDate = parseDate(dateOrders[0].createdAt)!;
-                    const dayEarnings = dateOrders.length * 300;
+                    const dayEarnings = dateOrders.length * riderRate;
 
                     return (
                         <div key={dateKey}>
@@ -119,7 +127,7 @@ export default function RiderOrderHistory() {
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="font-bold text-sm text-[#FAF9F6]">{order.plates?.length || 0} plates</p>
-                                                    <p className="text-[10px] text-[#10B981] font-bold">₦300</p>
+                                                    <p className="text-[10px] text-[#10B981] font-bold">₦{riderRate}</p>
                                                 </div>
                                             </div>
                                         </Card>

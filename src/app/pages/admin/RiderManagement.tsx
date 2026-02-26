@@ -12,7 +12,19 @@ import {
     MapPin,
     Trash2
 } from 'lucide-react';
-import { subscribeToRiders, subscribeToAllOrders, subscribeToHostels, updateRider, deleteRider, assignHostelRiders, Rider, Hostel } from '../../../services/db';
+import {
+    subscribeToRiders,
+    subscribeToAllOrders,
+    subscribeToHostels,
+    updateRider,
+    deleteRider,
+    assignHostelRiders,
+    Rider,
+    Hostel,
+    PlatformSettings,
+    subscribeToPlatformSettings,
+    updatePlatformSettings
+} from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 
 export default function RiderManagement() {
@@ -20,13 +32,17 @@ export default function RiderManagement() {
     const [hostels, setHostels] = useState<Hostel[]>([]);
     const [orders, setOrders] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState<'riders' | 'assignment'>('riders');
+    const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+    const [isEditingRate, setIsEditingRate] = useState(false);
+    const [newRate, setNewRate] = useState('');
     const { adminTheme } = useTheme();
 
     useEffect(() => {
         const unsubRiders = subscribeToRiders(setRiders);
         const unsubOrders = subscribeToAllOrders(setOrders);
         const unsubHostels = subscribeToHostels(setHostels);
-        return () => { unsubRiders(); unsubOrders(); unsubHostels(); };
+        const unsubSettings = subscribeToPlatformSettings(setPlatformSettings);
+        return () => { unsubRiders(); unsubOrders(); unsubHostels(); unsubSettings(); };
     }, []);
 
     const isDark = adminTheme === 'dark';
@@ -55,6 +71,14 @@ export default function RiderManagement() {
         await assignHostelRiders(hostelId, hostel?.defaultRiderId || null, riderId || null);
     };
 
+    const handleSaveRate = async () => {
+        const rate = parseInt(newRate);
+        if (!isNaN(rate) && rate > 0) {
+            await updatePlatformSettings({ riderRatePerDelivery: rate });
+        }
+        setIsEditingRate(false);
+    };
+
     const statusColors = { available: 'green', busy: 'gold', offline: 'gray' } as const;
 
     const activeRiders = riders.filter(r => r.isActive !== false);
@@ -80,6 +104,44 @@ export default function RiderManagement() {
                         <h3 className={`text-2xl font-black tracking-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{activeRiders.length} Active • {pendingRiders.length} Pending</h3>
                     </div>
                 </div>
+
+                {/* Rider Earnings Rate Config */}
+                <Card className={`flex flex-col md:flex-row items-start md:items-center gap-4 ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'}`}>
+                    <div>
+                        <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Rate per Delivery</p>
+                        {isEditingRate ? (
+                            <div className="flex gap-2">
+                                <input
+                                    type="number"
+                                    value={newRate}
+                                    onChange={(e) => setNewRate(e.target.value)}
+                                    className={`w-24 text-sm font-bold p-2 rounded-lg border ${isDark ? 'bg-[#1A1A1A] border-[#333333] text-[#FAF9F6]' : 'bg-gray-50 border-gray-100 text-gray-900'}`}
+                                    placeholder="300"
+                                />
+                                <Button size="sm" variant="primary" onClick={handleSaveRate} className="px-3 rounded-lg text-xs font-bold shadow-md">
+                                    Save
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-3">
+                                <h4 className={`text-xl font-black tracking-tight text-[#10B981]`}>
+                                    ₦{platformSettings?.riderRatePerDelivery || 300}
+                                </h4>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                        setNewRate((platformSettings?.riderRatePerDelivery || 300).toString());
+                                        setIsEditingRate(true);
+                                    }}
+                                    className={`px-3 py-1.5 h-auto text-[10px] uppercase font-bold tracking-widest ${isDark ? 'bg-[#333333] text-[#FAF9F6] hover:bg-[#444444]' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                                >
+                                    Edit Rate
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </Card>
             </div>
 
             {/* Tabs */}

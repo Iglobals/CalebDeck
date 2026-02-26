@@ -14,10 +14,12 @@ import {
   subscribeToBatches,
   updateRider,
   updateOrder,
-  updateBatch,
   getRiderById,
   Rider,
   Batch,
+  PlatformSettings,
+  subscribeToPlatformSettings,
+  updateBatch
 } from '../../../services/db';
 
 export default function RiderDashboard() {
@@ -28,6 +30,13 @@ export default function RiderDashboard() {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [riderStatus, setRiderStatus] = useState<'available' | 'offline'>('offline');
   const [showCompleted, setShowCompleted] = useState(false);
+  const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+
+  // Load platform settings
+  useEffect(() => {
+    const unsub = subscribeToPlatformSettings(setPlatformSettings);
+    return unsub;
+  }, []);
 
   // Load rider profile
   useEffect(() => {
@@ -93,7 +102,8 @@ export default function RiderDashboard() {
   const activeOrders = todayOrders.filter(o => o.status === 'OUT_FOR_DELIVERY' || o.status === 'ON_THE_WAY');
   const deliveredOrders = todayOrders.filter(o => o.status === 'DELIVERED');
   const activeBatches = batches.filter(b => b.status === 'OUT_FOR_DELIVERY');
-  const todayEarnings = deliveredOrders.length * 300;
+  const riderRate = platformSettings?.riderRatePerDelivery || 300;
+  const todayEarnings = deliveredOrders.length * riderRate;
   const isNotActivated = rider && rider.isActive === false;
 
   const kpis = [
@@ -385,7 +395,7 @@ export default function RiderDashboard() {
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-[#222222] flex items-center justify-between text-sm">
-            <span className="text-[#9C8F7F] font-bold">{deliveredOrders.length} deliveries × ₦300</span>
+            <span className="text-[#9C8F7F] font-bold">{deliveredOrders.length} deliveries × ₦{platformSettings?.riderRatePerDelivery || 300}</span>
             <span className="text-[#FAF9F6] font-black">₦{todayEarnings.toLocaleString()}</span>
           </div>
         </Card>
