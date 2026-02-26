@@ -238,9 +238,9 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row justify-between items-center gap-12">
             <Logo size="md" />
             <div className="flex gap-10 text-sm font-semibold uppercase tracking-wider">
-              <a href="#" className="text-muted-foreground hover:text-secondary transition-colors">Privacy</a>
-              <a href="#" className="text-muted-foreground hover:text-secondary transition-colors">Terms</a>
-              <a href="#" className="text-muted-foreground hover:text-secondary transition-colors">Support</a>
+              <Link to="/privacy" className="text-muted-foreground hover:text-secondary transition-colors">Privacy</Link>
+              <Link to="/terms" className="text-muted-foreground hover:text-secondary transition-colors">Terms</Link>
+              <a href="mailto:support@calebdeck.com" className="text-muted-foreground hover:text-secondary transition-colors">Support</a>
             </div>
             <div className="text-sm text-muted-foreground font-medium">
               © 2026 CalebDeck. Premium campus delivery.
