@@ -266,14 +266,23 @@ export default function AdminDashboard() {
 
                 {/* Dispatch Button */}
                 <div className="flex flex-col items-stretch sm:items-end gap-2">
-                  {card.outCount > 0 && card.pendingCount === 0 ? (
+                  {card.otwCount > 0 && card.pendingCount === 0 ? (
+                    <Button
+                      variant="primary"
+                      disabled
+                      className="w-full sm:w-auto bg-amber-500/20 text-amber-600 border border-amber-500/30 cursor-not-allowed px-8 py-3.5 rounded-xl font-bold"
+                    >
+                      <Truck className="w-4 h-4 mr-2" />
+                      On The Way
+                    </Button>
+                  ) : card.outCount > 0 && card.pendingCount === 0 ? (
                     <Button
                       variant="primary"
                       disabled
                       className="w-full sm:w-auto bg-green-500/20 text-green-500 cursor-not-allowed px-8 py-3.5 rounded-xl font-bold"
                     >
                       <Truck className="w-4 h-4 mr-2" />
-                      Out for Delivery
+                      Out by Rider
                     </Button>
                   ) : card.pendingCount === 0 ? (
                     <Button
