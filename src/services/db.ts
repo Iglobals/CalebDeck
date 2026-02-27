@@ -217,6 +217,7 @@ export const dispatchBatch = async (hostelId: string, hostelName: string, rider:
             status: 'OUT_FOR_DELIVERY',
             assignedRiderId: rider.id,
             batchId,
+            isEmergency,
             updatedAt: new Date().toISOString(),
         });
     });

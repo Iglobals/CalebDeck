@@ -19,7 +19,7 @@ export default function RiderBatchDetails() {
     const [orders, setOrders] = useState<any[]>([]);
     const [batches, setBatches] = useState<Batch[]>([]);
     const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
-    const [showPdfPreview, setShowPdfPreview] = useState(false);
+    const [initialized, setInitialized] = useState(false);
 
     const isDark = riderTheme === 'dark';
 
@@ -34,6 +34,20 @@ export default function RiderBatchDetails() {
 
     // We check either batch.orderIds.includes OR matched by batchId to fallback correctly.
     const batchOrders = batch ? orders.filter(o => batch.orderIds.includes(o.id) || o.batchId === batch.id) : [];
+
+    // Pre-expand active orders on first load
+    useEffect(() => {
+        if (!initialized && batchOrders.length > 0) {
+            const initial = new Set<string>();
+            batchOrders.forEach(o => {
+                if (o.status !== 'DELIVERED' && o.status !== 'PAID') {
+                    initial.add(o.id);
+                }
+            });
+            setExpandedOrders(initial);
+            setInitialized(true);
+        }
+    }, [batchOrders, initialized]);
 
     const toggleOrder = (orderId: string) => {
         const next = new Set(expandedOrders);
@@ -62,6 +76,16 @@ export default function RiderBatchDetails() {
         }
     };
 
+    const markBatchOnTheWay = async () => {
+        if (!batch) return;
+        for (const orderId of batch.orderIds) {
+            const order = batchOrders.find(o => o.id === orderId);
+            if (order && order.status !== 'DELIVERED') {
+                await updateOrder(orderId, { status: 'ON_THE_WAY' });
+            }
+        }
+    };
+
     const markBatchDelivered = async () => {
         if (!batch) return;
         for (const orderId of batch.orderIds) {
@@ -72,125 +96,7 @@ export default function RiderBatchDetails() {
 
     const handlePrint = (e: React.MouseEvent) => {
         e.stopPropagation();
-
-        // Programmatically generate a completely distinct HTML window so styles do not conflict, completely matching the Admin layout as requested.
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) {
-            alert('Please allow popups for this site to print the manifest.');
-            return;
-        }
-
-        const html = `
-            <html>
-                <head>
-                    <title>Batch Manifest - ${batch?.hostelName}</title>
-                    <style>
-                        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-                        * { box-sizing: border-box; margin: 0; padding: 0; }
-                        body { font-family: 'Inter', sans-serif; background: white; color: #1A1A1A; padding: 40px; }
-                        .header { border-bottom: 4px solid #1A1A1A; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
-                        .logo { font-size: 28px; font-weight: 900; letter-spacing: -1px; color: #1A1A1A; }
-                        .logo span { color: #7C3AED; }
-                        .meta-value { font-size: 14px; font-weight: 700; color: #666; font-family: monospace; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                        th { text-align: left; padding: 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #666; border-bottom: 2px solid #1A1A1A; }
-                        td { padding: 16px 12px; border-bottom: 1px dashed #ccc; vertical-align: top; }
-                        .student-name { font-weight: 900; font-size: 16px; margin-bottom: 4px; }
-                        .room-badge { display: inline-block; background: #f0f0f0; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
-                        .phone { font-size: 12px; color: #666; margin-top: 4px; }
-                        .item-summary { font-size: 14px; margin-bottom: 6px; }
-                        .item-summary span.qty { font-weight: bold; color: #7C3AED; margin-right: 4px; }
-                        .extras { font-size: 12px; color: #FCD34D; font-weight: bold; }
-                        .notes { margin-top: 8px; padding: 6px; background: #fdfdfd; border-left: 2px solid #ccc; font-style: italic; font-size: 12px; color: #666; }
-                        .footer { margin-top: 40px; text-align: center; color: #999; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-                        .summary-boxes { display: flex; gap: 20px; margin-bottom: 30px; }
-                        .box { border: 1px solid #ccc; padding: 15px; border-radius: 8px; flex: 1; text-align: center; }
-                        .box .label { font-size: 10px; text-transform: uppercase; color: #666; font-weight: bold; letter-spacing: 1px; }
-                        .box .val { font-size: 24px; font-weight: 900; color: #1A1A1A; margin-top: 5px; }
-                    </style>
-                </head>
-                <body>
-                    <div class="header">
-                        <div>
-                            <div class="logo">CALEB<span>DECK</span></div>
-                            <h1 style="font-size: 24px; font-weight: 900; margin-top: 10px;">${batch?.hostelName}</h1>
-                        </div>
-                        <div style="text-align: right;">
-                            <div style="font-size: 12px; font-weight: bold; color: #666; text-transform: uppercase;">Generated</div>
-                            <div class="meta-value">${format(new Date(), 'MMM dd, yyyy - h:mm a')}</div>
-                            <div class="meta-value" style="margin-top: 5px; font-size: 10px;">Batch ID: ${batch?.id.slice(-8) || ''}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="summary-boxes">
-                        <div class="box">
-                            <div class="label">Total Orders</div>
-                            <div class="val">${batchOrders.length}</div>
-                        </div>
-                        <div class="box">
-                            <div class="label">Total Plates</div>
-                            <div class="val">${batch?.plateCount || 0}</div>
-                        </div>
-                        <div class="box">
-                            <div class="label">Rider Courier</div>
-                            <div class="val">${user?.displayName || 'Rider'}</div>
-                        </div>
-                    </div>
-
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="width: 40px">ID</th>
-                                <th style="width: 200px">Student Info</th>
-                                <th>Order Logistics Breakdown</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${batchOrders.map(order => `
-                                <tr>
-                                    <td style="font-family: monospace; font-size: 12px; color: #666; font-weight: bold;">
-                                        ${order.orderId?.slice(-4) || order.id?.slice(-4)}
-                                    </td>
-                                    <td>
-                                        <div class="student-name">${order.fullName || 'Student'}</div>
-                                        <div class="room-badge">Room ${order.room || 'N/A'}</div>
-                                        <div class="phone">${order.phone || 'No Phone provided'}</div>
-                                    </td>
-                                    <td>
-                                        ${order.plates?.map((p: any, i: number) => `
-                                            <div class="item-summary">
-                                                <span class="qty">P${i + 1}</span>
-                                                ${p.items?.map((item: any) => `${item.quantity > 1 ? `${item.quantity}x ` : ''}${item.item?.name || item.name}`).join(', ') || 'No Items'}
-                                            </div>
-                                        `).join('')}
-                                        ${order.drinksSnacks?.length > 0 ? `
-                                            <div class="extras">
-                                                + ${order.drinksSnacks.map((d: any) => `${d.quantity > 1 ? `${d.quantity}x ` : ''}${d.name}`).join(', ')}
-                                            </div>
-                                        ` : ''}
-                                        ${order.notes ? `
-                                            <div class="notes">" ${order.notes} "</div>
-                                        ` : ''}
-                                    </td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                    
-                    <div class="footer">
-                        CalebDeck Logistics — Strictly Official Use Only
-                    </div>
-                </body>
-            </html>
-        `;
-
-        printWindow.document.write(html);
-        printWindow.document.close();
-
-        setTimeout(() => {
-            printWindow.focus();
-            printWindow.print();
-        }, 500);
+        window.print();
     };
 
     if (!batch) {
@@ -263,15 +169,24 @@ export default function RiderBatchDetails() {
                     </Card>
                 </div>
 
-                {/* Mark All Delivered */}
+                {/* Mark All Actions */}
                 {!allDelivered && batchOrders.length > 0 && (
-                    <button
-                        onClick={markBatchDelivered}
-                        className="w-full py-4 bg-green-500 hover:bg-green-600 text-white font-bold rounded-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm shadow-lg shadow-green-500/20"
-                    >
-                        <CheckCircle className="w-5 h-5" />
-                        Mark Entire Batch Delivered
-                    </button>
+                    <div className="flex gap-3 mt-4">
+                        <button
+                            onClick={markBatchOnTheWay}
+                            className="flex-1 py-4 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm shadow-lg shadow-amber-500/20"
+                        >
+                            <Truck className="w-5 h-5" />
+                            Mark All On The Way
+                        </button>
+                        <button
+                            onClick={markBatchDelivered}
+                            className="flex-1 py-4 bg-green-500 hover:bg-green-600 text-white font-bold rounded-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm shadow-lg shadow-green-500/20"
+                        >
+                            <CheckCircle className="w-5 h-5" />
+                            Mark All Delivered
+                        </button>
+                    </div>
                 )}
 
                 {/* Orders List */}
@@ -279,7 +194,7 @@ export default function RiderBatchDetails() {
                     <h2 className={`text-sm font-bold uppercase tracking-widest px-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Order Breakdown ({batchOrders.length})</h2>
                     {batchOrders.map(order => {
                         const isDelivered = order.status === 'DELIVERED';
-                        const isExpanded = expandedOrders.has(order.id) || (!isDelivered && order.status !== 'PAID');
+                        const isExpanded = expandedOrders.has(order.id);
                         const isOtw = order.status === 'ON_THE_WAY' || order.status === 'OUT_FOR_DELIVERY';
 
                         const totalOrderPrice = (order.plates?.reduce((acc: number, p: any) => acc + (p.price || 0), 0) || 0)
@@ -289,8 +204,8 @@ export default function RiderBatchDetails() {
                             <Card
                                 key={order.id}
                                 className={`overflow-hidden border transition-all duration-300 shadow-sm ${isDelivered
-                                        ? (isDark ? 'bg-green-500/5 border-green-500/20' : 'bg-green-50 border-green-200 opacity-60')
-                                        : (isDark ? 'bg-[#1A1A1A] border-[#222222] hover:border-[#333333]' : 'bg-white border-gray-200 hover:border-gray-300')
+                                    ? (isDark ? 'bg-green-500/5 border-green-500/20' : 'bg-green-50 border-green-200 opacity-60')
+                                    : (isDark ? 'bg-[#1A1A1A] border-[#222222] hover:border-[#333333]' : 'bg-white border-gray-200 hover:border-gray-300')
                                     }`}
                             >
                                 {/* Header (Clickable for Expand/Collapse) */}
@@ -300,8 +215,8 @@ export default function RiderBatchDetails() {
                                 >
                                     <div className="flex items-center gap-4">
                                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${isDelivered
-                                                ? 'bg-green-500/10 text-green-500'
-                                                : (isOtw ? 'bg-amber-500/10 text-amber-500' : 'bg-purple-600/10 text-purple-600')
+                                            ? 'bg-green-500/10 text-green-500'
+                                            : (isOtw ? 'bg-amber-500/10 text-amber-500' : 'bg-purple-600/10 text-purple-600')
                                             }`}>
                                             {isDelivered ? <CheckCircle className="w-6 h-6" /> : (isOtw ? <Truck className="w-6 h-6" /> : <Package className="w-6 h-6" />)}
                                         </div>
@@ -358,7 +273,7 @@ export default function RiderBatchDetails() {
                                                             <span className="text-xs font-bold text-amber-600">₦{order.drinksSnacks.reduce((a: number, b: any) => a + (b.total || b.price || 0), 0).toLocaleString()}</span>
                                                         </div>
                                                         <div className={`text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
-                                                            {order.drinksSnacks.map((d: any) => `${d.quantity > 1 ? `${d.quantity}x ` : ''}${d.name}`).join(', ')}
+                                                            {order.drinksSnacks.map((d: any) => `${d.quantity > 1 ? `${d.quantity}x ` : ''}${d.item?.name || d.name}`).join(', ')}
                                                         </div>
                                                     </div>
                                                 )}
@@ -425,6 +340,94 @@ export default function RiderBatchDetails() {
                     })}
                 </div>
             </main>
+
+            {/* Print Manifest HTML Overlay (Hidden normally, visible only when printing) */}
+            <div className="hidden print:block bg-white text-black p-8 font-sans absolute inset-0 z-50 min-h-screen">
+                <style dangerouslySetInnerHTML={{
+                    __html: `
+                    @media print {
+                        @page { size: portrait; margin: 1cm; }
+                        body { background: white !important; font-family: 'Inter', sans-serif; }
+                    }
+                    .print-table th { text-align: left; border-bottom: 2px solid #000; padding-bottom: 8px; font-size: 12px; text-transform: uppercase; }
+                    .print-table td { padding: 12px 0; border-bottom: 1px dashed #ccc; vertical-align: top; }
+                `}} />
+
+                <div className="flex justify-between items-end border-b-4 border-black pb-4 mb-8">
+                    <div>
+                        <div className="text-3xl font-black tracking-tighter">CALEB<span className="text-[#7C3AED]">DECK</span></div>
+                        <h1 className="text-2xl font-black mt-2">{batch.hostelName}</h1>
+                    </div>
+                    <div className="text-right">
+                        <div className="text-xs font-bold text-gray-500 uppercase tracking-widest">Generated</div>
+                        <div className="font-mono font-bold">{format(new Date(), 'MMM dd, yyyy - h:mm a')}</div>
+                        <div className="text-[10px] text-gray-400 mt-1 font-mono">Batch ID: {batch.id.slice(-8)}</div>
+                    </div>
+                </div>
+
+                <div className="flex gap-4 mb-8">
+                    <div className="flex-1 border border-gray-300 rounded-lg p-4 text-center">
+                        <div className="text-[10px] uppercase font-bold text-gray-500 tracking-widest">Total Orders</div>
+                        <div className="text-2xl font-black mt-1">{batchOrders.length}</div>
+                    </div>
+                    <div className="flex-1 border border-gray-300 rounded-lg p-4 text-center">
+                        <div className="text-[10px] uppercase font-bold text-gray-500 tracking-widest">Total Plates</div>
+                        <div className="text-2xl font-black mt-1">{batch.plateCount}</div>
+                    </div>
+                    <div className="flex-1 border border-gray-300 rounded-lg p-4 text-center">
+                        <div className="text-[10px] uppercase font-bold text-gray-500 tracking-widest">Rider Courier</div>
+                        <div className="text-xl font-black mt-2 leading-none truncate">{user?.displayName || 'Rider'}</div>
+                    </div>
+                </div>
+
+                <table className="w-full print-table mb-12">
+                    <thead>
+                        <tr>
+                            <th className="w-16">ID</th>
+                            <th className="w-48">Student Info</th>
+                            <th>Order Logistics Breakdown</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {batchOrders.map(order => (
+                            <tr key={order.id}>
+                                <td className="font-mono text-xs font-bold text-gray-500">
+                                    {order.orderId?.slice(-4) || order.id?.slice(-4)}
+                                </td>
+                                <td>
+                                    <div className="font-black text-base">{order.fullName || 'Student'}</div>
+                                    <div className="inline-block bg-gray-100 px-2 py-0.5 rounded text-xs font-bold my-1">
+                                        Room {order.room || 'N/A'}
+                                    </div>
+                                    <div className="text-xs text-gray-500">{order.phone || 'No Phone'}</div>
+                                </td>
+                                <td>
+                                    {order.plates?.map((p: any, i: number) => (
+                                        <div key={i} className="text-sm mb-1.5 flex items-start gap-2">
+                                            <span className="font-black text-[#7C3AED]">P{i + 1}</span>
+                                            <span>{p.items?.map((item: any) => `${item.quantity > 1 ? `${item.quantity}x ` : ''}${item.item?.name || item.name}`).join(', ') || 'No Items'}</span>
+                                        </div>
+                                    ))}
+                                    {order.drinksSnacks?.length > 0 && (
+                                        <div className="text-xs font-bold text-amber-500 mt-1">
+                                            + {order.drinksSnacks.map((d: any) => `${d.quantity > 1 ? `${d.quantity}x ` : ''}${d.item?.name || d.name}`).join(', ')}
+                                        </div>
+                                    )}
+                                    {order.notes && (
+                                        <div className="mt-2 p-2 bg-gray-50 border-l-2 border-gray-300 italic text-xs text-gray-600">
+                                            "{order.notes}"
+                                        </div>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+
+                <div className="text-center text-xs font-bold text-gray-400 uppercase tracking-widest border-t-2 border-gray-100 pt-8 mt-auto">
+                    CalebDeck Logistics — Strictly Official Use Only
+                </div>
+            </div>
         </div>
     );
 }

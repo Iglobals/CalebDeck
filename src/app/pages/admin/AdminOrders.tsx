@@ -14,7 +14,7 @@ import {
     X,
     Package
 } from 'lucide-react';
-import { subscribeToAllOrders, subscribeToHostels, Hostel } from '../../../services/db';
+import { subscribeToAllOrders, subscribeToHostels, Hostel, subscribeToRiders, Rider, dispatchBatch } from '../../../services/db';
 import { formatDistanceToNow } from 'date-fns';
 import { useTheme } from '../../../context/ThemeContext';
 
@@ -25,6 +25,8 @@ export default function AdminOrders() {
     const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [expandedHostels, setExpandedHostels] = useState<Set<string>>(new Set());
+    const [riders, setRiders] = useState<Rider[]>([]);
+    const [dispatching, setDispatching] = useState<string | null>(null);
     const { adminTheme } = useTheme();
 
     useEffect(() => {
@@ -33,7 +35,8 @@ export default function AdminOrders() {
             setLoading(false);
         });
         const unsubHostels = subscribeToHostels(setHostels);
-        return () => { unsub(); unsubHostels(); };
+        const unsubRiders = subscribeToRiders(setRiders);
+        return () => { unsub(); unsubHostels(); unsubRiders(); };
     }, []);
 
     const isDark = adminTheme === 'dark';
@@ -86,6 +89,37 @@ export default function AdminOrders() {
             else next.add(hostelId);
             return next;
         });
+    };
+
+    const handleDispatch = async (hostel: Hostel, paidOrders: any[], isEmergency: boolean) => {
+        if (!paidOrders.length) return;
+        setDispatching(hostel.id);
+
+        try {
+            let riderToAssign: Rider | undefined;
+
+            if (isEmergency) {
+                // Find ANY available rider
+                riderToAssign = riders.find(r => r.status === 'available');
+                if (!riderToAssign) {
+                    alert("No riders are currently online across the entire platform!");
+                    setDispatching(null);
+                    return;
+                }
+            } else {
+                // Find a designated rider who is online
+                riderToAssign = riders.find(r => r.assignedHostelIds?.includes(hostel.id) && r.status === 'available');
+            }
+
+            if (!riderToAssign) return;
+
+            await dispatchBatch(hostel.id, hostel.name, riderToAssign, paidOrders, isEmergency);
+        } catch (err) {
+            console.error(err);
+            alert("Failed to dispatch batch");
+        } finally {
+            setDispatching(null);
+        }
     };
 
     const getStatusBadge = (status: string) => {
@@ -151,6 +185,15 @@ export default function AdminOrders() {
                                 </div>
                             `).join('')}
                         `).join('') || ''}
+                        ${order.drinksSnacks?.length > 0 ? `
+                            <div class="plate-header">Add-ons</div>
+                            ${order.drinksSnacks.map((item: any) => `
+                                <div class="item-row">
+                                    <span>${item.item?.name || item.name}</span>
+                                    <span>×${item.quantity}</span>
+                                </div>
+                            `).join('')}
+                        ` : ''}
                     </div>
                     <span class="total">₦${order.total?.toLocaleString()}</span>
                     <div class="footer">CalebDeck — ${new Date().toLocaleDateString()}</div>
@@ -229,11 +272,32 @@ export default function AdminOrders() {
                                                 </div>
                                             </div>
                                         </div>
-                                        {isExpanded ? (
-                                            <ChevronUp className={`w-5 h-5 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
-                                        ) : (
-                                            <ChevronDown className={`w-5 h-5 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
-                                        )}
+                                        <div className="flex items-center gap-4">
+                                            {paidCount > 0 && (
+                                                <div onClick={e => e.stopPropagation()}>
+                                                    {(() => {
+                                                        const onlineDesignated = riders.filter(r => r.assignedHostelIds?.includes(hostel.id) && r.status === 'available');
+                                                        const isEmergency = onlineDesignated.length === 0;
+
+                                                        return (
+                                                            <Button
+                                                                size="sm"
+                                                                disabled={dispatching === hostel.id}
+                                                                onClick={() => handleDispatch(hostel, hostelOrders.filter(o => o.status === 'PAID'), isEmergency)}
+                                                                className={`h-9 px-4 text-[10px] font-black tracking-widest uppercase ${isEmergency ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-[#7C3AED] hover:bg-purple-600 text-white'}`}
+                                                            >
+                                                                {dispatching === hostel.id ? 'Dispatching...' : isEmergency ? 'Emergency Dispatch' : 'Dispatch Batch'}
+                                                            </Button>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            )}
+                                            {isExpanded ? (
+                                                <ChevronUp className={`w-5 h-5 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
+                                            ) : (
+                                                <ChevronDown className={`w-5 h-5 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
+                                            )}
+                                        </div>
                                     </button>
 
                                     {/* Orders inside hostel — collapsible */}
@@ -396,7 +460,7 @@ export default function AdminOrders() {
                                         <div className="space-y-4">
                                             {selectedOrder.drinksSnacks.map((item: any, idx: number) => (
                                                 <div key={idx} className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10 last:border-0">
-                                                    <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{item.name}</p>
+                                                    <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{item.item?.name || item.name}</p>
                                                     <span className="text-xs font-black px-2 py-1 rounded bg-[#FCD34D]/10 text-[#FCD34D]">×{item.quantity}</span>
                                                 </div>
                                             ))}

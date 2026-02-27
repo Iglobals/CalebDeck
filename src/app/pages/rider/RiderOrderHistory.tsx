@@ -68,7 +68,7 @@ export default function RiderOrderHistory() {
     });
 
     const sortedKeys = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
-    const totalEarnings = deliveredOrders.length * riderRate;
+    const totalEarnings = deliveredOrders.reduce((acc, o) => acc + (o.isEmergency ? riderRate * 1.5 : riderRate), 0);
 
     const toggleRow = (id: string) => {
         const next = new Set(expandedRows);
@@ -143,7 +143,7 @@ export default function RiderOrderHistory() {
                     {sortedKeys.length > 0 ? sortedKeys.map(dateKey => {
                         const dateOrders = grouped[dateKey];
                         const firstDate = parseDate(dateOrders[0].createdAt)!;
-                        const dayEarnings = dateOrders.length * riderRate;
+                        const dayEarnings = dateOrders.reduce((acc, o) => acc + (o.isEmergency ? riderRate * 1.5 : riderRate), 0);
 
                         return (
                             <div key={dateKey} className="space-y-3">
@@ -180,6 +180,7 @@ export default function RiderOrderHistory() {
                                                                 <span className={`text-[10px] font-bold tracking-widest font-mono ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>CD-{order.orderId?.slice(-6) || 'N/A'}</span>
                                                                 <span className={isDark ? 'text-[#333333]' : 'text-gray-300'}>|</span>
                                                                 <span className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{format(d!, 'h:mm a')}</span>
+                                                                {order.isEmergency && <span className="text-[10px] font-black text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded ml-1">1.5x RUSH</span>}
                                                             </div>
                                                         </div>
                                                     </div>

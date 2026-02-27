@@ -79,7 +79,7 @@ export default function RiderDashboard() {
   const activeBatches = batches.filter(b => b.status === 'OUT_FOR_DELIVERY');
 
   const riderRate = platformSettings?.riderRatePerDelivery || 300;
-  const todayEarnings = deliveredOrders.length * riderRate;
+  const todayEarnings = deliveredOrders.reduce((acc, o) => acc + (o.isEmergency ? riderRate * 1.5 : riderRate), 0);
   const isNotActivated = rider && rider.isActive === false;
 
   return (
@@ -140,27 +140,27 @@ export default function RiderDashboard() {
         <button
           onClick={handleStatusToggle}
           className={`w-full relative overflow-hidden flex items-center justify-between p-6 rounded-3xl border-2 transition-all active:scale-[0.98] ${riderStatus === 'available'
-              ? (isDark ? 'bg-[#7C3AED]/10 border-[#7C3AED]/30 shadow-lg shadow-[#7C3AED]/10' : 'bg-purple-100 border-purple-300 shadow-lg shadow-purple-200')
-              : (isDark ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-white border-gray-200 shadow-sm')
+            ? (isDark ? 'bg-[#7C3AED]/10 border-[#7C3AED]/30 shadow-lg shadow-[#7C3AED]/10' : 'bg-purple-100 border-purple-300 shadow-lg shadow-purple-200')
+            : (isDark ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-white border-gray-200 shadow-sm')
             }`}
         >
           <div className="flex items-center gap-4 z-10">
             <div className={`w-14 h-14 rounded-full flex items-center justify-center transition-colors ${riderStatus === 'available'
-                ? (isDark ? 'bg-[#7C3AED] shadow-lg shadow-[#7C3AED]/40' : 'bg-purple-600 shadow-lg shadow-purple-600/40')
-                : (isDark ? 'bg-[#333333]' : 'bg-gray-100')
+              ? (isDark ? 'bg-[#7C3AED] shadow-lg shadow-[#7C3AED]/40' : 'bg-purple-600 shadow-lg shadow-purple-600/40')
+              : (isDark ? 'bg-[#333333]' : 'bg-gray-100')
               }`}>
               {riderStatus === 'available' ? <Truck className="w-6 h-6 text-white" /> : <LogOut className={`w-6 h-6 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />}
             </div>
             <div className="text-left">
               <h2 className={`text-2xl font-black tracking-tight ${riderStatus === 'available'
-                  ? (isDark ? 'text-[#FAF9F6]' : 'text-gray-900')
-                  : (isDark ? 'text-[#9C8F7F]' : 'text-gray-500')
+                ? (isDark ? 'text-[#FAF9F6]' : 'text-gray-900')
+                : (isDark ? 'text-[#9C8F7F]' : 'text-gray-500')
                 }`}>
                 {riderStatus === 'available' ? "You're Online" : "You're Offline"}
               </h2>
               <p className={`text-sm font-medium mt-0.5 ${riderStatus === 'available'
-                  ? (isDark ? 'text-[#7C3AED]' : 'text-purple-600')
-                  : (isDark ? 'text-[#666666]' : 'text-gray-400')
+                ? (isDark ? 'text-[#7C3AED]' : 'text-purple-600')
+                : (isDark ? 'text-[#666666]' : 'text-gray-400')
                 }`}>
                 {riderStatus === 'available' ? 'Receiving Dispatches' : 'Tap to Go Online'}
               </p>

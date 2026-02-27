@@ -6,13 +6,15 @@ import { TrendingUp, DollarSign, Package, CheckCircle, Clock } from 'lucide-reac
 import { useAuth } from '../../../context/AuthContext';
 import { useTheme } from '../../../context/ThemeContext';
 import { subscribeToRiderOrders, subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
-import { format, subDays, startOfDay, isAfter } from 'date-fns';
+import { format, subDays, startOfDay, isAfter, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, isWithinInterval } from 'date-fns';
 
 export default function RiderAnalytics() {
     const { user } = useAuth();
     const { riderTheme } = useTheme();
     const [orders, setOrders] = useState<any[]>([]);
     const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+
+    const [timeframe, setTimeframe] = useState<'this_week' | 'last_week' | 'this_month' | 'last_month' | 'this_year' | 'all_time'>('this_week');
 
     const isDark = riderTheme === 'dark';
 
@@ -28,31 +30,116 @@ export default function RiderAnalytics() {
     }, [user]);
 
     const riderRate = platformSettings?.riderRatePerDelivery || 300;
-    const deliveredOrders = orders.filter(o => o.status === 'DELIVERED');
+
+    // Filter orders by timeframe
+    const filteredOrders = orders.filter(o => {
+        if (timeframe === 'all_time') return true;
+        const d = o.createdAt?.seconds ? new Date(o.createdAt.seconds * 1000) : o.createdAt ? new Date(o.createdAt) : null;
+        if (!d) return false;
+
+        const now = new Date();
+        switch (timeframe) {
+            case 'this_week':
+                return isWithinInterval(d, { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) });
+            case 'last_week':
+                const lastWk = subWeeks(now, 1);
+                return isWithinInterval(d, { start: startOfWeek(lastWk, { weekStartsOn: 1 }), end: endOfWeek(lastWk, { weekStartsOn: 1 }) });
+            case 'this_month':
+                return isWithinInterval(d, { start: startOfMonth(now), end: endOfMonth(now) });
+            case 'last_month':
+                const lastMo = subMonths(now, 1);
+                return isWithinInterval(d, { start: startOfMonth(lastMo), end: endOfMonth(lastMo) });
+            case 'this_year':
+                return isWithinInterval(d, { start: startOfYear(now), end: endOfYear(now) });
+            default:
+                return true;
+        }
+    });
+
+    const deliveredOrders = filteredOrders.filter(o => o.status === 'DELIVERED');
 
     // Stats
-    const totalEarnings = deliveredOrders.length * riderRate;
+    const totalEarnings = deliveredOrders.reduce((acc, o) => acc + (o.isEmergency ? riderRate * 1.5 : riderRate), 0);
     const avgPerDelivery = riderRate;
-    const completionRate = orders.length > 0 ? ((deliveredOrders.length / orders.length) * 100).toFixed(0) : '0';
+    const completionRate = filteredOrders.length > 0 ? ((deliveredOrders.length / filteredOrders.length) * 100).toFixed(0) : '0';
 
-    // Chart Data Generation (Last 7 Days)
-    const last7Days = Array.from({ length: 7 }).map((_, i) => startOfDay(subDays(new Date(), 6 - i)));
+    // Chart Data Generation (Based on timeframe)
+    let chartData: any[] = [];
+    const now = new Date();
 
-    const chartData = last7Days.map(day => {
-        const dayStr = format(day, 'MMM d');
-        const nextDay = new Date(day.getTime() + 86400000);
+    if (timeframe === 'this_week' || timeframe === 'last_week' || timeframe === 'this_month' || timeframe === 'last_month' || timeframe === 'all_time') {
+        // Last 7 days or specifically the days within the selected week/month. For simplicity, we just show a bar per day of the selected period if it's week.
+        // If it's month, maybe too many bars, but recharts handles it. 
+        // Let's generate a list of dates to plot.
 
-        const dayOrders = deliveredOrders.filter(o => {
-            const d = o.createdAt?.seconds ? new Date(o.createdAt.seconds * 1000) : o.createdAt ? new Date(o.createdAt) : null;
-            return d && !isAfter(d, nextDay) && (isAfter(d, day) || d.getTime() === day.getTime());
-        });
+        let startDate: Date, endDate: Date;
+        if (timeframe === 'this_week') {
+            startDate = startOfWeek(now, { weekStartsOn: 1 });
+            endDate = endOfWeek(now, { weekStartsOn: 1 });
+        } else if (timeframe === 'last_week') {
+            const lastWk = subWeeks(now, 1);
+            startDate = startOfWeek(lastWk, { weekStartsOn: 1 });
+            endDate = endOfWeek(lastWk, { weekStartsOn: 1 });
+        } else if (timeframe === 'this_month') {
+            startDate = startOfMonth(now);
+            endDate = now; // up to today is fine, or endOfMonth
+        } else if (timeframe === 'last_month') {
+            const lastMo = subMonths(now, 1);
+            startDate = startOfMonth(lastMo);
+            endDate = endOfMonth(lastMo);
+        } else {
+            // all time: last 14 days fallback
+            startDate = subDays(now, 13);
+            endDate = now;
+        }
 
-        return {
-            name: dayStr,
-            deliveries: dayOrders.length,
-            earnings: dayOrders.length * riderRate
-        };
-    });
+        let current = startOfDay(startDate);
+        const end = startOfDay(endDate);
+
+        while (!isAfter(current, end)) {
+            const dayStr = format(current, 'MMM d');
+            const nextDay = new Date(current.getTime() + 86400000);
+
+            const dayOrders = deliveredOrders.filter(o => {
+                const d = o.createdAt?.seconds ? new Date(o.createdAt.seconds * 1000) : o.createdAt ? new Date(o.createdAt) : null;
+                return d && !isAfter(d, nextDay) && (isAfter(d, current) || d.getTime() === current.getTime());
+            });
+
+            chartData.push({
+                name: dayStr,
+                deliveries: dayOrders.length,
+                earnings: dayOrders.reduce((acc, o) => acc + (o.isEmergency ? riderRate * 1.5 : riderRate), 0)
+            });
+            current = nextDay;
+        }
+    } else if (timeframe === 'this_year') {
+        // Show by month
+        for (let i = 0; i <= now.getMonth(); i++) {
+            const monthStart = new Date(now.getFullYear(), i, 1);
+            const monthEnd = endOfMonth(monthStart);
+            const dayStr = format(monthStart, 'MMM');
+
+            const monthOrders = deliveredOrders.filter(o => {
+                const d = o.createdAt?.seconds ? new Date(o.createdAt.seconds * 1000) : o.createdAt ? new Date(o.createdAt) : null;
+                return d && isWithinInterval(d, { start: monthStart, end: monthEnd });
+            });
+
+            chartData.push({
+                name: dayStr,
+                deliveries: monthOrders.length,
+                earnings: monthOrders.reduce((acc, o) => acc + (o.isEmergency ? riderRate * 1.5 : riderRate), 0)
+            });
+        }
+    }
+
+    const timeframes = [
+        { id: 'this_week', label: 'This Week' },
+        { id: 'last_week', label: 'Last Week' },
+        { id: 'this_month', label: 'This Month' },
+        { id: 'last_month', label: 'Last Month' },
+        { id: 'this_year', label: 'This Year' },
+        { id: 'all_time', label: 'All Time' },
+    ];
 
     return (
         <div className={`min-h-screen pb-24 md:pb-8 transition-colors ${isDark ? 'bg-[#0F0F0F]' : 'bg-[#FAF9F6]'}`}>
@@ -65,9 +152,27 @@ export default function RiderAnalytics() {
             </header>
 
             <div className="p-5 space-y-6 max-w-4xl mx-auto">
-                <div className="hidden md:block mb-8">
-                    <h1 className={`text-3xl font-black tracking-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Your Analytics</h1>
-                    <p className={`text-sm font-medium mt-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Track your earnings and delivery performance</p>
+                <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+                    <div>
+                        <h1 className={`text-3xl font-black tracking-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Your Analytics</h1>
+                        <p className={`text-sm font-medium mt-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Track your earnings and delivery performance</p>
+                    </div>
+
+                    {/* Timeframe Selector */}
+                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                        {timeframes.map(t => (
+                            <button
+                                key={t.id}
+                                onClick={() => setTimeframe(t.id as any)}
+                                className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-colors border ${timeframe === t.id
+                                    ? (isDark ? 'bg-[#7C3AED] text-white border-[#7C3AED]' : 'bg-purple-600 text-white border-purple-600')
+                                    : (isDark ? 'bg-[#1A1A1A] text-[#9C8F7F] border-[#222222] hover:bg-[#222222]' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')
+                                    }`}
+                            >
+                                {t.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {/* KPI Overview */}
@@ -77,7 +182,7 @@ export default function RiderAnalytics() {
                             <div className="w-10 h-10 rounded-xl bg-[#10B981]/20 flex items-center justify-center">
                                 <DollarSign className="w-5 h-5 text-[#10B981]" />
                             </div>
-                            <Badge variant="green" className="text-[9px] font-black uppercase">All Time</Badge>
+                            <Badge variant="green" className="text-[9px] font-black uppercase">{timeframes.find(t => t.id === timeframe)?.label}</Badge>
                         </div>
                         <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Total Earnings</p>
                         <h2 className={`text-3xl font-black tracking-tight ${isDark ? 'text-[#FAF9F6]' : 'text-green-700'}`}>₦{totalEarnings.toLocaleString()}</h2>
@@ -104,7 +209,7 @@ export default function RiderAnalytics() {
                 <Card className={`border shadow-none p-6 ${isDark ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-white border-gray-100'}`}>
                     <div className="mb-6">
                         <h3 className={`text-lg font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Earnings Trend</h3>
-                        <p className={`text-xs ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Past 7 days revenue</p>
+                        <p className={`text-xs ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Revenue over {timeframes.find(t => t.id === timeframe)?.label?.toLowerCase()}</p>
                     </div>
                     <div className="h-64 w-full">
                         <ResponsiveContainer width="100%" height="100%">
@@ -132,7 +237,7 @@ export default function RiderAnalytics() {
                 <Card className={`border shadow-none p-6 ${isDark ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-white border-gray-100'}`}>
                     <div className="mb-6">
                         <h3 className={`text-lg font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Delivery Volume</h3>
-                        <p className={`text-xs ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Completed deliveries by day</p>
+                        <p className={`text-xs ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Completed deliveries over {timeframes.find(t => t.id === timeframe)?.label?.toLowerCase()}</p>
                     </div>
                     <div className="h-64 w-full">
                         <ResponsiveContainer width="100%" height="100%">

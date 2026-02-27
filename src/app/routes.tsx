@@ -25,6 +25,7 @@ import RiderLogin from "./pages/rider/RiderLogin";
 import RiderDashboard from "./pages/rider/RiderDashboard";
 import RiderOrderHistory from "./pages/rider/RiderOrderHistory";
 import RiderBatchDetails from "./pages/rider/RiderBatchDetails";
+import RiderBatches from "./pages/rider/RiderBatches";
 
 export const router = createBrowserRouter([
   {
@@ -71,7 +72,7 @@ export const router = createBrowserRouter([
           { path: "history", Component: RiderOrderHistory },
           { path: "analytics", lazy: () => import('./pages/rider/RiderAnalytics').then(m => ({ Component: m.default })) },
           { path: "batch/:batchId", Component: RiderBatchDetails },
-          { path: "batches", Component: RiderBatchDetails }, // Will build an actual list later, for now redirect to recent/active or placeholder
+          { path: "batches", Component: RiderBatches },
         ]
       },
 
