@@ -1,14 +1,28 @@
-import React from 'react';
-import { Link } from 'react-router';
+import React, { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router';
 import { Logo } from '../../components/design-system/Logo';
 import { Button } from '../../components/design-system/Button';
 import { Card } from '../../components/design-system/Card';
 import { Clock, CheckCircle, Truck, Star, ArrowRight } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { useTheme } from '../../../context/ThemeContext';
+import { useAuth } from '../../../context/AuthContext';
 
 export default function LandingPage() {
   const { studentTheme } = useTheme();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // Smart PWA Routing: if launched from Home Screen, auto-redirect staff
+  useEffect(() => {
+    if (window.matchMedia('(display-mode: standalone)').matches && user) {
+      if (user.role === 'ADMIN') {
+        navigate('/admin', { replace: true });
+      } else if (user.role === 'RIDER') {
+        navigate('/rider', { replace: true });
+      }
+    }
+  }, [user, navigate]);
 
   const howItWorks = [
     {
@@ -63,12 +77,32 @@ export default function LandingPage() {
               Testimonials
             </a>
             <div className="flex items-center gap-4">
+              {user?.role === 'ADMIN' && (
+                <Link to="/admin">
+                  <Button variant="secondary" className="border-[#7C3AED] text-[#7C3AED]">Admin Portal</Button>
+                </Link>
+              )}
+              {user?.role === 'RIDER' && (
+                <Link to="/rider">
+                  <Button variant="secondary" className="border-[#FCD34D] text-[#FCD34D]">Rider Portal</Button>
+                </Link>
+              )}
               <Link to="/cafeteria">
                 <Button variant="primary">Order Now</Button>
               </Link>
             </div>
           </div>
           <div className="md:hidden flex items-center gap-4">
+            {user?.role === 'ADMIN' && (
+              <Link to="/admin">
+                <Button variant="secondary" size="sm" className="border-[#7C3AED] text-[#7C3AED]">Admin</Button>
+              </Link>
+            )}
+            {user?.role === 'RIDER' && (
+              <Link to="/rider">
+                <Button variant="secondary" size="sm" className="border-[#FCD34D] text-[#FCD34D]">Rider</Button>
+              </Link>
+            )}
             <Link to="/cafeteria">
               <Button variant="primary" size="sm">Order now</Button>
             </Link>

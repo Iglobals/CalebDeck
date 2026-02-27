@@ -404,6 +404,34 @@ export const createNotification = async (data: Omit<Notification, 'id' | 'create
             isRead: false,
             createdAt: serverTimestamp()
         });
+
+        // Trigger Push Notification Automatically
+        try {
+            let tokens: string[] = [];
+            if (data.userId === 'admin') {
+                const adminsSnap = await getDocs(query(collection(db, 'users'), where('role', '==', 'ADMIN')));
+                adminsSnap.forEach(doc => {
+                    const adminData = doc.data();
+                    if (adminData.fcmTokens) tokens.push(...adminData.fcmTokens);
+                });
+            } else {
+                const riderDoc = await getDoc(doc(db, 'riders', data.userId));
+                if (riderDoc.exists() && riderDoc.data().fcmTokens) {
+                    tokens.push(...riderDoc.data().fcmTokens);
+                }
+            }
+            if (tokens.length > 0) {
+                tokens = [...new Set(tokens)]; // Deduplicate
+                fetch('/api/send-push', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tokens, title: data.title, body: data.message, link: data.link || '/' })
+                }).catch(err => console.warn('Push API failed (likely missing Vercel environment local)', err));
+            }
+        } catch (pushErr) {
+            console.error('Error fetching FCM tokens for push:', pushErr);
+        }
+
         return docRef.id;
     } catch (error) {
         console.error('Error creating notification:', error);

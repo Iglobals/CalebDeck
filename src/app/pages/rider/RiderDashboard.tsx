@@ -19,6 +19,7 @@ import {
   subscribeToPlatformSettings
 } from '../../../services/db';
 import { NotificationPanel } from '../../components/NotificationPanel';
+import { requestNotificationPermissionAndSaveToken, onForegroundMessage } from '../../../services/messaging';
 
 export default function RiderDashboard() {
   const { user } = useAuth();
@@ -61,11 +62,23 @@ export default function RiderDashboard() {
     return unsub;
   }, [user]);
 
+  useEffect(() => {
+    // Listen for foreground pushes
+    const unsub = onForegroundMessage((payload) => {
+      console.log("Foreground Rider Push Received:", payload);
+    });
+    return () => unsub();
+  }, []);
+
   const handleStatusToggle = async () => {
     if (!user) return;
     const newStatus = riderStatus === 'available' ? 'offline' : 'available';
     setRiderStatus(newStatus);
     await updateRider(user.uid, { status: newStatus });
+
+    if (newStatus === 'available') {
+      requestNotificationPermissionAndSaveToken(user.uid, 'riders');
+    }
   };
 
   const todayStr = new Date().toLocaleDateString();

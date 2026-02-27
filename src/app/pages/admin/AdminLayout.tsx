@@ -19,6 +19,7 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
 import { NotificationPanel } from '../../components/NotificationPanel';
+import { requestNotificationPermissionAndSaveToken, onForegroundMessage } from '../../../services/messaging';
 
 interface AdminLayoutProps {
     children: React.ReactNode;
@@ -57,7 +58,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
     const isDark = adminTheme === 'dark';
     const isDashboard = location.pathname === '/admin';
 
-    // Close search on click outside
     useEffect(() => {
         const handler = (e: MouseEvent) => {
             if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
@@ -67,6 +67,23 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
     }, []);
+
+    // Initialize Push Notifications
+    useEffect(() => {
+        if (user && user.uid) {
+            // Save admin token to the user document
+            requestNotificationPermissionAndSaveToken(user.uid, 'users');
+        }
+
+        // Listen for foreground pushes
+        const unsub = onForegroundMessage((payload) => {
+            console.log("Foreground Admin Push Received:", payload);
+            // The unread badge will automatically update via Firestore, 
+            // but we could also trigger a toast here if desired.
+        });
+
+        return () => unsub();
+    }, [user]);
 
     // Global search suggestions
     const searchResults = useMemo(() => {
