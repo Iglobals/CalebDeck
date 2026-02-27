@@ -31,7 +31,6 @@ export default function RiderAnalytics() {
 
     const riderRate = platformSettings?.riderRatePerDelivery || 300;
 
-    // Filter orders by timeframe
     const filteredOrders = orders.filter(o => {
         if (timeframe === 'all_time') return true;
         const d = o.createdAt?.seconds ? new Date(o.createdAt.seconds * 1000) : o.createdAt ? new Date(o.createdAt) : null;
@@ -58,20 +57,14 @@ export default function RiderAnalytics() {
 
     const deliveredOrders = filteredOrders.filter(o => o.status === 'DELIVERED');
 
-    // Stats
     const totalEarnings = deliveredOrders.reduce((acc, o) => acc + (o.isEmergency ? riderRate * 1.5 : riderRate), 0);
     const avgPerDelivery = riderRate;
     const completionRate = filteredOrders.length > 0 ? ((deliveredOrders.length / filteredOrders.length) * 100).toFixed(0) : '0';
 
-    // Chart Data Generation (Based on timeframe)
     let chartData: any[] = [];
     const now = new Date();
 
     if (timeframe === 'this_week' || timeframe === 'last_week' || timeframe === 'this_month' || timeframe === 'last_month' || timeframe === 'all_time') {
-        // Last 7 days or specifically the days within the selected week/month. For simplicity, we just show a bar per day of the selected period if it's week.
-        // If it's month, maybe too many bars, but recharts handles it. 
-        // Let's generate a list of dates to plot.
-
         let startDate: Date, endDate: Date;
         if (timeframe === 'this_week') {
             startDate = startOfWeek(now, { weekStartsOn: 1 });
@@ -88,7 +81,6 @@ export default function RiderAnalytics() {
             startDate = startOfMonth(lastMo);
             endDate = endOfMonth(lastMo);
         } else {
-            // all time: last 14 days fallback
             startDate = subDays(now, 13);
             endDate = now;
         }

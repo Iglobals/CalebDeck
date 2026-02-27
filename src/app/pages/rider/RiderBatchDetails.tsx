@@ -33,10 +33,8 @@ export default function RiderBatchDetails() {
 
     const batch = batches.find(b => b.id === batchId);
 
-    // We check either batch.orderIds.includes OR matched by batchId to fallback correctly.
     const batchOrders = batch ? orders.filter(o => batch.orderIds.includes(o.id) || o.batchId === batch.id) : [];
 
-    // Pre-expand active orders on first load
     useEffect(() => {
         if (!initialized && batchOrders.length > 0) {
             const initial = new Set<string>();
@@ -95,11 +93,9 @@ export default function RiderBatchDetails() {
 
             const order = batchOrders.find(o => o.id === orderId);
             if (order && order.email) {
-                // Fire and forget email notification
                 triggerEmail(order);
             }
 
-            // Check if all orders are now delivered
             const updatedBatchOrders = batchOrders.map(o => o.id === orderId ? { ...o, status: 'DELIVERED' } : o);
             const allDone = updatedBatchOrders.every(o => o.status === 'DELIVERED');
             if (allDone && batch) {
@@ -131,7 +127,6 @@ export default function RiderBatchDetails() {
         try {
             for (const orderId of batch.orderIds) {
                 const order = batchOrders.find(o => o.id === orderId);
-                // Only send emails and update orders that aren't already delivered
                 if (order && order.status !== 'DELIVERED') {
                     await updateOrder(orderId, { status: 'DELIVERED' });
                     if (order.email) triggerEmail(order);

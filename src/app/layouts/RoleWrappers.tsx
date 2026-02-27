@@ -45,8 +45,10 @@ export function RiderRoleWrapper() {
     if (loading) return null;
     if (!user || user.role !== 'RIDER') return null;
 
+    const isDark = riderTheme === 'dark';
+
     return (
-        <div className="flex min-h-screen bg-[#0F0F0F] text-[#FAF9F6] transition-colors duration-300">
+        <div className={`flex min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#0F0F0F] text-[#FAF9F6]' : 'bg-[#FAF9F6] text-gray-900'}`}>
             {/* Desktop Sidebar */}
             <div className="print:hidden">
                 <RiderSidebar />
