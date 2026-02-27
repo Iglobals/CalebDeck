@@ -36,7 +36,6 @@ export default function OrderSuccess() {
     phone = '',
     hostel = '',
     hostelName = '',
-    room = '204',
     total = 0,
     plates = [],
     drinksSnacks = [],
@@ -156,7 +155,7 @@ export default function OrderSuccess() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Delivery Point</p>
-                    <p className="text-xl font-bold">{displayHostel}, Room {room}</p>
+                    <p className="text-xl font-bold">{displayHostel}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
@@ -279,7 +278,6 @@ export default function OrderSuccess() {
                 <div>
                   <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-1">Destination</p>
                   <p className="text-lg font-bold">{displayHostel}</p>
-                  <p className="text-muted-foreground font-medium leading-none">Room {room}</p>
                 </div>
               </div>
               <div className="flex items-start gap-4">
@@ -310,15 +308,15 @@ export default function OrderSuccess() {
                 <div key={step} className="flex gap-6">
                   <div className="flex flex-col items-center">
                     <div className={`w-5 h-5 rounded-full border-4 transition-colors duration-500 ${isDeliveredStep ? 'bg-[#10B981] border-[#10B981]/30' :
-                        isLatest ? 'bg-primary border-primary/30' :
-                          'bg-muted border-transparent'
+                      isLatest ? 'bg-primary border-primary/30' :
+                        'bg-muted border-transparent'
                       }`}></div>
                     {index < currentStep && <div className="w-1 h-12 bg-muted rounded-full mt-2"></div>}
                   </div>
                   <div className="flex-1">
                     <p className={`text-xl font-black ${isDeliveredStep ? 'text-[#10B981]' :
-                        isLatest ? 'text-foreground' :
-                          'text-muted-foreground opacity-50'
+                      isLatest ? 'text-foreground' :
+                        'text-muted-foreground opacity-50'
                       }`}>{step}</p>
                     <p className="text-sm text-muted-foreground font-medium uppercase tracking-tight">
                       {actualIndex === currentStep ? (

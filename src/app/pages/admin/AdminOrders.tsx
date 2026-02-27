@@ -359,7 +359,7 @@ export default function AdminOrders() {
                                             <div>
                                                 <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName}</p>
                                                 <span className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
-                                                    {order.hostelName || order.hostel} · Room {order.room}
+                                                    {order.hostelName || order.hostel}
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-3">
@@ -415,7 +415,6 @@ export default function AdminOrders() {
                                     <div className="space-y-2">
                                         <p className="text-[10px] font-black text-[#9C8F7F] uppercase tracking-[0.3em]">Delivery Location</p>
                                         <h4 className={`text-2xl font-black uppercase tracking-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{selectedOrder.hostelName || selectedOrder.hostel}</h4>
-                                        <p className={`text-sm font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Room {selectedOrder.room}</p>
                                     </div>
                                 </div>
 

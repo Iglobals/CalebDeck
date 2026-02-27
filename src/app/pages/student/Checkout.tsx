@@ -37,10 +37,9 @@ export default function Checkout() {
 
   const [formData, setFormData] = useState({
     fullName: '',
-    phone: '',
-    hostel: '',
-    room: '',
-    notes: ''
+    phone: '', // Assuming 'user' is not available in this context, keeping it empty as per original structure
+    hostel: '', // Assuming 'user' is not available in this context, keeping it empty as per original structure
+    instructions: ''
   });
 
   // Fetch Hostels
@@ -118,7 +117,7 @@ export default function Checkout() {
         {
           display_name: "Hostel",
           variable_name: "hostel",
-          value: `${formData.hostel} - Room ${formData.room}`
+          value: formData.hostel
         }
       ]
     }
@@ -183,7 +182,7 @@ export default function Checkout() {
     initializePayment({ onSuccess: onSuccess as any, onClose: onClose });
   };
 
-  const canSubmit = formData.fullName && formData.phone && formData.hostel && formData.room && orderTotal && !calculating;
+  const canSubmit = formData.fullName && formData.phone && formData.hostel && orderTotal && !calculating;
 
   const hostelOptions = [
     { value: '', label: 'Select your hostel' },
@@ -250,12 +249,17 @@ export default function Checkout() {
 
                     <Input
                       label="Phone Number"
-                      name="phone"
                       type="tel"
+                      name="phone"
                       value={formData.phone}
                       onChange={handleChange}
-                      placeholder="080 0000 0000"
+                      placeholder="e.g. 08012345678"
                       required
+                      pattern="[0-9]*"
+                      onInput={(e) => {
+                        const target = e.target as HTMLInputElement;
+                        target.value = target.value.replace(/[^0-9]/g, '');
+                      }}
                       className="bg-background/80"
                     />
                   </div>
@@ -273,26 +277,14 @@ export default function Checkout() {
                     />
 
                     <Input
-                      label="Room Number"
-                      name="room"
-                      value={formData.room}
+                      label="Additional Instructions"
+                      name="instructions"
+                      value={formData.instructions}
                       onChange={handleChange}
-                      placeholder="e.g. 204"
-                      required
-                      className="bg-background/80"
+                      placeholder="Any specific delivery instructions?"
+                      className="md:col-span-2 bg-background/80"
                     />
                   </div>
-
-                  <Textarea
-                    label="Delivery Instructions (Optional)"
-                    name="notes"
-                    value={formData.notes}
-                    onChange={handleChange}
-                    placeholder="Drop at the gate? Call when near? Let us know."
-                    rows={4}
-                    className="bg-background/80"
-                  />
-
                   {/* Trust Bar */}
                   <div className="p-6 rounded-[2rem] bg-secondary/5 border-2 border-secondary/10 shadow-inner">
                     <div className="flex items-center gap-4">

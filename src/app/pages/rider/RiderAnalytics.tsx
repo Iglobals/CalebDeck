@@ -142,7 +142,7 @@ export default function RiderAnalytics() {
     ];
 
     return (
-        <div className={`min-h-screen pb-24 md:pb-8 transition-colors ${isDark ? 'bg-[#0F0F0F]' : 'bg-[#FAF9F6]'}`}>
+        <div className={`min-h-screen pb-24 md:pb-8 transition-colors overflow-x-hidden w-full ${isDark ? 'bg-[#0F0F0F]' : 'bg-[#FAF9F6]'}`}>
             {/* Header */}
             <header className={`sticky top-0 backdrop-blur-xl border-b z-40 md:hidden ${isDark ? 'bg-[#0F0F0F]/90 border-[#222222]' : 'bg-[#FAF9F6]/90 border-gray-200'}`}>
                 <div className="px-5 py-4">
@@ -159,7 +159,7 @@ export default function RiderAnalytics() {
                     </div>
 
                     {/* Timeframe Selector */}
-                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide w-full min-w-0">
                         {timeframes.map(t => (
                             <button
                                 key={t.id}
@@ -176,8 +176,8 @@ export default function RiderAnalytics() {
                 </div>
 
                 {/* KPI Overview */}
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    <Card className={`border shadow-none col-span-2 md:col-span-1 ${isDark ? 'bg-gradient-to-br from-[#10B981]/10 to-[#10B981]/5 border-[#10B981]/20' : 'bg-green-50 border-green-200'}`}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    <Card className={`border shadow-none ${isDark ? 'bg-gradient-to-br from-[#10B981]/10 to-[#10B981]/5 border-[#10B981]/20' : 'bg-green-50 border-green-200'}`}>
                         <div className="flex items-start justify-between mb-2">
                             <div className="w-10 h-10 rounded-xl bg-[#10B981]/20 flex items-center justify-center">
                                 <DollarSign className="w-5 h-5 text-[#10B981]" />
@@ -206,7 +206,7 @@ export default function RiderAnalytics() {
                 </div>
 
                 {/* Earnings Trend */}
-                <Card className={`border shadow-none p-6 ${isDark ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-white border-gray-100'}`}>
+                <Card className={`border shadow-none p-6 overflow-hidden min-w-0 ${isDark ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-white border-gray-100'}`}>
                     <div className="mb-6">
                         <h3 className={`text-lg font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Earnings Trend</h3>
                         <p className={`text-xs ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Revenue over {timeframes.find(t => t.id === timeframe)?.label?.toLowerCase()}</p>
@@ -234,7 +234,7 @@ export default function RiderAnalytics() {
                 </Card>
 
                 {/* Delivery Volume */}
-                <Card className={`border shadow-none p-6 ${isDark ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-white border-gray-100'}`}>
+                <Card className={`border shadow-none p-6 overflow-hidden min-w-0 ${isDark ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-white border-gray-100'}`}>
                     <div className="mb-6">
                         <h3 className={`text-lg font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Delivery Volume</h3>
                         <p className={`text-xs ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Completed deliveries over {timeframes.find(t => t.id === timeframe)?.label?.toLowerCase()}</p>

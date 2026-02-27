@@ -27,7 +27,7 @@ export default function CafeteriaSelection() {
     {
       id: 'new',
       name: 'New Cafeteria',
-      image: 'https://images.unsplash.com/photo-1664992960082-0ea299a9c53e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxuaWdlcmlhbiUyMGpvbGxvZiUyMHJpY2UlMjBmb29kfGVufDF8fHx8MTc3MTMzODg2MXww&ixlib=rb-4.1.0&q=80&w=1080',
+      image: '/new-cafe pic.jpeg',
       prepTime: '15 min',
       status: 'open',
       popular: false

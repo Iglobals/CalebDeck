@@ -205,7 +205,7 @@ export default function RiderOrderHistory() {
                                                                     <MapPin className="w-4 h-4 text-purple-600 mt-0.5" />
                                                                     <div>
                                                                         <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Full Address</p>
-                                                                        <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.hostelName || order.hostel} - Room {order.room}</p>
+                                                                        <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.hostelName || order.hostel}</p>
                                                                     </div>
                                                                 </div>
 

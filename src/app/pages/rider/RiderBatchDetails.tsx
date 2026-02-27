@@ -257,7 +257,6 @@ export default function RiderBatchDetails() {
                                     </div>
                                     <div className="flex items-center gap-4">
                                         <div className="text-right hidden sm:block">
-                                            <div className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.room ? `Room ${order.room}` : 'No Room'}</div>
                                             <div className="text-[10px] text-amber-500 font-bold uppercase">{order.plates?.length || 0} Plates</div>
                                         </div>
                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDark ? 'bg-[#222222] text-[#9C8F7F]' : 'bg-gray-100 text-gray-500'}`}>
@@ -311,7 +310,7 @@ export default function RiderBatchDetails() {
                                                             <MapPin className="w-4 h-4 text-purple-600 mt-0.5" />
                                                             <div>
                                                                 <p className={`text-xs font-bold uppercase tracking-widest mb-0.5 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Location</p>
-                                                                <p className={`font-medium ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.hostelName || order.hostel} - Room {order.room}</p>
+                                                                <p className={`font-medium ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.hostelName || order.hostel}</p>
                                                             </div>
                                                         </div>
 
@@ -429,10 +428,7 @@ export default function RiderBatchDetails() {
                                 </td>
                                 <td>
                                     <div className="font-black text-base">{order.fullName || 'Student'}</div>
-                                    <div className="inline-block bg-gray-100 px-2 py-0.5 rounded text-xs font-bold my-1">
-                                        Room {order.room || 'N/A'}
-                                    </div>
-                                    <div className="text-xs text-gray-500">{order.phone || 'No Phone'}</div>
+                                    <div className="text-xs text-gray-500 mt-1">{order.phone || 'No Phone'}</div>
                                 </td>
                                 <td>
                                     {order.plates?.map((p: any, i: number) => (
