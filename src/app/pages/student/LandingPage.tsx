@@ -277,6 +277,8 @@ export default function LandingPage() {
               <Link to="/privacy" className="text-muted-foreground hover:text-secondary transition-colors">Privacy</Link>
               <Link to="/terms" className="text-muted-foreground hover:text-secondary transition-colors">Terms</Link>
               <Link to="/support" className="text-muted-foreground hover:text-secondary transition-colors">Support</Link>
+              <Link to="/admin/login" className="text-muted-foreground hover:text-secondary transition-colors md:hidden">Admin</Link>
+              <Link to="/rider/login" className="text-muted-foreground hover:text-secondary transition-colors md:hidden">Rider</Link>
             </div>
             <div className="text-sm text-muted-foreground font-medium">
               © 2026 CalebDeck. Premium campus delivery.

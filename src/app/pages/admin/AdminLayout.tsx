@@ -40,6 +40,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [globalSearch, setGlobalSearch] = useState('');
     const [searchFocused, setSearchFocused] = useState(false);
+    const [pushPermissionStatus, setPushPermissionStatus] = useState<string>('granted');
     const location = useLocation();
     const navigate = useNavigate();
     const { adminTheme, toggleAdminTheme } = useTheme();
@@ -70,6 +71,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
 
     // Initialize Push Notifications
     useEffect(() => {
+        if ('Notification' in window) {
+            setPushPermissionStatus(Notification.permission);
+        }
+
         if (user && user.uid) {
             // Save admin token to the user document
             requestNotificationPermissionAndSaveToken(user.uid, 'users');
@@ -179,7 +184,29 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
             </aside>
 
             {/* Main Content Area */}
-            <div className="flex-1 flex flex-col h-screen overflow-y-auto overflow-x-hidden">
+            <div className="flex-1 flex flex-col h-screen overflow-y-auto overflow-x-hidden relative">
+
+                {/* Push Notification Warning Banner Form Safari iOS */}
+                {pushPermissionStatus === 'default' && (
+                    <div className="bg-blue-600 text-white p-3 px-6 text-center text-sm font-bold flex flex-col sm:flex-row justify-center items-center gap-3 z-50 shadow-md">
+                        <div className="flex items-center gap-2">
+                            <Bell className="w-4 h-4 animate-bounce" />
+                            <span>Action Required: Please enable Push Notifications to receive live order updates.</span>
+                        </div>
+                        <button
+                            onClick={async () => {
+                                if (user?.uid) {
+                                    await requestNotificationPermissionAndSaveToken(user.uid, 'users');
+                                    setPushPermissionStatus(Notification.permission);
+                                }
+                            }}
+                            className="bg-white text-blue-600 px-4 py-1.5 rounded-full text-xs hover:bg-white/90 transition-colors shadow-sm ml-2"
+                        >
+                            Enable Now
+                        </button>
+                    </div>
+                )}
+
                 {/* Top Bar */}
                 <header className={`px-4 lg:px-8 py-4 sticky top-0 z-30 transition-all border-b ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-200 shadow-sm'
                     }`}>
