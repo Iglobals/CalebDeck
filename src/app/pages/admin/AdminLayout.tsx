@@ -18,6 +18,7 @@ import {
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
+import { NotificationPanel } from '../../components/NotificationPanel';
 
 interface AdminLayoutProps {
     children: React.ReactNode;
