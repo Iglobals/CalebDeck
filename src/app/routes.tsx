@@ -69,7 +69,9 @@ export const router = createBrowserRouter([
         children: [
           { index: true, Component: RiderDashboard },
           { path: "history", Component: RiderOrderHistory },
+          { path: "analytics", lazy: () => import('./pages/rider/RiderAnalytics').then(m => ({ Component: m.default })) },
           { path: "batch/:batchId", Component: RiderBatchDetails },
+          { path: "batches", Component: RiderBatchDetails }, // Will build an actual list later, for now redirect to recent/active or placeholder
         ]
       },
 

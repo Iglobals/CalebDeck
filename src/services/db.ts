@@ -130,11 +130,21 @@ export const createOrder = async (orderData: any) => {
 export const subscribeToRiderOrders = (riderId: string, callback: (orders: any[]) => void) => {
     const q = query(
         collection(db, 'orders'),
-        where('assignedRiderId', '==', riderId),
-        orderBy('createdAt', 'desc')
+        where('assignedRiderId', '==', riderId)
     );
     return onSnapshot(q, (snapshot) => {
-        callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        // Sort in memory to avoid needing a composite index
+        const sortedDocs = snapshot.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .sort((a: any, b: any) => {
+                const dateA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : new Date(a.createdAt).getTime();
+                const dateB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : new Date(b.createdAt).getTime();
+                return (dateB || 0) - (dateA || 0);
+            });
+        callback(sortedDocs);
+    }, (error) => {
+        console.error("Error fetching rider orders:", error);
+        callback([]);
     });
 };
 

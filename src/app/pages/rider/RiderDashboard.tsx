@@ -1,44 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { Logo } from '../../components/design-system/Logo';
 import { Card } from '../../components/design-system/Card';
-import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
 import {
-  Package, MapPin, Phone, CheckCircle, Clock, LogOut, Truck,
-  DollarSign, TrendingUp, ChevronDown, ChevronUp
+  Package, MapPin, CheckCircle, Clock, Truck,
+  DollarSign, TrendingUp, ChevronRight, Bell, LogOut, Sun, Moon
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
+import { useTheme } from '../../../context/ThemeContext';
 import { useNavigate } from 'react-router';
 import {
   subscribeToRiderOrders,
   subscribeToBatches,
   updateRider,
-  updateOrder,
   getRiderById,
   Rider,
   Batch,
   PlatformSettings,
-  subscribeToPlatformSettings,
-  updateBatch
+  subscribeToPlatformSettings
 } from '../../../services/db';
 
 export default function RiderDashboard() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const { riderTheme, toggleRiderTheme } = useTheme();
   const [rider, setRider] = useState<Rider | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [riderStatus, setRiderStatus] = useState<'available' | 'offline'>('offline');
-  const [showCompleted, setShowCompleted] = useState(false);
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
 
-  // Load platform settings
+  const isDark = riderTheme === 'dark';
+
   useEffect(() => {
     const unsub = subscribeToPlatformSettings(setPlatformSettings);
     return unsub;
   }, []);
 
-  // Load rider profile
   useEffect(() => {
     if (!user) return;
     const loadRider = async () => {
@@ -51,14 +48,12 @@ export default function RiderDashboard() {
     loadRider();
   }, [user]);
 
-  // Subscribe to orders assigned to this rider
   useEffect(() => {
     if (!user) return;
     const unsub = subscribeToRiderOrders(user.uid, setOrders);
     return unsub;
   }, [user]);
 
-  // Subscribe to batches
   useEffect(() => {
     if (!user) return;
     const unsub = subscribeToBatches(user.uid, setBatches);
@@ -72,348 +67,191 @@ export default function RiderDashboard() {
     await updateRider(user.uid, { status: newStatus });
   };
 
-  const markOnTheWay = async (orderId: string) => {
-    await updateOrder(orderId, { status: 'ON_THE_WAY' });
-  };
-
-  const markDelivered = async (orderId: string) => {
-    await updateOrder(orderId, { status: 'DELIVERED' });
-  };
-
-  const markBatchDelivered = async (batch: Batch) => {
-    for (const orderId of batch.orderIds) {
-      await updateOrder(orderId, { status: 'DELIVERED' });
-    }
-    await updateBatch(batch.id, { status: 'DELIVERED' });
-  };
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/rider/login');
-  };
-
-  // Today-only filter
   const todayStr = new Date().toLocaleDateString();
   const todayOrders = orders.filter(o => {
     const d = o.createdAt?.seconds ? new Date(o.createdAt.seconds * 1000) : o.createdAt ? new Date(o.createdAt) : null;
     return d ? d.toLocaleDateString() === todayStr : false;
   });
 
-  const activeOrders = todayOrders.filter(o => o.status === 'OUT_FOR_DELIVERY' || o.status === 'ON_THE_WAY');
   const deliveredOrders = todayOrders.filter(o => o.status === 'DELIVERED');
+
+  // Filter for active batches assigned to this rider
   const activeBatches = batches.filter(b => b.status === 'OUT_FOR_DELIVERY');
+
   const riderRate = platformSettings?.riderRatePerDelivery || 300;
   const todayEarnings = deliveredOrders.length * riderRate;
   const isNotActivated = rider && rider.isActive === false;
 
-  const kpis = [
-    {
-      label: "Orders Today",
-      value: todayOrders.length.toString(),
-      sub: `${activeOrders.length} active`,
-      icon: <Package className="w-5 h-5" />,
-      color: '#7C3AED',
-    },
-    {
-      label: "Today's Earnings",
-      value: `₦${todayEarnings.toLocaleString()}`,
-      sub: `${deliveredOrders.length} delivered`,
-      icon: <DollarSign className="w-5 h-5" />,
-      color: '#10B981',
-    },
-    {
-      label: "Delivery Status",
-      value: activeOrders.length > 0 ? 'Active' : 'Idle',
-      sub: riderStatus === 'available' ? 'Online' : 'Offline',
-      icon: <TrendingUp className="w-5 h-5" />,
-      color: '#FCD34D',
-    },
-  ];
-
   return (
-    <div className="min-h-screen bg-[#0F0F0F]">
-      {/* Header */}
-      <header className="sticky top-0 bg-[#141414]/95 backdrop-blur-xl border-b border-[#222222] z-50">
-        <div className="px-5 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Logo size="sm" />
-              <div className={`h-6 w-px bg-[#333333]`}></div>
-              <div>
-                <p className="text-sm font-bold text-[#FAF9F6]">{rider?.name || user?.displayName || 'Rider'}</p>
-                <p className="text-[10px] text-[#9C8F7F] font-bold uppercase tracking-widest">{rider?.dept || 'Logistics'}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {/* Status Toggle */}
-              <button
-                onClick={handleStatusToggle}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${riderStatus === 'available'
-                  ? 'bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/30'
-                  : 'bg-[#222222] text-[#9C8F7F] border border-[#333333]'
-                  }`}
-              >
-                <span className={`w-2 h-2 rounded-full ${riderStatus === 'available' ? 'bg-[#10B981] animate-pulse' : 'bg-[#9C8F7F]'}`}></span>
-                {riderStatus === 'available' ? 'Online' : 'Offline'}
-              </button>
-              <button
-                onClick={handleLogout}
-                className="w-10 h-10 rounded-xl bg-[#222222] flex items-center justify-center text-[#9C8F7F] hover:text-red-400 hover:bg-red-500/10 transition-all"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
+    <div className={`min-h-screen pb-24 md:pb-8 transition-colors ${isDark ? 'bg-[#0F0F0F]' : 'bg-[#FAF9F6]'}`}>
+      {/* Mobile Top Nav */}
+      <header className={`sticky top-0 backdrop-blur-xl border-b z-40 md:hidden ${isDark ? 'bg-[#0F0F0F]/90 border-[#222222]' : 'bg-[#FAF9F6]/90 border-gray-200'}`}>
+        <div className="px-5 py-4 flex items-center justify-between">
+          <div>
+            <h1 className={`text-xl font-bold leading-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Dashboard</h1>
+            <p className={`text-[10px] font-bold uppercase tracking-widest mt-0.5 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Welcome, {rider?.name?.split(' ')[0] || 'Rider'}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={toggleRiderTheme} className={`w-10 h-10 rounded-full border flex items-center justify-center relative ${isDark ? 'bg-[#1A1A1A] border-[#222222] text-[#9C8F7F]' : 'bg-white border-gray-200 text-gray-500 shadow-sm'}`}>
+              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+            <button className={`w-10 h-10 rounded-full border flex items-center justify-center relative ${isDark ? 'bg-[#1A1A1A] border-[#222222] text-[#9C8F7F]' : 'bg-white border-gray-200 text-gray-500 shadow-sm'}`}>
+              <Bell className="w-4 h-4" />
+              {activeBatches.length > 0 && <div className="absolute top-2.5 right-2.5 w-1.5 h-1.5 bg-[#7C3AED] rounded-full animate-ping"></div>}
+              {activeBatches.length > 0 && <div className="absolute top-2.5 right-2.5 w-1.5 h-1.5 bg-[#7C3AED] rounded-full"></div>}
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="p-5 space-y-6 max-w-4xl mx-auto">
+        <div className="hidden md:flex items-center justify-between mb-8">
+          <div>
+            <h1 className={`text-3xl font-black tracking-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Welcome back, {rider?.name?.split(' ')[0] || 'Rider'}</h1>
+            <p className={`text-sm font-medium mt-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Here is your operational overview for today.</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <button onClick={toggleRiderTheme} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-colors ${isDark ? 'bg-[#1A1A1A] border-[#222222] text-[#9C8F7F] hover:text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-500 hover:text-gray-900 shadow-sm'}`}>
+              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+            <button className={`w-10 h-10 rounded-full border flex items-center justify-center relative transition-colors ${isDark ? 'bg-[#1A1A1A] border-[#222222] text-[#9C8F7F] hover:text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-500 hover:text-gray-900 shadow-sm'}`}>
+              <Bell className="w-5 h-5" />
+              {activeBatches.length > 0 && <div className="absolute top-2.5 right-2.5 w-2 h-2 bg-[#7C3AED] rounded-full"></div>}
+            </button>
+          </div>
+        </div>
+
         {/* Not Activated Warning */}
         {isNotActivated && (
-          <Card className="bg-[#FCD34D]/5 border-2 border-[#FCD34D]/20">
+          <Card className="bg-[#FCD34D]/5 border-2 border-[#FCD34D]/20 shadow-none">
             <div className="flex items-start gap-4 p-1">
               <div className="w-12 h-12 rounded-xl bg-[#FCD34D]/10 flex items-center justify-center flex-shrink-0">
                 <Clock className="w-6 h-6 text-[#FCD34D]" />
               </div>
               <div>
                 <h3 className="font-bold text-[#FCD34D] mb-1">Pending Activation</h3>
-                <p className="text-sm text-[#9C8F7F] leading-relaxed">Your account is pending admin activation. You'll receive orders once an admin activates your account.</p>
+                <p className={`text-sm leading-relaxed ${isDark ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Your account is pending admin activation. You'll receive orders once an admin activates your account.</p>
               </div>
             </div>
           </Card>
         )}
+
+        {/* Massive Availability Toggle */}
+        <button
+          onClick={handleStatusToggle}
+          className={`w-full relative overflow-hidden flex items-center justify-between p-6 rounded-3xl border-2 transition-all active:scale-[0.98] ${riderStatus === 'available'
+              ? (isDark ? 'bg-[#7C3AED]/10 border-[#7C3AED]/30 shadow-lg shadow-[#7C3AED]/10' : 'bg-purple-100 border-purple-300 shadow-lg shadow-purple-200')
+              : (isDark ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-white border-gray-200 shadow-sm')
+            }`}
+        >
+          <div className="flex items-center gap-4 z-10">
+            <div className={`w-14 h-14 rounded-full flex items-center justify-center transition-colors ${riderStatus === 'available'
+                ? (isDark ? 'bg-[#7C3AED] shadow-lg shadow-[#7C3AED]/40' : 'bg-purple-600 shadow-lg shadow-purple-600/40')
+                : (isDark ? 'bg-[#333333]' : 'bg-gray-100')
+              }`}>
+              {riderStatus === 'available' ? <Truck className="w-6 h-6 text-white" /> : <LogOut className={`w-6 h-6 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />}
+            </div>
+            <div className="text-left">
+              <h2 className={`text-2xl font-black tracking-tight ${riderStatus === 'available'
+                  ? (isDark ? 'text-[#FAF9F6]' : 'text-gray-900')
+                  : (isDark ? 'text-[#9C8F7F]' : 'text-gray-500')
+                }`}>
+                {riderStatus === 'available' ? "You're Online" : "You're Offline"}
+              </h2>
+              <p className={`text-sm font-medium mt-0.5 ${riderStatus === 'available'
+                  ? (isDark ? 'text-[#7C3AED]' : 'text-purple-600')
+                  : (isDark ? 'text-[#666666]' : 'text-gray-400')
+                }`}>
+                {riderStatus === 'available' ? 'Receiving Dispatches' : 'Tap to Go Online'}
+              </p>
+            </div>
+          </div>
+
+          <div className={`w-16 h-8 rounded-full flex items-center px-1 transition-all ${riderStatus === 'available' ? (isDark ? 'bg-[#7C3AED]' : 'bg-purple-600') : (isDark ? 'bg-[#222222]' : 'bg-gray-200')
+            }`}>
+            <div className={`w-6 h-6 rounded-full bg-white transition-all transform ${riderStatus === 'available' ? 'translate-x-8' : `translate-x-0 ${isDark ? 'bg-[#9C8F7F]' : 'bg-gray-400'}`
+              }`}></div>
+          </div>
+        </button>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-3 gap-3">
-          {kpis.map((kpi, i) => (
-            <Card key={i} className="bg-[#1A1A1A] border-[#222222] hover:border-[#333333] transition-all">
-              <div className="flex items-start justify-between mb-3">
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ backgroundColor: `${kpi.color}15`, color: kpi.color }}
-                >
-                  {kpi.icon}
-                </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Card className={`min-h-[140px] flex flex-col justify-between transition-colors border shadow-none ${isDark ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-white border-gray-100'}`}>
+            <div className="flex items-center justify-between">
+              <div className="w-10 h-10 rounded-xl bg-[#7C3AED]/10 flex items-center justify-center">
+                <Package className="w-5 h-5 text-[#7C3AED]" />
               </div>
-              <p className="text-[10px] text-[#9C8F7F] font-bold uppercase tracking-widest mb-1">{kpi.label}</p>
-              <p className="text-xl font-black text-[#FAF9F6] tracking-tight">{kpi.value}</p>
-              <p className="text-[10px] text-[#9C8F7F] font-bold mt-1">{kpi.sub}</p>
-            </Card>
-          ))}
+              <Badge variant="purple" className="text-[9px] font-black uppercase tracking-widest">Today</Badge>
+            </div>
+            <div>
+              <h3 className={`text-3xl font-black tracking-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{activeBatches.length}</h3>
+              <p className={`text-[11px] font-bold uppercase tracking-widest mt-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Active Batches</p>
+            </div>
+          </Card>
+
+          <Card className={`min-h-[140px] flex flex-col justify-between relative overflow-hidden group shadow-none border ${isDark ? 'bg-[#1A1A1A] border-[#FCD34D]/20' : 'bg-white border-amber-200'}`}>
+            <div className="absolute inset-0 bg-gradient-to-br from-[#FCD34D]/10 to-transparent"></div>
+            <div className="flex items-center justify-between relative z-10">
+              <div className="w-10 h-10 rounded-xl bg-[#FCD34D]/20 flex items-center justify-center">
+                <DollarSign className="w-5 h-5 text-amber-500" />
+              </div>
+              <TrendingUp className="w-4 h-4 text-amber-500" />
+            </div>
+            <div className="relative z-10">
+              <h3 className="text-3xl font-black text-amber-500 tracking-tight">₦{todayEarnings.toLocaleString()}</h3>
+              <p className={`text-[11px] font-bold uppercase tracking-widest mt-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Earnings Today</p>
+            </div>
+          </Card>
         </div>
 
-        {/* Active Batches */}
-        {activeBatches.length > 0 && activeBatches.map(batch => (
-          <Card key={batch.id} className="bg-[#1A1A1A] border-[#FCD34D]/20 overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#FCD34D] to-[#7C3AED]"></div>
-            <div className="flex items-center justify-between mb-4 pt-2">
-              <div>
-                <Badge variant="gold" className="mb-2 text-[9px] font-black uppercase tracking-widest">Active Batch</Badge>
-                <h2 className="text-lg font-bold text-[#FAF9F6]">{batch.hostelName}</h2>
-              </div>
-              <div className="text-right">
-                <div className="text-3xl font-black text-[#FCD34D]">{batch.plateCount}</div>
-                <div className="text-[10px] text-[#9C8F7F] font-bold uppercase tracking-widest">plates</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-6 text-sm mb-4">
-              <div className="flex items-center gap-2 text-[#9C8F7F]">
-                <Package className="w-4 h-4" />
-                <span className="font-bold">{batch.orderCount} orders</span>
-              </div>
-              <div className="flex items-center gap-2 text-[#FCD34D]">
-                <Truck className="w-4 h-4" />
-                <span className="font-bold">Out for Delivery</span>
-              </div>
-            </div>
-            <button
-              onClick={() => markBatchDelivered(batch)}
-              className="w-full py-3.5 bg-[#10B981] hover:bg-[#059669] text-white font-bold rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-            >
-              <CheckCircle className="w-4 h-4" />
-              Mark Entire Batch Delivered
+        {/* Today's Batches List */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className={`text-lg font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Active Batches</h3>
+            <button onClick={() => navigate('/rider/batches')} className={`text-xs font-bold text-[#7C3AED] uppercase tracking-widest transition-colors ${isDark ? 'hover:text-[#FAF9F6]' : 'hover:text-purple-700'}`}>
+              View All
             </button>
-          </Card>
-        ))}
+          </div>
 
-        {/* Active Deliveries */}
-        {activeOrders.length > 0 ? (
-          <div>
-            <div className="flex items-center gap-3 mb-4">
-              <h3 className="text-lg font-bold text-[#FAF9F6]">Active Deliveries</h3>
-              <Badge variant="purple" className="text-[9px] font-black">{activeOrders.length}</Badge>
-            </div>
-            <div className="space-y-3">
-              {activeOrders.map((order) => (
-                <Card key={order.id} className="bg-[#1A1A1A] border-[#222222] hover:border-[#333333] transition-all">
-                  <div className="space-y-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h4 className="font-bold text-[#FAF9F6]">{order.fullName || 'Student'}</h4>
-                          <Badge
-                            variant={order.status === 'ON_THE_WAY' ? 'gold' : 'purple'}
-                            className="text-[9px] font-black uppercase tracking-widest"
-                          >
-                            {order.status === 'ON_THE_WAY' ? 'On The Way' : 'Dispatched'}
-                          </Badge>
-                        </div>
-                        <p className="text-[10px] text-[#9C8F7F] font-bold tracking-wider mb-2 font-mono">
-                          CD-{order.orderId?.slice(-6) || order.id?.slice(-6)}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <MapPin className="w-3.5 h-3.5 text-[#7C3AED]" />
-                          <span className="text-sm font-medium text-[#FAF9F6]">
-                            {order.hostelName || order.hostel}{order.room ? `, Room ${order.room}` : ''}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-right pl-4">
-                        <div className="text-2xl font-black text-[#FAF9F6]">{order.plates?.length || 0}</div>
-                        <div className="text-[10px] text-[#9C8F7F] font-bold uppercase">plates</div>
-                      </div>
-                    </div>
-
-                    {/* Items preview */}
-                    {order.plates && order.plates.length > 0 && (
-                      <div className="p-3 rounded-xl bg-[#222222]/80 space-y-1.5">
-                        {order.plates.map((plate: any, i: number) => (
-                          <div key={i} className="text-xs text-[#9C8F7F]">
-                            <span className="text-[#7C3AED] font-bold mr-2">P{i + 1}</span>
-                            {plate.items?.map((item: any) => item.item?.name || item.name).join(', ')}
-                          </div>
-                        ))}
-                        {order.drinksSnacks?.length > 0 && (
-                          <div className="text-xs text-[#FCD34D]">
-                            + {order.drinksSnacks.map((d: any) => d.name).join(', ')}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Action buttons */}
-                    <div className="flex gap-2">
-                      {order.phone && (
-                        <a
-                          href={`tel:${order.phone}`}
-                          className="flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl bg-[#222222] text-[#7C3AED] font-bold text-xs hover:bg-[#2A2A2A] transition-all"
-                        >
-                          <Phone className="w-4 h-4" />
-                          Call
-                        </a>
-                      )}
-                      {order.status === 'OUT_FOR_DELIVERY' ? (
-                        <button
-                          onClick={() => markOnTheWay(order.id)}
-                          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-[#FCD34D]/10 text-[#FCD34D] border border-[#FCD34D]/30 font-bold text-xs hover:bg-[#FCD34D]/20 transition-all active:scale-[0.98]"
-                        >
-                          <Truck className="w-4 h-4" />
-                          On The Way
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => markDelivered(order.id)}
-                          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/30 font-bold text-xs hover:bg-[#10B981]/20 transition-all active:scale-[0.98]"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                          Delivered
-                        </button>
-                      )}
+          <div className="space-y-3">
+            {activeBatches.length > 0 ? activeBatches.map(batch => (
+              <button
+                key={batch.id}
+                onClick={() => navigate(`/rider/batch/${batch.id}`)}
+                className={`w-full text-left border rounded-2xl p-4 transition-all active:scale-[0.98] group flex items-center justify-between ${isDark ? 'bg-[#1A1A1A] border-[#222222] hover:bg-[#1E1E1E]' : 'bg-white border-gray-100 hover:bg-gray-50 shadow-sm'}`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-[#7C3AED]/10 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                    <MapPin className="w-5 h-5 text-[#7C3AED]" />
+                  </div>
+                  <div>
+                    <h4 className={`text-base font-bold mb-1 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{batch.hostelName}</h4>
+                    <div className={`flex items-center gap-2 text-xs font-medium ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+                      <span>{batch.orderCount} Orders</span>
+                      <span className={isDark ? 'text-[#333333]' : 'text-gray-200'}>|</span>
+                      <span className="text-amber-500 font-bold">{batch.plateCount} Plates</span>
                     </div>
                   </div>
-                </Card>
-              ))}
-            </div>
-          </div>
-        ) : !isNotActivated && (
-          <Card className="text-center py-16 bg-[#1A1A1A] border-[#222222]">
-            <div className="w-16 h-16 rounded-2xl bg-[#222222] flex items-center justify-center mx-auto mb-4">
-              <Package className="w-8 h-8 text-[#333333]" />
-            </div>
-            <h3 className="text-lg font-bold text-[#FAF9F6] mb-2">No Active Deliveries</h3>
-            <p className="text-sm text-[#9C8F7F] max-w-xs mx-auto">
-              {riderStatus === 'available'
-                ? 'You\'re online. Waiting for dispatch from admin...'
-                : 'Go online to start receiving delivery batches'}
-            </p>
-          </Card>
-        )}
-
-        {/* Completed Today */}
-        {deliveredOrders.length > 0 && (
-          <div>
-            <button
-              onClick={() => setShowCompleted(!showCompleted)}
-              className="flex items-center justify-between w-full mb-3"
-            >
-              <div className="flex items-center gap-3">
-                <h3 className="text-lg font-bold text-[#FAF9F6]">Completed Today</h3>
-                <Badge variant="green" className="text-[9px] font-black">{deliveredOrders.length}</Badge>
-              </div>
-              {showCompleted ? (
-                <ChevronUp className="w-5 h-5 text-[#9C8F7F]" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-[#9C8F7F]" />
-              )}
-            </button>
-            {showCompleted && (
-              <div className="space-y-2">
-                {deliveredOrders.map((order) => (
-                  <Card key={order.id} className="bg-[#10B981]/5 border-[#10B981]/10">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-[#10B981]/10 flex items-center justify-center">
-                          <CheckCircle className="w-5 h-5 text-[#10B981]" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-sm text-[#FAF9F6]">{order.fullName}</p>
-                          <p className="text-[10px] text-[#9C8F7F] font-bold">{order.hostelName || order.hostel} · Room {order.room}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-[#10B981] text-sm">{order.plates?.length || 0} plates</p>
-                        <p className="text-[10px] text-[#10B981]/60 font-bold uppercase">₦300</p>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="text-right hidden sm:block mr-2">
+                    <Badge variant="purple" className="text-[9px] font-black uppercase tracking-widest">In Progress</Badge>
+                  </div>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isDark ? 'bg-[#222222] text-[#9C8F7F] group-hover:bg-[#7C3AED] group-hover:text-white' : 'bg-gray-100 text-gray-500 group-hover:bg-purple-600 group-hover:text-white'}`}>
+                    <ChevronRight className="w-4 h-4" />
+                  </div>
+                </div>
+              </button>
+            )) : (
+              <Card className={`py-12 text-center flex flex-col items-center justify-center shadow-none border ${isDark ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-white border-gray-100'}`}>
+                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 ${isDark ? 'bg-[#222222]' : 'bg-gray-50'}`}>
+                  <CheckCircle className={`w-8 h-8 ${isDark ? 'text-[#333333]' : 'text-gray-300'}`} />
+                </div>
+                <h4 className={`text-lg font-bold mb-1 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>You're all caught up</h4>
+                <p className={`text-sm ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>No active batches assigned right now. Sit tight.</p>
+              </Card>
             )}
           </div>
-        )}
-
-        {/* Earnings Summary */}
-        <Card className="bg-gradient-to-br from-[#7C3AED]/5 to-[#10B981]/5 border-[#222222]">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[10px] text-[#9C8F7F] font-bold uppercase tracking-widest mb-1">Today's Total Earnings</p>
-              <h2 className="text-3xl font-black text-[#10B981]">₦{todayEarnings.toLocaleString()}</h2>
-            </div>
-            <div className="w-14 h-14 rounded-2xl bg-[#10B981]/10 flex items-center justify-center">
-              <DollarSign className="w-7 h-7 text-[#10B981]" />
-            </div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-[#222222] flex items-center justify-between text-sm">
-            <span className="text-[#9C8F7F] font-bold">{deliveredOrders.length} deliveries × ₦{platformSettings?.riderRatePerDelivery || 300}</span>
-            <span className="text-[#FAF9F6] font-black">₦{todayEarnings.toLocaleString()}</span>
-          </div>
-        </Card>
-
-        {/* Quick Navigation */}
-        <div className="grid grid-cols-2 gap-3 pb-6">
-          <button
-            onClick={() => navigate('/rider/history')}
-            className="py-4 rounded-xl bg-[#1A1A1A] border border-[#222222] text-[#9C8F7F] font-bold text-xs uppercase tracking-widest hover:border-[#333333] transition-all"
-          >
-            Order History
-          </button>
-          <button
-            onClick={() => navigate('/rider/login')}
-            className="py-4 rounded-xl bg-[#1A1A1A] border border-[#222222] text-[#9C8F7F] font-bold text-xs uppercase tracking-widest hover:border-[#333333] transition-all"
-          >
-            My Profile
-          </button>
         </div>
       </main>
     </div>

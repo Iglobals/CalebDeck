@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion, HTMLMotionProps } from 'motion/react';
 
-interface ButtonProps extends Omit<HTMLMotionProps<"button">, "ref"> {
+// Omit conflicting drag events from Framer Motion to allow standard button usage
+export interface ButtonProps extends Omit<HTMLMotionProps<"button">, "onDrag" | "onDragStart" | "onDragEnd" | "ref"> {
   variant?: 'primary' | 'secondary' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
   children: React.ReactNode;
@@ -31,13 +32,17 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
 
   return (
     <motion.button
+      ref={ref}
       whileHover={{ scale: disabled ? 1 : 1.02 }}
       whileTap={{ scale: disabled ? 1 : 0.98 }}
       className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
       disabled={disabled}
-      {...props}
+      {...(props as any)}
     >
       {children}
     </motion.button>
   );
 });
+
+Button.displayName = 'Button';
+
