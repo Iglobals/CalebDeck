@@ -268,19 +268,18 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="border-t border-border py-20 bg-muted/20">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-12">
-            <Logo size="md" />
+            <div onDoubleClick={() => navigate('/admin/login')} className="cursor-pointer">
+              <Logo size="md" />
+            </div>
             <div className="flex gap-10 text-sm font-semibold uppercase tracking-wider">
               <Link to="/privacy" className="text-muted-foreground hover:text-secondary transition-colors">Privacy</Link>
               <Link to="/terms" className="text-muted-foreground hover:text-secondary transition-colors">Terms</Link>
               <Link to="/support" className="text-muted-foreground hover:text-secondary transition-colors">Support</Link>
-              <Link to="/admin/login" className="text-muted-foreground hover:text-secondary transition-colors md:hidden">Admin</Link>
-              <Link to="/rider/login" className="text-muted-foreground hover:text-secondary transition-colors md:hidden">Rider</Link>
             </div>
-            <div className="text-sm text-muted-foreground font-medium">
+            <div onDoubleClick={() => navigate('/rider/login')} className="text-sm text-muted-foreground font-medium cursor-pointer">
               © 2026 CalebDeck. Premium campus delivery.
             </div>
           </div>

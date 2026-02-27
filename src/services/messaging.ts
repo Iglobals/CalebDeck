@@ -8,7 +8,9 @@ export const requestNotificationPermissionAndSaveToken = async (userId: string, 
     try {
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
-            const token = await getToken(messaging);
+            const token = await getToken(messaging, {
+                vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY
+            });
             if (token) {
                 // Save token to Firestore to the user/rider document
                 const userRef = doc(db, targetCollection, userId);
