@@ -66,12 +66,9 @@ export default function AdminDashboard() {
     return sum + (deliveryFee * (o.plates?.length || 1));
   }, 0);
 
-  // — Rider lookup helper —
   const getRider = (id?: string) => riders.find(r => r.id === id) || null;
 
-  // — Build hostel cards from Firestore hostels —
   const hostelCards = hostels.map(hostel => {
-    // Only show today's orders in hostel dispatch cards
     const hostelOrders = orders.filter(o => {
       const matchesHostel = o.hostel === hostel.id || o.hostel === hostel.name;
       if (!matchesHostel) return false;
@@ -84,7 +81,6 @@ export default function AdminDashboard() {
     const defaultRider = getRider(hostel.defaultRiderId);
     const assistantRider = getRider(hostel.assistantRiderId);
 
-    // Automatic rider selection: default → assistant → null
     let dispatchRider: Rider | null = null;
     if (defaultRider?.status === 'available') {
       dispatchRider = defaultRider;
@@ -119,7 +115,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Emergency dispatch: admin picks any online rider
   const handleEmergencyDispatch = async (rider: Rider) => {
     if (!emergencyCard || emergencyCard.pendingCount === 0) return;
     setDispatchingHostel(emergencyCard.hostel.id);

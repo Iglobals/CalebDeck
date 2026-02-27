@@ -11,7 +11,6 @@ import { subscribeToOrderStatus, getRiderById, getHostelById, Rider } from '../.
 
 const TRACKING_STEPS = ['Received', 'Out for Delivery', 'On The Way', 'Delivered'];
 
-// Map Firestore status to step index
 const STATUS_TO_STEP: Record<string, number> = {
   PAID: 0,
   OUT_FOR_DELIVERY: 1,
@@ -23,7 +22,6 @@ export default function OrderSuccess() {
   const location = useLocation();
   const { studentTheme } = useTheme();
 
-  // Restore from localStorage if page was refreshed (no location.state)
   const savedOrder = !location.state ? (() => {
     try { return JSON.parse(localStorage.getItem('calebdeck_last_order') || 'null'); } catch { return null; }
   })() : null;
@@ -46,7 +44,6 @@ export default function OrderSuccess() {
     firestoreOrderId = null,
   } = orderData;
 
-  // Persist to localStorage so page survives refresh
   useEffect(() => {
     if (location.state) {
       localStorage.setItem('calebdeck_last_order', JSON.stringify(location.state));
@@ -60,7 +57,6 @@ export default function OrderSuccess() {
   const [orderStatus, setOrderStatus] = useState<string>('PAID');
   const enjoyMealRef = useRef<HTMLDivElement>(null);
 
-  // Immediately fetch the hostel's default rider — don't wait for dispatch
   useEffect(() => {
     if (!hostel) return;
     const fetchHostelRider = async () => {
@@ -73,7 +69,6 @@ export default function OrderSuccess() {
     fetchHostelRider();
   }, [hostel]);
 
-  // Subscribe to real-time order status updates
   useEffect(() => {
     if (!firestoreOrderId) return;
     const unsub = subscribeToOrderStatus(firestoreOrderId, (order) => {
@@ -81,14 +76,12 @@ export default function OrderSuccess() {
         setOrderStatus(order.status);
         setCurrentStep(STATUS_TO_STEP[order.status] ?? 0);
 
-        // If admin dispatched to a different rider, update
         if (order.assignedRiderId) {
           getRiderById(order.assignedRiderId).then(r => {
             if (r) setRider(r);
           });
         }
 
-        // Auto-scroll to "Enjoy Your Meal" when delivered
         if (order.status === 'DELIVERED') {
           setTimeout(() => {
             enjoyMealRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });

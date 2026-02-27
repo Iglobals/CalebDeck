@@ -26,7 +26,6 @@ export default function AdminAnalytics() {
 
     const parseDate = (d: any) => d?.seconds ? new Date(d.seconds * 1000) : d ? new Date(d) : null;
 
-    // Filter orders by time range
     const filteredOrders = useMemo(() => {
         const now = new Date();
         return orders.filter(o => {
@@ -45,8 +44,6 @@ export default function AdminAnalytics() {
         });
     }, [orders, timeRange]);
 
-    // ─── PIE CHART: Order type distribution ───
-    // "Just Me" = solo, Group = 2/4/6/8/10
     const orderTypeBreakdown = useMemo(() => {
         const solo = filteredOrders.filter(o => o.deliveryMode === 'solo' || !o.deliveryMode).length;
         const g2 = filteredOrders.filter(o => o.deliveryMode === 'group' && o.groupSize === 2).length;
@@ -67,7 +64,6 @@ export default function AdminAnalytics() {
 
     const COLORS = ['#7C3AED', '#FCD34D', '#10B981', '#F87171', '#3B82F6', '#F97316'];
 
-    // ─── REVENUE CHART: Last 7 days ───
     const revenueData = useMemo(() => {
         const days = timeRange === 'today' ? 1 : timeRange === 'week' ? 7 : 30;
         return Array.from({ length: Math.min(days, 14) }).map((_, i) => {
@@ -85,7 +81,6 @@ export default function AdminAnalytics() {
         });
     }, [orders, timeRange]);
 
-    // ─── KPIs ───
     const totalOrders = filteredOrders.length;
     const totalRevenue = filteredOrders.reduce((sum, o) => sum + (o.total || 0), 0);
     const deliveredOrders = filteredOrders.filter(o => o.status === 'DELIVERED').length;
@@ -108,10 +103,10 @@ export default function AdminAnalytics() {
                         key={range}
                         onClick={() => setTimeRange(range)}
                         className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${timeRange === range
-                                ? 'bg-[#7C3AED] text-white shadow-lg shadow-[#7C3AED]/20'
-                                : isDark
-                                    ? 'bg-[#2A2A2A] text-[#9C8F7F] hover:bg-[#333333]'
-                                    : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                            ? 'bg-[#7C3AED] text-white shadow-lg shadow-[#7C3AED]/20'
+                            : isDark
+                                ? 'bg-[#2A2A2A] text-[#9C8F7F] hover:bg-[#333333]'
+                                : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                             }`}
                     >
                         {range === 'today' ? 'Today' : range === 'week' ? 'This Week' : 'This Month'}

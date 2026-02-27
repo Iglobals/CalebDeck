@@ -21,7 +21,6 @@ export default function AdminLogin() {
     const { user } = useAuth();
     const isDark = studentTheme === 'dark';
 
-    // Auto-redirect when AuthContext confirms admin role
     useEffect(() => {
         if (user && user.role === 'ADMIN') {
             navigate('/admin', { replace: true });
@@ -37,7 +36,7 @@ export default function AdminLogin() {
             const userDoc = await getDoc(doc(db, 'users', res.user.uid));
 
             if (userDoc.exists() && userDoc.data().role === 'ADMIN') {
-                // All good — useEffect will handle redirect
+
             } else if (!userDoc.exists() && res.user.email === 'admin@calebdeck.com') {
                 // Auto-repair: admin doc is missing, recreate it
                 await setDoc(doc(db, 'users', res.user.uid), {
@@ -46,7 +45,6 @@ export default function AdminLogin() {
                     fullName: 'CalebDeck Admin',
                     createdAt: new Date().toISOString(),
                 }, { merge: true });
-                // Reload so AuthContext picks it up
                 window.location.href = '/admin';
                 return;
             } else {

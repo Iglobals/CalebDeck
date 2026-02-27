@@ -68,33 +68,13 @@ export default function RiderBatchDetails() {
         }
     };
 
-    const triggerEmail = async (order: any) => {
-        try {
-            await fetch('/api/send-delivery-email', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    studentName: order.fullName || 'Student',
-                    studentEmail: order.email,
-                    orderId: order.id,
-                    items: [...(order.plates || []), ...(order.drinksSnacks || [])]
-                })
-            });
-        } catch (err) {
-            console.error('Failed to dispatch delivery email for order', order.id, err);
-        }
-    };
+
 
     const markDelivered = async (orderId: string, e: React.MouseEvent) => {
         e.stopPropagation();
         setLoadingActions(prev => ({ ...prev, [`delivered_${orderId}`]: true }));
         try {
             await updateOrder(orderId, { status: 'DELIVERED' });
-
-            const order = batchOrders.find(o => o.id === orderId);
-            if (order && order.email) {
-                triggerEmail(order);
-            }
 
             const updatedBatchOrders = batchOrders.map(o => o.id === orderId ? { ...o, status: 'DELIVERED' } : o);
             const allDone = updatedBatchOrders.every(o => o.status === 'DELIVERED');
@@ -129,7 +109,6 @@ export default function RiderBatchDetails() {
                 const order = batchOrders.find(o => o.id === orderId);
                 if (order && order.status !== 'DELIVERED') {
                     await updateOrder(orderId, { status: 'DELIVERED' });
-                    if (order.email) triggerEmail(order);
                 }
             }
             await updateBatch(batch.id, { status: 'DELIVERED' });

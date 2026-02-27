@@ -26,21 +26,18 @@ export default function AdminSetup() {
         setError('');
 
         try {
-            // Check if any admin already exists
             const adminsSnap = await getDocs(query(collection(db, 'users'), where('role', '==', 'ADMIN')));
             if (!adminsSnap.empty) {
                 setStatus('exists');
                 return;
             }
 
-            // Try to create Firebase Auth user
             let uid: string;
             try {
                 const res = await createUserWithEmailAndPassword(auth, email, password);
                 uid = res.user.uid;
             } catch (err: any) {
                 if (err.code === 'auth/email-already-in-use') {
-                    // User exists in Auth but not as admin — sign in and set role
                     const res = await signInWithEmailAndPassword(auth, email, password);
                     uid = res.user.uid;
                 } else {
@@ -48,7 +45,6 @@ export default function AdminSetup() {
                 }
             }
 
-            // Create Firestore document with ADMIN role
             await setDoc(doc(db, 'users', uid), {
                 email,
                 role: 'ADMIN',

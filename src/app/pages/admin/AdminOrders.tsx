@@ -54,7 +54,6 @@ export default function AdminOrders() {
 
     const today = new Date().toLocaleDateString();
 
-    // Filter to today's orders only
     const todayOrders = orders.filter(o => {
         if (o.status === 'TRASHED' || o.status === 'CANCELLED') return false;
         const d = parseDate(o.createdAt);
@@ -71,13 +70,11 @@ export default function AdminOrders() {
         return true;
     });
 
-    // Group by hostel
     const hostelGroups = hostels.map(hostel => {
         const hostelOrders = todayOrders.filter(o => o.hostel === hostel.id || o.hostel === hostel.name);
         return { hostel, orders: hostelOrders };
     }).filter(g => g.orders.length > 0);
 
-    // Orders without a matching hostel
     const unmatchedOrders = todayOrders.filter(o => {
         return !hostels.some(h => o.hostel === h.id || o.hostel === h.name);
     });
@@ -99,7 +96,6 @@ export default function AdminOrders() {
             let riderToAssign: Rider | undefined;
 
             if (isEmergency) {
-                // Find ANY available rider
                 riderToAssign = riders.find(r => r.status === 'available');
                 if (!riderToAssign) {
                     alert("No riders are currently online across the entire platform!");
@@ -107,7 +103,6 @@ export default function AdminOrders() {
                     return;
                 }
             } else {
-                // Find a designated rider who is online
                 riderToAssign = riders.find(r => r.assignedHostelIds?.includes(hostel.id) && r.status === 'available');
             }
 

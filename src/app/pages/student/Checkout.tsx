@@ -142,18 +142,15 @@ export default function Checkout() {
       sectionId,
       paymentReference: reference.reference,
       status: 'PAID' as const,
-      // assignedRiderId is set to null by createOrder — dispatch assigns riders
       updatedAt: new Date().toISOString()
     };
 
     try {
-      // 1. Securely verify payment on backend
       await verifyPayment({
         reference: reference.reference,
         orderData
       });
 
-      // 2. Persist to Firestore
       const orderRef = await createOrder(orderData);
 
       navigate('/order-success', { state: { ...orderData, firestoreOrderId: orderRef.id } });

@@ -32,7 +32,6 @@ export default function AdminOrderHistory() {
         setTimeout(() => setToast({ message: '', visible: false }), 3000);
     };
 
-    // Split orders into active and trashed
     const activeOrders = orders.filter(o => o.status === 'DELIVERED' || o.status === 'CANCELLED');
     const trashedOrders = orders.filter(o => o.status === 'TRASHED');
     const currentOrders = viewMode === 'active' ? activeOrders : trashedOrders;
@@ -52,7 +51,6 @@ export default function AdminOrderHistory() {
             return (db2?.getTime() || 0) - (da?.getTime() || 0);
         });
 
-    // Time period grouping
     const getTimePeriod = (date: Date | null): string => {
         if (!date) return 'Older';
         const now = new Date();

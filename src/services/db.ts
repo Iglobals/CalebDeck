@@ -105,7 +105,7 @@ export const subscribeToRiderOrdersByHostels = (hostelIds: string[], callback: (
     }
     const q = query(
         collection(db, 'orders'),
-        where('hostelId', 'in', hostelIds.slice(0, 10)), // Firestore 'in' limit is 10
+        where('hostelId', 'in', hostelIds.slice(0, 10)),
         where('status', 'in', ['PAID', 'OUT_FOR_DELIVERY', 'DELIVERED']),
         orderBy('createdAt', 'desc')
     );
@@ -117,16 +117,13 @@ export const subscribeToRiderOrdersByHostels = (hostelIds: string[], callback: (
 export const createOrder = async (orderData: any) => {
     const docRef = await addDoc(collection(db, 'orders'), {
         ...orderData,
-        assignedRiderId: null,  // Orders are NOT auto-assigned — dispatch does this
+        assignedRiderId: null,
         batchId: null,
         status: 'PAID',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
     });
 
-    // Fire off notification to Admin role
-    // Since CalebDeck admin accounts share the root /admin namespace, we use a generic 'admin' userId
-    // for platform-level notifications that all admins can subscribe to.
     try {
         await createNotification({
             userId: 'admin',
@@ -144,14 +141,12 @@ export const createOrder = async (orderData: any) => {
 };
 
 
-// Subscribe to orders assigned to a specific rider
 export const subscribeToRiderOrders = (riderId: string, callback: (orders: any[]) => void) => {
     const q = query(
         collection(db, 'orders'),
         where('assignedRiderId', '==', riderId)
     );
     return onSnapshot(q, (snapshot) => {
-        // Sort in memory to avoid needing a composite index
         const sortedDocs = snapshot.docs
             .map(d => ({ id: d.id, ...d.data() }))
             .sort((a: any, b: any) => {
@@ -212,7 +207,6 @@ export const updateBatch = async (batchId: string, updates: Partial<Batch>) => {
     await updateDoc(batchRef, updates);
 };
 
-// Dispatch a hostel batch: create batch doc + update all PAID orders
 export const dispatchBatch = async (hostelId: string, hostelName: string, rider: Rider, orders: any[], isEmergency: boolean = false) => {
     const batchId = await createBatch({
         hostelId,
@@ -227,7 +221,6 @@ export const dispatchBatch = async (hostelId: string, hostelName: string, rider:
         createdAt: new Date().toISOString(),
     });
 
-    // Batch-update all orders
     const batch = writeBatch(db);
     orders.forEach(order => {
         const orderRef = doc(db, 'orders', order.id);
@@ -288,7 +281,7 @@ export const addRider = async (rider: Omit<Rider, 'id' | 'status' | 'isActive'>)
     const docRef = await addDoc(collection(db, 'riders'), {
         ...rider,
         status: 'offline',
-        isActive: false,  // Riders start as pending — admin activates them
+        isActive: false,
         role: 'rider',
         earnings: 0,
         createdAt: serverTimestamp()
@@ -307,12 +300,11 @@ export const deleteRider = async (riderId: string) => {
 
 // Menu Management
 export const updateMenuItem = async (id: string, updates: Partial<MenuItem>) => {
-    const itemRef = doc(db, 'menu_items', id); // Original collection name was 'menu_items'
+    const itemRef = doc(db, 'menu_items', id);
     return await updateDoc(itemRef, updates);
 };
 
 export const addMenuItem = async (item: Omit<MenuItem, 'id'>) => {
-    // Generate a readable, structured ID: e.g. "old_front_jollof_rice"
     const slug = item.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
     const cafId = item.cafeteriaId || 'old';
     const secId = item.sectionId || 'front';
@@ -324,7 +316,7 @@ export const addMenuItem = async (item: Omit<MenuItem, 'id'>) => {
 };
 
 export const deleteMenuItem = async (id: string) => {
-    const menuRef = doc(db, 'menu_items', id); // Original collection name was 'menu_items'
+    const menuRef = doc(db, 'menu_items', id);
     await deleteDoc(menuRef);
 };
 
@@ -363,7 +355,7 @@ export const migrateMainToBase = async (): Promise<number> => {
 
 // ─── Platform Settings ───
 export interface PlatformSettings {
-    riderRatePerDelivery: number; // ₦ per delivery, default 300
+    riderRatePerDelivery: number;
     [key: string]: any;
 }
 

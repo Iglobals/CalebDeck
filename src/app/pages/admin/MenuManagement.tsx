@@ -55,7 +55,6 @@ export default function MenuManagement() {
     const searchRef = useRef<HTMLDivElement>(null);
     const { adminTheme } = useTheme();
 
-    // Real-time subscription
     useEffect(() => {
         const q = query(collection(db, 'menu_items'), orderBy('category', 'asc'));
         const unsub = onSnapshot(q, (snapshot) => {
@@ -64,7 +63,6 @@ export default function MenuManagement() {
         return () => unsub();
     }, []);
 
-    // Close search suggestions on click outside
     useEffect(() => {
         const handler = (e: MouseEvent) => {
             if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
@@ -139,7 +137,6 @@ export default function MenuManagement() {
         }
     };
 
-    // Edit existing item
     const openEditModal = (item: MenuItem) => {
         setEditingItem(item);
         setEditForm({
@@ -187,7 +184,6 @@ export default function MenuManagement() {
         }
     };
 
-    // Run migration to fix 'main' → 'base'
     const runMigration = async () => {
         const count = await migrateMainToBase();
         if (count > 0) {
@@ -197,10 +193,8 @@ export default function MenuManagement() {
         }
     };
 
-    // Check if migration is needed
     const hasMigrateableItems = items.some(i => i.category === 'main');
 
-    // Category pills
     const visibleCategories = useMemo(() => {
         const catsInView = new Set(
             items
@@ -210,7 +204,6 @@ export default function MenuManagement() {
         return ['all', ...Array.from(catsInView)];
     }, [items, activeCafeteria, activeSection]);
 
-    // Search suggestions
     const searchSuggestions = useMemo(() => {
         if (!searchQuery || searchQuery.length < 2) return [];
         const q = searchQuery.toLowerCase();
@@ -245,7 +238,6 @@ export default function MenuManagement() {
         ? 'bg-[#1A1A1A] border-[#333333] text-white placeholder:text-gray-600'
         : 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400'}`;
 
-    // Shared modal body for add / edit
     const renderFormFields = (form: typeof newItem | typeof editForm, setForm: any, preview: string, inputTarget: 'add' | 'edit', inputRef: React.RefObject<HTMLInputElement | null>) => (
         <div className="overflow-y-auto flex-1 p-7 space-y-5">
             <div className="space-y-1.5">
