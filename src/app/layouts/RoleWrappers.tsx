@@ -48,7 +48,9 @@ export function RiderRoleWrapper() {
     return (
         <div className="flex min-h-screen bg-[#0F0F0F] text-[#FAF9F6] transition-colors duration-300">
             {/* Desktop Sidebar */}
-            <RiderSidebar />
+            <div className="print:hidden">
+                <RiderSidebar />
+            </div>
 
             {/* Main Content Area */}
             <main className="flex-1 md:ml-64 pb-20 md:pb-0 min-h-screen relative">
@@ -56,7 +58,7 @@ export function RiderRoleWrapper() {
             </main>
 
             {/* Mobile Bottom Navigation */}
-            <div className="md:hidden">
+            <div className="md:hidden print:hidden">
                 <RiderBottomNav />
             </div>
         </div>

@@ -126,11 +126,11 @@ export default function AdminOrders() {
         const map: Record<string, { variant: string; label: string }> = {
             PAID: { variant: 'gold', label: 'Paid' },
             OUT_FOR_DELIVERY: { variant: 'purple', label: 'Out for Delivery' },
-            ON_THE_WAY: { variant: 'gold', label: 'On The Way' },
+            ON_THE_WAY: { variant: 'amber', label: 'On The Way' },
             DELIVERED: { variant: 'green', label: 'Delivered' },
         };
         const s = map[status] || { variant: 'gray', label: status };
-        return <Badge variant={s.variant as any} className="text-[9px] font-black uppercase tracking-widest px-3 py-1">{s.label}</Badge>;
+        return <Badge variant={s.variant as any} className="text-[9px] font-black uppercase tracking-widest px-3 py-1 text-nowrap">{s.label}</Badge>;
     };
 
     const handlePrint = (order: any) => {
@@ -230,14 +230,20 @@ export default function AdminOrders() {
                 </Card>
 
                 {/* Summary */}
-                <div className="flex items-center gap-4">
-                    <Badge variant="purple" className="text-xs font-black px-3 py-1.5">
+                <div className="flex flex-wrap items-center gap-3 md:gap-4 overflow-x-auto pb-2 -mb-2 scrollbar-none">
+                    <Badge variant="purple" className="text-xs font-black px-3 py-1.5 shrink-0">
                         {todayOrders.length} orders today
                     </Badge>
-                    <Badge variant="gold" className="text-xs font-black px-3 py-1.5">
+                    <Badge variant="gold" className="text-xs font-black px-3 py-1.5 shrink-0">
                         {todayOrders.filter(o => o.status === 'PAID').length} pending
                     </Badge>
-                    <Badge variant="green" className="text-xs font-black px-3 py-1.5">
+                    <Badge variant="purple" className="text-xs font-black px-3 py-1.5 shrink-0 bg-[#7C3AED]/20">
+                        {todayOrders.filter(o => o.status === 'OUT_FOR_DELIVERY').length} out
+                    </Badge>
+                    <Badge variant="amber" className="text-xs font-black px-3 py-1.5 shrink-0 text-amber-600 bg-amber-500/20 border-amber-500/30">
+                        {todayOrders.filter(o => o.status === 'ON_THE_WAY').length} otw
+                    </Badge>
+                    <Badge variant="green" className="text-xs font-black px-3 py-1.5 shrink-0">
                         {todayOrders.filter(o => o.status === 'DELIVERED').length} delivered
                     </Badge>
                 </div>
@@ -248,7 +254,8 @@ export default function AdminOrders() {
                         {hostelGroups.map(({ hostel, orders: hostelOrders }) => {
                             const isExpanded = expandedHostels.has(hostel.id);
                             const paidCount = hostelOrders.filter(o => o.status === 'PAID').length;
-                            const outCount = hostelOrders.filter(o => o.status === 'OUT_FOR_DELIVERY' || o.status === 'ON_THE_WAY').length;
+                            const outCount = hostelOrders.filter(o => o.status === 'OUT_FOR_DELIVERY').length;
+                            const otwCount = hostelOrders.filter(o => o.status === 'ON_THE_WAY').length;
                             const deliveredCount = hostelOrders.filter(o => o.status === 'DELIVERED').length;
 
                             return (
@@ -264,11 +271,12 @@ export default function AdminOrders() {
                                             </div>
                                             <div>
                                                 <h3 className={`text-lg font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{hostel.name}</h3>
-                                                <div className="flex items-center gap-3 mt-1">
-                                                    <span className={`text-xs font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{hostelOrders.length} orders</span>
-                                                    {paidCount > 0 && <span className="text-xs font-black text-[#FCD34D]">{paidCount} pending</span>}
-                                                    {outCount > 0 && <span className="text-xs font-black text-[#7C3AED]">{outCount} out</span>}
-                                                    {deliveredCount > 0 && <span className="text-xs font-black text-[#10B981]">{deliveredCount} done</span>}
+                                                <div className="flex flex-wrap items-center gap-3 mt-1">
+                                                    <span className={`text-xs font-bold shrink-0 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{hostelOrders.length} orders</span>
+                                                    {paidCount > 0 && <span className="text-xs font-black text-[#FCD34D] shrink-0">{paidCount} pending</span>}
+                                                    {outCount > 0 && <span className="text-xs font-black text-[#7C3AED] shrink-0">{outCount} out</span>}
+                                                    {otwCount > 0 && <span className="text-xs font-black text-amber-500 shrink-0">{otwCount} otw</span>}
+                                                    {deliveredCount > 0 && <span className="text-xs font-black text-[#10B981] shrink-0">{deliveredCount} done</span>}
                                                 </div>
                                             </div>
                                         </div>

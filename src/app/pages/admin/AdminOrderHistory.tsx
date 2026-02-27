@@ -33,7 +33,7 @@ export default function AdminOrderHistory() {
     };
 
     // Split orders into active and trashed
-    const activeOrders = orders.filter(o => o.status !== 'TRASHED');
+    const activeOrders = orders.filter(o => o.status === 'DELIVERED' || o.status === 'CANCELLED');
     const trashedOrders = orders.filter(o => o.status === 'TRASHED');
     const currentOrders = viewMode === 'active' ? activeOrders : trashedOrders;
 
@@ -160,12 +160,13 @@ export default function AdminOrderHistory() {
         CONFIRMED: isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600',
         PREPARING: isDark ? 'bg-orange-500/10 text-orange-400' : 'bg-orange-50 text-orange-600',
         OUT_FOR_DELIVERY: isDark ? 'bg-purple-500/10 text-purple-400' : 'bg-purple-50 text-purple-600',
+        ON_THE_WAY: isDark ? 'bg-amber-500/10 text-amber-500' : 'bg-amber-50 text-amber-600',
         DELIVERED: isDark ? 'bg-green-500/10 text-green-400' : 'bg-green-50 text-green-600',
         CANCELLED: isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-600',
         TRASHED: isDark ? 'bg-gray-500/10 text-gray-400' : 'bg-gray-100 text-gray-500',
     };
 
-    const activeStatuses = ['all', ...Array.from(new Set(activeOrders.map(o => o.status).filter(Boolean)))];
+    const activeStatuses = ['all', 'DELIVERED', 'CANCELLED'];
 
     return (
         <AdminLayout title="Order History">
@@ -281,8 +282,8 @@ export default function AdminOrderHistory() {
                                                 <td colSpan={7} className={`py-3 px-6 ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-50'}`}>
                                                     <div className="flex items-center gap-3">
                                                         <span className={`text-[10px] font-black uppercase tracking-[0.3em] ${period === 'Today' ? 'text-[#7C3AED]' :
-                                                                period === 'This Week' ? 'text-[#FCD34D]' :
-                                                                    period === 'This Month' ? 'text-[#10B981]' : isDark ? 'text-[#9C8F7F]' : 'text-gray-400'
+                                                            period === 'This Week' ? 'text-[#FCD34D]' :
+                                                                period === 'This Month' ? 'text-[#10B981]' : isDark ? 'text-[#9C8F7F]' : 'text-gray-400'
                                                             }`}>
                                                             {period}
                                                         </span>

@@ -79,7 +79,8 @@ export default function AdminDashboard() {
       return d ? d.toLocaleDateString() === today : false;
     });
     const pendingOrders = hostelOrders.filter(o => o.status === 'PAID');
-    const outOrders = hostelOrders.filter(o => o.status === 'OUT_FOR_DELIVERY' || o.status === 'ON_THE_WAY');
+    const outOrders = hostelOrders.filter(o => o.status === 'OUT_FOR_DELIVERY');
+    const otwOrders = hostelOrders.filter(o => o.status === 'ON_THE_WAY');
     const defaultRider = getRider(hostel.defaultRiderId);
     const assistantRider = getRider(hostel.assistantRiderId);
 
@@ -95,8 +96,10 @@ export default function AdminDashboard() {
       hostel,
       pendingOrders,
       outOrders,
+      otwOrders,
       pendingCount: pendingOrders.length,
       outCount: outOrders.length,
+      otwCount: otwOrders.length,
       totalPlates: pendingOrders.reduce((sum, o) => sum + (o.plates?.length || 0), 0),
       defaultRider,
       assistantRider,
@@ -211,6 +214,11 @@ export default function AdminDashboard() {
                     {card.outCount > 0 && (
                       <Badge variant="purple" className="text-[10px] uppercase font-black px-2 py-0.5">
                         {card.outCount} out for delivery
+                      </Badge>
+                    )}
+                    {card.otwCount > 0 && (
+                      <Badge variant="amber" className="text-[10px] uppercase font-black px-2 py-0.5">
+                        {card.otwCount} on the way
                       </Badge>
                     )}
                   </div>

@@ -20,6 +20,7 @@ export default function RiderBatchDetails() {
     const [batches, setBatches] = useState<Batch[]>([]);
     const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
     const [initialized, setInitialized] = useState(false);
+    const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
 
     const isDark = riderTheme === 'dark';
 
@@ -61,37 +62,57 @@ export default function RiderBatchDetails() {
 
     const markOnTheWay = async (orderId: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        await updateOrder(orderId, { status: 'ON_THE_WAY' });
+        setLoadingActions(prev => ({ ...prev, [`on_the_way_${orderId}`]: true }));
+        try {
+            await updateOrder(orderId, { status: 'ON_THE_WAY' });
+        } finally {
+            setLoadingActions(prev => ({ ...prev, [`on_the_way_${orderId}`]: false }));
+        }
     };
 
     const markDelivered = async (orderId: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        await updateOrder(orderId, { status: 'DELIVERED' });
+        setLoadingActions(prev => ({ ...prev, [`delivered_${orderId}`]: true }));
+        try {
+            await updateOrder(orderId, { status: 'DELIVERED' });
 
-        // Check if all orders are now delivered
-        const updatedBatchOrders = batchOrders.map(o => o.id === orderId ? { ...o, status: 'DELIVERED' } : o);
-        const allDone = updatedBatchOrders.every(o => o.status === 'DELIVERED');
-        if (allDone && batch) {
-            await updateBatch(batch.id, { status: 'DELIVERED' });
+            // Check if all orders are now delivered
+            const updatedBatchOrders = batchOrders.map(o => o.id === orderId ? { ...o, status: 'DELIVERED' } : o);
+            const allDone = updatedBatchOrders.every(o => o.status === 'DELIVERED');
+            if (allDone && batch) {
+                await updateBatch(batch.id, { status: 'DELIVERED' });
+            }
+        } finally {
+            setLoadingActions(prev => ({ ...prev, [`delivered_${orderId}`]: false }));
         }
     };
 
     const markBatchOnTheWay = async () => {
         if (!batch) return;
-        for (const orderId of batch.orderIds) {
-            const order = batchOrders.find(o => o.id === orderId);
-            if (order && order.status !== 'DELIVERED') {
-                await updateOrder(orderId, { status: 'ON_THE_WAY' });
+        setLoadingActions(prev => ({ ...prev, batch_on_the_way: true }));
+        try {
+            for (const orderId of batch.orderIds) {
+                const order = batchOrders.find(o => o.id === orderId);
+                if (order && order.status !== 'DELIVERED' && order.status !== 'ON_THE_WAY') {
+                    await updateOrder(orderId, { status: 'ON_THE_WAY' });
+                }
             }
+        } finally {
+            setLoadingActions(prev => ({ ...prev, batch_on_the_way: false }));
         }
     };
 
     const markBatchDelivered = async () => {
         if (!batch) return;
-        for (const orderId of batch.orderIds) {
-            await updateOrder(orderId, { status: 'DELIVERED' });
+        setLoadingActions(prev => ({ ...prev, batch_delivered: true }));
+        try {
+            for (const orderId of batch.orderIds) {
+                await updateOrder(orderId, { status: 'DELIVERED' });
+            }
+            await updateBatch(batch.id, { status: 'DELIVERED' });
+        } finally {
+            setLoadingActions(prev => ({ ...prev, batch_delivered: false }));
         }
-        await updateBatch(batch.id, { status: 'DELIVERED' });
     };
 
     const handlePrint = (e: React.MouseEvent) => {
@@ -173,18 +194,20 @@ export default function RiderBatchDetails() {
                 {!allDelivered && batchOrders.length > 0 && (
                     <div className="flex gap-3 mt-4">
                         <button
+                            disabled={loadingActions['batch_on_the_way']}
                             onClick={markBatchOnTheWay}
-                            className="flex-1 py-4 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm shadow-lg shadow-amber-500/20"
+                            className={`flex-1 py-4 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm shadow-lg shadow-amber-500/20 ${loadingActions['batch_on_the_way'] ? 'opacity-70 cursor-not-allowed' : ''}`}
                         >
-                            <Truck className="w-5 h-5" />
-                            Mark All On The Way
+                            <Truck className={`w-5 h-5 ${loadingActions['batch_on_the_way'] ? 'animate-pulse' : ''}`} />
+                            {loadingActions['batch_on_the_way'] ? 'Updating...' : 'Mark All On The Way'}
                         </button>
                         <button
+                            disabled={loadingActions['batch_delivered']}
                             onClick={markBatchDelivered}
-                            className="flex-1 py-4 bg-green-500 hover:bg-green-600 text-white font-bold rounded-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm shadow-lg shadow-green-500/20"
+                            className={`flex-1 py-4 bg-green-500 hover:bg-green-600 text-white font-bold rounded-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm shadow-lg shadow-green-500/20 ${loadingActions['batch_delivered'] ? 'opacity-70 cursor-not-allowed' : ''}`}
                         >
-                            <CheckCircle className="w-5 h-5" />
-                            Mark All Delivered
+                            <CheckCircle className={`w-5 h-5 ${loadingActions['batch_delivered'] ? 'animate-pulse' : ''}`} />
+                            {loadingActions['batch_delivered'] ? 'Updating...' : 'Mark All Delivered'}
                         </button>
                     </div>
                 )}
@@ -319,12 +342,22 @@ export default function RiderBatchDetails() {
                                                     {!isDelivered && (
                                                         <>
                                                             {order.status !== 'ON_THE_WAY' ? (
-                                                                <button onClick={(e) => markOnTheWay(order.id, e)} className="col-span-2 py-4 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm shadow-lg shadow-amber-500/20">
-                                                                    <Truck className="w-5 h-5" /> Mark On The Way
+                                                                <button
+                                                                    disabled={loadingActions[`on_the_way_${order.id}`]}
+                                                                    onClick={(e) => markOnTheWay(order.id, e)}
+                                                                    className={`col-span-2 py-4 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm shadow-lg shadow-amber-500/20 ${loadingActions[`on_the_way_${order.id}`] ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                                                >
+                                                                    <Truck className={`w-5 h-5 ${loadingActions[`on_the_way_${order.id}`] ? 'animate-pulse' : ''}`} />
+                                                                    {loadingActions[`on_the_way_${order.id}`] ? 'Updating...' : 'Mark On The Way'}
                                                                 </button>
                                                             ) : (
-                                                                <button onClick={(e) => markDelivered(order.id, e)} className="col-span-2 py-4 bg-green-500 hover:bg-green-600 text-white font-black rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm shadow-lg shadow-green-500/20">
-                                                                    <CheckCircle className="w-5 h-5" /> Confirm Delivered
+                                                                <button
+                                                                    disabled={loadingActions[`delivered_${order.id}`]}
+                                                                    onClick={(e) => markDelivered(order.id, e)}
+                                                                    className={`col-span-2 py-4 bg-green-500 hover:bg-green-600 text-white font-black rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm shadow-lg shadow-green-500/20 ${loadingActions[`delivered_${order.id}`] ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                                                >
+                                                                    <CheckCircle className={`w-5 h-5 ${loadingActions[`delivered_${order.id}`] ? 'animate-pulse' : ''}`} />
+                                                                    {loadingActions[`delivered_${order.id}`] ? 'Confirming...' : 'Confirm Delivered'}
                                                                 </button>
                                                             )}
                                                         </>
@@ -404,7 +437,7 @@ export default function RiderBatchDetails() {
                                 <td>
                                     {order.plates?.map((p: any, i: number) => (
                                         <div key={i} className="text-sm mb-1.5 flex items-start gap-2">
-                                            <span className="font-black text-[#7C3AED]">P{i + 1}</span>
+                                            <span className="font-black text-[#7C3AED]">Plate {i + 1}:</span>
                                             <span>{p.items?.map((item: any) => `${item.quantity > 1 ? `${item.quantity}x ` : ''}${item.item?.name || item.name}`).join(', ') || 'No Items'}</span>
                                         </div>
                                     ))}

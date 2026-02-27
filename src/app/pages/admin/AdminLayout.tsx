@@ -84,7 +84,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
     };
 
     return (
-        <div className={`min-h-screen font-sans flex flex-col lg:flex-row ${isDark ? 'bg-[#1A1A1A]' : 'bg-[#FAF9F6]'}`}>
+        <div className={`h-screen w-full overflow-hidden font-sans flex flex-col lg:flex-row ${isDark ? 'bg-[#1A1A1A]' : 'bg-[#FAF9F6]'}`}>
             {/* Mobile Sidebar Overlay */}
             {sidebarOpen && (
                 <div
@@ -95,7 +95,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
 
             {/* Sidebar */}
             <aside className={`
-                fixed lg:static inset-y-0 left-0 z-50 w-64 flex flex-col border-r transition-transform duration-300 ease-in-out lg:transform-none
+                fixed lg:sticky top-0 inset-y-0 left-0 z-50 w-64 h-screen flex flex-col border-r transition-transform duration-300 ease-in-out lg:transform-none
                 ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-200'}
                 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
             `}>
@@ -160,8 +160,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
                 </div>
             </aside>
 
-            {/* Main Content */}
-            <div className="flex-1 flex flex-col min-h-screen overflow-x-hidden">
+            {/* Main Content Area */}
+            <div className="flex-1 flex flex-col h-screen overflow-y-auto overflow-x-hidden">
                 {/* Top Bar */}
                 <header className={`px-4 lg:px-8 py-4 sticky top-0 z-30 transition-all border-b ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-200 shadow-sm'
                     }`}>
