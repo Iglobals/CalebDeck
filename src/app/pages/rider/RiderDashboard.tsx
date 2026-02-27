@@ -18,6 +18,7 @@ import {
   PlatformSettings,
   subscribeToPlatformSettings
 } from '../../../services/db';
+import { NotificationPanel } from '../../components/NotificationPanel';
 
 export default function RiderDashboard() {
   const { user } = useAuth();
@@ -95,11 +96,7 @@ export default function RiderDashboard() {
             <button onClick={toggleRiderTheme} className={`w-10 h-10 rounded-full border flex items-center justify-center relative ${isDark ? 'bg-[#1A1A1A] border-[#222222] text-[#9C8F7F]' : 'bg-white border-gray-200 text-gray-500 shadow-sm'}`}>
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
-            <button className={`w-10 h-10 rounded-full border flex items-center justify-center relative ${isDark ? 'bg-[#1A1A1A] border-[#222222] text-[#9C8F7F]' : 'bg-white border-gray-200 text-gray-500 shadow-sm'}`}>
-              <Bell className="w-4 h-4" />
-              {activeBatches.length > 0 && <div className="absolute top-2.5 right-2.5 w-1.5 h-1.5 bg-[#7C3AED] rounded-full animate-ping"></div>}
-              {activeBatches.length > 0 && <div className="absolute top-2.5 right-2.5 w-1.5 h-1.5 bg-[#7C3AED] rounded-full"></div>}
-            </button>
+            <NotificationPanel />
           </div>
         </div>
       </header>
@@ -114,10 +111,7 @@ export default function RiderDashboard() {
             <button onClick={toggleRiderTheme} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-colors ${isDark ? 'bg-[#1A1A1A] border-[#222222] text-[#9C8F7F] hover:text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-500 hover:text-gray-900 shadow-sm'}`}>
               {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
-            <button className={`w-10 h-10 rounded-full border flex items-center justify-center relative transition-colors ${isDark ? 'bg-[#1A1A1A] border-[#222222] text-[#9C8F7F] hover:text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-500 hover:text-gray-900 shadow-sm'}`}>
-              <Bell className="w-5 h-5" />
-              {activeBatches.length > 0 && <div className="absolute top-2.5 right-2.5 w-2 h-2 bg-[#7C3AED] rounded-full"></div>}
-            </button>
+            <NotificationPanel />
           </div>
         </div>
 

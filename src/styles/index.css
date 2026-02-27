@@ -1,3 +1,9 @@
 @import './fonts.css';
 @import './tailwind.css';
 @import './theme.css';
+
+html,
+body {
+    max-width: 100vw;
+    overflow-x: hidden;
+}

@@ -159,7 +159,7 @@ export default function RiderAnalytics() {
                     </div>
 
                     {/* Timeframe Selector */}
-                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide w-full min-w-0">
+                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-5 px-5 sm:mx-0 sm:px-0">
                         {timeframes.map(t => (
                             <button
                                 key={t.id}
@@ -185,7 +185,7 @@ export default function RiderAnalytics() {
                             <Badge variant="green" className="text-[9px] font-black uppercase">{timeframes.find(t => t.id === timeframe)?.label}</Badge>
                         </div>
                         <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Total Earnings</p>
-                        <h2 className={`text-3xl font-black tracking-tight ${isDark ? 'text-[#FAF9F6]' : 'text-green-700'}`}>₦{totalEarnings.toLocaleString()}</h2>
+                        <h2 className={`text-2xl sm:text-3xl font-black tracking-tight ${isDark ? 'text-[#FAF9F6]' : 'text-green-700'}`}>₦{totalEarnings.toLocaleString()}</h2>
                     </Card>
 
                     <Card className={`border shadow-none ${isDark ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-white border-gray-100'}`}>
@@ -193,7 +193,7 @@ export default function RiderAnalytics() {
                             <TrendingUp className="w-4 h-4 text-[#FCD34D]" />
                         </div>
                         <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Avg/Delivery</p>
-                        <h3 className={`text-lg font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{avgPerDelivery}</h3>
+                        <h3 className={`text-base sm:text-lg font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{avgPerDelivery}</h3>
                     </Card>
 
                     <Card className={`border shadow-none ${isDark ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-white border-gray-100'}`}>
@@ -201,7 +201,7 @@ export default function RiderAnalytics() {
                             <CheckCircle className="w-4 h-4 text-purple-500" />
                         </div>
                         <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Completion</p>
-                        <h3 className={`text-lg font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{completionRate}%</h3>
+                        <h3 className={`text-base sm:text-lg font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{completionRate}%</h3>
                     </Card>
                 </div>
 

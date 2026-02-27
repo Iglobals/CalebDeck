@@ -222,10 +222,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
                         )}
 
                         <div className="flex items-center gap-4">
-                            <button className={`relative p-2 rounded-xl transition-colors ${isDark ? 'hover:bg-[#333333]' : 'hover:bg-gray-100'}`}>
-                                <Bell className={`w-6 h-6 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-600'}`} />
-                                <span className="absolute top-1 right-1 w-2 h-2 bg-[#FCD34D] rounded-full"></span>
-                            </button>
+                            <NotificationPanel />
                             <div className="hidden sm:block w-10 h-10 rounded-full overflow-hidden border-2 border-[#7C3AED]">
                                 <img src="/calebdeck-logo.jpeg" alt="CalebDeck" className="w-full h-full object-cover" />
                             </div>

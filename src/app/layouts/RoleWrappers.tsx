@@ -53,7 +53,7 @@ export function RiderRoleWrapper() {
             </div>
 
             {/* Main Content Area */}
-            <main className="flex-1 md:ml-64 pb-20 md:pb-0 min-h-screen relative">
+            <main className="flex-1 md:ml-64 pb-20 md:pb-0 min-h-screen relative w-full overflow-x-hidden max-w-[100vw] sm:max-w-full">
                 <Outlet />
             </main>
 

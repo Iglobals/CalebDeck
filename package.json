@@ -46,6 +46,7 @@
     "date-fns": "3.6.0",
     "embla-carousel-react": "8.6.0",
     "firebase": "^12.9.0",
+    "firebase-admin": "^13.6.1",
     "input-otp": "1.4.2",
     "js-cookie": "^3.0.5",
     "lucide-react": "0.487.0",
@@ -63,11 +64,11 @@
     "react-slick": "0.31.0",
     "react-toastify": "^11.0.5",
     "recharts": "2.15.2",
+    "resend": "^6.9.2",
     "sonner": "2.0.3",
     "tailwind-merge": "3.2.0",
     "tw-animate-css": "1.3.8",
-    "vaul": "1.1.2",
-    "firebase-admin": "^13.6.1"
+    "vaul": "1.1.2"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.1.12",

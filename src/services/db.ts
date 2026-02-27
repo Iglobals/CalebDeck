@@ -115,7 +115,7 @@ export const subscribeToRiderOrdersByHostels = (hostelIds: string[], callback: (
 };
 // Create Order
 export const createOrder = async (orderData: any) => {
-    return await addDoc(collection(db, 'orders'), {
+    const docRef = await addDoc(collection(db, 'orders'), {
         ...orderData,
         assignedRiderId: null,  // Orders are NOT auto-assigned — dispatch does this
         batchId: null,
@@ -123,6 +123,24 @@ export const createOrder = async (orderData: any) => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
     });
+
+    // Fire off notification to Admin role
+    // Since CalebDeck admin accounts share the root /admin namespace, we use a generic 'admin' userId
+    // for platform-level notifications that all admins can subscribe to.
+    try {
+        await createNotification({
+            userId: 'admin',
+            title: 'New Order Received',
+            message: `${orderData.studentName} just ordered from ${orderData.hostelName || orderData.hostel}`,
+            type: 'order',
+            link: '/admin/orders',
+            isRead: false
+        });
+    } catch (err) {
+        console.error('Failed to dispatch admin notification:', err);
+    }
+
+    return docRef;
 };
 
 
@@ -222,6 +240,19 @@ export const dispatchBatch = async (hostelId: string, hostelName: string, rider:
         });
     });
     await batch.commit();
+
+    try {
+        await createNotification({
+            userId: rider.id,
+            title: 'New Batch Assigned',
+            message: `You have new orders ready for pickup and delivery to ${hostelName}.`,
+            type: 'batch',
+            link: '/rider/batches',
+            isRead: false
+        });
+    } catch (err) {
+        console.error('Failed to notify rider of new batch', err);
+    }
 
     return batchId;
 };
@@ -360,4 +391,68 @@ export const subscribeToPlatformSettings = (callback: (settings: PlatformSetting
 export const updatePlatformSettings = async (updates: Partial<PlatformSettings>) => {
     const settingsRef = doc(db, 'settings', 'platform');
     await setDoc(settingsRef, updates, { merge: true });
+};
+
+// ─── Notifications Management ───
+export interface Notification {
+    id?: string;
+    userId: string;
+    title: string;
+    message: string;
+    type: 'order' | 'batch' | 'system';
+    isRead: boolean;
+    link?: string;
+    createdAt: any;
+}
+
+export const createNotification = async (data: Omit<Notification, 'id' | 'createdAt'>) => {
+    try {
+        const docRef = await addDoc(collection(db, 'notifications'), {
+            ...data,
+            isRead: false,
+            createdAt: serverTimestamp()
+        });
+        return docRef.id;
+    } catch (error) {
+        console.error('Error creating notification:', error);
+        throw error;
+    }
+};
+
+export const subscribeToUserNotifications = (userId: string, callback: (notifs: Notification[]) => void) => {
+    const q = query(
+        collection(db, 'notifications'),
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc')
+    );
+    return onSnapshot(q, (snapshot) => {
+        const notifs = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        } as Notification));
+        callback(notifs);
+    });
+};
+
+export const markNotificationAsRead = async (notificationId: string) => {
+    try {
+        const notifRef = doc(db, 'notifications', notificationId);
+        await updateDoc(notifRef, { isRead: true });
+    } catch (error) {
+        console.error('Error marking notification as read:', error);
+    }
+};
+
+export const markAllNotificationsAsRead = async (userId: string) => {
+    try {
+        const q = query(collection(db, 'notifications'), where('userId', '==', userId), where('isRead', '==', false));
+        const snapshot = await getDocs(q);
+        const batch = writeBatch(db);
+        snapshot.docs.forEach(doc => {
+            batch.update(doc.ref, { isRead: true });
+        });
+        await batch.commit();
+    } catch (error) {
+        console.error('Error marking all as read:', error);
+    }
 };
