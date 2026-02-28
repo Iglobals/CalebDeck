@@ -37,8 +37,8 @@ export default function Checkout() {
 
   const [formData, setFormData] = useState({
     fullName: '',
-    phone: '', // Assuming 'user' is not available in this context, keeping it empty as per original structure
-    hostel: '', // Assuming 'user' is not available in this context, keeping it empty as per original structure
+    phone: '',
+    hostel: '',
     instructions: ''
   });
 
@@ -133,6 +133,7 @@ export default function Checkout() {
     const orderData = {
       orderId,
       ...formData,
+      studentName: formData.fullName,
       hostelName: selectedHostel?.name || formData.hostel,
       total: orderTotal?.totalAmount,
       plates,

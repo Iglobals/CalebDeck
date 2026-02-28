@@ -430,7 +430,8 @@ export default function RiderBatchDetails() {
                                 </td>
                                 <td>
                                     <div className="font-black text-base">{order.fullName || 'Student'}</div>
-                                    <div className="text-xs text-gray-500 mt-1">{order.phone || 'No Phone'}</div>
+                                    <div className="text-xs font-bold text-gray-800 mt-1">{order.hostelName || order.hostel}</div>
+                                    <div className="text-xs text-gray-500 mt-0.5">{order.phone || 'No Phone'}</div>
                                 </td>
                                 <td>
                                     {order.plates?.map((p: any, i: number) => (

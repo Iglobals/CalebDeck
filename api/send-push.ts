@@ -4,9 +4,18 @@ import * as admin from 'firebase-admin';
 // Initialize Firebase Admin lazily to prevent multiple initialization errors
 if (!admin.apps.length) {
     try {
-        const privateKey = process.env.FB_SA_PRIVATE_KEY
-            ? process.env.FB_SA_PRIVATE_KEY.replace(/\\n/g, '\n')
-            : undefined;
+        let privateKey = process.env.FB_SA_PRIVATE_KEY || '';
+        if (privateKey) {
+            // Strongly strip wrapping quotes from Vercel
+            if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+                privateKey = privateKey.substring(1, privateKey.length - 1);
+            }
+            if (privateKey.startsWith("'") && privateKey.endsWith("'")) {
+                privateKey = privateKey.substring(1, privateKey.length - 1);
+            }
+            // Ensure actual multiline formatting
+            privateKey = privateKey.replace(/\\n/g, '\n');
+        }
 
         admin.initializeApp({
             credential: admin.credential.cert({
@@ -15,6 +24,7 @@ if (!admin.apps.length) {
                 privateKey: privateKey,
             }),
         });
+        console.log("Firebase Admin successfully initialized on Vercel.");
     } catch (error) {
         console.error('Firebase admin initialization error', error);
     }

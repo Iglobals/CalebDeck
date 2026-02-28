@@ -154,6 +154,8 @@ export default function AdminOrders() {
                         .plate-header { font-size: 11px; font-weight: 900; color: #7C3AED; text-transform: uppercase; letter-spacing: 2px; margin: 14px 0 8px; }
                         .footer { margin-top: 40px; border-top: 2px solid #7C3AED; padding-top: 20px; text-align: center; font-size: 12px; font-weight: 700; color: #9C8F7F; }
                         .total { font-size: 24px; font-weight: 900; color: #7C3AED; display: block; margin-top: 20px; text-align: right; }
+                        .close-btn { display: block; width: 100%; padding: 14px; margin-top: 30px; background: #1A1A1A; color: white; border: none; border-radius: 8px; font-weight: 900; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; }
+                        @media print { .close-btn { display: none !important; } }
                     </style>
                 </head>
                 <body>
@@ -167,7 +169,7 @@ export default function AdminOrders() {
                     </div>
                     <div class="section">
                         <div class="label">Delivery</div>
-                        <div class="value">${order.hostelName || order.hostel} — Room ${order.room}</div>
+                        <div class="value">${order.hostelName || order.hostel}</div>
                     </div>
                     <div class="section">
                         <div class="label">Items</div>
@@ -192,6 +194,7 @@ export default function AdminOrders() {
                     </div>
                     <span class="total">₦${order.total?.toLocaleString()}</span>
                     <div class="footer">CalebDeck — ${new Date().toLocaleDateString()}</div>
+                    <button class="close-btn" onclick="window.close()">Close Receipt</button>
                 </body>
             </html>
         `;
@@ -323,7 +326,7 @@ export default function AdminOrders() {
                                                                     CD-{order.orderId?.slice(-6) || 'N/A'}
                                                                 </span>
                                                                 <span className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
-                                                                    · Room {order.room} · {order.plates?.length || 0} plates
+                                                                    · {order.plates?.length || 0} plates
                                                                 </span>
                                                             </div>
                                                         </div>

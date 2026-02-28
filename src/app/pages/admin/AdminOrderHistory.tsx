@@ -113,6 +113,8 @@ export default function AdminOrderHistory() {
                     .value { font-size: 16px; font-weight: 900; }
                     .total { text-align: right; font-size: 22px; font-weight: 900; color: #7C3AED; margin-top: 20px; }
                     .footer { text-align: center; font-size: 11px; color: #999; margin-top: 30px; border-top: 2px solid #7C3AED; padding-top: 16px; }
+                    .close-btn { display: block; width: 100%; padding: 14px; margin-top: 30px; background: #1A1A1A; color: white; border: none; border-radius: 8px; font-weight: 900; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; }
+                    @media print { .close-btn { display: none !important; } }
                 </style>
             </head>
             <body>
@@ -124,7 +126,7 @@ export default function AdminOrderHistory() {
                 <div class="value">${order.fullName || 'N/A'}</div>
                 <div style="font-size:13px;font-weight:700;margin-top:4px">${order.phone || ''}</div>
                 <div class="label">Delivery</div>
-                <div class="value">${order.hostel || 'N/A'} — Room ${order.room || 'N/A'}</div>
+                <div class="value">${order.hostel || 'N/A'}</div>
                 <div class="label">Date</div>
                 <div class="value" style="font-size:14px">${date ? format(date, 'PPpp') : 'N/A'}</div>
                 <div class="label">Status</div>
@@ -144,6 +146,7 @@ export default function AdminOrderHistory() {
                 ` : ''}
                 <div class="total">Total: ₦${(order.total || 0).toLocaleString()}</div>
                 <div class="footer">CalebDeck Order Receipt<br/>${date ? format(date, 'PPpp') : ''}</div>
+                <button class="close-btn" onclick="window.close()">Close Receipt</button>
                 <script>window.print();</script>
             </body>
             </html>
