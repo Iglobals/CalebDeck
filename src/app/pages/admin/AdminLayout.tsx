@@ -75,11 +75,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
             setPushPermissionStatus(Notification.permission);
         }
 
-        if (user && user.uid) {
-            // Save admin token to the user document
-            requestNotificationPermissionAndSaveToken(user.uid, 'users');
-        }
-
         // Listen for foreground pushes
         const unsub = onForegroundMessage((payload) => {
             console.log("Foreground Admin Push Received:", payload);

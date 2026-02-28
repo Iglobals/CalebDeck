@@ -22,7 +22,8 @@ export function NotificationPanel() {
 
     useEffect(() => {
         if (!user) return;
-        const unsubscribe = subscribeToUserNotifications(user.uid, setNotifications);
+        const targetId = user.role === 'ADMIN' ? 'admin' : user.uid;
+        const unsubscribe = subscribeToUserNotifications(targetId, setNotifications);
         return unsubscribe;
     }, [user]);
 
@@ -44,7 +45,10 @@ export function NotificationPanel() {
     };
 
     const handleMarkAllRead = async () => {
-        if (user) await markAllNotificationsAsRead(user.uid);
+        if (user) {
+            const targetId = user.role === 'ADMIN' ? 'admin' : user.uid;
+            await markAllNotificationsAsRead(targetId);
+        }
     };
 
     const getIcon = (type: string) => {

@@ -78,6 +78,7 @@ export default function AdminDashboard() {
     const pendingOrders = hostelOrders.filter(o => o.status === 'PAID');
     const outOrders = hostelOrders.filter(o => o.status === 'OUT_FOR_DELIVERY');
     const otwOrders = hostelOrders.filter(o => o.status === 'ON_THE_WAY');
+    const deliveredOrders = hostelOrders.filter(o => o.status === 'DELIVERED');
     const defaultRider = getRider(hostel.defaultRiderId);
     const assistantRider = getRider(hostel.assistantRiderId);
 
@@ -96,6 +97,7 @@ export default function AdminDashboard() {
       pendingCount: pendingOrders.length,
       outCount: outOrders.length,
       otwCount: otwOrders.length,
+      deliveredCount: deliveredOrders.length,
       totalPlates: pendingOrders.reduce((sum, o) => sum + (o.plates?.length || 0), 0),
       defaultRider,
       assistantRider,
@@ -216,6 +218,11 @@ export default function AdminDashboard() {
                         {card.otwCount} on the way
                       </Badge>
                     )}
+                    {card.deliveredCount > 0 && (
+                      <Badge variant="green" className="text-[10px] uppercase font-black px-2 py-0.5">
+                        {card.deliveredCount} delivered
+                      </Badge>
+                    )}
                   </div>
 
                   {/* Rider Info */}
@@ -278,6 +285,15 @@ export default function AdminDashboard() {
                     >
                       <Truck className="w-4 h-4 mr-2" />
                       Out by Rider
+                    </Button>
+                  ) : card.deliveredCount > 0 && card.pendingCount === 0 && card.outCount === 0 && card.otwCount === 0 ? (
+                    <Button
+                      variant="ghost"
+                      disabled
+                      className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold bg-green-500/10 text-green-500 border border-green-500/20"
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      All Delivered
                     </Button>
                   ) : card.pendingCount === 0 ? (
                     <Button
