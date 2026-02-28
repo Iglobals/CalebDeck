@@ -178,9 +178,11 @@ export default function LandingPage() {
           <div className="relative">
             <div className="relative rounded-3xl overflow-hidden" style={{ boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)' }}>
               <ImageWithFallback
-                src="https://images.unsplash.com/photo-1687709645238-0470ff08a6bf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxoYXBweSUyMHN0dWRlbnQlMjBlYXRpbmclMjBtZWFsJTIwY2FtcHVzfGVufDF8fHx8MTc3MTMzODg2MXww&ixlib=rb-4.1.0&q=80&w=1080"
+                src="https://images.unsplash.com/photo-1687709645238-0470ff08a6bf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxoYXBweSUyMHN0dWRlbnQlMjBlYXRpbmclMjBtZWFsJTIwY2FtcHVzfGVufDF8fHx8MTc3MTMzODg2MXww&ixlib=rb-4.1.0&q=60&w=640"
                 alt="Happy student with meal"
                 className="w-full h-full object-cover"
+                fetchPriority="high"
+                loading="eager"
               />
               <div className="absolute bottom-6 right-6 bg-[#FCD34D] text-[#1A1A1A] px-6 py-3 rounded-xl font-bold shadow-lg">
                 ₦700 Delivery
