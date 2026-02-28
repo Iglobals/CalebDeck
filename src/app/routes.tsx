@@ -1,36 +1,52 @@
 import { createBrowserRouter, Outlet } from "react-router";
+import { Suspense, lazy } from 'react';
 import { AdminRoleWrapper, RiderRoleWrapper } from './layouts/RoleWrappers';
 import StudentRoleWrapper from './layouts/StudentRoleWrapper';
 
-import LandingPage from "./pages/student/LandingPage";
-import CafeteriaSelection from "./pages/student/CafeteriaSelection";
-import PlateBuilder from "./pages/student/PlateBuilder";
-import Checkout from "./pages/student/Checkout";
-import OrderSuccess from "./pages/student/OrderSuccess";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import TermsOfService from "./pages/TermsOfService";
-import Support from "./pages/Support";
-import LearnMore from "./pages/LearnMore";
+// --- Lazy Load Student Pages ---
+const LandingPage = lazy(() => import("./pages/student/LandingPage"));
+const CafeteriaSelection = lazy(() => import("./pages/student/CafeteriaSelection"));
+const PlateBuilder = lazy(() => import("./pages/student/PlateBuilder"));
+const Checkout = lazy(() => import("./pages/student/Checkout"));
+const OrderSuccess = lazy(() => import("./pages/student/OrderSuccess"));
 
-import AdminLogin from "./pages/admin/AdminLogin";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminOrders from "./pages/admin/AdminOrders";
-import RiderManagement from "./pages/admin/RiderManagement";
-import MenuManagement from "./pages/admin/MenuManagement";
-import AdminAnalytics from "./pages/admin/AdminAnalytics";
-import AdminOrderHistory from "./pages/admin/AdminOrderHistory";
-import AdminSetup from "./pages/admin/AdminSetup";
+// --- Lazy Load Info & Legal Pages ---
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("./pages/TermsOfService"));
+const Support = lazy(() => import("./pages/Support"));
+const LearnMore = lazy(() => import("./pages/LearnMore"));
 
-import RiderLogin from "./pages/rider/RiderLogin";
-import RiderDashboard from "./pages/rider/RiderDashboard";
-import RiderOrderHistory from "./pages/rider/RiderOrderHistory";
-import RiderBatchDetails from "./pages/rider/RiderBatchDetails";
-import RiderBatches from "./pages/rider/RiderBatches";
+// --- Lazy Load Admin Pages ---
+const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminOrders = lazy(() => import("./pages/admin/AdminOrders"));
+const RiderManagement = lazy(() => import("./pages/admin/RiderManagement"));
+const MenuManagement = lazy(() => import("./pages/admin/MenuManagement"));
+const AdminAnalytics = lazy(() => import("./pages/admin/AdminAnalytics"));
+const AdminOrderHistory = lazy(() => import("./pages/admin/AdminOrderHistory"));
+const AdminSetup = lazy(() => import("./pages/admin/AdminSetup"));
+
+// --- Lazy Load Rider Pages ---
+const RiderLogin = lazy(() => import("./pages/rider/RiderLogin"));
+const RiderDashboard = lazy(() => import("./pages/rider/RiderDashboard"));
+const RiderOrderHistory = lazy(() => import("./pages/rider/RiderOrderHistory"));
+const RiderBatchDetails = lazy(() => import("./pages/rider/RiderBatchDetails"));
+const RiderBatches = lazy(() => import("./pages/rider/RiderBatches"));
+
+const SuspenseFallback = () => (
+  <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">
+    <div className="w-8 h-8 rounded-full border-4 border-[#7C3AED]/20 border-t-[#7C3AED] animate-spin" />
+  </div>
+);
 
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: <Outlet />,
+    element: (
+      <Suspense fallback={<SuspenseFallback />}>
+        <Outlet />
+      </Suspense>
+    ),
     children: [
       /* Student Flow */
       {
