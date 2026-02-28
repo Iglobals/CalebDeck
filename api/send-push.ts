@@ -1,8 +1,9 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import * as admin from 'firebase-admin';
+import { getApps, initializeApp, cert } from 'firebase-admin/app';
+import { getMessaging } from 'firebase-admin/messaging';
 
 // Initialize Firebase Admin lazily to prevent multiple initialization errors
-if (!admin.apps?.length) {
+if (!getApps().length) {
     try {
         let privateKey = process.env.FB_SA_PRIVATE_KEY || '';
         if (privateKey) {
@@ -17,8 +18,8 @@ if (!admin.apps?.length) {
             privateKey = privateKey.replace(/\\n/g, '\n');
         }
 
-        admin.initializeApp({
-            credential: admin.credential.cert({
+        initializeApp({
+            credential: cert({
                 projectId: process.env.FB_SA_PROJECT_ID,
                 clientEmail: process.env.FB_SA_CLIENT_EMAIL,
                 privateKey: privateKey,
@@ -57,7 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             tokens: tokens, // Send to multiple devices
         };
 
-        const response = await admin.messaging().sendEachForMulticast(message);
+        const response = await getMessaging().sendEachForMulticast(message);
         console.log(response.successCount + ' messages were sent successfully');
 
         return res.status(200).json({
