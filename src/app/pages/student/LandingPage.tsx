@@ -7,6 +7,7 @@ import { Clock, CheckCircle, Truck, Star, ArrowRight } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
+import SEO from '../../components/SEO';
 
 export default function LandingPage() {
   const { studentTheme } = useTheme();
@@ -65,6 +66,11 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+      <SEO
+        title="CalebDeck — Caleb University Food Delivery"
+        description="The official food delivery app for Caleb University students. Order from campus cafeterias and get food delivered straight to your hostel fast."
+      />
+
       {/* Navigation */}
       <nav className="sticky top-0 bg-background/95 backdrop-blur-md z-50 border-b border-border transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">

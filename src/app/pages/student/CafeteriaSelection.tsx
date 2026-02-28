@@ -9,6 +9,7 @@ import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { ThemeToggle } from '../../components/ThemeToggle';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
+import SEO from '../../components/SEO';
 
 export default function CafeteriaSelection() {
   const [selectedCafeteria, setSelectedCafeteria] = useState<string | null>(null);
@@ -52,6 +53,10 @@ export default function CafeteriaSelection() {
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+      <SEO
+        title="Cafeterias — CalebDeck Food Delivery"
+        description="Browse all open cafeterias at Caleb University. Order freshly prepared meals directly to your hostel room."
+      />
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-sm transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-6">
