@@ -128,7 +128,7 @@ export const createOrder = async (orderData: any) => {
         await createNotification({
             userId: 'admin',
             title: 'New Order Received',
-            message: `${orderData.studentName} just ordered from ${orderData.hostelName || orderData.hostel}`,
+            message: `${orderData.studentName || orderData.fullName || 'A student'} just ordered from ${orderData.hostelName || orderData.hostel}`,
             type: 'order',
             link: '/admin/orders',
             isRead: false

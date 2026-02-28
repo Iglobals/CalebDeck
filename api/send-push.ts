@@ -2,7 +2,7 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import * as admin from 'firebase-admin';
 
 // Initialize Firebase Admin lazily to prevent multiple initialization errors
-if (!admin.apps.length) {
+if (!admin.apps?.length) {
     try {
         let privateKey = process.env.FB_SA_PRIVATE_KEY || '';
         if (privateKey) {
