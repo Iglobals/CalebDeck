@@ -102,7 +102,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
     };
 
     return (
-        <div className={`h-screen w-full overflow-hidden font-sans flex flex-col lg:flex-row ${isDark ? 'bg-[#1A1A1A]' : 'bg-[#FAF9F6]'}`}>
+        <div className={`h-[100dvh] w-full overflow-hidden font-sans flex flex-col lg:flex-row ${isDark ? 'bg-[#1A1A1A]' : 'bg-[#FAF9F6]'}`}>
             {/* Mobile Sidebar Overlay */}
             {sidebarOpen && (
                 <div
@@ -113,7 +113,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
 
             {/* Sidebar */}
             <aside className={`
-                fixed lg:sticky top-0 inset-y-0 left-0 z-50 w-64 h-screen flex flex-col border-r transition-transform duration-300 ease-in-out lg:transform-none
+                fixed lg:sticky top-0 inset-y-0 left-0 z-50 w-64 h-[100dvh] flex flex-col border-r transition-transform duration-300 ease-in-out lg:transform-none
                 ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-200'}
                 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
             `}>
@@ -179,7 +179,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
             </aside>
 
             {/* Main Content Area */}
-            <div className="flex-1 flex flex-col h-screen overflow-y-auto overflow-x-hidden relative">
+            <div className="flex-1 flex flex-col h-[100dvh] overflow-y-auto overflow-x-hidden relative">
 
                 {/* Push Notification Warning Banner Form Safari iOS */}
                 {pushPermissionStatus === 'default' && (
