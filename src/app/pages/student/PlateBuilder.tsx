@@ -670,7 +670,7 @@ export default function PlateBuilder() {
                           size="lg"
                           disabled={Object.entries(currentDrinks).filter(([id]) => foodItems.find(f => f.id === id)?.category === 'drink').length === 0}
                           onClick={commitDrinks}
-                          className="w-full py-6 text-base sm:text-lg xl:text-xl whitespace-nowrap rounded-2xl shadow-2xl shadow-primary/20 transition-all duration-300 active:scale-95"
+                          className="w-fit px-8 py-6 text-base sm:text-lg xl:text-xl whitespace-nowrap rounded-2xl shadow-2xl shadow-primary/20 transition-all duration-300 active:scale-95"
                         >
                           Add Drinks to Order
                         </Button>
@@ -724,7 +724,7 @@ export default function PlateBuilder() {
                           size="lg"
                           disabled={Object.entries(currentSnacks).filter(([id]) => foodItems.find(f => f.id === id)?.category === 'snack').length === 0}
                           onClick={commitSnacks}
-                          className="w-full py-6 text-base sm:text-lg xl:text-xl whitespace-nowrap rounded-2xl shadow-2xl shadow-primary/20 transition-all duration-300 active:scale-95"
+                          className="w-fit px-8 py-6 text-base sm:text-lg xl:text-xl whitespace-nowrap rounded-2xl shadow-2xl shadow-primary/20 transition-all duration-300 active:scale-95"
                         >
                           Add Snacks to Order
                         </Button>
