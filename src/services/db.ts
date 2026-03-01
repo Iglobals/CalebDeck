@@ -125,10 +125,13 @@ export const createOrder = async (orderData: any) => {
     });
 
     try {
+        const name = orderData.studentName || orderData.fullName;
+        const validName = (name && name !== 'undefined' && name !== 'null') ? name : 'A student';
+
         await createNotification({
             userId: 'admin',
             title: 'New Order Received',
-            message: `${orderData.studentName || orderData.fullName || 'A student'} just ordered from ${orderData.hostelName || orderData.hostel}`,
+            message: `${validName} just ordered from ${orderData.hostelName || orderData.hostel}`,
             type: 'order',
             link: '/admin/orders',
             isRead: false

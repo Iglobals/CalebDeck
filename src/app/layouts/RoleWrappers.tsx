@@ -1,7 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { requestNotificationPermissionAndSaveToken, onForegroundMessage } from '../../services/messaging';
+import { Bell } from 'lucide-react';
 
 export function AdminRoleWrapper() {
     const { user, loading } = useAuth();
@@ -31,6 +33,7 @@ export function RiderRoleWrapper() {
     const { user, loading } = useAuth();
     const { riderTheme, applyTheme } = useTheme();
     const navigate = useNavigate();
+    const [pushPermissionStatus, setPushPermissionStatus] = useState<string>('granted');
 
     useEffect(() => {
         applyTheme('rider');
@@ -41,6 +44,18 @@ export function RiderRoleWrapper() {
             navigate('/rider/login');
         }
     }, [user, loading, navigate]);
+
+    useEffect(() => {
+        if ('Notification' in window) {
+            setPushPermissionStatus(Notification.permission);
+        }
+
+        const unsub = onForegroundMessage((payload) => {
+            console.log("Foreground Rider Push Received:", payload);
+        });
+
+        return () => unsub();
+    }, [user]);
 
     if (loading) return null;
     if (!user || user.role !== 'RIDER') return null;
@@ -55,7 +70,28 @@ export function RiderRoleWrapper() {
             </div>
 
             {/* Main Content Area */}
-            <main className="flex-1 md:ml-64 pb-20 md:pb-0 min-h-screen relative w-full overflow-x-hidden max-w-[100vw] sm:max-w-full">
+            <main className="flex-1 md:ml-64 pb-20 md:pb-0 min-h-screen relative w-full overflow-x-hidden max-w-[100vw] sm:max-w-full flex flex-col">
+                {/* Push Notification Warning Banner Form Safari iOS */}
+                {pushPermissionStatus === 'default' && (
+                    <div className="bg-amber-500 text-white p-3 px-6 text-center text-sm font-bold flex flex-col sm:flex-row justify-center items-center gap-3 z-50 shadow-md shrink-0 print:hidden sticky top-0">
+                        <div className="flex items-center gap-2">
+                            <Bell className="w-4 h-4 animate-bounce" />
+                            <span>Action Required: Please enable Push Notifications to receive new batch alerts.</span>
+                        </div>
+                        <button
+                            onClick={async () => {
+                                if (user?.uid) {
+                                    await requestNotificationPermissionAndSaveToken(user.uid, 'users');
+                                    setPushPermissionStatus(Notification.permission);
+                                }
+                            }}
+                            className="bg-white text-amber-600 px-4 py-1.5 rounded-full text-xs hover:bg-white/90 transition-colors shadow-sm ml-2 whitespace-nowrap"
+                        >
+                            Enable Now
+                        </button>
+                    </div>
+                )}
+
                 <Outlet />
             </main>
 

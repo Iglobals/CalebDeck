@@ -119,7 +119,95 @@ export default function RiderBatchDetails() {
 
     const handlePrint = (e: React.MouseEvent) => {
         e.stopPropagation();
-        window.print();
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('Please allow popups for this site to print tickets.');
+            return;
+        }
+
+        const html = `
+            <html>
+                <head>
+                    <title>Batch Manifest - ${batch?.hostelName || 'Hostel'}</title>
+                    <style>
+                        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+                        * { box-sizing: border-box; margin: 0; padding: 0; }
+                        body { font-family: 'Inter', sans-serif; background: white; color: #1A1A1A; padding: 40px; max-width: 480px; margin: 0 auto; }
+                        .header { border-bottom: 4px solid #FCD34D; padding-bottom: 20px; margin-bottom: 30px; text-align: center; }
+                        .logo { font-size: 28px; font-weight: 900; letter-spacing: -1px; color: #1A1A1A; }
+                        .logo span { color: #FCD34D; }
+                        .order-id { font-family: monospace; font-weight: 900; background: #f0f0f0; padding: 4px 12px; border-radius: 6px; font-size: 14px; margin-top: 10px; display: inline-block; }
+                        .section { margin-bottom: 25px; border-bottom: 2px dashed #eee; padding-bottom: 20px; }
+                        .label { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; color: #9C8F7F; margin-bottom: 8px; }
+                        .value { font-size: 18px; font-weight: 900; }
+                        .item-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed #eee; font-size: 14px; }
+                        .plate-header { font-size: 11px; font-weight: 900; color: #d97706; text-transform: uppercase; letter-spacing: 2px; margin: 14px 0 8px; }
+                        .footer { margin-top: 40px; border-top: 2px solid #FCD34D; padding-top: 20px; text-align: center; font-size: 12px; font-weight: 700; color: #9C8F7F; }
+                        .total { font-size: 24px; font-weight: 900; color: #1A1A1A; display: block; margin-top: 10px; text-align: right; }
+                        .close-btn { display: block; width: 100%; padding: 14px; margin-top: 30px; background: #1A1A1A; color: white; border: none; border-radius: 8px; font-weight: 900; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; }
+                        @media print { .close-btn { display: none !important; } }
+                        .page-break { page-break-after: always; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <div class="logo">CALEB<span>DECK</span> RIDER</div>
+                        <div class="order-id">BATCH — ${batch?.hostelName || 'N/A'}</div>
+                        <div style="margin-top: 10px; font-size: 12px; font-weight: 700; color: #666;">${batchOrders.length} Orders Total</div>
+                    </div>
+                    
+                    ${batchOrders.map((order: any, index: number) => `
+                        <div class="section ${index < batchOrders.length - 1 ? 'page-break' : ''}">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <div class="order-id" style="margin-top: 0; background: #FCD34D; color: #1A1A1A;">#${index + 1} • CD-${order.orderId?.slice(-6) || 'XXXXXX'}</div>
+                            </div>
+                            
+                            <div class="label">Student Details</div>
+                            <div class="value" style="margin-bottom: 5px;">${order.fullName}</div>
+                            <div style="font-weight: 700; color: #666; font-size: 14px; margin-bottom: 15px;">📞 ${order.phone || 'N/A'}</div>
+
+                            <div class="label">Order Items</div>
+                            ${order.plates?.map((p: any, i: number) => `
+                                <div class="plate-header">Plate #${i + 1} — ${p.type || ''}</div>
+                                ${p.items?.map((item: any) => `
+                                    <div class="item-row">
+                                        <span>${item.item?.name || item.name}</span>
+                                        <span style="font-weight: 900;">×${item.quantity}</span>
+                                    </div>
+                                `).join('')}
+                            `).join('') || ''}
+                            
+                            ${order.drinksSnacks?.length > 0 ? `
+                                <div class="plate-header">Add-ons</div>
+                                ${order.drinksSnacks.map((item: any) => `
+                                    <div class="item-row">
+                                        <span>${item.item?.name || item.name}</span>
+                                        <span style="font-weight: 900;">×${item.quantity}</span>
+                                    </div>
+                                `).join('')}
+                            ` : ''}
+                            
+                            ${order.notes ? `
+                                <div style="margin-top: 15px; padding: 10px; background: #fffbeb; border-left: 3px solid #FCD34D; border-radius: 4px;">
+                                    <div class="label" style="color: #d97706;">Student Note</div>
+                                    <div style="font-size: 13px; font-weight: 600; font-style: italic;">"${order.notes}"</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+
+                    <div class="footer">CalebDeck Rider Operations — ${new Date().toLocaleDateString()}</div>
+                    <button class="close-btn" onclick="window.close()">Close Receipt</button>
+                </body>
+            </html>
+        `;
+
+        printWindow.document.write(html);
+        printWindow.document.close();
+        setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+        }, 800);
     };
 
     if (!batch) {
