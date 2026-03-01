@@ -7,6 +7,7 @@ import { Badge } from '../../components/design-system/Badge';
 import { ArrowLeft, Plus, Minus, X, AlertTriangle, Users, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { ThemeToggle } from '../../components/ThemeToggle';
+import { toast } from 'react-toastify';
 import {
   Collapsible,
   CollapsibleTrigger,
@@ -69,6 +70,8 @@ export default function PlateBuilder() {
   const [selectedSoup, setSelectedSoup] = useState<string | null>(null);
   const [plates, setPlates] = useState<Plate[]>([]);
   const [drinksSnacks, setDrinksSnacks] = useState<{ [key: string]: number }>({});
+  const [currentDrinks, setCurrentDrinks] = useState<{ [key: string]: number }>({});
+  const [currentSnacks, setCurrentSnacks] = useState<{ [key: string]: number }>({});
   const [deliveryMode, setDeliveryMode] = useState<'solo' | 'group'>('solo');
   const [groupSize, setGroupSize] = useState(2);
   const [openPlates, setOpenPlates] = useState<{ [key: string]: boolean }>({});
@@ -95,14 +98,60 @@ export default function PlateBuilder() {
     });
   };
 
-  const updateDrinkSnack = (itemId: string, delta: number) => {
-    setDrinksSnacks(prev => {
+  const updateCurrentDrink = (itemId: string, delta: number) => {
+    setCurrentDrinks(prev => {
       const newQty = (prev[itemId] || 0) + delta;
       if (newQty <= 0) {
         const { [itemId]: _, ...rest } = prev;
         return rest;
       }
       return { ...prev, [itemId]: newQty };
+    });
+  };
+
+  const updateCurrentSnack = (itemId: string, delta: number) => {
+    setCurrentSnacks(prev => {
+      const newQty = (prev[itemId] || 0) + delta;
+      if (newQty <= 0) {
+        const { [itemId]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [itemId]: newQty };
+    });
+  };
+
+  const commitDrinks = () => {
+    if (Object.keys(currentDrinks).length === 0) return;
+    setDrinksSnacks(prev => {
+      const next = { ...prev };
+      Object.entries(currentDrinks).forEach(([id, qty]) => {
+        next[id] = (next[id] || 0) + qty;
+      });
+      return next;
+    });
+    setCurrentDrinks({});
+    toast.success('Drinks added to order! 🥤');
+    window.scrollBy({ top: 300, behavior: 'smooth' });
+  };
+
+  const commitSnacks = () => {
+    if (Object.keys(currentSnacks).length === 0) return;
+    setDrinksSnacks(prev => {
+      const next = { ...prev };
+      Object.entries(currentSnacks).forEach(([id, qty]) => {
+        next[id] = (next[id] || 0) + qty;
+      });
+      return next;
+    });
+    setCurrentSnacks({});
+    toast.success('Snacks added to order! 🥨');
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  };
+
+  const removeConfirmedAddon = (itemId: string) => {
+    setDrinksSnacks(prev => {
+      const { [itemId]: _, ...rest } = prev;
+      return rest;
     });
   };
 
@@ -220,196 +269,106 @@ export default function PlateBuilder() {
         <div className="grid lg:grid-cols-[1fr_400px] gap-8">
           {/* Builder Area - Left */}
           <div className="space-y-6">
-            {/* Plate Type Selector */}
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                onClick={() => setBuilderType('main')}
-                className={`p-6 rounded-2xl border-2 transition-all duration-300 text-left ${builderType === 'main'
-                  ? 'border-secondary bg-secondary/10 shadow-lg'
-                  : 'border-border bg-card hover:border-secondary/50'
-                  }`}
-              >
-                <h3 className="text-xl font-bold">Build Main Plate</h3>
-                <p className="text-sm text-muted-foreground mt-1">Rice, beans, yam & more</p>
-              </button>
-              <button
-                onClick={() => setBuilderType('swallow')}
-                className={`p-6 rounded-2xl border-2 transition-all duration-300 text-left ${builderType === 'swallow'
-                  ? 'border-secondary bg-secondary/10 shadow-lg'
-                  : 'border-border bg-card hover:border-secondary/50'
-                  }`}
-              >
-                <h3 className="text-xl font-bold">Build Swallow Plate</h3>
-                <p className="text-sm text-muted-foreground mt-1">Fufu, eba, pounded yam</p>
-              </button>
-            </div>
+            <div className="relative space-y-6">
+              {/* Plate Type Selector */}
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => setBuilderType('main')}
+                  className={`p-6 rounded-2xl border-2 transition-all duration-300 text-left ${builderType === 'main'
+                    ? 'border-secondary bg-secondary/10 shadow-lg'
+                    : 'border-border bg-card hover:border-secondary/50'
+                    }`}
+                >
+                  <h3 className="text-xl font-bold">Build Main Plate</h3>
+                  <p className="text-sm text-muted-foreground mt-1">Rice, beans, yam & more</p>
+                </button>
+                <button
+                  onClick={() => setBuilderType('swallow')}
+                  className={`p-6 rounded-2xl border-2 transition-all duration-300 text-left ${builderType === 'swallow'
+                    ? 'border-secondary bg-secondary/10 shadow-lg'
+                    : 'border-border bg-card hover:border-secondary/50'
+                    }`}
+                >
+                  <h3 className="text-xl font-bold">Build Swallow Plate</h3>
+                  <p className="text-sm text-muted-foreground mt-1">Fufu, eba, pounded yam</p>
+                </button>
+              </div>
 
-            {/* Builder Steps */}
-            {builderType === 'main' ? (
-              <div className="space-y-8">
-                {/* Step 1: Choose Base */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Badge variant="purple" className="mb-2 uppercase tracking-wider">STEP 1</Badge>
-                      <h3 className="text-2xl font-bold">Choose Base</h3>
-                      <p className="text-sm text-muted-foreground font-medium">Required • Multiple selection</p>
+              {/* Builder Steps */}
+              {builderType === 'main' ? (
+                <div className="space-y-8">
+                  {/* Step 1: Choose Base */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Badge variant="purple" className="mb-2 uppercase tracking-wider">STEP 1</Badge>
+                        <h3 className="text-2xl font-bold">Choose Base</h3>
+                        <p className="text-sm text-muted-foreground font-medium">Required • Multiple selection</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {foodItems.filter(f => f.category === 'base').map(item => (
+                        <GlassCard key={item.id} selected={currentBuild[item.id] > 0} unavailable={!item.isAvailable}>
+                          <div className="space-y-3">
+                            <div className="aspect-square rounded-xl overflow-hidden shadow-inner">
+                              <ImageWithFallback
+                                src={item.image}
+                                alt={item.name}
+                                className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                              />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
+                              <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit}</p>
+                            </div>
+                            <div className="flex items-center justify-between bg-muted/50 rounded-lg p-1">
+                              <button
+                                onClick={() => updateQuantity(item.id, -1)}
+                                disabled={!currentBuild[item.id]}
+                                className="w-10 h-10 rounded-lg bg-card text-foreground hover:bg-secondary hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all flex items-center justify-center shadow-sm"
+                              >
+                                <Minus className="w-5 h-5" />
+                              </button>
+                              <span className="font-bold text-xl px-2">{currentBuild[item.id] || 0}</span>
+                              <button
+                                onClick={() => updateQuantity(item.id, 1)}
+                                className="w-10 h-10 rounded-lg bg-primary text-primary-foreground hover:bg-primary/80 transition-all flex items-center justify-center shadow-sm hover:scale-105"
+                              >
+                                <Plus className="w-5 h-5" />
+                              </button>
+                            </div>
+                          </div>
+                        </GlassCard>
+                      ))}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {foodItems.filter(f => f.category === 'base').map(item => (
-                      <GlassCard key={item.id} selected={currentBuild[item.id] > 0} unavailable={!item.isAvailable}>
-                        <div className="space-y-3">
-                          <div className="aspect-square rounded-xl overflow-hidden shadow-inner">
-                            <ImageWithFallback
-                              src={item.image}
-                              alt={item.name}
-                              className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                            />
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
-                            <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit}</p>
-                          </div>
-                          <div className="flex items-center justify-between bg-muted/50 rounded-lg p-1">
-                            <button
-                              onClick={() => updateQuantity(item.id, -1)}
-                              disabled={!currentBuild[item.id]}
-                              className="w-10 h-10 rounded-lg bg-card text-foreground hover:bg-secondary hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all flex items-center justify-center shadow-sm"
-                            >
-                              <Minus className="w-5 h-5" />
-                            </button>
-                            <span className="font-bold text-xl px-2">{currentBuild[item.id] || 0}</span>
-                            <button
-                              onClick={() => updateQuantity(item.id, 1)}
-                              className="w-10 h-10 rounded-lg bg-primary text-primary-foreground hover:bg-primary/80 transition-all flex items-center justify-center shadow-sm hover:scale-105"
-                            >
-                              <Plus className="w-5 h-5" />
-                            </button>
-                          </div>
-                        </div>
-                      </GlassCard>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Step 2: Add Protein */}
-                <div className="space-y-4">
-                  <div>
-                    <Badge variant="purple" className="mb-2 uppercase tracking-wider">STEP 2</Badge>
-                    <h3 className="text-2xl font-bold">Add Protein</h3>
-                    <p className="text-sm text-muted-foreground font-medium">Optional • Multiple selection</p>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {foodItems.filter(f => f.category === 'protein').map(item => (
-                      <GlassCard key={item.id} selected={currentBuild[item.id] > 0} unavailable={!item.isAvailable}>
-                        <div className="space-y-3">
-                          <div className="aspect-square rounded-xl overflow-hidden shadow-inner">
-                            <ImageWithFallback
-                              src={item.image}
-                              alt={item.name}
-                              className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                            />
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
-                            <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit}</p>
-                          </div>
-                          <div className="flex items-center justify-between bg-muted/50 rounded-lg p-1">
-                            <button
-                              onClick={() => updateQuantity(item.id, -1)}
-                              disabled={!currentBuild[item.id]}
-                              className="w-10 h-10 rounded-lg bg-card text-foreground hover:bg-secondary hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all flex items-center justify-center shadow-sm"
-                            >
-                              <Minus className="w-5 h-5" />
-                            </button>
-                            <span className="font-bold text-xl px-2">{currentBuild[item.id] || 0}</span>
-                            <button
-                              onClick={() => updateQuantity(item.id, 1)}
-                              className="w-10 h-10 rounded-lg bg-primary text-primary-foreground hover:bg-primary/80 transition-all flex items-center justify-center shadow-sm hover:scale-105"
-                            >
-                              <Plus className="w-5 h-5" />
-                            </button>
-                          </div>
-                        </div>
-                      </GlassCard>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Step 3: Add Extras */}
-                <div className="space-y-4">
-                  <div>
-                    <Badge variant="purple" className="mb-2 uppercase tracking-wider">STEP 3</Badge>
-                    <h3 className="text-2xl font-bold">Add Extras</h3>
-                    <p className="text-sm text-muted-foreground font-medium">Optional • Multiple selection</p>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {foodItems.filter(f => f.category === 'extra').map(item => (
-                      <GlassCard key={item.id} selected={currentBuild[item.id] > 0} unavailable={!item.isAvailable}>
-                        <div className="space-y-3">
-                          <div className="aspect-square rounded-xl overflow-hidden shadow-inner">
-                            <ImageWithFallback
-                              src={item.image}
-                              alt={item.name}
-                              className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                            />
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
-                            <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit}</p>
-                          </div>
-                          <div className="flex items-center justify-between bg-muted/50 rounded-lg p-1">
-                            <button
-                              onClick={() => updateQuantity(item.id, -1)}
-                              disabled={!currentBuild[item.id]}
-                              className="w-10 h-10 rounded-lg bg-card text-foreground hover:bg-secondary hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all flex items-center justify-center shadow-sm"
-                            >
-                              <Minus className="w-5 h-5" />
-                            </button>
-                            <span className="font-bold text-xl px-2">{currentBuild[item.id] || 0}</span>
-                            <button
-                              onClick={() => updateQuantity(item.id, 1)}
-                              className="w-10 h-10 rounded-lg bg-primary text-primary-foreground hover:bg-primary/80 transition-all flex items-center justify-center shadow-sm hover:scale-105"
-                            >
-                              <Plus className="w-5 h-5" />
-                            </button>
-                          </div>
-                        </div>
-                      </GlassCard>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-8">
-                {/* Swallow Step 1: Choose Swallow */}
-                <div className="space-y-4">
-                  <div>
-                    <Badge variant="purple" className="mb-2 uppercase tracking-wider">STEP 1</Badge>
-                    <h3 className="text-2xl font-bold">Choose Swallow</h3>
-                    <p className="text-sm text-muted-foreground font-medium">Required • Select one</p>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {foodItems.filter(f => f.category === 'swallow').map(item => (
-                      <GlassCard key={item.id} selected={selectedSwallow === item.id} unavailable={!item.isAvailable}>
-                        <div className="space-y-3">
-                          <div className="aspect-square rounded-xl overflow-hidden shadow-inner">
-                            <ImageWithFallback
-                              src={item.image}
-                              alt={item.name}
-                              className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                            />
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
-                            <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit}</p>
-                          </div>
-                          {selectedSwallow === item.id ? (
+                  {/* Step 2: Add Protein */}
+                  <div className="space-y-4">
+                    <div>
+                      <Badge variant="purple" className="mb-2 uppercase tracking-wider">STEP 2</Badge>
+                      <h3 className="text-2xl font-bold">Add Protein</h3>
+                      <p className="text-sm text-muted-foreground font-medium">Optional • Multiple selection</p>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {foodItems.filter(f => f.category === 'protein').map(item => (
+                        <GlassCard key={item.id} selected={currentBuild[item.id] > 0} unavailable={!item.isAvailable}>
+                          <div className="space-y-3">
+                            <div className="aspect-square rounded-xl overflow-hidden shadow-inner">
+                              <ImageWithFallback
+                                src={item.image}
+                                alt={item.name}
+                                className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                              />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
+                              <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit}</p>
+                            </div>
                             <div className="flex items-center justify-between bg-muted/50 rounded-lg p-1">
                               <button
                                 onClick={() => updateQuantity(item.id, -1)}
-                                disabled={currentBuild[item.id] <= 1}
+                                disabled={!currentBuild[item.id]}
                                 className="w-10 h-10 rounded-lg bg-card text-foreground hover:bg-secondary hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all flex items-center justify-center shadow-sm"
                               >
                                 <Minus className="w-5 h-5" />
@@ -422,49 +381,38 @@ export default function PlateBuilder() {
                                 <Plus className="w-5 h-5" />
                               </button>
                             </div>
-                          ) : (
-                            <Button
-                              variant="primary"
-                              size="md"
-                              onClick={() => selectSwallow(item.id)}
-                              className="w-full rounded-2xl"
-                            >
-                              Select
-                            </Button>
-                          )}
-                        </div>
-                      </GlassCard>
-                    ))}
+                          </div>
+                        </GlassCard>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                {/* Swallow Step 2: Choose Soup */}
-                <div className="space-y-4">
-                  <div>
-                    <Badge variant="purple" className="mb-2 uppercase tracking-wider">STEP 2</Badge>
-                    <h3 className="text-2xl font-bold">Choose Soup</h3>
-                    <p className="text-sm text-muted-foreground font-medium">Required • Select one</p>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {foodItems.filter(f => f.category === 'soup').map(item => (
-                      <GlassCard key={item.id} selected={selectedSoup === item.id} unavailable={!item.isAvailable}>
-                        <div className="space-y-3">
-                          <div className="aspect-square rounded-xl overflow-hidden shadow-inner">
-                            <ImageWithFallback
-                              src={item.image}
-                              alt={item.name}
-                              className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                            />
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
-                            <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit === 'portion' ? 'serving' : item.unit}</p>
-                          </div>
-                          {selectedSoup === item.id ? (
+                  {/* Step 3: Add Extras */}
+                  <div className="space-y-4">
+                    <div>
+                      <Badge variant="purple" className="mb-2 uppercase tracking-wider">STEP 3</Badge>
+                      <h3 className="text-2xl font-bold">Add Extras</h3>
+                      <p className="text-sm text-muted-foreground font-medium">Optional • Multiple selection</p>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {foodItems.filter(f => f.category === 'extra').map(item => (
+                        <GlassCard key={item.id} selected={currentBuild[item.id] > 0} unavailable={!item.isAvailable}>
+                          <div className="space-y-3">
+                            <div className="aspect-square rounded-xl overflow-hidden shadow-inner">
+                              <ImageWithFallback
+                                src={item.image}
+                                alt={item.name}
+                                className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                              />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
+                              <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit}</p>
+                            </div>
                             <div className="flex items-center justify-between bg-muted/50 rounded-lg p-1">
                               <button
                                 onClick={() => updateQuantity(item.id, -1)}
-                                disabled={currentBuild[item.id] <= 1}
+                                disabled={!currentBuild[item.id]}
                                 className="w-10 h-10 rounded-lg bg-card text-foreground hover:bg-secondary hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all flex items-center justify-center shadow-sm"
                               >
                                 <Minus className="w-5 h-5" />
@@ -477,80 +425,183 @@ export default function PlateBuilder() {
                                 <Plus className="w-5 h-5" />
                               </button>
                             </div>
-                          ) : (
-                            <Button
-                              variant="primary"
-                              size="md"
-                              onClick={() => selectSoup(item.id)}
-                              className="w-full rounded-2xl"
-                            >
-                              Select
-                            </Button>
-                          )}
-                        </div>
-                      </GlassCard>
-                    ))}
+                          </div>
+                        </GlassCard>
+                      ))}
+                    </div>
                   </div>
                 </div>
-
-                {/* Swallow Step 3: Add Protein */}
-                <div className="space-y-4">
-                  <div>
-                    <Badge variant="purple" className="mb-2 uppercase tracking-wider">STEP 3</Badge>
-                    <h3 className="text-2xl font-bold">Add Protein</h3>
-                    <p className="text-sm text-muted-foreground font-medium">Optional • Multiple selection</p>
+              ) : (
+                <div className="space-y-8">
+                  {/* Swallow Step 1: Choose Swallow */}
+                  <div className="space-y-4">
+                    <div>
+                      <Badge variant="purple" className="mb-2 uppercase tracking-wider">STEP 1</Badge>
+                      <h3 className="text-2xl font-bold">Choose Swallow</h3>
+                      <p className="text-sm text-muted-foreground font-medium">Required • Select one</p>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {foodItems.filter(f => f.category === 'swallow').map(item => (
+                        <GlassCard key={item.id} selected={selectedSwallow === item.id} unavailable={!item.isAvailable}>
+                          <div className="space-y-3">
+                            <div className="aspect-square rounded-xl overflow-hidden shadow-inner">
+                              <ImageWithFallback
+                                src={item.image}
+                                alt={item.name}
+                                className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                              />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
+                              <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit}</p>
+                            </div>
+                            {selectedSwallow === item.id ? (
+                              <div className="flex items-center justify-between bg-muted/50 rounded-lg p-1">
+                                <button
+                                  onClick={() => updateQuantity(item.id, -1)}
+                                  disabled={currentBuild[item.id] <= 1}
+                                  className="w-10 h-10 rounded-lg bg-card text-foreground hover:bg-secondary hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all flex items-center justify-center shadow-sm"
+                                >
+                                  <Minus className="w-5 h-5" />
+                                </button>
+                                <span className="font-bold text-xl px-2">{currentBuild[item.id] || 0}</span>
+                                <button
+                                  onClick={() => updateQuantity(item.id, 1)}
+                                  className="w-10 h-10 rounded-lg bg-primary text-primary-foreground hover:bg-primary/80 transition-all flex items-center justify-center shadow-sm hover:scale-105"
+                                >
+                                  <Plus className="w-5 h-5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <Button
+                                variant="primary"
+                                size="md"
+                                onClick={() => selectSwallow(item.id)}
+                                className="w-full rounded-2xl"
+                              >
+                                Select
+                              </Button>
+                            )}
+                          </div>
+                        </GlassCard>
+                      ))}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {foodItems.filter(f => f.category === 'protein').map(item => (
-                      <GlassCard key={item.id} selected={currentBuild[item.id] > 0} unavailable={!item.isAvailable}>
-                        <div className="space-y-3">
-                          <div className="aspect-square rounded-xl overflow-hidden shadow-inner">
-                            <ImageWithFallback
-                              src={item.image}
-                              alt={item.name}
-                              className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                            />
+
+                  {/* Swallow Step 2: Choose Soup */}
+                  <div className="space-y-4">
+                    <div>
+                      <Badge variant="purple" className="mb-2 uppercase tracking-wider">STEP 2</Badge>
+                      <h3 className="text-2xl font-bold">Choose Soup</h3>
+                      <p className="text-sm text-muted-foreground font-medium">Required • Select one</p>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {foodItems.filter(f => f.category === 'soup').map(item => (
+                        <GlassCard key={item.id} selected={selectedSoup === item.id} unavailable={!item.isAvailable}>
+                          <div className="space-y-3">
+                            <div className="aspect-square rounded-xl overflow-hidden shadow-inner">
+                              <ImageWithFallback
+                                src={item.image}
+                                alt={item.name}
+                                className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                              />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
+                              <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit === 'portion' ? 'serving' : item.unit}</p>
+                            </div>
+                            {selectedSoup === item.id ? (
+                              <div className="flex items-center justify-between bg-muted/50 rounded-lg p-1">
+                                <button
+                                  onClick={() => updateQuantity(item.id, -1)}
+                                  disabled={currentBuild[item.id] <= 1}
+                                  className="w-10 h-10 rounded-lg bg-card text-foreground hover:bg-secondary hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all flex items-center justify-center shadow-sm"
+                                >
+                                  <Minus className="w-5 h-5" />
+                                </button>
+                                <span className="font-bold text-xl px-2">{currentBuild[item.id] || 0}</span>
+                                <button
+                                  onClick={() => updateQuantity(item.id, 1)}
+                                  className="w-10 h-10 rounded-lg bg-primary text-primary-foreground hover:bg-primary/80 transition-all flex items-center justify-center shadow-sm hover:scale-105"
+                                >
+                                  <Plus className="w-5 h-5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <Button
+                                variant="primary"
+                                size="md"
+                                onClick={() => selectSoup(item.id)}
+                                className="w-full rounded-2xl"
+                              >
+                                Select
+                              </Button>
+                            )}
                           </div>
-                          <div>
-                            <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
-                            <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit}</p>
+                        </GlassCard>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Swallow Step 3: Add Protein */}
+                  <div className="space-y-4">
+                    <div>
+                      <Badge variant="purple" className="mb-2 uppercase tracking-wider">STEP 3</Badge>
+                      <h3 className="text-2xl font-bold">Add Protein</h3>
+                      <p className="text-sm text-muted-foreground font-medium">Optional • Multiple selection</p>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {foodItems.filter(f => f.category === 'protein').map(item => (
+                        <GlassCard key={item.id} selected={currentBuild[item.id] > 0} unavailable={!item.isAvailable}>
+                          <div className="space-y-3">
+                            <div className="aspect-square rounded-xl overflow-hidden shadow-inner">
+                              <ImageWithFallback
+                                src={item.image}
+                                alt={item.name}
+                                className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                              />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
+                              <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit}</p>
+                            </div>
+                            <div className="flex items-center justify-between bg-muted/50 rounded-lg p-1">
+                              <button
+                                onClick={() => updateQuantity(item.id, -1)}
+                                disabled={!currentBuild[item.id]}
+                                className="w-10 h-10 rounded-lg bg-card text-foreground hover:bg-secondary hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all flex items-center justify-center shadow-sm"
+                              >
+                                <Minus className="w-5 h-5" />
+                              </button>
+                              <span className="font-bold text-xl px-2">{currentBuild[item.id] || 0}</span>
+                              <button
+                                onClick={() => updateQuantity(item.id, 1)}
+                                className="w-10 h-10 rounded-lg bg-primary text-primary-foreground hover:bg-primary/80 transition-all flex items-center justify-center shadow-sm hover:scale-105"
+                              >
+                                <Plus className="w-5 h-5" />
+                              </button>
+                            </div>
                           </div>
-                          <div className="flex items-center justify-between bg-muted/50 rounded-lg p-1">
-                            <button
-                              onClick={() => updateQuantity(item.id, -1)}
-                              disabled={!currentBuild[item.id]}
-                              className="w-10 h-10 rounded-lg bg-card text-foreground hover:bg-secondary hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all flex items-center justify-center shadow-sm"
-                            >
-                              <Minus className="w-5 h-5" />
-                            </button>
-                            <span className="font-bold text-xl px-2">{currentBuild[item.id] || 0}</span>
-                            <button
-                              onClick={() => updateQuantity(item.id, 1)}
-                              className="w-10 h-10 rounded-lg bg-primary text-primary-foreground hover:bg-primary/80 transition-all flex items-center justify-center shadow-sm hover:scale-105"
-                            >
-                              <Plus className="w-5 h-5" />
-                            </button>
-                          </div>
-                        </div>
-                      </GlassCard>
-                    ))}
+                        </GlassCard>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Add Plate Button */}
-            <div className="sticky bottom-6 pt-4 z-40 pointer-events-none">
-              <div className="pointer-events-auto pr-[4.5rem] md:pr-0">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  onClick={addPlate}
-                  disabled={!canAddPlate()}
-                  className="w-full py-6 text-xl rounded-2xl shadow-2xl shadow-primary/20 transition-all duration-300 active:scale-95"
-                >
-                  Add Plate to Order
-                </Button>
+              {/* Add Plate Button */}
+              <div className="sticky bottom-6 pt-4 z-40 pointer-events-none">
+                <div className="pointer-events-auto pr-[4.5rem] md:pr-0">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onClick={addPlate}
+                    disabled={!canAddPlate()}
+                    className="w-full py-6 text-xl rounded-2xl shadow-2xl shadow-primary/20 transition-all duration-300 active:scale-95"
+                  >
+                    Add Plate to Order
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -574,11 +625,11 @@ export default function PlateBuilder() {
               {!drinksSnacksDisabled && (
                 <div className="space-y-8">
                   {/* Drinks */}
-                  <div>
+                  <div className="relative">
                     <h4 className="text-lg font-bold text-card-foreground mb-4">Drinks</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pb-2">
                       {foodItems.filter(f => f.category === 'drink').map(item => (
-                        <GlassCard key={item.id} selected={drinksSnacks[item.id] > 0} unavailable={!item.isAvailable}>
+                        <GlassCard key={item.id} selected={currentDrinks[item.id] > 0} unavailable={!item.isAvailable}>
                           <div className="space-y-3">
                             <div className="aspect-square rounded-xl overflow-hidden">
                               <ImageWithFallback
@@ -591,44 +642,48 @@ export default function PlateBuilder() {
                               <h4 className="font-semibold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
                               <p className="text-sm text-muted-foreground mt-1">₦{item.price}/{item.unit}</p>
                             </div>
-                            <div className="flex items-center justify-between h-9 mt-1">
-                              {drinksSnacks[item.id] > 0 ? (
-                                <>
-                                  <button
-                                    onClick={() => updateDrinkSnack(item.id, -1)}
-                                    className="w-8 h-8 rounded-lg bg-muted hover:bg-secondary hover:text-white transition-colors flex items-center justify-center"
-                                  >
-                                    <Minus className="w-4 h-4" />
-                                  </button>
-                                  <span className="font-bold text-lg text-card-foreground">{drinksSnacks[item.id]}</span>
-                                  <button
-                                    onClick={() => updateDrinkSnack(item.id, 1)}
-                                    className="w-8 h-8 rounded-lg bg-primary hover:bg-primary/80 text-primary-foreground transition-colors flex items-center justify-center z-10"
-                                  >
-                                    <Plus className="w-4 h-4" />
-                                  </button>
-                                </>
-                              ) : (
-                                <button
-                                  onClick={() => updateDrinkSnack(item.id, 1)}
-                                  className="w-full h-full rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-all flex items-center justify-center gap-1 shadow-md active:scale-95 z-10"
-                                >
-                                  <Plus className="w-4 h-4" /> Add
-                                </button>
-                              )}
+                            <div className="flex items-center justify-between mt-2">
+                              <button
+                                onClick={() => updateCurrentDrink(item.id, -1)}
+                                disabled={!currentDrinks[item.id]}
+                                className="w-8 h-8 rounded-lg bg-muted hover:bg-secondary hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                              >
+                                <Minus className="w-4 h-4" />
+                              </button>
+                              <span className="font-bold text-lg text-card-foreground">{currentDrinks[item.id] || 0}</span>
+                              <button
+                                onClick={() => updateCurrentDrink(item.id, 1)}
+                                className="w-8 h-8 rounded-lg bg-primary hover:bg-primary/80 text-primary-foreground transition-colors flex items-center justify-center"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </button>
                             </div>
                           </div>
                         </GlassCard>
                       ))}
                     </div>
+                    {/* Sticky Add Drinks Button */}
+                    <div className="sticky bottom-6 pt-4 pb-2 z-30 pointer-events-none">
+                      <div className="pointer-events-auto">
+                        <Button
+                          variant="primary"
+                          size="lg"
+                          disabled={Object.entries(currentDrinks).filter(([id]) => foodItems.find(f => f.id === id)?.category === 'drink').length === 0}
+                          onClick={commitDrinks}
+                          className="w-full py-6 text-base sm:text-lg xl:text-xl whitespace-nowrap rounded-2xl shadow-2xl shadow-primary/20 transition-all duration-300 active:scale-95"
+                        >
+                          Add Drinks to Order
+                        </Button>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Snacks */}
-                  <div>
+                  <div className="relative">
                     <h4 className="text-lg font-bold text-card-foreground mb-4">Snacks</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pb-2">
                       {foodItems.filter(f => f.category === 'snack').map(item => (
-                        <GlassCard key={item.id} selected={drinksSnacks[item.id] > 0} unavailable={!item.isAvailable}>
+                        <GlassCard key={item.id} selected={currentSnacks[item.id] > 0} unavailable={!item.isAvailable}>
                           <div className="space-y-3">
                             <div className="aspect-square rounded-xl overflow-hidden">
                               <ImageWithFallback
@@ -641,35 +696,39 @@ export default function PlateBuilder() {
                               <h4 className="font-semibold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
                               <p className="text-sm text-muted-foreground mt-1">₦{item.price}/{item.unit}</p>
                             </div>
-                            <div className="flex items-center justify-between h-9 mt-1">
-                              {drinksSnacks[item.id] > 0 ? (
-                                <>
-                                  <button
-                                    onClick={() => updateDrinkSnack(item.id, -1)}
-                                    className="w-8 h-8 rounded-lg bg-muted hover:bg-secondary hover:text-white transition-colors flex items-center justify-center"
-                                  >
-                                    <Minus className="w-4 h-4" />
-                                  </button>
-                                  <span className="font-bold text-lg text-card-foreground">{drinksSnacks[item.id]}</span>
-                                  <button
-                                    onClick={() => updateDrinkSnack(item.id, 1)}
-                                    className="w-8 h-8 rounded-lg bg-primary hover:bg-primary/80 text-primary-foreground transition-colors flex items-center justify-center z-10"
-                                  >
-                                    <Plus className="w-4 h-4" />
-                                  </button>
-                                </>
-                              ) : (
-                                <button
-                                  onClick={() => updateDrinkSnack(item.id, 1)}
-                                  className="w-full h-full rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-all flex items-center justify-center gap-1 shadow-md active:scale-95 z-10"
-                                >
-                                  <Plus className="w-4 h-4" /> Add
-                                </button>
-                              )}
+                            <div className="flex items-center justify-between mt-2">
+                              <button
+                                onClick={() => updateCurrentSnack(item.id, -1)}
+                                disabled={!currentSnacks[item.id]}
+                                className="w-8 h-8 rounded-lg bg-muted hover:bg-secondary hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                              >
+                                <Minus className="w-4 h-4" />
+                              </button>
+                              <span className="font-bold text-lg text-card-foreground">{currentSnacks[item.id] || 0}</span>
+                              <button
+                                onClick={() => updateCurrentSnack(item.id, 1)}
+                                className="w-8 h-8 rounded-lg bg-primary hover:bg-primary/80 text-primary-foreground transition-colors flex items-center justify-center"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </button>
                             </div>
                           </div>
                         </GlassCard>
                       ))}
+                    </div>
+                    {/* Sticky Add Snacks Button */}
+                    <div className="sticky bottom-6 pt-4 pb-2 z-20 pointer-events-none">
+                      <div className="pointer-events-auto">
+                        <Button
+                          variant="primary"
+                          size="lg"
+                          disabled={Object.entries(currentSnacks).filter(([id]) => foodItems.find(f => f.id === id)?.category === 'snack').length === 0}
+                          onClick={commitSnacks}
+                          className="w-full py-6 text-base sm:text-lg xl:text-xl whitespace-nowrap rounded-2xl shadow-2xl shadow-primary/20 transition-all duration-300 active:scale-95"
+                        >
+                          Add Snacks to Order
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -753,8 +812,16 @@ export default function PlateBuilder() {
                     {Object.entries(drinksSnacks).map(([itemId, quantity]) => {
                       const item = foodItems.find(f => f.id === itemId)!;
                       return (
-                        <div key={itemId} className="flex justify-between text-sm font-medium">
-                          <span className="text-muted-foreground">{item.name} ×{quantity}</span>
+                        <div key={itemId} className="flex justify-between items-center text-sm font-medium">
+                          <div className="flex items-center gap-2">
+                            <span className="text-muted-foreground">{item.name} ×{quantity}</span>
+                            <button
+                              onClick={() => removeConfirmedAddon(itemId)}
+                              className="p-1 hover:bg-destructive/10 rounded-md transition-colors"
+                            >
+                              <X className="w-3 h-3 text-destructive opacity-50 hover:opacity-100" />
+                            </button>
+                          </div>
                           <span className="font-bold text-card-foreground">₦{(item.price * quantity).toLocaleString()}</span>
                         </div>
                       );
