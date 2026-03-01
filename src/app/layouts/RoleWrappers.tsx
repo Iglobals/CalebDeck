@@ -81,7 +81,7 @@ export function RiderRoleWrapper() {
                         <button
                             onClick={async () => {
                                 if (user?.uid) {
-                                    await requestNotificationPermissionAndSaveToken(user.uid, 'users');
+                                    await requestNotificationPermissionAndSaveToken(user.uid, 'riders');
                                     setPushPermissionStatus(Notification.permission);
                                 }
                             }}

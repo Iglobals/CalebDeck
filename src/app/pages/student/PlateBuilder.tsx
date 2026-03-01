@@ -268,7 +268,7 @@ export default function PlateBuilder() {
                             />
                           </div>
                           <div>
-                            <h4 className="font-bold text-card-foreground line-clamp-1">{item.name}</h4>
+                            <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
                             <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit}</p>
                           </div>
                           <div className="flex items-center justify-between bg-muted/50 rounded-lg p-1">
@@ -312,7 +312,7 @@ export default function PlateBuilder() {
                             />
                           </div>
                           <div>
-                            <h4 className="font-bold text-card-foreground line-clamp-1">{item.name}</h4>
+                            <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
                             <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit}</p>
                           </div>
                           <div className="flex items-center justify-between bg-muted/50 rounded-lg p-1">
@@ -356,7 +356,7 @@ export default function PlateBuilder() {
                             />
                           </div>
                           <div>
-                            <h4 className="font-bold text-card-foreground line-clamp-1">{item.name}</h4>
+                            <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
                             <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit}</p>
                           </div>
                           <div className="flex items-center justify-between bg-muted/50 rounded-lg p-1">
@@ -402,7 +402,7 @@ export default function PlateBuilder() {
                             />
                           </div>
                           <div>
-                            <h4 className="font-bold text-card-foreground line-clamp-1">{item.name}</h4>
+                            <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
                             <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit}</p>
                           </div>
                           {selectedSwallow === item.id ? (
@@ -457,7 +457,7 @@ export default function PlateBuilder() {
                             />
                           </div>
                           <div>
-                            <h4 className="font-bold text-card-foreground line-clamp-1">{item.name}</h4>
+                            <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
                             <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit === 'portion' ? 'serving' : item.unit}</p>
                           </div>
                           {selectedSoup === item.id ? (
@@ -512,7 +512,7 @@ export default function PlateBuilder() {
                             />
                           </div>
                           <div>
-                            <h4 className="font-bold text-card-foreground line-clamp-1">{item.name}</h4>
+                            <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
                             <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit}</p>
                           </div>
                           <div className="flex items-center justify-between bg-muted/50 rounded-lg p-1">
@@ -540,16 +540,18 @@ export default function PlateBuilder() {
             )}
 
             {/* Add Plate Button */}
-            <div className="sticky bottom-6 pt-4 z-40">
-              <Button
-                variant="primary"
-                size="lg"
-                onClick={addPlate}
-                disabled={!canAddPlate()}
-                className="w-full py-6 text-xl rounded-2xl shadow-2xl shadow-primary/20 transition-all duration-300 active:scale-95"
-              >
-                Add Plate to Order
-              </Button>
+            <div className="sticky bottom-6 pt-4 z-40 pointer-events-none">
+              <div className="pointer-events-auto pr-[4.5rem] md:pr-0">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onClick={addPlate}
+                  disabled={!canAddPlate()}
+                  className="w-full py-6 text-xl rounded-2xl shadow-2xl shadow-primary/20 transition-all duration-300 active:scale-95"
+                >
+                  Add Plate to Order
+                </Button>
+              </div>
             </div>
 
             {/* Drinks & Snacks Section */}
@@ -586,24 +588,34 @@ export default function PlateBuilder() {
                               />
                             </div>
                             <div>
-                              <h4 className="font-semibold text-card-foreground">{item.name}</h4>
-                              <p className="text-sm text-muted-foreground">₦{item.price}/{item.unit}</p>
+                              <h4 className="font-semibold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
+                              <p className="text-sm text-muted-foreground mt-1">₦{item.price}/{item.unit}</p>
                             </div>
-                            <div className="flex items-center justify-between">
-                              <button
-                                onClick={() => updateDrinkSnack(item.id, -1)}
-                                disabled={!drinksSnacks[item.id]}
-                                className="w-8 h-8 rounded-lg bg-muted hover:bg-secondary hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                              >
-                                <Minus className="w-4 h-4" />
-                              </button>
-                              <span className="font-bold text-lg text-card-foreground">{drinksSnacks[item.id] || 0}</span>
-                              <button
-                                onClick={() => updateDrinkSnack(item.id, 1)}
-                                className="w-8 h-8 rounded-lg bg-primary hover:bg-primary/80 text-primary-foreground transition-colors flex items-center justify-center"
-                              >
-                                <Plus className="w-4 h-4" />
-                              </button>
+                            <div className="flex items-center justify-between h-9 mt-1">
+                              {drinksSnacks[item.id] > 0 ? (
+                                <>
+                                  <button
+                                    onClick={() => updateDrinkSnack(item.id, -1)}
+                                    className="w-8 h-8 rounded-lg bg-muted hover:bg-secondary hover:text-white transition-colors flex items-center justify-center"
+                                  >
+                                    <Minus className="w-4 h-4" />
+                                  </button>
+                                  <span className="font-bold text-lg text-card-foreground">{drinksSnacks[item.id]}</span>
+                                  <button
+                                    onClick={() => updateDrinkSnack(item.id, 1)}
+                                    className="w-8 h-8 rounded-lg bg-primary hover:bg-primary/80 text-primary-foreground transition-colors flex items-center justify-center z-10"
+                                  >
+                                    <Plus className="w-4 h-4" />
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => updateDrinkSnack(item.id, 1)}
+                                  className="w-full h-full rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-all flex items-center justify-center gap-1 shadow-md active:scale-95 z-10"
+                                >
+                                  <Plus className="w-4 h-4" /> Add
+                                </button>
+                              )}
                             </div>
                           </div>
                         </GlassCard>
@@ -626,24 +638,34 @@ export default function PlateBuilder() {
                               />
                             </div>
                             <div>
-                              <h4 className="font-semibold text-card-foreground">{item.name}</h4>
-                              <p className="text-sm text-muted-foreground">₦{item.price}/{item.unit}</p>
+                              <h4 className="font-semibold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
+                              <p className="text-sm text-muted-foreground mt-1">₦{item.price}/{item.unit}</p>
                             </div>
-                            <div className="flex items-center justify-between">
-                              <button
-                                onClick={() => updateDrinkSnack(item.id, -1)}
-                                disabled={!drinksSnacks[item.id]}
-                                className="w-8 h-8 rounded-lg bg-muted hover:bg-secondary hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                              >
-                                <Minus className="w-4 h-4" />
-                              </button>
-                              <span className="font-bold text-lg text-card-foreground">{drinksSnacks[item.id] || 0}</span>
-                              <button
-                                onClick={() => updateDrinkSnack(item.id, 1)}
-                                className="w-8 h-8 rounded-lg bg-primary hover:bg-primary/80 text-primary-foreground transition-colors flex items-center justify-center"
-                              >
-                                <Plus className="w-4 h-4" />
-                              </button>
+                            <div className="flex items-center justify-between h-9 mt-1">
+                              {drinksSnacks[item.id] > 0 ? (
+                                <>
+                                  <button
+                                    onClick={() => updateDrinkSnack(item.id, -1)}
+                                    className="w-8 h-8 rounded-lg bg-muted hover:bg-secondary hover:text-white transition-colors flex items-center justify-center"
+                                  >
+                                    <Minus className="w-4 h-4" />
+                                  </button>
+                                  <span className="font-bold text-lg text-card-foreground">{drinksSnacks[item.id]}</span>
+                                  <button
+                                    onClick={() => updateDrinkSnack(item.id, 1)}
+                                    className="w-8 h-8 rounded-lg bg-primary hover:bg-primary/80 text-primary-foreground transition-colors flex items-center justify-center z-10"
+                                  >
+                                    <Plus className="w-4 h-4" />
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => updateDrinkSnack(item.id, 1)}
+                                  className="w-full h-full rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-all flex items-center justify-center gap-1 shadow-md active:scale-95 z-10"
+                                >
+                                  <Plus className="w-4 h-4" /> Add
+                                </button>
+                              )}
                             </div>
                           </div>
                         </GlassCard>
