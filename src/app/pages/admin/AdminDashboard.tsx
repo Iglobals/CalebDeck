@@ -364,8 +364,14 @@ export default function AdminDashboard() {
                       <span className={`font-mono font-bold text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.orderId || '—'}</span>
                     </td>
                     <td className={`py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName || '—'}</td>
-                    <td className={`hidden sm:table-cell py-4 px-6 text-sm ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{order.hostel || '—'}</td>
-                    <td className={`py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.plates?.length || 0}</td>
+                    <td className={`py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
+                      <div className="flex items-center gap-2">
+                        {order.plates?.length || 0}
+                        {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
+                          <Badge variant="purple" className="text-[10px] uppercase font-black px-2 py-0.5">Group</Badge>
+                        )}
+                      </div>
+                    </td>
                     <td className={`py-4 px-6 font-black text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{order.total?.toLocaleString()}</td>
                     <td className="hidden md:table-cell py-4 px-6">
                       <Badge

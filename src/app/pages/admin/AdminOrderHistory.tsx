@@ -300,9 +300,14 @@ export default function AdminOrderHistory() {
                                                 return (
                                                     <tr key={order.id} className={`transition-colors ${isDark ? 'hover:bg-[#2A2A2A]' : 'hover:bg-gray-50'}`}>
                                                         <td className="py-4 px-4 lg:px-6">
-                                                            <span className={`font-mono font-bold text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
-                                                                CD-{order.orderId?.slice(-5) || '?????'}
-                                                            </span>
+                                                            <div className="flex flex-col gap-1 items-start">
+                                                                <span className={`font-mono font-bold text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
+                                                                    CD-{order.orderId?.slice(-5) || '?????'}
+                                                                </span>
+                                                                {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
+                                                                    <Badge variant="purple" className="text-[10px] uppercase font-black px-2 py-0.5">Group</Badge>
+                                                                )}
+                                                            </div>
                                                         </td>
                                                         <td className="py-4 px-4 lg:px-6">
                                                             <div>
@@ -350,9 +355,14 @@ export default function AdminOrderHistory() {
                                         return (
                                             <tr key={order.id} className={`transition-colors ${isDark ? 'hover:bg-[#2A2A2A]' : 'hover:bg-gray-50'}`}>
                                                 <td className="py-4 px-4 lg:px-6">
-                                                    <span className={`font-mono font-bold text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
-                                                        CD-{order.orderId?.slice(-5) || '?????'}
-                                                    </span>
+                                                    <div className="flex flex-col gap-1 items-start">
+                                                        <span className={`font-mono font-bold text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
+                                                            CD-{order.orderId?.slice(-5) || '?????'}
+                                                        </span>
+                                                        {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
+                                                            <Badge variant="purple" className="text-[10px] uppercase font-black px-2 py-0.5">Group</Badge>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="py-4 px-4 lg:px-6">
                                                     <div>

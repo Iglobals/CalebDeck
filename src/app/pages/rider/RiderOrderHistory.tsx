@@ -189,6 +189,9 @@ export default function RiderOrderHistory() {
                                                                 <span className={isDark ? 'text-[#333333]' : 'text-gray-300'}>|</span>
                                                                 <span className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{format(d!, 'h:mm a')}</span>
                                                                 {order.isEmergency && <span className="text-[10px] font-black text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded ml-1">1.5x RUSH</span>}
+                                                                {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
+                                                                    <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 ml-1">Group</Badge>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     </div>
