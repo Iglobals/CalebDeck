@@ -93,7 +93,15 @@ export default function RiderDashboard() {
   const activeBatches = batches.filter(b => b.status === 'OUT_FOR_DELIVERY');
 
   const riderRate = platformSettings?.riderRatePerDelivery || 300;
-  const todayEarnings = deliveredOrders.reduce((acc, o) => acc + (o.isEmergency ? riderRate * 1.5 : riderRate), 0);
+
+  const getOrderEarnings = (o: any) => {
+    const platesCount = o.plates?.length || 1;
+    const rate = (o.deliveryMode === 'group' || o.deliveryMode === 'GROUP') ? 250 : 350;
+    const earning = platesCount * rate;
+    return o.isEmergency ? earning * 1.5 : earning;
+  };
+
+  const todayEarnings = deliveredOrders.reduce((acc, o) => acc + getOrderEarnings(o), 0);
   const isNotActivated = rider && rider.isActive === false;
 
   return (

@@ -31,6 +31,13 @@ export default function RiderAnalytics() {
 
     const riderRate = platformSettings?.riderRatePerDelivery || 300;
 
+    const getOrderEarnings = (o: any) => {
+        const platesCount = o.plates?.length || 1;
+        const rate = (o.deliveryMode === 'group' || o.deliveryMode === 'GROUP') ? 250 : 350;
+        const earning = platesCount * rate;
+        return o.isEmergency ? earning * 1.5 : earning;
+    };
+
     const filteredOrders = orders.filter(o => {
         if (timeframe === 'all_time') return true;
         const d = o.createdAt?.seconds ? new Date(o.createdAt.seconds * 1000) : o.createdAt ? new Date(o.createdAt) : null;
@@ -57,7 +64,7 @@ export default function RiderAnalytics() {
 
     const deliveredOrders = filteredOrders.filter(o => o.status === 'DELIVERED');
 
-    const totalEarnings = deliveredOrders.reduce((acc, o) => acc + (o.isEmergency ? riderRate * 1.5 : riderRate), 0);
+    const totalEarnings = deliveredOrders.reduce((acc, o) => acc + getOrderEarnings(o), 0);
     const avgPerDelivery = riderRate;
     const completionRate = filteredOrders.length > 0 ? ((deliveredOrders.length / filteredOrders.length) * 100).toFixed(0) : '0';
 
@@ -100,7 +107,7 @@ export default function RiderAnalytics() {
             chartData.push({
                 name: dayStr,
                 deliveries: dayOrders.length,
-                earnings: dayOrders.reduce((acc, o) => acc + (o.isEmergency ? riderRate * 1.5 : riderRate), 0)
+                earnings: dayOrders.reduce((acc, o) => acc + getOrderEarnings(o), 0)
             });
             current = nextDay;
         }
@@ -119,7 +126,7 @@ export default function RiderAnalytics() {
             chartData.push({
                 name: dayStr,
                 deliveries: monthOrders.length,
-                earnings: monthOrders.reduce((acc, o) => acc + (o.isEmergency ? riderRate * 1.5 : riderRate), 0)
+                earnings: monthOrders.reduce((acc, o) => acc + getOrderEarnings(o), 0)
             });
         }
     }

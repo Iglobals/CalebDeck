@@ -20,7 +20,7 @@ export default function CafeteriaSelection() {
     {
       id: 'old',
       name: 'Old Cafeteria',
-      image: 'https://images.unsplash.com/photo-1631193659550-5c8a2cc57015?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhZnJpY2FuJTIwY2FmZXRlcmlhJTIwZGluaW5nJTIwaGFsbHxlbnwxfHx8fDE3NzEzMzg4NjJ8MA&ixlib=rb-4.1.0&q=80&w=1080',
+      image: '/old-cafe-pic.jpeg',
       prepTime: '12 min',
       status: 'open',
       popular: true
@@ -119,7 +119,7 @@ export default function CafeteriaSelection() {
                             <h2 className="text-3xl font-bold text-white mb-2">
                               {cafeteria.name}
                             </h2>
-                            <StatusDot status="active" label="Open now" />
+                            <StatusDot status="active" label="Open now" className="text-white drop-shadow-md" />
                           </div>
                         </div>
                       </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation, useParams } from 'react-router';
 import { Logo } from '../../components/design-system/Logo';
 import { GlassCard } from '../../components/design-system/Card';
@@ -32,8 +32,8 @@ interface Plate {
 }
 
 const TAKEAWAY_FEE = 200;
-const DELIVERY_FEE_SOLO = 700;
-const DELIVERY_FEE_GROUP = 560;
+const DELIVERY_FEE_SOLO = 750;
+const DELIVERY_FEE_GROUP = 580;
 
 export default function PlateBuilder() {
   const navigate = useNavigate();
@@ -68,13 +68,39 @@ export default function PlateBuilder() {
   const [currentBuild, setCurrentBuild] = useState<{ [key: string]: number }>({});
   const [selectedSwallow, setSelectedSwallow] = useState<string | null>(null);
   const [selectedSoup, setSelectedSoup] = useState<string | null>(null);
-  const [plates, setPlates] = useState<Plate[]>([]);
-  const [drinksSnacks, setDrinksSnacks] = useState<{ [key: string]: number }>({});
+
+  const [plates, setPlates] = useState<Plate[]>(() => {
+    const saved = sessionStorage.getItem('cd_plates');
+    if (!saved) return [];
+    try { return JSON.parse(saved); } catch { return []; }
+  });
+
+  const [drinksSnacks, setDrinksSnacks] = useState<{ [key: string]: number }>(() => {
+    const saved = sessionStorage.getItem('cd_drinksSnacks');
+    if (!saved) return {};
+    try { return JSON.parse(saved); } catch { return {}; }
+  });
+
   const [currentDrinks, setCurrentDrinks] = useState<{ [key: string]: number }>({});
   const [currentSnacks, setCurrentSnacks] = useState<{ [key: string]: number }>({});
-  const [deliveryMode, setDeliveryMode] = useState<'solo' | 'group'>('solo');
-  const [groupSize, setGroupSize] = useState(2);
+
+  const [deliveryMode, setDeliveryMode] = useState<'solo' | 'group'>(() => {
+    const saved = sessionStorage.getItem('cd_deliveryMode');
+    return (saved === 'solo' || saved === 'group') ? saved : 'solo';
+  });
+
+  const [groupSize, setGroupSize] = useState(() => {
+    const saved = sessionStorage.getItem('cd_groupSize');
+    const parsed = parseInt(saved || '');
+    return isNaN(parsed) ? 2 : parsed;
+  });
+
   const [openPlates, setOpenPlates] = useState<{ [key: string]: boolean }>({});
+
+  useEffect(() => sessionStorage.setItem('cd_plates', JSON.stringify(plates)), [plates]);
+  useEffect(() => sessionStorage.setItem('cd_drinksSnacks', JSON.stringify(drinksSnacks)), [drinksSnacks]);
+  useEffect(() => sessionStorage.setItem('cd_deliveryMode', deliveryMode), [deliveryMode]);
+  useEffect(() => sessionStorage.setItem('cd_groupSize', groupSize.toString()), [groupSize]);
 
   if (loading) {
     return (
@@ -847,7 +873,7 @@ export default function PlateBuilder() {
                         }`}
                     >
                       <div className="font-extrabold text-foreground">Just Me</div>
-                      <div className="text-xs text-muted-foreground font-bold mt-1">₦700/plate</div>
+                      <div className="text-xs text-muted-foreground font-bold mt-1">₦750/plate</div>
                       {deliveryMode === 'solo' && <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary animate-pulse"></div>}
                     </button>
                     <button
@@ -860,8 +886,8 @@ export default function PlateBuilder() {
                       <div className="font-extrabold text-foreground flex items-center gap-2">
                         <Users className="w-4 h-4" /> Group
                       </div>
-                      <div className="text-xs text-green-500 font-semibold">20% off</div>
-                      <div className="text-xs text-muted-foreground font-bold mt-1">₦560/plate</div>
+                      <div className="text-xs text-green-500 font-semibold">23% off</div>
+                      <div className="text-xs text-muted-foreground font-bold mt-1">₦580/plate</div>
                       {deliveryMode === 'group' && <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-secondary animate-pulse"></div>}
                     </button>
                   </div>
@@ -920,7 +946,7 @@ export default function PlateBuilder() {
 
                   {deliveryMode === 'group' && (
                     <div className="flex justify-between text-green-500 font-bold animate-in fade-in slide-in-from-right-4">
-                      <span>Group Savings</span>
+                      <span>Group Savings (₦170 off per plate)</span>
                       <span>-₦{((DELIVERY_FEE_SOLO - DELIVERY_FEE_GROUP) * plates.length).toLocaleString()}</span>
                     </div>
                   )}
@@ -967,4 +993,4 @@ export default function PlateBuilder() {
       </div>
     </div>
   );
-}
+}  

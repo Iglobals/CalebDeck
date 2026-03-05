@@ -5,21 +5,20 @@
 
 export const calculateOrderTotal = async (data: any) => {
     if (import.meta.env.DEV) {
-        const { items, deliveryMode } = data;
+        const { items, deliveryMode, plateCount: providedPlateCount } = data;
         let total = 0;
-        let plateCount = 0;
 
         items.forEach((item: any) => {
-            plateCount += item.quantity || 1;
             total += (item.price || 0) * (item.quantity || 1);
         });
 
-        const deliveryFee = plateCount * 700;
+        const plateCount = typeof providedPlateCount === 'number' ? providedPlateCount : 1;
+        const deliveryFee = plateCount * 750;
         const takeawayFee = plateCount * 200;
         let discount = 0;
 
         if (deliveryMode === 'group' || deliveryMode === 'GROUP') {
-            discount = (700 - 560) * plateCount;
+            discount = (750 - 580) * plateCount;
         }
 
         const finalTotal = total + deliveryFee + takeawayFee - discount;

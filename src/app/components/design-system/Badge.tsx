@@ -27,13 +27,14 @@ export function Badge({ children, variant = 'gold', className = '' }: BadgeProps
 interface StatusDotProps {
   status: 'active' | 'inactive';
   label?: string;
+  className?: string;
 }
 
-export function StatusDot({ status, label }: StatusDotProps) {
+export function StatusDot({ status, label, className }: StatusDotProps) {
   return (
     <div className="inline-flex items-center gap-2">
       <span className={`w-2 h-2 rounded-full ${status === 'active' ? 'bg-secondary' : 'bg-muted-foreground'}`}></span>
-      {label && <span className="text-sm font-medium text-foreground">{label}</span>}
+      {label && <span className={`text-sm font-medium ${className || 'text-foreground'}`}>{label}</span>}
     </div>
   );
 }

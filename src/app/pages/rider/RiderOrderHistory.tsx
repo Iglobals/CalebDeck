@@ -68,7 +68,15 @@ export default function RiderOrderHistory() {
     });
 
     const sortedKeys = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
-    const totalEarnings = deliveredOrders.reduce((acc, o) => acc + (o.isEmergency ? riderRate * 1.5 : riderRate), 0);
+
+    const getOrderEarnings = (o: any) => {
+        const platesCount = o.plates?.length || 1;
+        const rate = (o.deliveryMode === 'group' || o.deliveryMode === 'GROUP') ? 250 : 350;
+        const earning = platesCount * rate;
+        return o.isEmergency ? earning * 1.5 : earning;
+    };
+
+    const totalEarnings = deliveredOrders.reduce((acc, o) => acc + getOrderEarnings(o), 0);
 
     const toggleRow = (id: string) => {
         const next = new Set(expandedRows);
@@ -143,7 +151,7 @@ export default function RiderOrderHistory() {
                     {sortedKeys.length > 0 ? sortedKeys.map(dateKey => {
                         const dateOrders = grouped[dateKey];
                         const firstDate = parseDate(dateOrders[0].createdAt)!;
-                        const dayEarnings = dateOrders.reduce((acc, o) => acc + (o.isEmergency ? riderRate * 1.5 : riderRate), 0);
+                        const dayEarnings = dateOrders.reduce((acc, o) => acc + getOrderEarnings(o), 0);
 
                         return (
                             <div key={dateKey} className="space-y-3">

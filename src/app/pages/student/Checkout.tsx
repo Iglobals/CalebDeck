@@ -12,8 +12,8 @@ import { usePaystackPayment } from 'react-paystack';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
 
-const DELIVERY_FEE_SOLO = 700;
-const DELIVERY_FEE_GROUP = 560;
+const DELIVERY_FEE_SOLO = 750;
+const DELIVERY_FEE_GROUP = 580;
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -79,6 +79,7 @@ export default function Checkout() {
       try {
         const response = await calculateOrderTotal({
           items,
+          plateCount: plates.length,
           deliveryMode,
           hostelId: formData.hostel
         });
@@ -141,6 +142,7 @@ export default function Checkout() {
       cafeteria,
       cafeteriaId,
       sectionId,
+      deliveryMode,
       paymentReference: reference.reference,
       status: 'PAID' as const,
       updatedAt: new Date().toISOString()
@@ -153,6 +155,11 @@ export default function Checkout() {
       });
 
       const orderRef = await createOrder(orderData);
+
+      sessionStorage.removeItem('cd_plates');
+      sessionStorage.removeItem('cd_drinksSnacks');
+      sessionStorage.removeItem('cd_deliveryMode');
+      sessionStorage.removeItem('cd_groupSize');
 
       navigate('/order-success', { state: { ...orderData, firestoreOrderId: orderRef.id } });
     } catch (error) {
@@ -362,7 +369,7 @@ export default function Checkout() {
 
                 {deliveryMode === 'group' && (
                   <div className="flex justify-between items-center text-green-500 font-bold">
-                    <span>Group Savings</span>
+                    <span>Group Savings (₦170 off per plate)</span>
                     <span>-₦{((DELIVERY_FEE_SOLO - DELIVERY_FEE_GROUP) * plates.length).toLocaleString()}</span>
                   </div>
                 )}
