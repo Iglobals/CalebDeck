@@ -5,7 +5,7 @@ import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
 import { Input, Select, Textarea } from '../../components/design-system/Input';
-import { ArrowLeft, Lock, Shield, CreditCard, MapPin, User, Phone } from 'lucide-react';
+import { ArrowLeft, Lock, Shield, CreditCard, MapPin, User, Phone, Package } from 'lucide-react';
 import { getActiveHostels, Hostel, createOrder } from '../../../services/db';
 import { calculateOrderTotal, verifyPayment } from '../../../services/functions';
 import { usePaystackPayment } from 'react-paystack';
@@ -373,6 +373,14 @@ export default function Checkout() {
                     <span>-₦{((DELIVERY_FEE_SOLO - DELIVERY_FEE_GROUP) * plates.length).toLocaleString()}</span>
                   </div>
                 )}
+
+                <div className="flex justify-between items-center text-muted-foreground font-medium">
+                  <div className="flex items-center gap-2">
+                    <Package className="w-4 h-4" />
+                    <span>Takeaway Pack (₦200 × {plates.length})</span>
+                  </div>
+                  <span>₦{(200 * plates.length).toLocaleString()}</span>
+                </div>
 
                 <div className="flex justify-between items-center pt-4 border-t border-border gap-4">
                   <span className="text-2xl font-black">Total Due</span>

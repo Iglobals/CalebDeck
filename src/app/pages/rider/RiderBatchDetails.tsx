@@ -177,6 +177,12 @@ export default function RiderBatchDetails() {
                                 `).join('')}
                             `).join('') || ''}
                             
+                            <div class="plate-header">Fees</div>
+                            <div class="item-row">
+                                <span>Takeaway Pack</span>
+                                <span style="font-weight: 900;">×${order.plates?.length || 0}</span>
+                            </div>
+                            
                             ${order.drinksSnacks?.length > 0 ? `
                                 <div class="plate-header">Add-ons</div>
                                 ${order.drinksSnacks.map((item: any) => `
@@ -380,6 +386,17 @@ export default function RiderBatchDetails() {
                                                         </div>
                                                     </div>
                                                 ))}
+
+                                                <div className={`rounded-xl p-3 border ${isDark ? 'bg-amber-500/5 border-amber-500/20' : 'bg-[#FAF9F6] border-gray-200'}`}>
+                                                    <div className="flex justify-between items-start mb-1">
+                                                        <span className="text-xs font-black text-amber-600 uppercase tracking-widest">Fees</span>
+                                                        <span className="text-xs font-bold text-amber-600">₦{((order.plates?.length || 0) * 200).toLocaleString()}</span>
+                                                    </div>
+                                                    <div className={`text-sm font-medium flex items-center gap-1.5 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
+                                                        <Package className="w-3.5 h-3.5 text-amber-500" />
+                                                        Takeaway Pack × {order.plates?.length || 0}
+                                                    </div>
+                                                </div>
 
                                                 {order.drinksSnacks?.length > 0 && (
                                                     <div className={`rounded-xl p-3 border ${isDark ? 'bg-amber-500/5 border-amber-500/20' : 'bg-amber-50 border-amber-200'}`}>

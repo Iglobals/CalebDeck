@@ -61,9 +61,17 @@ export default function AdminDashboard() {
   });
 
   const totalRevenue = todayPaidOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-  const totalNetProfit = todayPaidOrders.reduce((sum, o) => {
-    const deliveryFee = o.deliveryMode === 'group' ? 560 : 700;
-    return sum + (deliveryFee * (o.plates?.length || 1));
+  const totalDeliveryFees = todayPaidOrders.reduce((sum, o) => {
+    const platesCount = o.plates?.length || 1;
+    const isGroup = o.deliveryMode === 'group' || o.deliveryMode === 'GROUP';
+
+    // Revenue collected from user (Delivery Fee only)
+    // Takeaway fees go to the cafeteria, not the platform.
+    const deliveryRevenue = (isGroup ? 580 : 750) * platesCount;
+
+    // We do NOT subtract rider payout here because the platform holds this cash 
+    // until they manually explicitly pay out the riders later.
+    return sum + deliveryRevenue;
   }, 0);
 
   const getRider = (id?: string) => riders.find(r => r.id === id) || null;
@@ -148,9 +156,9 @@ export default function AdminDashboard() {
       color: '#FCD34D'
     },
     {
-      label: 'Net Profit (Fees)',
-      value: `₦${totalNetProfit.toLocaleString()}`,
-      change: 'delivery fees',
+      label: 'Delivery Fees Collected',
+      value: `₦${totalDeliveryFees.toLocaleString()}`,
+      change: 'reserved for payout/profit',
       icon: <CheckCircle className="w-6 h-6" />,
       color: '#10B981'
     },

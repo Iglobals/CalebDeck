@@ -161,7 +161,10 @@ export default function AdminOrders() {
                 <body>
                     <div class="header">
                         <div class="logo">CALEB<span>DECK</span></div>
-                        <div class="order-id">ORD-${order.orderId?.slice(-6) || 'XXXXXX'}</div>
+                        <div class="order-id">
+                            ORD-${order.orderId?.slice(-6) || 'XXXXXX'}
+                            ${(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') ? ' • GROUP' : ''}
+                        </div>
                     </div>
                     <div class="section">
                         <div class="label">Student</div>
@@ -182,6 +185,11 @@ export default function AdminOrders() {
                                 </div>
                             `).join('')}
                         `).join('') || ''}
+                        <div class="plate-header">Fees</div>
+                        <div class="item-row">
+                            <span>Takeaway Pack (₦200/plate)</span>
+                            <span>×${order.plates?.length || 0}</span>
+                        </div>
                         ${order.drinksSnacks?.length > 0 ? `
                             <div class="plate-header">Add-ons</div>
                             ${order.drinksSnacks.map((item: any) => `
@@ -325,6 +333,9 @@ export default function AdminOrders() {
                                                                 <span className={`font-mono text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                                                                     CD-{order.orderId?.slice(-6) || 'N/A'}
                                                                 </span>
+                                                                {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
+                                                                    <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5">Group</Badge>
+                                                                )}
                                                                 <span className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                                                                     · {order.plates?.length || 0} plates
                                                                 </span>
@@ -359,6 +370,9 @@ export default function AdminOrders() {
                                                 <span className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                                                     {order.hostelName || order.hostel}
                                                 </span>
+                                                {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
+                                                    <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 ml-2 mt-1">Group</Badge>
+                                                )}
                                             </div>
                                             <div className="flex items-center gap-3">
                                                 <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{order.total?.toLocaleString()}</span>
@@ -393,7 +407,12 @@ export default function AdminOrders() {
                                 </div>
                                 <div>
                                     <h3 className={`text-lg lg:text-xl font-black tracking-tight mb-1 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Order Details</h3>
-                                    <p className={`text-xs font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{selectedOrder.orderId}</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className={`text-xs font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{selectedOrder.orderId}</p>
+                                        {(selectedOrder.deliveryMode === 'group' || selectedOrder.deliveryMode === 'GROUP') && (
+                                            <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5">Group</Badge>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                             <button onClick={() => setSelectedOrder(null)} className={`p-3 rounded-xl transition-all ${isDark ? 'hover:bg-[#2A2A2A] text-white' : 'hover:bg-gray-100 text-black'}`}>
@@ -458,6 +477,21 @@ export default function AdminOrders() {
                                         </div>
                                     </div>
                                 ))}
+
+                                <div className={`p-8 rounded-3xl border transition-all ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white shadow-sm'}`}>
+                                    <div className="flex justify-between items-center bg-amber-500/10 p-4 rounded-xl border border-amber-500/20">
+                                        <div className="flex items-center gap-3">
+                                            <Package className="w-5 h-5 text-amber-500" />
+                                            <div>
+                                                <h5 className="text-xs font-black uppercase tracking-[0.2em] text-amber-600">Takeaway Pack Fee</h5>
+                                                <p className={`text-[10px] font-bold mt-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>₦200 per plate</p>
+                                            </div>
+                                        </div>
+                                        <span className={`text-sm font-black text-amber-600`}>
+                                            ₦{((selectedOrder.plates?.length || 0) * 200).toLocaleString()}
+                                        </span>
+                                    </div>
+                                </div>
 
                                 {selectedOrder.drinksSnacks?.length > 0 && (
                                     <div className={`p-8 rounded-3xl border ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white'}`}>

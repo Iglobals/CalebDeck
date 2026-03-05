@@ -247,6 +247,16 @@ export default function RiderOrderHistory() {
                                                                             <span className="text-xs font-bold text-amber-500 ml-2">₦{(plate.total || 0).toLocaleString()}</span>
                                                                         </div>
                                                                     ))}
+
+                                                                    <div className={`flex justify-between items-center py-2 border-b last:border-0 ${isDark ? 'border-[#333333]' : 'border-gray-200'}`}>
+                                                                        <div className="flex-1 overflow-hidden flex items-center gap-1.5">
+                                                                            <Package className="w-3.5 h-3.5 text-amber-500" />
+                                                                            <span className={`text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
+                                                                                Takeaway Pack × {order.plates?.length || 0}
+                                                                            </span>
+                                                                        </div>
+                                                                        <span className="text-xs font-bold text-amber-500 ml-2">₦{((order.plates?.length || 0) * 200).toLocaleString()}</span>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
