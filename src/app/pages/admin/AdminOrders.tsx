@@ -323,13 +323,13 @@ export default function AdminOrders() {
                                                     className={`flex items-center justify-between px-5 py-4 cursor-pointer transition-colors ${isDark ? 'hover:bg-[#2A2A2A]' : 'hover:bg-gray-50'} border-b last:border-0 ${isDark ? 'border-[#333333]' : 'border-gray-50'}`}
                                                     onClick={() => setSelectedOrder(order)}
                                                 >
-                                                    <div className="flex items-center gap-4">
-                                                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${isDark ? 'bg-[#2A2A2A]' : 'bg-gray-50'}`}>
+                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isDark ? 'bg-[#2A2A2A]' : 'bg-gray-50'}`}>
                                                             <Package className={`w-4 h-4 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
                                                         </div>
-                                                        <div>
-                                                            <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName}</p>
-                                                            <div className="flex items-center gap-2 mt-0.5">
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className={`text-sm font-bold truncate ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName}</p>
+                                                            <div className="flex flex-wrap items-center gap-2 mt-0.5">
                                                                 <span className={`font-mono text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                                                                     CD-{order.orderId?.slice(-6) || 'N/A'}
                                                                 </span>
@@ -342,7 +342,7 @@ export default function AdminOrders() {
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center gap-3">
+                                                    <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 sm:gap-3 shrink-0 ml-2">
                                                         <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{order.total?.toLocaleString()}</span>
                                                         {getStatusBadge(order.status)}
                                                     </div>
@@ -479,15 +479,15 @@ export default function AdminOrders() {
                                 ))}
 
                                 <div className={`p-8 rounded-3xl border transition-all ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white shadow-sm'}`}>
-                                    <div className="flex justify-between items-center bg-amber-500/10 p-4 rounded-xl border border-amber-500/20">
-                                        <div className="flex items-center gap-3">
-                                            <Package className="w-5 h-5 text-amber-500" />
-                                            <div>
-                                                <h5 className="text-xs font-black uppercase tracking-[0.2em] text-amber-600">Takeaway Pack Fee</h5>
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-amber-500/10 p-4 rounded-xl border border-amber-500/20 gap-3">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <Package className="w-5 h-5 text-amber-500 shrink-0" />
+                                            <div className="min-w-0">
+                                                <h5 className="text-xs font-black uppercase tracking-[0.2em] text-amber-600 truncate">Takeaway Pack Fee</h5>
                                                 <p className={`text-[10px] font-bold mt-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>₦200 per plate</p>
                                             </div>
                                         </div>
-                                        <span className={`text-sm font-black text-amber-600`}>
+                                        <span className={`text-sm sm:text-base font-black text-amber-600 sm:ml-auto whitespace-nowrap`}>
                                             ₦{((selectedOrder.plates?.length || 0) * 200).toLocaleString()}
                                         </span>
                                     </div>

@@ -251,13 +251,8 @@ export default function LandingPage() {
                 </li>
               </ol>
 
-              <div className={`relative rounded-3xl overflow-hidden aspect-[4/3] border-4 shadow-inner flex items-center justify-center ${studentTheme === 'dark' ? 'bg-[#0A0A0A] border-[#222222]' : 'bg-gray-200 border-white'}`}>
-                {/* Visual Mockup Placeholder */}
-                <ImageWithFallback src="/ios-install-mockup.png" alt="iOS Install Mockup" className="absolute inset-0 w-full h-full object-cover opacity-90 transition-opacity hover:opacity-100" />
-                <div className={`absolute inset-0 flex flex-col items-center justify-center backdrop-blur-sm pointer-events-none ${studentTheme === 'dark' ? 'bg-black/40' : 'bg-white/40'}`}>
-                  <Smartphone className={`w-12 h-12 mb-3 ${studentTheme === 'dark' ? 'text-[#FAF9F6]/50' : 'text-gray-900/50'}`} />
-                  <p className={`text-xs font-black uppercase tracking-widest px-4 py-2 rounded-lg ${studentTheme === 'dark' ? 'bg-[#222222] text-[#9C8F7F]' : 'bg-white shadow-sm text-gray-500'}`}>Upload iOS Image</p>
-                </div>
+              <div className={`relative rounded-3xl overflow-hidden aspect-video border-4 shadow-inner flex items-center justify-center ${studentTheme === 'dark' ? 'bg-[#0A0A0A] border-[#222222]' : 'bg-gray-200 border-white'}`}>
+                <ImageWithFallback src="https://res.cloudinary.com/dpwx4djzx/image/upload/v1772831572/iphone-mock_gehuma.jpg" alt="iOS Install Mockup" className="absolute inset-0 w-full h-full object-contain" />
               </div>
             </div>
 
@@ -285,13 +280,8 @@ export default function LandingPage() {
                 </li>
               </ol>
 
-              <div className={`relative rounded-3xl overflow-hidden aspect-[4/3] border-4 shadow-inner flex items-center justify-center ${studentTheme === 'dark' ? 'bg-[#0A0A0A] border-[#222222]' : 'bg-gray-200 border-white'}`}>
-                {/* Visual Mockup Placeholder */}
-                <ImageWithFallback src="/android-install-mockup.png" alt="Android Install Mockup" className="absolute inset-0 w-full h-full object-cover opacity-90 transition-opacity hover:opacity-100" />
-                <div className={`absolute inset-0 flex flex-col items-center justify-center backdrop-blur-sm pointer-events-none ${studentTheme === 'dark' ? 'bg-black/40' : 'bg-white/40'}`}>
-                  <Smartphone className={`w-12 h-12 mb-3 ${studentTheme === 'dark' ? 'text-[#FAF9F6]/50' : 'text-gray-900/50'}`} />
-                  <p className={`text-xs font-black uppercase tracking-widest px-4 py-2 rounded-lg ${studentTheme === 'dark' ? 'bg-[#222222] text-[#9C8F7F]' : 'bg-white shadow-sm text-gray-500'}`}>Upload Android Image</p>
-                </div>
+              <div className={`relative rounded-3xl overflow-hidden aspect-video border-4 shadow-inner flex items-center justify-center ${studentTheme === 'dark' ? 'bg-[#0A0A0A] border-[#222222]' : 'bg-gray-200 border-white'}`}>
+                <ImageWithFallback src="https://res.cloudinary.com/dpwx4djzx/image/upload/v1772831571/android-mock_ulo238.jpg" alt="Android Install Mockup" className="absolute inset-0 w-full h-full object-contain" />
               </div>
             </div>
 
