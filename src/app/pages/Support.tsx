@@ -1,5 +1,4 @@
 import { Logo } from '../components/design-system/Logo';
-import { Phone } from 'lucide-react';
 import Footer from '../components/Footer';
 
 export default function Support() {
@@ -21,9 +20,9 @@ export default function Support() {
               we’re here to help. Below are a few ways to get support:
             </p>
             <ul className="list-disc list-inside space-y-2 ml-4">
+              <li>Message us on WhatsApp: <a href="https://wa.me/2348072550635" className="underline" target="_blank" rel="noopener noreferrer">0807 255 0635</a></li>
               <li>Email us at <a href="mailto:support@calebdeck.com" className="underline">support@calebdeck.com</a></li>
               <li>Check the FAQ section below for common questions</li>
-              <li>Visit our social channels (links coming soon)</li>
             </ul>
           </section>
 
@@ -51,10 +50,12 @@ export default function Support() {
             <p className="flex flex-col sm:flex-row gap-4">
               <a href="mailto:support@calebdeck.com" className="underline">support@calebdeck.com</a>
               <a
-                href="tel:+234XXXXXXXXXX"
-                className="inline-flex items-center gap-2 text-secondary hover:underline"
+                href="https://wa.me/2348072550635"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-[#25D366] font-bold hover:underline"
               >
-                <Phone className="w-5 h-5" /> Call us
+                <span className="text-xl">💬</span> WhatsApp: 0807 255 0635
               </a>
             </p>
           </section>

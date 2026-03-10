@@ -39,7 +39,7 @@ export default function LandingPage() {
     {
       icon: <Truck className="w-8 h-8 text-secondary" />,
       title: 'Delivered to Your Room',
-      description: 'Skip the queue. We deliver directly to your hostel room.'
+      description: 'Skip the queue. We deliver directly to your hostel.'
     }
   ];
 
@@ -133,7 +133,7 @@ export default function LandingPage() {
               delivery.
             </h1>
             <p className="text-xl text-muted-foreground leading-relaxed max-w-lg">
-              Save up to 45 minutes every day. Direct delivery to your hostel room. Experience a new standard in campus dining.
+              Save up to 45 minutes every day. Direct delivery to your hostel. Experience a new standard in campus dining.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Link to="/cafeteria">
