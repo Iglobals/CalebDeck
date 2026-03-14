@@ -298,28 +298,30 @@ export default function PlateBuilder() {
           <div className="space-y-6">
             <div className="relative space-y-6">
               {/* Plate Type Selector */}
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  onClick={() => setBuilderType('main')}
-                  className={`p-6 rounded-2xl border-2 transition-all duration-300 text-left ${builderType === 'main'
-                    ? 'border-secondary bg-secondary/10 shadow-lg'
-                    : 'border-border bg-card hover:border-secondary/50'
-                    }`}
-                >
-                  <h3 className="text-xl font-bold">Build Main Plate</h3>
-                  <p className="text-sm text-muted-foreground mt-1">Rice, beans, yam & more</p>
-                </button>
-                <button
-                  onClick={() => setBuilderType('swallow')}
-                  className={`p-6 rounded-2xl border-2 transition-all duration-300 text-left ${builderType === 'swallow'
-                    ? 'border-secondary bg-secondary/10 shadow-lg'
-                    : 'border-border bg-card hover:border-secondary/50'
-                    }`}
-                >
-                  <h3 className="text-xl font-bold">Build Swallow Plate</h3>
-                  <p className="text-sm text-muted-foreground mt-1">Fufu, eba, pounded yam</p>
-                </button>
-              </div>
+              {foodItems.some(f => f.category === 'swallow') ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    onClick={() => setBuilderType('main')}
+                    className={`p-6 rounded-2xl border-2 transition-all duration-300 text-left ${builderType === 'main'
+                      ? 'border-secondary bg-secondary/10 shadow-lg'
+                      : 'border-border bg-card hover:border-secondary/50'
+                      }`}
+                  >
+                    <h3 className="text-xl font-bold">Build Main Plate</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Rice, beans, yam & more</p>
+                  </button>
+                  <button
+                    onClick={() => setBuilderType('swallow')}
+                    className={`p-6 rounded-2xl border-2 transition-all duration-300 text-left ${builderType === 'swallow'
+                      ? 'border-secondary bg-secondary/10 shadow-lg'
+                      : 'border-border bg-card hover:border-secondary/50'
+                      }`}
+                  >
+                    <h3 className="text-xl font-bold">Build Swallow Plate</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Fufu, eba, pounded yam</p>
+                  </button>
+                </div>
+              ) : null}
 
               {/* Builder Steps */}
               {builderType === 'main' ? (
