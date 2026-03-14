@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation, useParams } from 'react-router';
 import { Logo } from '../../components/design-system/Logo';
 import { GlassCard } from '../../components/design-system/Card';
@@ -220,10 +220,11 @@ export default function PlateBuilder() {
   };
 
   const addPlate = () => {
-    const items: PlateItem[] = Object.entries(currentBuild).map(([itemId, quantity]) => ({
-      item: foodItems.find(f => f.id === itemId)!,
-      quantity
-    }));
+    const items: PlateItem[] = Object.entries(currentBuild).reduce((acc: PlateItem[], [itemId, quantity]) => {
+      const item = foodItems.find(f => f.id === itemId);
+      if (item) acc.push({ item, quantity });
+      return acc;
+    }, []);
 
     const itemsTotal = items.reduce((sum, { item, quantity }) => sum + item.price * quantity, 0);
     const total = itemsTotal + TAKEAWAY_FEE;
@@ -639,7 +640,7 @@ export default function PlateBuilder() {
               style={{ backgroundColor: drinksSnacksDisabled ? 'transparent' : 'var(--card)' }}
             >
               <div className="mb-6">
-                <h3 className="text-2xl font-bold text-card-foreground mb-2">Add Drinks & Snacks (Optional)</h3>
+                <h3 className="text-2xl font-bold text-card-foreground mb-2">Add Beverages {'&'} Snacks (Optional)</h3>
                 <p className="text-sm text-[#9C8F7F]">
                   {drinksSnacksDisabled
                     ? 'Add at least one plate to unlock drinks and snacks'
@@ -652,7 +653,7 @@ export default function PlateBuilder() {
                 <div className="space-y-8">
                   {/* Drinks */}
                   <div className="relative">
-                    <h4 className="text-lg font-bold text-card-foreground mb-4">Drinks</h4>
+                    <h4 className="text-lg font-bold text-card-foreground mb-4">Beverages</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pb-2">
                       {foodItems.filter(f => f.category === 'drink').map(item => (
                         <GlassCard key={item.id} selected={currentDrinks[item.id] > 0} unavailable={!item.isAvailable}>
@@ -698,7 +699,7 @@ export default function PlateBuilder() {
                           onClick={commitDrinks}
                           className="w-fit px-8 py-6 text-base sm:text-lg xl:text-xl whitespace-nowrap rounded-2xl shadow-2xl shadow-primary/20 transition-all duration-300 active:scale-95"
                         >
-                          Add Drinks to Order
+                          Add Beverages to Order
                         </Button>
                       </div>
                     </div>
@@ -706,7 +707,7 @@ export default function PlateBuilder() {
 
                   {/* Snacks */}
                   <div className="relative">
-                    <h4 className="text-lg font-bold text-card-foreground mb-4">Snacks</h4>
+                    <h4 className="text-lg font-bold text-card-foreground mb-4">Snacks & Pastries</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pb-2">
                       {foodItems.filter(f => f.category === 'snack').map(item => (
                         <GlassCard key={item.id} selected={currentSnacks[item.id] > 0} unavailable={!item.isAvailable}>
@@ -793,15 +794,15 @@ export default function PlateBuilder() {
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <button
+                              <div
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   removePlate(plate.id);
                                 }}
-                                className="p-2 hover:bg-[#7C3AED]/20 rounded-lg transition-colors"
+                                className="p-2 hover:bg-[#7C3AED]/20 rounded-lg transition-colors cursor-pointer"
                               >
                                 <Trash2 className="w-4 h-4 text-[#7C3AED]" />
-                              </button>
+                              </div>
                               {openPlates[plate.id] ? (
                                 <ChevronUp className="w-5 h-5 text-[#9C8F7F]" />
                               ) : (
@@ -836,7 +837,8 @@ export default function PlateBuilder() {
                   <h4 className="font-bold uppercase tracking-wider text-muted-foreground text-sm mb-4">Add-ons</h4>
                   <div className="space-y-2">
                     {Object.entries(drinksSnacks).map(([itemId, quantity]) => {
-                      const item = foodItems.find(f => f.id === itemId)!;
+                      const item = foodItems.find(f => f.id === itemId);
+                      if (!item) return null;
                       return (
                         <div key={itemId} className="flex justify-between items-center text-sm font-medium">
                           <div className="flex items-center gap-2">
@@ -966,10 +968,11 @@ export default function PlateBuilder() {
                 disabled={plates.length === 0 || groupOrderWarning}
                 className="w-full py-6 text-2xl rounded-3xl shadow-xl shadow-primary/20 transition-all duration-500 hover:scale-[1.02] active:scale-95 disabled:grayscale"
                 onClick={() => {
-                  const drinksSnacksItems = Object.entries(drinksSnacks).map(([itemId, quantity]) => ({
-                    item: foodItems.find(f => f.id === itemId)!,
-                    quantity
-                  }));
+                  const drinksSnacksItems = Object.entries(drinksSnacks).reduce((acc: any[], [itemId, quantity]) => {
+                    const item = foodItems.find(f => f.id === itemId);
+                    if (item) acc.push({ item, quantity });
+                    return acc;
+                  }, []);
                   navigate('/checkout', {
                     state: {
                       plates,

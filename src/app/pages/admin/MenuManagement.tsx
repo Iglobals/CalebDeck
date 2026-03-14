@@ -23,12 +23,11 @@ import { useTheme } from '../../../context/ThemeContext';
 
 const CATEGORIES = [
     { value: 'base', label: 'Base (Rice / Pasta / Noodles)' },
-    { value: 'protein', label: 'Protein (Meat / Fish)' },
+    { value: 'protein', label: 'Protein & Sides' },
     { value: 'swallow', label: 'Swallow (Eba / Semo)' },
     { value: 'soup', label: 'Soup' },
-    { value: 'extra', label: 'Extras (Moi-moi / Plantain)' },
-    { value: 'snack', label: 'Snack' },
-    { value: 'drink', label: 'Drink' },
+    { value: 'snack', label: 'Snacks & Pastries' },
+    { value: 'drink', label: 'Beverages' },
 ];
 
 export default function MenuManagement() {

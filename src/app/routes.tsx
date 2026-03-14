@@ -25,6 +25,7 @@ const MenuManagement = lazy(() => import("./pages/admin/MenuManagement"));
 const AdminAnalytics = lazy(() => import("./pages/admin/AdminAnalytics"));
 const AdminOrderHistory = lazy(() => import("./pages/admin/AdminOrderHistory"));
 const AdminSetup = lazy(() => import("./pages/admin/AdminSetup"));
+const SeedData = lazy(() => import("./pages/admin/SeedData"));
 
 // --- Lazy Load Rider Pages ---
 const RiderLogin = lazy(() => import("./pages/rider/RiderLogin"));
@@ -74,6 +75,7 @@ export const router = createBrowserRouter([
           { path: "menu", Component: MenuManagement },
           { path: "analytics", Component: AdminAnalytics },
           { path: "history", Component: AdminOrderHistory },
+          { path: "seed", Component: SeedData },
         ]
       },
 

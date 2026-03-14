@@ -181,13 +181,16 @@ export default function Checkout() {
     });
   };
 
+  const currentHour = new Date().getHours();
+  const isClosed = currentHour < 12 || currentHour >= 18;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!orderTotal) return;
+    if (!orderTotal || isClosed) return;
     initializePayment({ onSuccess: onSuccess as any, onClose: onClose });
   };
 
-  const canSubmit = formData.fullName && formData.phone && formData.hostel && orderTotal && !calculating;
+  const canSubmit = formData.fullName && formData.phone && formData.hostel && orderTotal && !calculating && !isClosed;
 
   const hostelOptions = [
     { value: '', label: 'Select your hostel' },
@@ -231,6 +234,15 @@ export default function Checkout() {
         <div className="grid lg:grid-cols-[1fr_450px] gap-12">
           {/* Form - Left */}
           <div className="space-y-8">
+            {isClosed && (
+              <div className="mb-2 p-5 rounded-2xl bg-red-500/10 border-2 border-red-500/20 text-red-600 dark:text-red-400 flex items-center gap-4 shadow-lg shadow-red-500/5">
+                <Lock className="w-8 h-8 flex-shrink-0 text-red-500" />
+                <div>
+                  <h4 className="font-black text-lg">Ordering Currently Closed</h4>
+                  <p className="font-medium text-sm">CalebDeck is currently closed. Ordering hours are between 12:00 PM and 6:00 PM.</p>
+                </div>
+              </div>
+            )}
             <section>
               <div className="flex items-center gap-3 mb-8">
                 <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg">
@@ -286,7 +298,7 @@ export default function Checkout() {
                       name="instructions"
                       value={formData.instructions}
                       onChange={handleChange}
-                      placeholder="Any specific delivery instructions?"
+                      placeholder="Any alternative options? (e.g., If Jollof is finished, buy Fried Rice instead)"
                       className="md:col-span-2 bg-background/80"
                     />
                   </div>

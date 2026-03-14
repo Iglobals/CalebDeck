@@ -507,10 +507,10 @@ export default function AdminOrders() {
                                     </div>
                                 )}
 
-                                {selectedOrder.notes && selectedOrder.notes.trim() !== '' && (
+                                {(selectedOrder.notes || selectedOrder.instructions) && (selectedOrder.notes || selectedOrder.instructions).trim() !== '' && (
                                     <div className={`p-8 rounded-3xl border ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white'}`}>
                                         <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#10B981] mb-4">Student Note</h5>
-                                        <p className={`text-sm font-medium leading-relaxed ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>{selectedOrder.notes}</p>
+                                        <p className={`text-sm font-medium leading-relaxed whitespace-pre-wrap break-words ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>{(selectedOrder.notes || selectedOrder.instructions)}</p>
                                     </div>
                                 )}
                             </div>
