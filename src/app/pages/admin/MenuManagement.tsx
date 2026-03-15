@@ -93,20 +93,55 @@ export default function MenuManagement() {
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'add' | 'edit') => {
         const file = e.target.files?.[0];
         if (!file) return;
-        if (file.size > 2 * 1024 * 1024) {
-            alert('Image must be under 2MB');
+        
+        // Ensure initial file is not excessively huge (e.g. 10MB+)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Please select an image smaller than 5MB');
             return;
         }
+
         const reader = new FileReader();
         reader.onload = (ev) => {
-            const result = ev.target?.result as string;
-            if (target === 'add') {
-                setImagePreview(result);
-                setNewItem(prev => ({ ...prev, image: result }));
-            } else {
-                setEditImagePreview(result);
-                setEditForm(prev => ({ ...prev, image: result }));
-            }
+            const rawDataUrl = ev.target?.result as string;
+            
+            // Compress Image Logic
+            const img = new window.Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                const MAX_DIM = 600;
+
+                if (width > height) {
+                    if (width > MAX_DIM) {
+                        height *= MAX_DIM / width;
+                        width = MAX_DIM;
+                    }
+                } else {
+                    if (height > MAX_DIM) {
+                        width *= MAX_DIM / height;
+                        height = MAX_DIM;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+                
+                ctx.drawImage(img, 0, 0, width, height);
+                // Export highly compressed WebP/JPEG to bypass Firebase doc limit safely
+                const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+
+                if (target === 'add') {
+                    setImagePreview(compressedBase64);
+                    setNewItem(prev => ({ ...prev, image: compressedBase64 }));
+                } else {
+                    setEditImagePreview(compressedBase64);
+                    setEditForm(prev => ({ ...prev, image: compressedBase64 }));
+                }
+            };
+            img.src = rawDataUrl;
         };
         reader.readAsDataURL(file);
     };
@@ -131,6 +166,7 @@ export default function MenuManagement() {
             setImagePreview('');
         } catch (error) {
             console.error(error);
+            showToast("Failed to add item. Check your connection or image size.");
         } finally {
             setSaving(false);
         }
@@ -167,6 +203,7 @@ export default function MenuManagement() {
             setEditingItem(null);
         } catch (error) {
             console.error(error);
+            showToast("Failed to save changes. Check your connection or image size.");
         } finally {
             setSaving(false);
         }
