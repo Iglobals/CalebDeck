@@ -291,7 +291,17 @@ export default function MenuManagement() {
                 <label className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Category</label>
                 <select className={inputClass} value={form.category}
                     onChange={e => setForm({ ...form, category: e.target.value })}>
-                    {CATEGORIES.map(c => (
+                    {CATEGORIES.filter(c => {
+                        // Old Cafe: no swallow, soup, or snack
+                        if (form.cafeteriaId === 'old') {
+                            return !['swallow', 'soup', 'snack'].includes(c.value);
+                        }
+                        // New Cafe Front: no swallow or soup
+                        if (form.cafeteriaId === 'new' && form.sectionId === 'front') {
+                            return !['swallow', 'soup'].includes(c.value);
+                        }
+                        return true;
+                    }).map(c => (
                         <option key={c.value} value={c.value}>{c.label}</option>
                     ))}
                 </select>
