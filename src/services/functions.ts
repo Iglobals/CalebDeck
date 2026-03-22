@@ -27,7 +27,6 @@ export const calculateOrderTotal = async (data: any) => {
             data: {
                 totalAmount: finalTotal,
                 breakdown: { food: total, delivery: deliveryFee, takeaway: takeawayFee, discount },
-                token: "mock-token-dev"
             }
         };
     }
@@ -66,14 +65,19 @@ export const verifyPayment = async (data: { reference: string; orderData: any })
     return response.json();
 };
 
-export const dispatchHostelOrders = async (data: { hostelId: string }) => {
+export const dispatchHostelOrders = async (data: { hostelId: string }, authToken?: string) => {
     if (import.meta.env.DEV) {
         return { data: { success: true, message: "Mock Dispatch Sent" } };
     }
 
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
     const response = await fetch('/api/dispatch-orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(data),
     });
 

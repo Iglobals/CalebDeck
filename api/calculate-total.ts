@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
-// Init Firebase Admin (modular imports for ESM compatibility)
+// Init Firebase Admin
 if (getApps().length === 0) {
     const projectId = process.env.FB_SA_PROJECT_ID;
     const clientEmail = process.env.FB_SA_CLIENT_EMAIL;
@@ -20,8 +20,10 @@ const DELIVERY_FEE_SOLO = 750;
 const DELIVERY_FEE_GROUP = 580;
 const TAKEAWAY_FEE_PER_PLATE = 200;
 
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
@@ -39,24 +41,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: 'No items provided' });
         }
 
+        // Parallel Firestore reads instead of sequential loop
+        const itemRefs = items.map((i: any) => db!.collection('menu_items').doc(i.id));
+        const itemDocs = await db.getAll(...itemRefs);
+
         let foodTotal = 0;
+        for (let idx = 0; idx < itemDocs.length; idx++) {
+            const doc = itemDocs[idx];
+            const qty = items[idx].quantity || 1;
 
-        for (const item of items) {
-            const docRef = db.collection('menu_items').doc(item.id);
-            const doc = await docRef.get();
-
-            if (!doc.exists) {
-                const qty = item.quantity || 1;
-                foodTotal += (item.price || 0) * qty;
-                continue;
+            if (doc.exists) {
+                foodTotal += (doc.data()!.price || 0) * qty;
+            } else {
+                // For drinks/snacks that may use different ID patterns, use client price
+                // but log it for monitoring
+                console.warn(`[calculate-total] Item not found: ${items[idx].id}, using client price: ${items[idx].price}`);
+                foodTotal += (items[idx].price || 0) * qty;
             }
-
-            const data = doc.data()!;
-            const qty = item.quantity || 1;
-            foodTotal += (data.price || 0) * qty;
         }
 
-        // Use provided plateCount (from plates.length on frontend) if available, defaulting to 1
         const plateCount = typeof providedPlateCount === 'number' ? providedPlateCount : 1;
 
         const isGroup = deliveryMode === 'group' || deliveryMode === 'GROUP';
@@ -64,13 +67,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const takeawayFee = TAKEAWAY_FEE_PER_PLATE * plateCount;
         const discount = isGroup ? (DELIVERY_FEE_SOLO - DELIVERY_FEE_GROUP) * plateCount : 0;
         const totalAmount = foodTotal + deliveryFee + takeawayFee;
-        const token = Buffer.from(`${totalAmount}-${Date.now()}-${plateCount}`).toString('base64');
 
         return res.status(200).json({
             data: {
                 totalAmount,
                 breakdown: { food: foodTotal, delivery: deliveryFee, takeaway: takeawayFee, discount },
-                token,
             }
         });
     } catch (error: any) {

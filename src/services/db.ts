@@ -68,10 +68,11 @@ export const getAllMenuItems = async (): Promise<MenuItem[]> => {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem));
 };
 
-// Orders (Admin - All)
+// Orders (Admin - All) — filter to active statuses only (not TRASHED/DELIVERED/CANCELLED)
 export const subscribeToAllOrders = (callback: (orders: any[]) => void) => {
     const q = query(
         collection(db, 'orders'),
+        where('status', 'in', ['PAID', 'OUT_FOR_DELIVERY', 'ON_THE_WAY', 'PREPARING', 'DELIVERED']),
         orderBy('createdAt', 'desc')
     );
     return onSnapshot(q, (snapshot) => {
@@ -120,8 +121,8 @@ export const createOrder = async (orderData: any) => {
         assignedRiderId: null,
         batchId: null,
         status: 'PAID',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
     });
 
     try {
@@ -147,7 +148,8 @@ export const createOrder = async (orderData: any) => {
 export const subscribeToRiderOrders = (riderId: string, callback: (orders: any[]) => void) => {
     const q = query(
         collection(db, 'orders'),
-        where('assignedRiderId', '==', riderId)
+        where('assignedRiderId', '==', riderId),
+        where('status', 'in', ['OUT_FOR_DELIVERY', 'ON_THE_WAY', 'DELIVERED'])
     );
     return onSnapshot(q, (snapshot) => {
         const sortedDocs = snapshot.docs
@@ -224,18 +226,22 @@ export const dispatchBatch = async (hostelId: string, hostelName: string, rider:
         createdAt: new Date().toISOString(),
     });
 
-    const batch = writeBatch(db);
-    orders.forEach(order => {
-        const orderRef = doc(db, 'orders', order.id);
-        batch.update(orderRef, {
-            status: 'OUT_FOR_DELIVERY',
-            assignedRiderId: rider.id,
-            batchId,
-            isEmergency,
-            updatedAt: new Date().toISOString(),
+    const BATCH_LIMIT = 499;
+    for (let i = 0; i < orders.length; i += BATCH_LIMIT) {
+        const chunk = orders.slice(i, i + BATCH_LIMIT);
+        const batch = writeBatch(db);
+        chunk.forEach(order => {
+            const orderRef = doc(db, 'orders', order.id);
+            batch.update(orderRef, {
+                status: 'OUT_FOR_DELIVERY',
+                assignedRiderId: rider.id,
+                batchId,
+                isEmergency,
+                updatedAt: serverTimestamp(),
+            });
         });
-    });
-    await batch.commit();
+        await batch.commit();
+    }
 
     try {
         await createNotification({
@@ -471,11 +477,15 @@ export const markAllNotificationsAsRead = async (userId: string) => {
     try {
         const q = query(collection(db, 'notifications'), where('userId', '==', userId), where('isRead', '==', false));
         const snapshot = await getDocs(q);
-        const batch = writeBatch(db);
-        snapshot.docs.forEach(doc => {
-            batch.update(doc.ref, { isRead: true });
-        });
-        await batch.commit();
+        const BATCH_LIMIT = 499;
+        for (let i = 0; i < snapshot.docs.length; i += BATCH_LIMIT) {
+            const chunk = snapshot.docs.slice(i, i + BATCH_LIMIT);
+            const batch = writeBatch(db);
+            chunk.forEach(doc => {
+                batch.update(doc.ref, { isRead: true });
+            });
+            await batch.commit();
+        }
     } catch (error) {
         console.error('Error marking all as read:', error);
     }

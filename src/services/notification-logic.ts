@@ -8,7 +8,7 @@ export const checkAdminNotificationThreshold = async (hostelId: string) => {
             collection(db, 'orders'),
             where('hostelId', '==', hostelId),
             where('status', '==', 'PAID'),
-            where('assignedRiderIds', '==', [])
+            where('assignedRiderId', '==', null)
         );
 
         const snapshot = await getCountFromServer(q);

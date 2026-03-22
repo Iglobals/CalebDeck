@@ -6,7 +6,7 @@ import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
 import { Input, Select, Textarea } from '../../components/design-system/Input';
 import { ArrowLeft, Lock, Shield, CreditCard, MapPin, User, Phone, Package } from 'lucide-react';
-import { getActiveHostels, Hostel, createOrder } from '../../../services/db';
+import { getActiveHostels, Hostel } from '../../../services/db';
 import { calculateOrderTotal, verifyPayment } from '../../../services/functions';
 import { usePaystackPayment } from 'react-paystack';
 import { toast } from 'react-toastify';
@@ -33,7 +33,7 @@ export default function Checkout() {
   const [hostels, setHostels] = useState<Hostel[]>([]);
   const [loadingHostels, setLoadingHostels] = useState(true);
   const [calculating, setCalculating] = useState(false);
-  const [orderTotal, setOrderTotal] = useState<{ totalAmount: number; breakdown: any; token: string } | null>(null);
+  const [orderTotal, setOrderTotal] = useState<{ totalAmount: number; breakdown: any } | null>(null);
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -97,6 +97,8 @@ export default function Checkout() {
   }, [plates, drinksSnacks, deliveryMode, formData.hostel]);
 
   const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
+  const selectedHostel = hostels.find(h => h.id === formData.hostel);
+  const orderId = React.useMemo(() => `CD-${Math.floor(10000 + Math.random() * 90000)}`, []);
 
   const config = {
     reference: (new Date()).getTime().toString(),
@@ -104,12 +106,20 @@ export default function Checkout() {
     amount: Math.round((orderTotal?.totalAmount || 0) * 100),
     publicKey: paystackKey as string,
     metadata: {
+      // These fields are used by the webhook as a fallback
+      orderId,
+      fullName: formData.fullName,
+      studentName: formData.fullName,
+      phone: formData.phone,
+      hostel: formData.hostel,
+      hostelName: selectedHostel?.name || formData.hostel,
+      instructions: formData.instructions,
+      cafeteria,
+      cafeteriaId,
+      sectionId,
+      deliveryMode,
+      plateCount: plates.length,
       custom_fields: [
-        {
-          display_name: "Order Items",
-          variable_name: "order_items",
-          value: items.map(i => `${i.id} (x${i.quantity})`).join(', ')
-        },
         {
           display_name: "Student Name",
           variable_name: "student_name",
@@ -118,7 +128,7 @@ export default function Checkout() {
         {
           display_name: "Hostel",
           variable_name: "hostel",
-          value: formData.hostel
+          value: selectedHostel?.name || formData.hostel
         }
       ]
     }
@@ -128,8 +138,6 @@ export default function Checkout() {
 
   const onSuccess = async (reference: any) => {
     setCalculating(true);
-    const orderId = `CD-${Math.floor(10000 + Math.random() * 90000)}`;
-    const selectedHostel = hostels.find(h => h.id === formData.hostel);
 
     const orderData = {
       orderId,
@@ -137,31 +145,39 @@ export default function Checkout() {
       studentName: formData.fullName,
       hostelName: selectedHostel?.name || formData.hostel,
       total: orderTotal?.totalAmount,
+      items,
       plates,
       drinksSnacks: drinksSnacksItems,
       cafeteria,
       cafeteriaId,
       sectionId,
       deliveryMode,
-      paymentReference: reference.reference,
-      status: 'PAID' as const,
-      updatedAt: new Date().toISOString()
+      plateCount: plates.length
     };
 
     try {
-      await verifyPayment({
+      // Server creates the order after verifying payment
+      const result = await verifyPayment({
         reference: reference.reference,
         orderData
       });
 
-      const orderRef = await createOrder(orderData);
+      const serverData = result.data || result;
 
       sessionStorage.removeItem('cd_plates');
       sessionStorage.removeItem('cd_drinksSnacks');
       sessionStorage.removeItem('cd_deliveryMode');
       sessionStorage.removeItem('cd_groupSize');
 
-      navigate('/order-success', { state: { ...orderData, firestoreOrderId: orderRef.id } });
+      navigate('/order-success', {
+        state: {
+          ...orderData,
+          firestoreOrderId: serverData.firestoreOrderId,
+          orderId: serverData.orderId || orderId,
+          paymentReference: reference.reference,
+          status: 'PAID'
+        }
+      });
     } catch (error) {
       console.error("Verification error:", error);
       toast.error("Payment verification failed. Please contact support.");

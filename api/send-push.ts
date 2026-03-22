@@ -2,19 +2,17 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { getApps, initializeApp, cert } from 'firebase-admin/app';
 import { getMessaging } from 'firebase-admin/messaging';
 
-// Initialize Firebase Admin lazily to prevent multiple initialization errors
+// Initialize Firebase Admin lazily
 if (!getApps().length) {
     try {
         let privateKey = process.env.FB_SA_PRIVATE_KEY || '';
         if (privateKey) {
-            // Strongly strip wrapping quotes from Vercel
             if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
                 privateKey = privateKey.substring(1, privateKey.length - 1);
             }
             if (privateKey.startsWith("'") && privateKey.endsWith("'")) {
                 privateKey = privateKey.substring(1, privateKey.length - 1);
             }
-            // Ensure actual multiline formatting
             privateKey = privateKey.replace(/\\n/g, '\n');
         }
 
@@ -25,16 +23,29 @@ if (!getApps().length) {
                 privateKey: privateKey,
             }),
         });
-        console.log("Firebase Admin successfully initialized on Vercel.");
     } catch (error) {
         console.error('Firebase admin initialization error', error);
     }
 }
 
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    // Only allow POST requests
+    res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Api-Key');
+
+    if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    // Simple API key check — prevents external abuse while allowing
+    // both authenticated (admin/rider) and unauthenticated (student) callers
+    const apiKey = req.headers['x-api-key'];
+    const expectedKey = process.env.INTERNAL_API_KEY;
+    if (expectedKey && apiKey !== expectedKey) {
+        return res.status(401).json({ error: 'Unauthorized' });
     }
 
     try {
@@ -48,18 +59,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const message = {
-            notification: {
-                title,
-                body,
-            },
-            data: {
-                link: link || '/', // Allows clicking the notification to open a specific route
-            },
-            tokens: tokens, // Send to multiple devices
+            notification: { title, body },
+            data: { link: link || '/' },
+            tokens: tokens,
         };
 
         const response = await getMessaging().sendEachForMulticast(message);
-        console.log(response.successCount + ' messages were sent successfully');
 
         return res.status(200).json({
             success: true,
