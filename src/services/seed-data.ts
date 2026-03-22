@@ -37,7 +37,7 @@ export const seedData = async () => {
     });
 
     // 3. Menu Items
-    const mapToFirebaseItem = (cafeteriaId: string, sectionId: 'front' | 'back', item: any) => {
+    const mapToFirebaseItem = (cafeteriaId: string, sectionId: 'front' | 'back' | 'none', item: any) => {
         const id = `${cafeteriaId}_${sectionId}_${item.baseId}`;
         const imageBase = item.baseId.replace(/_/g, '-');
         return {
@@ -53,42 +53,49 @@ export const seedData = async () => {
         };
     };
 
-    // Keep Old Cafe generator for now
-    const generateOldMenu = (sectionId: 'front' | 'back', priceModifier = 1) => {
-        const rawItems = [
-            { baseId: 'jollof_rice', name: 'Jollof Rice', price: 600, category: 'base', unit: 'portion' },
-            { baseId: 'fried_rice', name: 'Fried Rice', price: 600, category: 'base', unit: 'portion' },
-            { baseId: 'white_rice', name: 'White Rice', price: 600, category: 'base', unit: 'portion' },
-            { baseId: 'jollof_spaghetti', name: 'Jollof Spaghetti', price: 600, category: 'base', unit: 'portion' },
-            { baseId: 'rice_and_beans', name: 'Rice and Beans', price: 800, category: 'base', unit: 'portion' },
-            { baseId: 'noodles', name: 'Noodles', price: 500, category: 'base', unit: 'pack' },
-            { baseId: 'meat', name: 'Meat', price: 500, category: 'protein', unit: 'piece' },
-            { baseId: 'fish_tail', name: 'Fried Fish (Tail)', price: 800, category: 'protein', unit: 'piece' },
-            { baseId: 'fish_middle', name: 'Fried Fish (Middle)', price: 500, category: 'protein', unit: 'piece' },
-            { baseId: 'chicken_lg', name: 'Chicken (Large)', price: 2500, category: 'protein', unit: 'piece' },
-            { baseId: 'chicken_md', name: 'Chicken (Medium)', price: 2000, category: 'protein', unit: 'piece' },
-            { baseId: 'assorted_1000', name: 'Assorted Meat (1000)', price: 1000, category: 'protein', unit: 'piece' },
-            { baseId: 'assorted_500', name: 'Assorted Meat (500)', price: 500, category: 'protein', unit: 'piece' },
-            { baseId: 'fried_eggs', name: 'Fried Eggs', price: 200, category: 'protein', unit: 'piece' },
-            { baseId: 'semo', name: 'Semo', price: 200, category: 'swallow', unit: 'wrap' },
-            { baseId: 'eba', name: 'Eba', price: 200, category: 'swallow', unit: 'wrap' },
-            { baseId: 'oha_soup', name: 'Oha Soup', price: 500, category: 'soup', unit: 'portion' },
-            { baseId: 'egusi_soup', name: 'Egusi Soup', price: 300, category: 'soup', unit: 'portion' },
-            { baseId: 'moimoi_leaf', name: 'Moi-moi (Leaf)', price: 400, category: 'protein', unit: 'wrap' },
-            { baseId: 'moimoi_plastic', name: 'Moi-moi (Plastic)', price: 300, category: 'protein', unit: 'cup' },
-            { baseId: 'plantain', name: 'Plantain', price: 300, category: 'protein', unit: 'portion' },
-            { baseId: 'meat_pie', name: 'Meat Pie', price: 1200, category: 'snack', unit: 'piece' },
-            { baseId: 'doughnuts', name: 'Doughnuts', price: 300, category: 'snack', unit: 'piece' },
-            { baseId: 'egg_roll', name: 'Egg Roll', price: 500, category: 'snack', unit: 'piece' },
-            { baseId: 'puff_puff', name: 'Puff Puff', price: 100, category: 'snack', unit: 'piece' },
-            { baseId: 'bottle_water', name: 'Bottle Water', price: 200, category: 'drink', unit: 'bottle' },
-            { baseId: 'soft_drink', name: 'Bottle Soda', price: 500, category: 'drink', unit: 'bottle' },
-            { baseId: 'can_drink', name: 'Can Drink', price: 600, category: 'drink', unit: 'can' },
-            { baseId: 'chivita_exotic', name: 'Chivita Exotic', price: 850, category: 'drink', unit: 'pack' },
-        ].map(item => ({ ...item, price: Math.round(item.price * priceModifier) }));
-        
-        return rawItems.map(item => mapToFirebaseItem('old', sectionId, item));
-    };
+    // Old Cafe menu — no front/back, no snacks, no swallow/soup
+    const oldCafeRaw = [
+        // Bases
+        { baseId: 'jollof_rice', name: 'Jollof Rice', price: 500, category: 'base', unit: 'portion' },
+        { baseId: 'fried_rice', name: 'Fried Rice', price: 500, category: 'base', unit: 'portion' },
+        { baseId: 'white_rice', name: 'White Rice', price: 500, category: 'base', unit: 'portion' },
+        { baseId: 'white_spaghetti', name: 'White Spaghetti', price: 500, category: 'base', unit: 'portion' },
+        { baseId: 'jollof_spaghetti', name: 'Jollof Spaghetti', price: 500, category: 'base', unit: 'portion' },
+        { baseId: 'porridge_beans', name: 'Porridge Beans', price: 400, category: 'base', unit: 'portion' },
+        { baseId: 'white_beans', name: 'White Beans', price: 400, category: 'base', unit: 'portion' },
+        { baseId: 'ewa_agoyin', name: 'Ewa Agoyin', price: 500, category: 'base', unit: 'portion' },
+
+        // Proteins & Sides
+        { baseId: 'moi_moi', name: 'Moi Moi', price: 400, category: 'protein', unit: 'wrap' },
+        { baseId: 'beef_meat', name: 'Beef (Meat)', price: 500, category: 'protein', unit: 'piece' },
+        { baseId: 'egg', name: 'Egg', price: 300, category: 'protein', unit: 'piece' },
+        { baseId: 'round_fish_sm', name: 'Round Fish (Small)', price: 500, category: 'protein', unit: 'piece' },
+        { baseId: 'round_fish_md', name: 'Round Fish (Medium)', price: 700, category: 'protein', unit: 'piece' },
+        { baseId: 'round_fish_lg', name: 'Round Fish (Large)', price: 1000, category: 'protein', unit: 'piece' },
+        { baseId: 'titus_fish', name: 'Titus Fish', price: 100, category: 'protein', unit: 'piece' },
+        { baseId: 'chicken_sm', name: 'Chicken (Small)', price: 2000, category: 'protein', unit: 'piece' },
+        { baseId: 'chicken_md', name: 'Chicken (Medium)', price: 2500, category: 'protein', unit: 'piece' },
+        { baseId: 'chicken_lg', name: 'Chicken (Large)', price: 3000, category: 'protein', unit: 'piece' },
+        { baseId: 'plantain', name: 'Plantain', price: 300, category: 'protein', unit: 'portion' },
+
+        // Beverages (same as New Cafe)
+        { baseId: 'bottle_water', name: 'Bottle Water', price: 200, category: 'drink', unit: 'bottle' },
+        { baseId: 'pepsi_family', name: 'Pepsi / Mirinda / 7up / Teem', price: 500, category: 'drink', unit: 'bottle' },
+        { baseId: 'coke_family', name: 'Coke / Fanta / Limca / Schweppes', price: 500, category: 'drink', unit: 'bottle' },
+        { baseId: 'aoao_can', name: 'Aoao Can', price: 600, category: 'drink', unit: 'can' },
+        { baseId: 'chivita_exotic_sm', name: 'Chivita Exotic (Small)', price: 700, category: 'drink', unit: 'pack' },
+        { baseId: 'chivita_exotic_md', name: 'Chivita Exotic (Medium)', price: 850, category: 'drink', unit: 'pack' },
+        { baseId: 'chivita_exotic_bg', name: 'Chivita Exotic (Big)', price: 1800, category: 'drink', unit: 'pack' },
+        { baseId: 'ice_tea_sm', name: 'Ice Tea (Small)', price: 700, category: 'drink', unit: 'bottle' },
+        { baseId: 'ice_tea_bg', name: 'Ice Tea (Big)', price: 1200, category: 'drink', unit: 'bottle' },
+        { baseId: 'five_alive', name: '5 Alive', price: 1500, category: 'drink', unit: 'pack' },
+        { baseId: 'nutri_milk', name: 'Nutri Milk', price: 600, category: 'drink', unit: 'bottle' },
+        { baseId: 'dudu_drink', name: 'Dudu Drink', price: 600, category: 'drink', unit: 'bottle' },
+        { baseId: 'nutri_choco', name: 'Nutri Choco', price: 900, category: 'drink', unit: 'bottle' },
+        { baseId: 'viju_chocolate', name: 'Viju Chocolate', price: 1100, category: 'drink', unit: 'bottle' },
+        { baseId: 'sosa_sm', name: 'Sosa (Small)', price: 450, category: 'drink', unit: 'bottle' },
+        { baseId: 'sosa_bg', name: 'Sosa (Big)', price: 1000, category: 'drink', unit: 'bottle' },
+    ];
 
     const newFrontRaw = [
         // Bases
@@ -222,8 +229,7 @@ export const seedData = async () => {
     ];
 
     const allItems = [
-        ...generateOldMenu('front', 1),
-        ...generateOldMenu('back', 1.1),
+        ...oldCafeRaw.map(item => mapToFirebaseItem('old', 'none', item)),
         ...newFrontRaw.map(item => mapToFirebaseItem('new', 'front', item)),
         ...newBackRaw.map(item => mapToFirebaseItem('new', 'back', item)),
     ];

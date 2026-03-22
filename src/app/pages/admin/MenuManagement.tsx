@@ -36,14 +36,14 @@ export default function MenuManagement() {
     const [searchFocused, setSearchFocused] = useState(false);
     const [activeCategory, setActiveCategory] = useState<string>('all');
     const [activeCafeteria, setActiveCafeteria] = useState<string>('old');
-    const [activeSection, setActiveSection] = useState<string>('front');
+    const [activeSection, setActiveSection] = useState<string>('none');
     const [isAddingItem, setIsAddingItem] = useState(false);
     const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
     const [newItem, setNewItem] = useState({
-        name: '', price: '', category: 'base', cafeteriaId: 'old', sectionId: 'front', unit: 'plate', isAvailable: true, image: ''
+        name: '', price: '', category: 'base', cafeteriaId: 'old', sectionId: 'none', unit: 'plate', isAvailable: true, image: ''
     });
     const [editForm, setEditForm] = useState({
-        name: '', price: '', category: 'base', cafeteriaId: 'old', sectionId: 'front', unit: 'plate', image: ''
+        name: '', price: '', category: 'base', cafeteriaId: 'old', sectionId: 'none', unit: 'plate', image: ''
     });
     const [imagePreview, setImagePreview] = useState<string>('');
     const [editImagePreview, setEditImagePreview] = useState<string>('');
@@ -76,7 +76,8 @@ export default function MenuManagement() {
 
     const handleCafeteriaChange = (caf: string) => {
         setActiveCafeteria(caf);
-        setActiveSection('front');
+        // Old Cafe has no front/back sections
+        setActiveSection(caf === 'old' ? 'none' : 'front');
     };
 
     const showToast = (message: string) => {
@@ -153,16 +154,16 @@ export default function MenuManagement() {
             await addMenuItem({
                 ...newItem,
                 price: Number(newItem.price),
-                sectionId: newItem.sectionId as 'front' | 'back'
+                sectionId: (newItem.cafeteriaId === 'old' ? 'none' : newItem.sectionId) as 'front' | 'back' | 'none'
             });
             const cafLabel = newItem.cafeteriaId === 'old' ? 'Old Caf' : 'New Caf';
-            const secLabel = newItem.sectionId === 'front' ? 'Front' : 'Back';
-            showToast(`"${newItem.name}" added to ${cafLabel} → ${secLabel}`);
+            const secLabel = newItem.cafeteriaId === 'old' ? '' : ` → ${newItem.sectionId === 'front' ? 'Front' : 'Back'}`;
+            showToast(`"${newItem.name}" added to ${cafLabel}${secLabel}`);
             setActiveCafeteria(newItem.cafeteriaId);
             setActiveSection(newItem.sectionId);
             setActiveCategory('all');
             setIsAddingItem(false);
-            setNewItem({ name: '', price: '', category: 'base', cafeteriaId: 'old', sectionId: 'front', unit: 'plate', isAvailable: true, image: '' });
+            setNewItem({ name: '', price: '', category: 'base', cafeteriaId: 'old', sectionId: 'none', unit: 'plate', isAvailable: true, image: '' });
             setImagePreview('');
         } catch (error) {
             console.error(error);
@@ -179,7 +180,7 @@ export default function MenuManagement() {
             price: String(item.price || ''),
             category: item.category,
             cafeteriaId: item.cafeteriaId || 'old',
-            sectionId: item.sectionId || 'front',
+            sectionId: item.sectionId || (item.cafeteriaId === 'old' ? 'none' : 'front'),
             unit: item.unit || 'plate',
             image: item.image || '',
         });
@@ -195,7 +196,7 @@ export default function MenuManagement() {
                 price: Number(editForm.price),
                 category: editForm.category,
                 cafeteriaId: editForm.cafeteriaId,
-                sectionId: editForm.sectionId as 'front' | 'back',
+                sectionId: (editForm.cafeteriaId === 'old' ? 'none' : editForm.sectionId) as 'front' | 'back' | 'none',
                 unit: editForm.unit,
                 image: editForm.image,
             });
@@ -249,7 +250,7 @@ export default function MenuManagement() {
             .map(i => ({
                 id: i.id, name: i.name,
                 cafeteriaId: i.cafeteriaId || 'old',
-                sectionId: i.sectionId || 'front',
+                sectionId: i.sectionId || (i.cafeteriaId === 'old' ? 'none' : 'front'),
                 category: i.category,
             }));
     }, [searchQuery, items]);
@@ -295,15 +296,19 @@ export default function MenuManagement() {
                     ))}
                 </select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className={`grid ${form.cafeteriaId === 'old' ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
                 <div className="space-y-1.5">
                     <label className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Cafeteria</label>
                     <select className={inputClass} value={form.cafeteriaId}
-                        onChange={e => setForm({ ...form, cafeteriaId: e.target.value })}>
+                        onChange={e => {
+                            const newCaf = e.target.value;
+                            setForm({ ...form, cafeteriaId: newCaf, sectionId: newCaf === 'old' ? 'none' : 'front' });
+                        }}>
                         <option value="old">Old Cafeteria</option>
                         <option value="new">New Cafeteria</option>
                     </select>
                 </div>
+                {form.cafeteriaId !== 'old' && (
                 <div className="space-y-1.5">
                     <label className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Section</label>
                     <select className={inputClass} value={form.sectionId}
@@ -312,6 +317,7 @@ export default function MenuManagement() {
                         <option value="back">Back Section</option>
                     </select>
                 </div>
+                )}
             </div>
             <div className="space-y-1.5">
                 <label className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Food Image (optional)</label>
@@ -384,7 +390,7 @@ export default function MenuManagement() {
                                     className={`w-full text-left px-5 py-3 flex items-center justify-between transition-colors ${isDark ? 'hover:bg-[#2A2A2A]' : 'hover:bg-gray-50'}`}>
                                     <span className={`font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{s.name}</span>
                                     <span className={`text-[10px] font-bold uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
-                                        {s.cafeteriaId === 'old' ? 'Old' : 'New'} · {s.sectionId}
+                                        {s.cafeteriaId === 'old' ? 'Old' : 'New'}{s.cafeteriaId !== 'old' ? ` · ${s.sectionId}` : ''}
                                     </span>
                                 </button>
                             ))}
@@ -414,6 +420,7 @@ export default function MenuManagement() {
                         ))}
                     </div>
                 </div>
+                {activeCafeteria !== 'old' && (
                 <div className="flex-1 space-y-2 w-full">
                     <p className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Section</p>
                     <div className="flex gap-2">
@@ -427,6 +434,7 @@ export default function MenuManagement() {
                         ))}
                     </div>
                 </div>
+                )}
             </div>
 
             {/* Category Pills */}
@@ -443,7 +451,7 @@ export default function MenuManagement() {
 
             {/* Label */}
             <p className={`text-xs font-bold mb-4 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
-                Showing {filteredItems.length} items in <span className="text-[#7C3AED] font-black">{activeCafeteria === 'old' ? 'Old Caf' : 'New Caf'} → {activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}</span>
+                Showing {filteredItems.length} items in <span className="text-[#7C3AED] font-black">{activeCafeteria === 'old' ? 'Old Caf' : `New Caf → ${activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}`}</span>
                 {activeCategory !== 'all' && <> · <span className="capitalize">{activeCategory}</span></>}
             </p>
 
@@ -452,7 +460,7 @@ export default function MenuManagement() {
                 {filteredItems.length === 0 && (
                     <div className={`col-span-full p-12 text-center rounded-2xl border-2 border-dashed ${isDark ? 'border-[#333333] text-[#9C8F7F]' : 'border-gray-100 text-gray-400'}`}>
                         <UtensilsCrossed className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                        <p className="font-bold text-sm">No items in {activeCafeteria === 'old' ? 'Old Caf' : 'New Caf'} → {activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}</p>
+                        <p className="font-bold text-sm">No items in {activeCafeteria === 'old' ? 'Old Caf' : `New Caf → ${activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}`}</p>
                         <p className="text-xs mt-1 opacity-60">Add items with the button above</p>
                     </div>
                 )}
@@ -486,7 +494,7 @@ export default function MenuManagement() {
                                     <span className="font-black text-[#10B981] text-base whitespace-nowrap">₦{item.price?.toLocaleString()}</span>
                                 </div>
                                 <p className={`text-[10px] font-bold uppercase tracking-[0.15em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
-                                    {item.category} · {item.cafeteriaId === 'old' ? 'Old' : 'New'} Caf · {item.sectionId || 'front'}
+                                    {item.category} · {item.cafeteriaId === 'old' ? 'Old' : 'New'} Caf{item.cafeteriaId !== 'old' ? ` · ${item.sectionId || 'front'}` : ''}
                                 </p>
                             </div>
 
@@ -523,7 +531,7 @@ export default function MenuManagement() {
                             <div>
                                 <h2 className="text-xl font-black">Add Menu Item</h2>
                                 <p className="text-[10px] opacity-70 uppercase tracking-widest mt-1">
-                                    Adding to {newItem.cafeteriaId === 'old' ? 'Old Caf' : 'New Caf'} → {newItem.sectionId === 'front' ? 'Front' : 'Back'}
+                                    Adding to {newItem.cafeteriaId === 'old' ? 'Old Caf' : `New Caf → ${newItem.sectionId === 'front' ? 'Front' : 'Back'}`}
                                 </p>
                             </div>
                             <button onClick={() => setIsAddingItem(false)} className="p-2 rounded-xl hover:bg-white/20 transition-colors">

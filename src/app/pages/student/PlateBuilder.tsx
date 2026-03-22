@@ -43,7 +43,8 @@ export default function PlateBuilder() {
   const params = useParams<{ cafeteriaId: string }>();
   const cafeteria = location.state?.cafeteria || 'Old Cafeteria';
   const cafeteriaId = params.cafeteriaId || location.state?.cafeteriaId || 'old';
-  const sectionId = location.state?.sectionId || 'front';
+  const sectionId = location.state?.sectionId || (cafeteriaId === 'old' ? 'none' : 'front');
+  const isOldCafe = cafeteriaId === 'old';
 
   const [foodItems, setFoodItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,11 +53,12 @@ export default function PlateBuilder() {
 
   // Real-time subscription — fetch all items for this cafeteria/section (including unavailable for overlay)
   useEffect(() => {
-    const q = query(
-      collection(db, 'menu_items'),
+    // Old Cafe uses sectionId='none' (no front/back)
+    const constraints = [
       where('cafeteriaId', '==', cafeteriaId),
       where('sectionId', '==', sectionId)
-    );
+    ];
+    const q = query(collection(db, 'menu_items'), ...constraints);
     const unsub = onSnapshot(q, (snapshot) => {
       setFoodItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem)));
       setLoading(false);
@@ -281,7 +283,7 @@ export default function PlateBuilder() {
             </Link>
             <div>
               <h1 className="text-xl font-bold text-foreground">Build Your Plate</h1>
-              <p className="text-sm text-muted-foreground">{cafeteria} • {sectionId.charAt(0).toUpperCase() + sectionId.slice(1)} Section</p>
+              <p className="text-sm text-muted-foreground">{cafeteria}{!isOldCafe && ` • ${sectionId.charAt(0).toUpperCase() + sectionId.slice(1)} Section`}</p>
             </div>
           </div>
           <div className="text-right">
@@ -297,8 +299,8 @@ export default function PlateBuilder() {
           {/* Builder Area - Left */}
           <div className="space-y-6">
             <div className="relative space-y-6">
-              {/* Plate Type Selector */}
-              {foodItems.some(f => f.category === 'swallow') ? (
+              {/* Plate Type Selector — hidden for Old Cafe (no swallow items) */}
+              {!isOldCafe && foodItems.some(f => f.category === 'swallow') ? (
                 <div className="grid grid-cols-2 gap-4">
                   <button
                     onClick={() => setBuilderType('main')}
@@ -416,49 +418,7 @@ export default function PlateBuilder() {
                     </div>
                   </div>
 
-                  {/* Step 3: Add Extras */}
-                  <div className="space-y-4">
-                    <div>
-                      <Badge variant="purple" className="mb-2 uppercase tracking-wider">STEP 3</Badge>
-                      <h3 className="text-2xl font-bold">Add Extras</h3>
-                      <p className="text-sm text-muted-foreground font-medium">Optional • Multiple selection</p>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {foodItems.filter(f => f.category === 'extra').map(item => (
-                        <GlassCard key={item.id} selected={currentBuild[item.id] > 0} unavailable={!item.isAvailable}>
-                          <div className="space-y-3">
-                            <div className="aspect-square rounded-xl overflow-hidden shadow-inner">
-                              <ImageWithFallback
-                                src={item.image}
-                                alt={item.name}
-                                className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                              />
-                            </div>
-                            <div>
-                              <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
-                              <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit}</p>
-                            </div>
-                            <div className="flex items-center justify-between bg-muted/50 rounded-lg p-1">
-                              <button
-                                onClick={() => updateQuantity(item.id, -1)}
-                                disabled={!currentBuild[item.id]}
-                                className="w-10 h-10 rounded-lg bg-card text-foreground hover:bg-secondary hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all flex items-center justify-center shadow-sm"
-                              >
-                                <Minus className="w-5 h-5" />
-                              </button>
-                              <span className="font-bold text-xl px-2">{currentBuild[item.id] || 0}</span>
-                              <button
-                                onClick={() => updateQuantity(item.id, 1)}
-                                className="w-10 h-10 rounded-lg bg-primary text-primary-foreground hover:bg-primary/80 transition-all flex items-center justify-center shadow-sm hover:scale-105"
-                              >
-                                <Plus className="w-5 h-5" />
-                              </button>
-                            </div>
-                          </div>
-                        </GlassCard>
-                      ))}
-                    </div>
-                  </div>
+                  {/* Step 3: Extras — REMOVED (no 'extra' category exists) */}
                 </div>
               ) : (
                 <div className="space-y-8">
@@ -642,7 +602,7 @@ export default function PlateBuilder() {
               style={{ backgroundColor: drinksSnacksDisabled ? 'transparent' : 'var(--card)' }}
             >
               <div className="mb-6">
-                <h3 className="text-2xl font-bold text-card-foreground mb-2">Add Beverages {'&'} Snacks (Optional)</h3>
+                <h3 className="text-2xl font-bold text-card-foreground mb-2">{isOldCafe ? 'Add Beverages (Optional)' : `Add Beverages ${'&'} Snacks (Optional)`}</h3>
                 <p className="text-sm text-[#9C8F7F]">
                   {drinksSnacksDisabled
                     ? 'Add at least one plate to unlock drinks and snacks'
@@ -707,7 +667,8 @@ export default function PlateBuilder() {
                     </div>
                   </div>
 
-                  {/* Snacks */}
+                  {/* Snacks & Pastries — hidden for Old Cafe */}
+                  {!isOldCafe && (
                   <div className="relative">
                     <h4 className="text-lg font-bold text-card-foreground mb-4">Snacks & Pastries</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pb-2">
@@ -760,6 +721,7 @@ export default function PlateBuilder() {
                       </div>
                     </div>
                   </div>
+                  )}
                 </div>
               )}
             </div>

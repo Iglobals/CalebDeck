@@ -27,7 +27,7 @@ export default function Checkout() {
     groupSize = 2,
     cafeteria = 'Old Cafeteria',
     cafeteriaId = 'old',
-    sectionId = 'front'
+    sectionId = 'none'
   } = location.state || {};
 
   const [hostels, setHostels] = useState<Hostel[]>([]);

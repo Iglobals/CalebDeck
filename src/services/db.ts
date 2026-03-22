@@ -11,7 +11,7 @@ export interface MenuItem {
     cafeteriaId?: string;
     unit?: string;
     image?: string;
-    sectionId?: 'front' | 'back';
+    sectionId?: 'front' | 'back' | 'none';
 }
 
 export interface Hostel {
@@ -310,7 +310,8 @@ export const updateMenuItem = async (id: string, updates: Partial<MenuItem>) => 
 export const addMenuItem = async (item: Omit<MenuItem, 'id'>) => {
     const slug = item.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
     const cafId = item.cafeteriaId || 'old';
-    const secId = item.sectionId || 'front';
+    // Old Cafe has no front/back sections
+    const secId = cafId === 'old' ? 'none' : (item.sectionId || 'front');
     const docId = `${cafId}_${secId}_${slug}`;
 
     const docRef = doc(db, 'menu_items', docId);

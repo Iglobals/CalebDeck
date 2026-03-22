@@ -40,6 +40,22 @@ export default function CafeteriaSelection() {
     { id: 'back', name: 'Back', description: 'Alternative counter' }
   ];
 
+  const handleCafeteriaClick = (cafeteriaId: string) => {
+    const caf = cafeterias.find(c => c.id === cafeteriaId);
+    // Old Cafe has no front/back — go directly to plate builder
+    if (cafeteriaId === 'old') {
+      navigate(`/plate-builder/${cafeteriaId}`, {
+        state: {
+          cafeteria: caf?.name,
+          cafeteriaId,
+          sectionId: 'none'
+        }
+      });
+    } else {
+      setSelectedCafeteria(cafeteriaId);
+    }
+  };
+
   const handleSectionSelect = (sectionId: string) => {
     const cafeteriaName = cafeterias.find(c => c.id === selectedCafeteria)?.name;
     navigate(`/plate-builder/${selectedCafeteria}`, {
@@ -95,7 +111,7 @@ export default function CafeteriaSelection() {
 
             <div className="grid md:grid-cols-2 gap-8">
               {cafeterias.map((cafeteria) => (
-                <div key={cafeteria.id} onClick={() => setSelectedCafeteria(cafeteria.id)}>
+                <div key={cafeteria.id} onClick={() => handleCafeteriaClick(cafeteria.id)}>
                   <Card hover className="relative overflow-hidden group cursor-pointer border-none shadow-lg">
                     {cafeteria.popular && (
                       <div className="absolute top-4 right-4 z-10">
