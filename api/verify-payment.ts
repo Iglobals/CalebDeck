@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import axios from 'axios';
+import { combos } from '../src/services/combo-data';
 
 // Init Firebase Admin
 if (getApps().length === 0) {
@@ -70,31 +71,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // 3. Recalculate total from Firestore prices (server-side validation)
-        const items = orderData?.items || [];
-        let foodTotal = 0;
+        let serverTotal = 0;
+        const isCombo = orderData?.type === 'combo';
+        const isGroup = orderData?.deliveryMode === 'group' || orderData?.deliveryMode === 'GROUP';
 
-        if (items.length > 0) {
-            const itemRefs = items.map((i: any) => db!.collection('menu_items').doc(i.id));
-            const itemDocs = await db.getAll(...itemRefs);
+        if (isCombo) {
+            const comboDef = combos.find(c => c.id === orderData.comboId);
+            if (!comboDef) {
+                 return res.status(400).json({ error: 'Invalid combo selected' });
+            }
+            const quantity = orderData.quantity || 1;
+            const deliveryFee = (isGroup ? 580 : 750) * quantity;
+            serverTotal = (comboDef.basePrice * quantity) + deliveryFee;
+        } else {
+            const items = orderData?.items || [];
+            let foodTotal = 0;
 
-            for (let idx = 0; idx < itemDocs.length; idx++) {
-                const doc = itemDocs[idx];
-                const qty = items[idx].quantity || 1;
+            if (items.length > 0) {
+                const itemRefs = items.map((i: any) => db!.collection('menu_items').doc(i.id));
+                const itemDocs = await db!.getAll(...itemRefs);
 
-                if (doc.exists) {
-                    foodTotal += (doc.data()!.price || 0) * qty;
-                } else {
-                    // Use client price for drinks/add-ons that may have different IDs
-                    foodTotal += (items[idx].price || 0) * qty;
+                for (let idx = 0; idx < itemDocs.length; idx++) {
+                    const doc = itemDocs[idx];
+                    const qty = items[idx].quantity || 1;
+
+                    if (doc.exists) {
+                        foodTotal += (doc.data()!.price || 0) * qty;
+                    } else {
+                        // Use client price for drinks/add-ons that may have different IDs
+                        foodTotal += (items[idx].price || 0) * qty;
+                    }
                 }
             }
-        }
 
-        const plateCount = typeof orderData?.plateCount === 'number' ? orderData.plateCount : 1;
-        const isGroup = orderData?.deliveryMode === 'group' || orderData?.deliveryMode === 'GROUP';
-        const deliveryFee = (isGroup ? 580 : 750) * plateCount;
-        const takeawayFee = 200 * plateCount;
-        const serverTotal = foodTotal + deliveryFee + takeawayFee;
+            const plateCount = typeof orderData?.plateCount === 'number' ? orderData.plateCount : 1;
+            const deliveryFee = (isGroup ? 580 : 750) * plateCount;
+            const takeawayFee = 200 * plateCount;
+            serverTotal = foodTotal + deliveryFee + takeawayFee;
+        }
 
         // 4. Verify amount — allow 5% tolerance for rounding
         const paidAmount = data.amount / 100; // Paystack sends in kobo
@@ -107,7 +121,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // 5. Create order in Firestore (server-side)
         const orderId = orderData?.orderId || `CD-${Math.floor(10000 + Math.random() * 90000)}`;
 
-        const orderDoc = {
+        const orderDoc: any = {
             orderId,
             fullName: orderData?.fullName || orderData?.studentName || '',
             studentName: orderData?.fullName || orderData?.studentName || '',
@@ -116,8 +130,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             hostelName: orderData?.hostelName || '',
             instructions: orderData?.instructions || '',
             total: paidAmount, // Use Paystack-verified amount
-            plates: orderData?.plates || [],
-            drinksSnacks: orderData?.drinksSnacks || [],
             cafeteria: orderData?.cafeteria || '',
             cafeteriaId: orderData?.cafeteriaId || '',
             sectionId: orderData?.sectionId || 'none',
@@ -125,10 +137,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             paymentReference: reference,
             assignedRiderId: null,
             batchId: null,
-            status: 'PAID' as const,
+            status: 'PAID',
             createdAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp()
         };
+
+        if (isCombo) {
+            orderDoc.type = 'combo';
+            orderDoc.comboId = orderData.comboId;
+            orderDoc.comboName = orderData.comboName;
+            orderDoc.comboItems = orderData.comboItems || []; // Structured items array
+            orderDoc.quantity = orderData.quantity || 1;
+            orderDoc.plateCount = orderData.quantity || 1; // For generic calculation
+        } else {
+            orderDoc.plates = orderData?.plates || [];
+            orderDoc.drinksSnacks = orderData?.drinksSnacks || [];
+            orderDoc.plateCount = orderData?.plateCount || 1;
+        }
 
         const docRef = await db.collection('orders').add(orderDoc);
 

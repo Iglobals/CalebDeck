@@ -134,17 +134,27 @@ export default function AdminOrderHistory() {
                 <div class="label">Status</div>
                 <div class="value" style="font-size:14px;color:#7C3AED">${order.status || 'PENDING'}</div>
                 <div class="label">Items</div>
-                ${(order.plates || []).map((p: any, i: number) =>
-            `<div style="font-size:11px;font-weight:900;color:#7C3AED;margin-top:10px">PLATE #${i + 1}</div>` +
-            (p.items || []).map((it: any) =>
-                `<div class="row"><span>${it.item?.name || 'Item'} × ${it.quantity}</span><span>₦${((it.item?.price || 0) * it.quantity).toLocaleString()}</span></div>`
-            ).join('')
-        ).join('')}
+                ${order.type === 'combo' ? (
+                    `<div style="font-size:11px;font-weight:900;color:#7C3AED;margin-top:10px">${order.comboName} × ${order.quantity || 1}</div>` +
+                    (order.comboItems || []).map((it: any) =>
+                        `<div class="row"><span>${it.name} × ${it.quantity}</span></div>`
+                    ).join('')
+                ) : (
+                    (order.plates || []).map((p: any, i: number) =>
+                        `<div style="font-size:11px;font-weight:900;color:#7C3AED;margin-top:10px">PLATE #${i + 1}</div>` +
+                        (p.items || []).map((it: any) =>
+                            `<div class="row"><span>${it.item?.name || 'Item'} × ${it.quantity}</span><span>₦${((it.item?.price || 0) * it.quantity).toLocaleString()}</span></div>`
+                        ).join('')
+                    ).join('')
+                )}
+                
+                ${order.type !== 'combo' ? `
                 <div style="font-size:11px;font-weight:900;color:#999;margin-top:10px;text-transform:uppercase">FEES</div>
                 <div class="row">
                     <span>Takeaway Pack × ${(order.plates || []).length}</span>
                     <span>₦${((order.plates || []).length * 200).toLocaleString()}</span>
                 </div>
+                ` : ''}
                 ${(order.drinksSnacks || []).length > 0 ? `
                     <div style="font-size:11px;font-weight:900;color:#FCD34D;margin-top:10px">EXTRAS</div>
                     ${order.drinksSnacks.map((it: any) =>

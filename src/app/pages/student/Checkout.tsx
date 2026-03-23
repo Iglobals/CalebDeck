@@ -19,16 +19,23 @@ export default function Checkout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { studentTheme } = useTheme();
+  const locationState = location.state || {};
+  const savedCombo = sessionStorage.getItem('cd_comboOrder');
+  const comboOrder = locationState.comboOrder || (savedCombo ? JSON.parse(savedCombo) : null);
+  const isCombo = !!comboOrder;
+
   const {
     plates = [],
     drinksSnacks = {},
     drinksSnacksItems = [],
-    deliveryMode = 'solo',
+    deliveryMode: initialDeliveryMode = 'solo',
     groupSize = 2,
-    cafeteria = 'Old Cafeteria',
-    cafeteriaId = 'old',
-    sectionId = 'none'
-  } = location.state || {};
+    cafeteria = isCombo ? comboOrder.cafeteria : 'Old Cafeteria',
+    cafeteriaId = isCombo ? comboOrder.cafeteriaId : 'old',
+    sectionId = isCombo ? comboOrder.sectionId : 'none'
+  } = locationState;
+  
+  const currentDeliveryMode = sessionStorage.getItem('cd_deliveryMode') || initialDeliveryMode;
 
   const [hostels, setHostels] = useState<Hostel[]>([]);
   const [loadingHostels, setLoadingHostels] = useState(true);
@@ -73,6 +80,22 @@ export default function Checkout() {
   // Calculate Order Total (Server-Side)
   useEffect(() => {
     const fetchTotal = async () => {
+      if (isCombo) {
+        // Combo order calculates total locally, skipping API call
+        const qty = comboOrder.quantity || 1;
+        const base = comboOrder.basePrice || 0;
+        const dMode = currentDeliveryMode || 'solo';
+        const isGrp = dMode === 'group' || dMode === 'GROUP';
+        const delivery = (isGrp ? DELIVERY_FEE_GROUP : DELIVERY_FEE_SOLO) * qty;
+        
+        setOrderTotal({
+          totalAmount: base * qty + delivery,
+          breakdown: { food: base * qty, delivery, takeaway: 0, discount: 0 }
+        });
+        setCalculating(false);
+        return;
+      }
+
       if (!plates.length) return;
 
       setCalculating(true);
@@ -80,7 +103,7 @@ export default function Checkout() {
         const response = await calculateOrderTotal({
           items,
           plateCount: plates.length,
-          deliveryMode,
+          deliveryMode: currentDeliveryMode,
           hostelId: formData.hostel
         });
 
@@ -94,7 +117,7 @@ export default function Checkout() {
     };
 
     fetchTotal();
-  }, [plates, drinksSnacks, deliveryMode, formData.hostel]);
+  }, [plates, drinksSnacks, currentDeliveryMode, formData.hostel, isCombo]);
 
   const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
   const selectedHostel = hostels.find(h => h.id === formData.hostel);
@@ -117,8 +140,17 @@ export default function Checkout() {
       cafeteria,
       cafeteriaId,
       sectionId,
-      deliveryMode,
-      plateCount: plates.length,
+      deliveryMode: currentDeliveryMode,
+      ...(isCombo ? {
+        type: 'combo',
+        comboId: comboOrder.comboId,
+        comboName: comboOrder.comboName,
+        quantity: comboOrder.quantity,
+        plateCount: comboOrder.quantity,
+        comboItems: comboOrder.comboItems
+      } : {
+        plateCount: plates.length
+      }),
       custom_fields: [
         {
           display_name: "Student Name",
@@ -145,14 +177,23 @@ export default function Checkout() {
       studentName: formData.fullName,
       hostelName: selectedHostel?.name || formData.hostel,
       total: orderTotal?.totalAmount,
-      items,
-      plates,
-      drinksSnacks: drinksSnacksItems,
       cafeteria,
       cafeteriaId,
       sectionId,
-      deliveryMode,
-      plateCount: plates.length
+      deliveryMode: currentDeliveryMode,
+      ...(isCombo ? {
+        type: 'combo',
+        comboId: comboOrder.comboId,
+        comboName: comboOrder.comboName,
+        comboItems: comboOrder.comboItems,
+        quantity: comboOrder.quantity,
+        plateCount: comboOrder.quantity
+      } : {
+        items,
+        plates,
+        drinksSnacks: drinksSnacksItems,
+        plateCount: plates.length
+      })
     };
 
     try {
@@ -168,6 +209,7 @@ export default function Checkout() {
       sessionStorage.removeItem('cd_drinksSnacks');
       sessionStorage.removeItem('cd_deliveryMode');
       sessionStorage.removeItem('cd_groupSize');
+      sessionStorage.removeItem('cd_comboOrder');
 
       navigate('/order-success', {
         state: {
@@ -213,7 +255,7 @@ export default function Checkout() {
     ...hostels.map(h => ({ value: h.id, label: h.name }))
   ];
 
-  if (!plates.length) {
+  if (!isCombo && !plates.length) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <Card className="text-center max-w-md w-full py-12 px-8">
@@ -236,7 +278,7 @@ export default function Checkout() {
       <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border shadow-sm transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button onClick={() => window.history.back()} className="p-2 hover:bg-muted rounded-xl transition-colors">
+            <button onClick={() => navigate(-1)} className="p-2 hover:bg-muted rounded-xl transition-colors">
               <ArrowLeft className="w-6 h-6 text-foreground" />
             </button>
             <h1 className="text-2xl font-bold tracking-tight">Checkout</h1>
@@ -350,38 +392,62 @@ export default function Checkout() {
 
               {/* Plates Breakdown */}
               <div className="space-y-6 mb-8 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                {plates.map((plate: any, index: number) => (
-                  <div key={plate.id} className="p-4 rounded-2xl bg-muted/30 border border-border/50 transition-all hover:bg-muted/50">
+                
+                {isCombo ? (
+                  <div className="p-4 rounded-2xl bg-muted/30 border border-border/50 transition-all hover:bg-muted/50">
                     <div className="flex justify-between items-center mb-3">
                       <h4 className="font-bold uppercase tracking-wider text-xs text-muted-foreground">
-                        Plate {index + 1} • {plate.type}
+                        {comboOrder.comboName} • {comboOrder.quantity}x Combo
                       </h4>
-                      <span className="font-bold text-secondary text-sm">₦{plate.total.toLocaleString()}</span>
+                      <span className="font-bold text-secondary text-sm">₦{((comboOrder.basePrice || 0) * (comboOrder.quantity || 1)).toLocaleString()}</span>
                     </div>
                     <div className="space-y-1">
-                      {plate.items.map((item: any) => (
-                        <div key={item.item.id} className="flex justify-between text-sm font-medium">
-                          <span className="text-muted-foreground">{item.item.name} <span className="text-xs opacity-60">×{item.quantity}</span></span>
-                          <span className="text-foreground">₦{(item.item.price * item.quantity).toLocaleString()}</span>
+                      {comboOrder.comboItems.map((item: any, idx: number) => (
+                        <div key={idx} className="flex gap-2 text-sm font-medium">
+                           <span className="text-primary mt-0.5">•</span>
+                           <span className="text-muted-foreground flex-1">
+                             {item.name} {item.quantity > 1 ? <span className="text-xs opacity-60 ml-1">×{item.quantity}</span> : ''}
+                           </span>
                         </div>
                       ))}
                     </div>
                   </div>
-                ))}
+                ) : (
+                  <>
+                    {plates.map((plate: any, index: number) => (
+                      <div key={plate.id} className="p-4 rounded-2xl bg-muted/30 border border-border/50 transition-all hover:bg-muted/50">
+                        <div className="flex justify-between items-center mb-3">
+                          <h4 className="font-bold uppercase tracking-wider text-xs text-muted-foreground">
+                            Plate {index + 1} • {plate.type}
+                          </h4>
+                          <span className="font-bold text-secondary text-sm">₦{plate.total.toLocaleString()}</span>
+                        </div>
+                        <div className="space-y-1">
+                          {plate.items.map((item: any) => (
+                            <div key={item.item.id} className="flex justify-between text-sm font-medium">
+                              <span className="text-muted-foreground">{item.item.name} <span className="text-xs opacity-60">×{item.quantity}</span></span>
+                              <span className="text-foreground">₦{(item.item.price * item.quantity).toLocaleString()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
 
-                {/* Drinks & Snacks */}
-                {Object.keys(drinksSnacks).length > 0 && (
-                  <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
-                    <h4 className="font-bold uppercase tracking-wider text-xs text-primary mb-3">Add-ons</h4>
-                    <div className="space-y-1">
-                      {drinksSnacksItems.map(({ item, quantity }: any) => (
-                        <div key={item.id} className="flex justify-between text-sm font-medium">
-                          <span className="text-muted-foreground font-medium">{item.name} <span className="text-xs opacity-60">×{quantity}</span></span>
-                          <span className="text-foreground">₦{(item.price * quantity).toLocaleString()}</span>
+                    {/* Drinks & Snacks */}
+                    {Object.keys(drinksSnacks).length > 0 && (
+                      <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
+                        <h4 className="font-bold uppercase tracking-wider text-xs text-primary mb-3">Add-ons</h4>
+                        <div className="space-y-1">
+                          {drinksSnacksItems.map(({ item, quantity }: any) => (
+                            <div key={item.id} className="flex justify-between text-sm font-medium">
+                              <span className="text-muted-foreground font-medium">{item.name} <span className="text-xs opacity-60">×{quantity}</span></span>
+                              <span className="text-foreground">₦{(item.price * quantity).toLocaleString()}</span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -390,25 +456,27 @@ export default function Checkout() {
                 <div className="flex justify-between items-center text-muted-foreground font-medium">
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4" />
-                    <span>Delivery (₦{DELIVERY_FEE_SOLO} × {plates.length})</span>
+                    <span>Delivery (₦{DELIVERY_FEE_SOLO} × {isCombo ? (comboOrder.quantity || 1) : plates.length})</span>
                   </div>
-                  <span>₦{(DELIVERY_FEE_SOLO * plates.length).toLocaleString()}</span>
+                  <span>₦{(DELIVERY_FEE_SOLO * (isCombo ? (comboOrder.quantity || 1) : plates.length)).toLocaleString()}</span>
                 </div>
 
-                {deliveryMode === 'group' && (
+                {currentDeliveryMode === 'group' && (
                   <div className="flex justify-between items-center text-green-500 font-bold">
-                    <span>Group Savings (₦170 off per plate)</span>
-                    <span>-₦{((DELIVERY_FEE_SOLO - DELIVERY_FEE_GROUP) * plates.length).toLocaleString()}</span>
+                    <span>Group Savings (₦170 off per {isCombo ? 'combo' : 'plate'})</span>
+                    <span>-₦{((DELIVERY_FEE_SOLO - DELIVERY_FEE_GROUP) * (isCombo ? (comboOrder.quantity || 1) : plates.length)).toLocaleString()}</span>
                   </div>
                 )}
 
-                <div className="flex justify-between items-center text-muted-foreground font-medium">
-                  <div className="flex items-center gap-2">
-                    <Package className="w-4 h-4" />
-                    <span>Takeaway Pack (₦200 × {plates.length})</span>
+                {!isCombo && (
+                  <div className="flex justify-between items-center text-muted-foreground font-medium">
+                    <div className="flex items-center gap-2">
+                      <Package className="w-4 h-4" />
+                      <span>Takeaway Pack (₦200 × {plates.length})</span>
+                    </div>
+                    <span>₦{(200 * plates.length).toLocaleString()}</span>
                   </div>
-                  <span>₦{(200 * plates.length).toLocaleString()}</span>
-                </div>
+                )}
 
                 <div className="flex justify-between items-center pt-4 border-t border-border gap-4">
                   <span className="text-2xl font-black">Total Due</span>

@@ -70,7 +70,7 @@ export default function RiderOrderHistory() {
     const sortedKeys = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
 
     const getOrderEarnings = (o: any) => {
-        const platesCount = o.plates?.length || 1;
+        const platesCount = o.type === 'combo' ? (o.quantity || 1) : (o.plates?.length || 1);
         const rate = (o.deliveryMode === 'group' || o.deliveryMode === 'GROUP') ? 250 : 350;
         const earning = platesCount * rate;
         return o.isEmergency ? earning * 1.5 : earning;
@@ -199,7 +199,7 @@ export default function RiderOrderHistory() {
                                                     <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-3 sm:pt-0 mt-2 sm:mt-0">
                                                         <div className="text-left sm:text-right">
                                                             <div className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.hostelName || order.hostel}</div>
-                                                            <div className="text-[10px] text-amber-500 font-bold uppercase">{order.plates?.length || 0} Plates</div>
+                                                            <div className="text-[10px] text-amber-500 font-bold uppercase">{order.type === 'combo' ? `${order.quantity || 1} Combos` : `${order.plates?.length || 0} Plates`}</div>
                                                         </div>
                                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDark ? 'bg-[#222222] text-[#9C8F7F]' : 'bg-gray-100 text-gray-500'}`}>
                                                             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -236,27 +236,41 @@ export default function RiderOrderHistory() {
                                                                     <Package className="w-4 h-4" /> <span className="font-bold uppercase tracking-widest text-[10px]">Order Snapshot</span>
                                                                 </div>
                                                                 <div className="space-y-2">
-                                                                    {order.plates?.map((plate: any, i: number) => (
-                                                                        <div key={i} className={`flex justify-between items-center py-2 border-b last:border-0 ${isDark ? 'border-[#333333]' : 'border-gray-200'}`}>
+                                                                    {order.type === 'combo' ? (
+                                                                        <div className={`flex justify-between items-center py-2 border-b last:border-0 ${isDark ? 'border-[#333333]' : 'border-gray-200'}`}>
                                                                             <div className="flex-1 overflow-hidden">
-                                                                                <span className="text-xs font-black text-purple-600 mr-2">P{i + 1}:</span>
-                                                                                <span className={`text-xs truncate ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
-                                                                                    {plate.items ? plate.items.map((it: any) => `${it.quantity > 1 ? `${it.quantity}x ` : ''}${it.item?.name || it.name}`).join(', ') : 'No items'}
+                                                                                <span className="text-xs font-black text-purple-600 mr-2">{order.comboName} × {order.quantity || 1}:</span>
+                                                                                <span className={`text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
+                                                                                    {order.comboItems ? order.comboItems.map((it: any) => `${it.quantity > 1 ? `${it.quantity}x ` : ''}${it.name}`).join(', ') : 'No items'}
                                                                                 </span>
                                                                             </div>
-                                                                            <span className="text-xs font-bold text-amber-500 ml-2">₦{(plate.total || 0).toLocaleString()}</span>
+                                                                            <span className="text-xs font-bold text-amber-500 ml-2">₦{((order.basePrice || 0) * (order.quantity || 1)).toLocaleString()}</span>
                                                                         </div>
-                                                                    ))}
+                                                                    ) : (
+                                                                        <>
+                                                                            {order.plates?.map((plate: any, i: number) => (
+                                                                                <div key={i} className={`flex justify-between items-center py-2 border-b last:border-0 ${isDark ? 'border-[#333333]' : 'border-gray-200'}`}>
+                                                                                    <div className="flex-1 overflow-hidden">
+                                                                                        <span className="text-xs font-black text-purple-600 mr-2">P{i + 1}:</span>
+                                                                                        <span className={`text-xs truncate ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
+                                                                                            {plate.items ? plate.items.map((it: any) => `${it.quantity > 1 ? `${it.quantity}x ` : ''}${it.item?.name || it.name}`).join(', ') : 'No items'}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    <span className="text-xs font-bold text-amber-500 ml-2">₦{(plate.total || 0).toLocaleString()}</span>
+                                                                                </div>
+                                                                            ))}
 
-                                                                    <div className={`flex justify-between items-center py-2 border-b last:border-0 ${isDark ? 'border-[#333333]' : 'border-gray-200'}`}>
-                                                                        <div className="flex-1 overflow-hidden flex items-center gap-1.5">
-                                                                            <Package className="w-3.5 h-3.5 text-amber-500" />
-                                                                            <span className={`text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
-                                                                                Takeaway Pack × {order.plates?.length || 0}
-                                                                            </span>
-                                                                        </div>
-                                                                        <span className="text-xs font-bold text-amber-500 ml-2">₦{((order.plates?.length || 0) * 200).toLocaleString()}</span>
-                                                                    </div>
+                                                                            <div className={`flex justify-between items-center py-2 border-b last:border-0 ${isDark ? 'border-[#333333]' : 'border-gray-200'}`}>
+                                                                                <div className="flex-1 overflow-hidden flex items-center gap-1.5">
+                                                                                    <Package className="w-3.5 h-3.5 text-amber-500" />
+                                                                                    <span className={`text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
+                                                                                        Takeaway Pack × {order.plates?.length || 0}
+                                                                                    </span>
+                                                                                </div>
+                                                                                <span className="text-xs font-bold text-amber-500 ml-2">₦{((order.plates?.length || 0) * 200).toLocaleString()}</span>
+                                                                            </div>
+                                                                        </>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         </div>

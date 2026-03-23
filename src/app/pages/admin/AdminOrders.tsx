@@ -176,7 +176,15 @@ export default function AdminOrders() {
                     </div>
                     <div class="section">
                         <div class="label">Items</div>
-                        ${order.plates?.map((p: any, i: number) => `
+                        ${order.type === 'combo' ? `
+                            <div class="plate-header">${order.comboName} × ${order.quantity || 1}</div>
+                            ${(order.comboItems || []).map((item: any) => `
+                                <div class="item-row">
+                                    <span>${item.name}</span>
+                                    <span>×${item.quantity}</span>
+                                </div>
+                            `).join('')}
+                        ` : (order.plates?.map((p: any, i: number) => `
                             <div class="plate-header">Plate #${i + 1} — ${p.type || ''}</div>
                             ${p.items?.map((item: any) => `
                                 <div class="item-row">
@@ -184,12 +192,15 @@ export default function AdminOrders() {
                                     <span>×${item.quantity}</span>
                                 </div>
                             `).join('')}
-                        `).join('') || ''}
+                        `).join('') || '')}
+                        
+                        ${order.type !== 'combo' ? `
                         <div class="plate-header">Fees</div>
                         <div class="item-row">
                             <span>Takeaway Pack (₦200/plate)</span>
                             <span>×${order.plates?.length || 0}</span>
                         </div>
+                        ` : ''}
                         ${order.drinksSnacks?.length > 0 ? `
                             <div class="plate-header">Add-ons</div>
                             ${order.drinksSnacks.map((item: any) => `
@@ -337,7 +348,7 @@ export default function AdminOrders() {
                                                                     <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5">Group</Badge>
                                                                 )}
                                                                 <span className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
-                                                                    · {order.plates?.length || 0} plates
+                                                                    · {order.type === 'combo' ? `${order.quantity || 1} combos` : `${order.plates?.length || 0} plates`}
                                                                 </span>
                                                             </div>
                                                         </div>
@@ -456,42 +467,65 @@ export default function AdminOrders() {
                                     <div className={`flex-1 h-px ${isDark ? 'bg-[#333333]' : 'bg-gray-100'}`}></div>
                                 </div>
 
-                                {selectedOrder.plates?.map((plate: any, pidx: number) => (
-                                    <div key={pidx} className={`p-8 rounded-3xl border transition-all ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white shadow-sm'}`}>
+                                {/* Order Items breakdown */}
+                                {selectedOrder.type === 'combo' ? (
+                                    <div className={`p-8 rounded-3xl border transition-all ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white shadow-sm'}`}>
                                         <div className="flex justify-between items-center mb-6">
-                                            <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#7C3AED]">Plate #{pidx + 1} — {plate.type}</h5>
-                                            <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-black'}`}>₦{plate.total?.toLocaleString()}</span>
+                                            <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#7C3AED]">{selectedOrder.comboName} × {selectedOrder.quantity || 1}</h5>
+                                            <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-black'}`}>₦{((selectedOrder.basePrice || 0) * (selectedOrder.quantity || 1)).toLocaleString()}</span>
                                         </div>
                                         <div className="space-y-4">
-                                            {plate.items?.map((item: any, iidx: number) => (
+                                            {selectedOrder.comboItems?.map((item: any, iidx: number) => (
                                                 <div key={iidx} className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10 last:border-0">
                                                     <div>
-                                                        <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{item.item?.name || item.name}</p>
-                                                        {item.options?.length > 0 && (
-                                                            <p className="text-[10px] font-bold text-[#9C8F7F] mt-1">{item.options.join(', ')}</p>
-                                                        )}
+                                                        <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{item.name}</p>
                                                     </div>
                                                     <span className="text-xs font-black px-2 py-1 rounded bg-[#7C3AED]/10 text-[#7C3AED]">×{item.quantity}</span>
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
-                                ))}
+                                ) : (
+                                    <>
+                                        {selectedOrder.plates?.map((plate: any, pidx: number) => (
+                                            <div key={pidx} className={`p-8 rounded-3xl border transition-all ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white shadow-sm'}`}>
+                                                <div className="flex justify-between items-center mb-6">
+                                                    <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#7C3AED]">Plate #{pidx + 1} — {plate.type}</h5>
+                                                    <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-black'}`}>₦{plate.total?.toLocaleString()}</span>
+                                                </div>
+                                                <div className="space-y-4">
+                                                    {plate.items?.map((item: any, iidx: number) => (
+                                                        <div key={iidx} className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10 last:border-0">
+                                                            <div>
+                                                                <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{item.item?.name || item.name}</p>
+                                                                {item.options?.length > 0 && (
+                                                                    <p className="text-[10px] font-bold text-[#9C8F7F] mt-1">{item.options.join(', ')}</p>
+                                                                )}
+                                                            </div>
+                                                            <span className="text-xs font-black px-2 py-1 rounded bg-[#7C3AED]/10 text-[#7C3AED]">×{item.quantity}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
 
-                                <div className={`p-8 rounded-3xl border transition-all ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white shadow-sm'}`}>
-                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-amber-500/10 p-4 rounded-xl border border-amber-500/20 gap-3">
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            <Package className="w-5 h-5 text-amber-500 shrink-0" />
-                                            <div className="min-w-0">
-                                                <h5 className="text-xs font-black uppercase tracking-[0.2em] text-amber-600 truncate">Takeaway Pack Fee</h5>
-                                                <p className={`text-[10px] font-bold mt-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>₦200 per plate</p>
+                                        {/* Takeaway Fee for non-combos */}
+                                        <div className={`p-8 rounded-3xl border transition-all ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white shadow-sm'}`}>
+                                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-amber-500/10 p-4 rounded-xl border border-amber-500/20 gap-3">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <Package className="w-5 h-5 text-amber-500 shrink-0" />
+                                                    <div className="min-w-0">
+                                                        <h5 className="text-xs font-black uppercase tracking-[0.2em] text-amber-600 truncate">Takeaway Pack Fee</h5>
+                                                        <p className={`text-[10px] font-bold mt-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>₦200 per plate</p>
+                                                    </div>
+                                                </div>
+                                                <span className={`text-sm sm:text-base font-black text-amber-600 sm:ml-auto whitespace-nowrap`}>
+                                                    ₦{((selectedOrder.plates?.length || 0) * 200).toLocaleString()}
+                                                </span>
                                             </div>
                                         </div>
-                                        <span className={`text-sm sm:text-base font-black text-amber-600 sm:ml-auto whitespace-nowrap`}>
-                                            ₦{((selectedOrder.plates?.length || 0) * 200).toLocaleString()}
-                                        </span>
-                                    </div>
-                                </div>
+                                    </>
+                                )}
 
                                 {selectedOrder.drinksSnacks?.length > 0 && (
                                     <div className={`p-8 rounded-3xl border ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white'}`}>

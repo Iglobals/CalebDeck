@@ -95,7 +95,7 @@ export default function RiderDashboard() {
   const riderRate = platformSettings?.riderRatePerDelivery || 300;
 
   const getOrderEarnings = (o: any) => {
-    const platesCount = o.plates?.length || 1;
+    const platesCount = o.type === 'combo' ? (o.quantity || 1) : (o.plates?.length || 1);
     const rate = (o.deliveryMode === 'group' || o.deliveryMode === 'GROUP') ? 250 : 350;
     const earning = platesCount * rate;
     return o.isEmergency ? earning * 1.5 : earning;
@@ -244,7 +244,7 @@ export default function RiderDashboard() {
                     <div className={`flex items-center gap-2 text-xs font-medium ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                       <span>{batch.orderCount} Orders</span>
                       <span className={isDark ? 'text-[#333333]' : 'text-gray-200'}>|</span>
-                      <span className="text-amber-500 font-bold">{batch.plateCount} Plates</span>
+                      <span className="text-amber-500 font-bold">{batch.plateCount} Items</span>
                       {orders.some((o: any) => batch.orderIds?.includes(o.id) && (o.deliveryMode === 'group' || o.deliveryMode === 'GROUP')) && (
                         <>
                           <span className={isDark ? 'text-[#333333]' : 'text-gray-200'}>|</span>

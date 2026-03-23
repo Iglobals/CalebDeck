@@ -3,7 +3,7 @@ import { motion, HTMLMotionProps } from 'motion/react';
 
 // Omit conflicting drag events from Framer Motion to allow standard button usage
 export interface ButtonProps extends Omit<HTMLMotionProps<"button">, "onDrag" | "onDragStart" | "onDragEnd" | "ref"> {
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'outline';
   size?: 'sm' | 'md' | 'lg';
   children: React.ReactNode;
 }
@@ -21,7 +21,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
   const variantClasses = {
     primary: 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-98 shadow-sm disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed',
     secondary: 'border-2 border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground active:scale-98 disabled:border-muted disabled:text-muted-foreground disabled:cursor-not-allowed',
-    ghost: 'text-foreground hover:bg-muted active:scale-98 disabled:text-muted-foreground disabled:cursor-not-allowed'
+    ghost: 'text-foreground hover:bg-muted active:scale-98 disabled:text-muted-foreground disabled:cursor-not-allowed',
+    outline: 'border-2 border-border text-foreground hover:border-primary hover:text-primary hover:bg-primary/5 active:scale-98 disabled:border-muted disabled:text-muted-foreground disabled:cursor-not-allowed'
   };
 
   const sizeClasses = {

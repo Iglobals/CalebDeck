@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation, useParams } from 'react-router';
 import { Logo } from '../../components/design-system/Logo';
 import { GlassCard } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
-import { ArrowLeft, Plus, Minus, X, AlertTriangle, Users, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Minus, X, AlertTriangle, Users, ChevronDown, ChevronUp, Trash2, ChefHat } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { ThemeToggle } from '../../components/ThemeToggle';
 import { toast } from 'react-toastify';
@@ -14,10 +14,11 @@ import {
   CollapsibleContent
 } from '../../components/ui/collapsible';
 
-import { MenuItem } from '../../../services/db';
+import { MenuItem, ComboDefinition, subscribeToCombos, seedCombos } from '../../../services/db';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 import { useTheme } from '../../../context/ThemeContext';
+import { seedInitialCombos } from '../../../services/combo-data';
 
 interface PlateItem {
   item: MenuItem;
@@ -98,6 +99,176 @@ export default function PlateBuilder() {
   });
 
   const [openPlates, setOpenPlates] = useState<{ [key: string]: boolean }>({});
+
+  // ─── Combos from Firestore ───
+  const [allCombos, setAllCombos] = useState<ComboDefinition[]>([]);
+  const [combosLoading, setCombosLoading] = useState(true);
+
+  useEffect(() => {
+    const unsub = subscribeToCombos((combos) => {
+      if (combos.length === 0 && combosLoading) {
+        // Auto-seed if empty
+        seedInitialCombos().then((count) => {
+          if (count > 0) console.log(`Seeded ${count} initial combos`);
+        });
+      }
+      setAllCombos(combos);
+      setCombosLoading(false);
+    });
+    return () => unsub();
+  }, []);
+
+  const availableCombos = React.useMemo(() => {
+    return allCombos.filter(c => {
+      if (cafeteriaId === 'new_cafe' && c.cafeteria === 'new') {
+        return c.section === 'all' || c.section === sectionId;
+      }
+      if (cafeteriaId === 'old' && c.cafeteria === 'old') return true;
+      if (c.cafeteria === cafeteriaId) {
+        return c.section === 'all' || c.section === sectionId;
+      }
+      return false;
+    });
+  }, [allCombos, cafeteriaId, sectionId]);
+
+  const [comboQuantities, setComboQuantities] = useState<{ [key: string]: number }>({});
+
+  // ─── Radio selection state for combo option items ───
+  // { [comboId]: { [itemIndex]: selectedOption } }
+  const [comboSelections, setComboSelections] = useState<{ [comboId: string]: { [itemIdx: number]: string } }>({});
+
+  /**
+   * Parse a combo item name for radio options.
+   * Patterns:
+   *   "Rice/Spaghetti/Basmati - 2 Portions" → options: ["Rice", "Spaghetti", "Basmati"], suffix: " - 2 Portions"
+   *   "Rice (Jollof/Fried/Mixed) - 2 Portions" → options: ["Jollof", "Fried", "Mixed"], prefix: "Rice (", suffix: ") - 2 Portions"
+   *   "Swallow (Eba/Semo) - 4 Wraps" → options: ["Eba", "Semo"], prefix: "Swallow (", suffix: ") - 4 Wraps"
+   *   "Middle Fish/Meat" → options: ["Middle Fish", "Meat"], suffix: ""
+   *   "Drink (Fanta/Coke/Pepsi)" → options: ["Fanta", "Coke", "Pepsi"], prefix: "Drink (", suffix: ")"
+   */
+  const parseComboItemOptions = useCallback((name: string): { hasOptions: boolean; options: string[]; resolveSelection: (selected: string) => string; portionText: string } | null => {
+    const extractPortion = (s: string) => {
+      let t = s.trim();
+      if (t.startsWith('-')) t = t.substring(1).trim();
+      return t;
+    };
+
+    // Pattern 1: "Prefix (Option1/Option2/Option3) Suffix" e.g. "Rice (Jollof/Fried/Mixed) - 2 Portions"
+    const parenMatch = name.match(/^(.+?)\(([^)]*\/[^)]*)\)(.*)$/);
+    if (parenMatch) {
+      const prefix = parenMatch[1].trim();
+      const optionsStr = parenMatch[2];
+      const suffix = parenMatch[3].trim();
+      const options = optionsStr.split('/').map(o => o.trim()).filter(Boolean);
+      if (options.length > 1) {
+        return {
+          hasOptions: true,
+          options,
+          portionText: extractPortion(suffix),
+          resolveSelection: (selected: string) => {
+            return suffix ? `${prefix} ${selected} ${suffix}`.trim() : `${prefix} ${selected}`.trim();
+          }
+        };
+      }
+    }
+
+    // Pattern 2: "Option1/Option2 - Suffix" or "Option1/Option2" (no parens), e.g. "Rice/Spaghetti/Basmati - 2 Portions" or "Middle Fish/Meat"
+    if (name.includes('/') && !name.includes('(')) {
+      // Split on " - " to get the suffix
+      const dashIdx = name.indexOf(' - ');
+      const mainPart = dashIdx >= 0 ? name.substring(0, dashIdx) : name;
+      const suffix = dashIdx >= 0 ? name.substring(dashIdx) : '';
+      const options = mainPart.split('/').map(o => o.trim()).filter(Boolean);
+      if (options.length > 1) {
+        return {
+          hasOptions: true,
+          options,
+          portionText: extractPortion(suffix),
+          resolveSelection: (selected: string) => `${selected}${suffix}`
+        };
+      }
+    }
+
+    return null;
+  }, []);
+
+  const setComboOptionSelection = (comboId: string, itemIdx: number, option: string) => {
+    setComboSelections(prev => ({
+      ...prev,
+      [comboId]: { ...(prev[comboId] || {}), [itemIdx]: option }
+    }));
+  };
+
+  /** Check if all required radio options are selected for a combo */
+  const isComboReady = (combo: ComboDefinition): boolean => {
+    return combo.items.every((item, idx) => {
+      const parsed = parseComboItemOptions(item.name);
+      if (!parsed) return true; // No options needed
+      return !!comboSelections[combo.id]?.[idx];
+    });
+  };
+
+  const updateComboQty = (id: string, delta: number) => {
+    setComboQuantities(prev => {
+      const current = prev[id] || 1;
+      const next = Math.max(1, current + delta);
+      return { ...prev, [id]: next };
+    });
+  };
+
+  const handleOrderCombo = (combo: ComboDefinition) => {
+    if (!isComboReady(combo)) {
+      toast.warning('Please select an option for all items before ordering.');
+      return;
+    }
+    const qty = comboQuantities[combo.id] || 1;
+    // Resolve selected options into final item names
+    const resolvedItems = combo.items.map((item, idx) => {
+      const parsed = parseComboItemOptions(item.name);
+      if (parsed && comboSelections[combo.id]?.[idx]) {
+        return { ...item, name: parsed.resolveSelection(comboSelections[combo.id][idx]) };
+      }
+      return item;
+    });
+    const orderData = {
+      type: 'combo',
+      comboId: combo.id,
+      comboName: combo.name,
+      comboItems: resolvedItems,
+      quantity: qty,
+      basePrice: combo.basePrice,
+      cafeteria,
+      cafeteriaId,
+      sectionId,
+      deliveryMode: 'solo',
+    };
+
+    sessionStorage.setItem('cd_comboOrder', JSON.stringify(orderData));
+    navigate('/checkout', { state: { comboOrder: orderData } });
+  };
+
+  // ─── Build Your Plate scroll ───
+  const buildYourPlateRef = useRef<HTMLDivElement>(null);
+  const [showMobileScrollPill, setShowMobileScrollPill] = useState(false);
+
+  const scrollToBuilder = () => {
+    buildYourPlateRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  // Show floating pill on mobile when combo section is visible
+  useEffect(() => {
+    if (availableCombos.length === 0) return;
+    const handleScroll = () => {
+      const builderEl = buildYourPlateRef.current;
+      if (!builderEl) return;
+      const rect = builderEl.getBoundingClientRect();
+      // Show pill when builder section is below viewport
+      setShowMobileScrollPill(rect.top > window.innerHeight);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [availableCombos.length]);
 
   useEffect(() => sessionStorage.setItem('cd_plates', JSON.stringify(plates)), [plates]);
   useEffect(() => sessionStorage.setItem('cd_drinksSnacks', JSON.stringify(drinksSnacks)), [drinksSnacks]);
@@ -295,6 +466,126 @@ export default function PlateBuilder() {
 
       {/* Content */}
       <div className="max-w-[1400px] mx-auto px-6 py-8">
+
+        {/* Quick Combo Packs Section */}
+        {availableCombos.length > 0 && (
+          <div className="mb-12 space-y-6">
+            <div className="flex items-center gap-3">
+              <h2 className="text-3xl font-black text-foreground">Quick Combo Packs ⚡</h2>
+              <Badge variant="green" className="animate-pulse shadow-sm shadow-green-500/20">Fast Checkout</Badge>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {availableCombos.map(combo => {
+                const qty = comboQuantities[combo.id] || 1;
+                const comboReady = isComboReady(combo);
+                return (
+                  <GlassCard key={combo.id} className="overflow-hidden flex flex-col h-full hover:shadow-xl hover:shadow-primary/10 transition-shadow">
+                    <div className="h-48 relative bg-muted/30">
+                      <ImageWithFallback src={combo.image || `/assets/combos/${combo.imageName}.png`} alt={combo.name} className="w-full h-full object-cover" />
+                      <div className="absolute top-3 right-3 bg-background/90 backdrop-blur-md px-3 py-1 pb-1.5 rounded-full font-bold shadow-lg">
+                        ₦{(combo.basePrice * qty).toLocaleString()}
+                      </div>
+                    </div>
+
+                    <div className="p-5 flex-1 flex flex-col">
+                      <h3 className="text-xl font-bold mb-1">{combo.name}</h3>
+                      <p className="text-sm text-secondary font-medium mb-4">{combo.tagline}</p>
+
+                      <div className="flex-1 mb-6">
+                        <ul className="space-y-3">
+                          {combo.items.map((item, i) => {
+                            const parsed = parseComboItemOptions(item.name);
+                            if (parsed) {
+                              // Render radio options
+                              const selectedOption = comboSelections[combo.id]?.[i] || '';
+                              return (
+                                <li key={i} className="text-sm">
+                                  <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
+                                    <div className="text-muted-foreground font-medium flex items-center gap-1 whitespace-nowrap">
+                                      <span className="text-primary">•</span>
+                                      <span>Choose one{parsed.portionText ? ` (${parsed.portionText})` : ''}{item.quantity > 1 ? <span className="text-foreground font-semibold ml-1">(x{item.quantity})</span> : ''}:</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {parsed.options.map(option => (
+                                        <button
+                                          key={option}
+                                          onClick={() => setComboOptionSelection(combo.id, i, option)}
+                                          className={`flex items-center gap-1 px-2.5 py-1 rounded-[8px] text-[11px] font-bold transition-all border ${selectedOption === option
+                                              ? 'border-primary bg-primary/10 text-primary shadow-sm'
+                                              : 'border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:bg-primary/5'
+                                            }`}
+                                        >
+                                          <span className={`w-3 h-3 rounded-full border-[1.5px] flex items-center justify-center flex-shrink-0 transition-all ${selectedOption === option
+                                              ? 'border-primary'
+                                              : 'border-muted-foreground/40'
+                                            }`}>
+                                            {selectedOption === option && (
+                                              <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                                            )}
+                                          </span>
+                                          {option}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </li>
+                              );
+                            }
+                            // Regular item (no options)
+                            return (
+                              <li key={i} className="text-sm text-muted-foreground flex items-start gap-2 leading-tight">
+                                <span className="text-primary mt-0.5">•</span>
+                                {item.name} {item.quantity > 1 ? <span className="text-foreground font-semibold ml-1">(x{item.quantity})</span> : ''}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+
+                      <div className="flex flex-col gap-3 mt-auto pt-4 border-t border-border">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">Quantity</span>
+                          <div className="flex items-center gap-3 bg-muted/50 rounded-xl p-1 border border-border">
+                            <button onClick={() => updateComboQty(combo.id, -1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-background shadow-sm hover:bg-secondary/10 transition-colors">
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <span className="w-4 text-center font-bold px-1">{qty}</span>
+                            <button onClick={() => updateComboQty(combo.id, 1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-background shadow-sm hover:bg-secondary/10 transition-colors">
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 mt-2">
+                          <Button variant="outline" className="w-full flex items-center justify-center gap-1.5" onClick={scrollToBuilder}>
+                            <ChefHat className="w-4 h-4" />
+                            Build Plate
+                          </Button>
+                          <Button
+                            variant="primary"
+                            className={`w-full font-bold transition-all ${!comboReady ? 'opacity-60' : ''}`}
+                            onClick={() => handleOrderCombo(combo)}
+                            disabled={!comboReady}
+                          >
+                            Order Now
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </GlassCard>
+                );
+              })}
+            </div>
+
+            <div ref={buildYourPlateRef} className="flex items-center gap-4 py-8">
+              <div className="h-[2px] flex-1 bg-gradient-to-r from-transparent via-border to-transparent" />
+              <span className="text-muted-foreground font-semibold uppercase tracking-widest text-sm">OR BUILD YOUR OWN</span>
+              <div className="h-[2px] flex-1 bg-gradient-to-r from-transparent via-border to-transparent" />
+            </div>
+          </div>
+        )}
+
         <div className="grid lg:grid-cols-[1fr_400px] gap-8">
           {/* Builder Area - Left */}
           <div className="space-y-6">
@@ -669,58 +960,58 @@ export default function PlateBuilder() {
 
                   {/* Snacks & Pastries — hidden for Old Cafe */}
                   {!isOldCafe && (
-                  <div className="relative">
-                    <h4 className="text-lg font-bold text-card-foreground mb-4">Snacks & Pastries</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pb-2">
-                      {foodItems.filter(f => f.category === 'snack').map(item => (
-                        <GlassCard key={item.id} selected={currentSnacks[item.id] > 0} unavailable={!item.isAvailable}>
-                          <div className="space-y-3">
-                            <div className="aspect-square rounded-xl overflow-hidden">
-                              <ImageWithFallback
-                                src={item.image}
-                                alt={item.name}
-                                className="w-full h-full object-cover"
-                              />
+                    <div className="relative">
+                      <h4 className="text-lg font-bold text-card-foreground mb-4">Snacks & Pastries</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pb-2">
+                        {foodItems.filter(f => f.category === 'snack').map(item => (
+                          <GlassCard key={item.id} selected={currentSnacks[item.id] > 0} unavailable={!item.isAvailable}>
+                            <div className="space-y-3">
+                              <div className="aspect-square rounded-xl overflow-hidden">
+                                <ImageWithFallback
+                                  src={item.image}
+                                  alt={item.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
+                                <p className="text-sm text-muted-foreground mt-1">₦{item.price}/{item.unit}</p>
+                              </div>
+                              <div className="flex items-center justify-between mt-2">
+                                <button
+                                  onClick={() => updateCurrentSnack(item.id, -1)}
+                                  disabled={!currentSnacks[item.id]}
+                                  className="w-8 h-8 rounded-lg bg-muted hover:bg-secondary hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                                >
+                                  <Minus className="w-4 h-4" />
+                                </button>
+                                <span className="font-bold text-lg text-card-foreground">{currentSnacks[item.id] || 0}</span>
+                                <button
+                                  onClick={() => updateCurrentSnack(item.id, 1)}
+                                  className="w-8 h-8 rounded-lg bg-primary hover:bg-primary/80 text-primary-foreground transition-colors flex items-center justify-center"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </button>
+                              </div>
                             </div>
-                            <div>
-                              <h4 className="font-semibold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
-                              <p className="text-sm text-muted-foreground mt-1">₦{item.price}/{item.unit}</p>
-                            </div>
-                            <div className="flex items-center justify-between mt-2">
-                              <button
-                                onClick={() => updateCurrentSnack(item.id, -1)}
-                                disabled={!currentSnacks[item.id]}
-                                className="w-8 h-8 rounded-lg bg-muted hover:bg-secondary hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                              >
-                                <Minus className="w-4 h-4" />
-                              </button>
-                              <span className="font-bold text-lg text-card-foreground">{currentSnacks[item.id] || 0}</span>
-                              <button
-                                onClick={() => updateCurrentSnack(item.id, 1)}
-                                className="w-8 h-8 rounded-lg bg-primary hover:bg-primary/80 text-primary-foreground transition-colors flex items-center justify-center"
-                              >
-                                <Plus className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                        </GlassCard>
-                      ))}
-                    </div>
-                    {/* Sticky Add Snacks Button */}
-                    <div className="sticky bottom-6 pt-4 pb-2 z-20 pointer-events-none">
-                      <div className="pointer-events-auto">
-                        <Button
-                          variant="primary"
-                          size="lg"
-                          disabled={Object.entries(currentSnacks).filter(([id]) => foodItems.find(f => f.id === id)?.category === 'snack').length === 0}
-                          onClick={commitSnacks}
-                          className="w-fit px-8 py-6 text-base sm:text-lg xl:text-xl whitespace-nowrap rounded-2xl shadow-2xl shadow-primary/20 transition-all duration-300 active:scale-95"
-                        >
-                          Add Snacks to Order
-                        </Button>
+                          </GlassCard>
+                        ))}
+                      </div>
+                      {/* Sticky Add Snacks Button */}
+                      <div className="sticky bottom-6 pt-4 pb-2 z-20 pointer-events-none">
+                        <div className="pointer-events-auto">
+                          <Button
+                            variant="primary"
+                            size="lg"
+                            disabled={Object.entries(currentSnacks).filter(([id]) => foodItems.find(f => f.id === id)?.category === 'snack').length === 0}
+                            onClick={commitSnacks}
+                            className="w-fit px-8 py-6 text-base sm:text-lg xl:text-xl whitespace-nowrap rounded-2xl shadow-2xl shadow-primary/20 transition-all duration-300 active:scale-95"
+                          >
+                            Add Snacks to Order
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
                   )}
                 </div>
               )}
@@ -958,6 +1249,25 @@ export default function PlateBuilder() {
           </div>
         </div>
       </div>
+
+      {/* Floating "Build Your Plate" pill for mobile */}
+      {showMobileScrollPill && availableCombos.length > 0 && (
+        <button
+          onClick={scrollToBuilder}
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 lg:hidden flex items-center gap-2 px-6 py-3 rounded-full bg-secondary text-secondary-foreground font-bold text-sm shadow-2xl shadow-secondary/30 transition-all hover:scale-105 active:scale-95 animate-bounce-slow"
+          style={{ animation: 'bounceSubtle 2s infinite' }}
+        >
+          <ChefHat className="w-4 h-4" />
+          Build Your Plate ↓
+        </button>
+      )}
+
+      <style>{`
+        @keyframes bounceSubtle {
+          0%, 100% { transform: translateX(-50%) translateY(0); }
+          50% { transform: translateX(-50%) translateY(-4px); }
+        }
+      `}</style>
     </div>
   );
 }  

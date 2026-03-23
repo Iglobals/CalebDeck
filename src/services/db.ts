@@ -220,7 +220,7 @@ export const dispatchBatch = async (hostelId: string, hostelName: string, rider:
         riderName: rider.name,
         orderIds: orders.map(o => o.id),
         orderCount: orders.length,
-        plateCount: orders.reduce((sum, o) => sum + (o.plates?.length || 0), 0),
+        plateCount: orders.reduce((sum, o) => sum + (o.type === 'combo' ? (o.quantity || 1) : (o.plates?.length || 0)), 0),
         status: 'OUT_FOR_DELIVERY',
         isEmergency,
         createdAt: new Date().toISOString(),
@@ -489,4 +489,75 @@ export const markAllNotificationsAsRead = async (userId: string) => {
     } catch (error) {
         console.error('Error marking all as read:', error);
     }
+};
+
+// ─── Combo Packs Management ───
+export interface ComboItem {
+    name: string;
+    quantity: number;
+}
+
+export interface ComboDefinition {
+    id: string;
+    name: string;
+    tagline: string;
+    cafeteria: 'new' | 'old';
+    section: 'all' | 'front' | 'back' | 'none';
+    items: ComboItem[];
+    basePrice: number;
+    imageName: string;
+    image?: string; // base64 or URL for combo card image
+}
+
+export const subscribeToCombos = (callback: (combos: ComboDefinition[]) => void) => {
+    const q = query(collection(db, 'combo_packs'), orderBy('name', 'asc'));
+    return onSnapshot(q, (snapshot) => {
+        callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ComboDefinition)));
+    });
+};
+
+export const getCombosForCafeteria = async (cafeteriaId: string, sectionId: string): Promise<ComboDefinition[]> => {
+    const snapshot = await getDocs(collection(db, 'combo_packs'));
+    const all = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ComboDefinition));
+    return all.filter(c => {
+        if (cafeteriaId === 'new_cafe' && c.cafeteria === 'new') {
+            return c.section === 'all' || c.section === sectionId;
+        }
+        if (cafeteriaId === 'old' && c.cafeteria === 'old') return true;
+        if (c.cafeteria === cafeteriaId) {
+            return c.section === 'all' || c.section === sectionId;
+        }
+        return false;
+    });
+};
+
+export const addCombo = async (combo: Omit<ComboDefinition, 'id'>) => {
+    const docRef = await addDoc(collection(db, 'combo_packs'), {
+        ...combo,
+        createdAt: serverTimestamp()
+    });
+    return docRef.id;
+};
+
+export const updateCombo = async (id: string, updates: Partial<ComboDefinition>) => {
+    const comboRef = doc(db, 'combo_packs', id);
+    await updateDoc(comboRef, { ...updates, updatedAt: serverTimestamp() });
+};
+
+export const deleteCombo = async (id: string) => {
+    await deleteDoc(doc(db, 'combo_packs', id));
+};
+
+export const seedCombos = async (combos: Omit<ComboDefinition, 'id'>[]) => {
+    const snapshot = await getDocs(collection(db, 'combo_packs'));
+    if (!snapshot.empty) return 0; // Already seeded
+    let count = 0;
+    for (const combo of combos) {
+        await addDoc(collection(db, 'combo_packs'), {
+            ...combo,
+            createdAt: serverTimestamp()
+        });
+        count++;
+    }
+    return count;
 };

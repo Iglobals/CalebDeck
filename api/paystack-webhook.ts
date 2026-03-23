@@ -70,7 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const metadata = paymentData.metadata || {};
         const paidAmount = paymentData.amount / 100;
 
-        const orderDoc = {
+        const orderDoc: any = {
             orderId: metadata.orderId || `CD-WH-${Math.floor(10000 + Math.random() * 90000)}`,
             fullName: metadata.fullName || metadata.studentName || 'Unknown (Webhook)',
             studentName: metadata.fullName || metadata.studentName || '',
@@ -79,8 +79,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             hostelName: metadata.hostelName || '',
             instructions: metadata.instructions || '',
             total: paidAmount,
-            plates: metadata.plates || [],
-            drinksSnacks: metadata.drinksSnacks || [],
             cafeteria: metadata.cafeteria || '',
             cafeteriaId: metadata.cafeteriaId || '',
             sectionId: metadata.sectionId || 'none',
@@ -88,11 +86,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             paymentReference: reference,
             assignedRiderId: null,
             batchId: null,
-            status: 'PAID' as const,
+            status: 'PAID',
             source: 'webhook', // Mark as webhook-created for debugging
             createdAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp()
         };
+
+        if (metadata.type === 'combo') {
+            orderDoc.type = 'combo';
+            orderDoc.comboId = metadata.comboId;
+            orderDoc.comboName = metadata.comboName;
+            orderDoc.comboItems = metadata.comboItems || [];
+            orderDoc.quantity = metadata.quantity || 1;
+            orderDoc.plateCount = metadata.quantity || 1;
+        } else {
+            orderDoc.plates = metadata.plates || [];
+            orderDoc.drinksSnacks = metadata.drinksSnacks || [];
+            orderDoc.plateCount = metadata.plateCount || 1;
+        }
 
         const docRef = await db.collection('orders').add(orderDoc);
         console.log(`[Webhook] Created order ${docRef.id} from ref: ${reference}`);

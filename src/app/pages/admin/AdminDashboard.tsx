@@ -62,7 +62,7 @@ export default function AdminDashboard() {
 
   const totalRevenue = todayPaidOrders.reduce((sum, o) => sum + (o.total || 0), 0);
   const totalDeliveryFees = todayPaidOrders.reduce((sum, o) => {
-    const platesCount = o.plates?.length || 1;
+    const platesCount = o.type === 'combo' ? (o.quantity || 1) : (o.plates?.length || 1);
     const isGroup = o.deliveryMode === 'group' || o.deliveryMode === 'GROUP';
 
     // Revenue collected from user (Delivery Fee only)
@@ -106,7 +106,7 @@ export default function AdminDashboard() {
       outCount: outOrders.length,
       otwCount: otwOrders.length,
       deliveredCount: deliveredOrders.length,
-      totalPlates: pendingOrders.reduce((sum, o) => sum + (o.plates?.length || 0), 0),
+      totalPlates: pendingOrders.reduce((sum, o) => sum + (o.type === 'combo' ? (o.quantity || 1) : (o.plates?.length || 0)), 0),
       defaultRider,
       assistantRider,
       dispatchRider,
@@ -269,7 +269,7 @@ export default function AdminDashboard() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Package className="w-4 h-4" />
-                      <span>{card.totalPlates} plates</span>
+                      <span>{card.totalPlates} items</span>
                     </div>
                   </div>
                 </div>
@@ -353,7 +353,7 @@ export default function AdminDashboard() {
                   <th className={`text-left py-4 px-6 text-xs font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Order ID</th>
                   <th className={`text-left py-4 px-6 text-xs font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Student</th>
                   <th className={`hidden sm:table-cell text-left py-4 px-6 text-xs font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Hostel</th>
-                  <th className={`text-left py-4 px-6 text-xs font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Plates</th>
+                  <th className={`text-left py-4 px-6 text-xs font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Items</th>
                   <th className={`text-left py-4 px-6 text-xs font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Amount</th>
                   <th className={`hidden md:table-cell text-left py-4 px-6 text-xs font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Status</th>
                   <th className={`text-left py-4 px-6 text-xs font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Date & Time</th>
@@ -374,7 +374,7 @@ export default function AdminDashboard() {
                     <td className={`py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName || '—'}</td>
                     <td className={`py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
                       <div className="flex items-center gap-2">
-                        {order.plates?.length || 0}
+                        {order.type === 'combo' ? `${order.quantity || 1} Combos` : (order.plates?.length || 0)}
                         {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
                           <Badge variant="purple" className="text-[10px] uppercase font-black px-2 py-0.5">Group</Badge>
                         )}

@@ -167,21 +167,33 @@ export default function RiderBatchDetails() {
                             <div style="font-weight: 700; color: #666; font-size: 14px; margin-bottom: 15px;">📞 ${order.phone || 'N/A'}</div>
 
                             <div class="label">Order Items</div>
-                            ${order.plates?.map((p: any, i: number) => `
-                                <div class="plate-header">Plate #${i + 1} — ${p.type || ''}</div>
-                                ${p.items?.map((item: any) => `
+                            ${order.type === 'combo' ? (
+                                `<div class="plate-header">${order.comboName} × ${order.quantity || 1}</div>` +
+                                (order.comboItems || []).map((item: any) => `
                                     <div class="item-row">
-                                        <span>${item.item?.name || item.name}</span>
+                                        <span>${item.name}</span>
                                         <span style="font-weight: 900;">×${item.quantity}</span>
                                     </div>
-                                `).join('')}
-                            `).join('') || ''}
+                                `).join('')
+                            ) : (
+                                (order.plates || []).map((p: any, i: number) => `
+                                    <div class="plate-header">Plate #${i + 1} — ${p.type || ''}</div>
+                                    ${(p.items || []).map((item: any) => `
+                                        <div class="item-row">
+                                            <span>${item.item?.name || item.name}</span>
+                                            <span style="font-weight: 900;">×${item.quantity}</span>
+                                        </div>
+                                    `).join('')}
+                                `).join('')
+                            )}
                             
+                            ${order.type !== 'combo' ? `
                             <div class="plate-header">Fees</div>
                             <div class="item-row">
                                 <span>Takeaway Pack</span>
                                 <span style="font-weight: 900;">×${order.plates?.length || 0}</span>
                             </div>
+                            ` : ''}
                             
                             ${order.drinksSnacks?.length > 0 ? `
                                 <div class="plate-header">Add-ons</div>
@@ -316,8 +328,10 @@ export default function RiderBatchDetails() {
                         const isExpanded = expandedOrders.has(order.id);
                         const isOtw = order.status === 'ON_THE_WAY' || order.status === 'OUT_FOR_DELIVERY';
 
-                        const totalOrderPrice = (order.plates?.reduce((acc: number, p: any) => acc + (p.price || 0), 0) || 0)
-                            + (order.drinksSnacks?.reduce((acc: number, d: any) => acc + (d.price || 0), 0) || 0);
+                        const totalOrderPrice = order.type === 'combo' 
+                            ? ((order.basePrice || 0) * (order.quantity || 1)) 
+                            : ((order.plates?.reduce((acc: number, p: any) => acc + (p.price || p.total || 0), 0) || 0)
+                                + (order.drinksSnacks?.reduce((acc: number, d: any) => acc + (d.price || d.total || 0), 0) || 0));
 
                         return (
                             <Card
@@ -356,7 +370,7 @@ export default function RiderBatchDetails() {
                                     </div>
                                     <div className="flex items-center gap-4">
                                         <div className="text-right hidden sm:block">
-                                            <div className="text-[10px] text-amber-500 font-bold uppercase">{order.plates?.length || 0} Plates</div>
+                                            <div className="text-[10px] text-amber-500 font-bold uppercase">{order.type === 'combo' ? `${order.quantity || 1} Combos` : `${order.plates?.length || 0} Plates`}</div>
                                         </div>
                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDark ? 'bg-[#222222] text-[#9C8F7F]' : 'bg-gray-100 text-gray-500'}`}>
                                             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -375,28 +389,42 @@ export default function RiderBatchDetails() {
                                                     <FileText className="w-4 h-4" /> <span className="font-bold uppercase tracking-widest text-[10px]">Order Contents</span>
                                                 </div>
 
-                                                {order.plates?.map((plate: any, i: number) => (
-                                                    <div key={i} className={`rounded-xl p-3 border ${isDark ? 'bg-[#222222]/50 border-[#333333]' : 'bg-gray-50 border-gray-200'}`}>
+                                                {order.type === 'combo' ? (
+                                                    <div className={`rounded-xl p-3 border ${isDark ? 'bg-[#222222]/50 border-[#333333]' : 'bg-gray-50 border-gray-200'}`}>
                                                         <div className="flex justify-between items-start mb-1">
-                                                            <span className="text-xs font-black text-purple-600 uppercase tracking-widest">Plate {i + 1}</span>
-                                                            <span className="text-xs font-bold text-amber-500">₦{(plate.total || plate.price || 0).toLocaleString()}</span>
+                                                            <span className="text-xs font-black text-purple-600 uppercase tracking-widest">{order.comboName} × {order.quantity || 1}</span>
+                                                            <span className="text-xs font-bold text-amber-500">₦{((order.basePrice || 0) * (order.quantity || 1)).toLocaleString()}</span>
                                                         </div>
                                                         <div className={`text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
-                                                            {plate.items ? plate.items.map((item: any) => `${item.quantity > 1 ? `${item.quantity}x ` : ''}${item.item?.name || item.name}`).join(', ') : 'No items'}
+                                                            {order.comboItems?.map((item: any) => `${item.quantity > 1 ? `${item.quantity}x ` : ''}${item.name}`).join(', ') || 'No items'}
                                                         </div>
                                                     </div>
-                                                ))}
+                                                ) : (
+                                                    <>
+                                                        {order.plates?.map((plate: any, i: number) => (
+                                                            <div key={i} className={`rounded-xl p-3 border ${isDark ? 'bg-[#222222]/50 border-[#333333]' : 'bg-gray-50 border-gray-200'}`}>
+                                                                <div className="flex justify-between items-start mb-1">
+                                                                    <span className="text-xs font-black text-purple-600 uppercase tracking-widest">Plate {i + 1}</span>
+                                                                    <span className="text-xs font-bold text-amber-500">₦{(plate.total || plate.price || 0).toLocaleString()}</span>
+                                                                </div>
+                                                                <div className={`text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
+                                                                    {plate.items ? plate.items.map((item: any) => `${item.quantity > 1 ? `${item.quantity}x ` : ''}${item.item?.name || item.name}`).join(', ') : 'No items'}
+                                                                </div>
+                                                            </div>
+                                                        ))}
 
-                                                <div className={`rounded-xl p-3 border ${isDark ? 'bg-amber-500/5 border-amber-500/20' : 'bg-[#FAF9F6] border-gray-200'}`}>
-                                                    <div className="flex justify-between items-start mb-1">
-                                                        <span className="text-xs font-black text-amber-600 uppercase tracking-widest">Fees</span>
-                                                        <span className="text-xs font-bold text-amber-600">₦{((order.plates?.length || 0) * 200).toLocaleString()}</span>
-                                                    </div>
-                                                    <div className={`text-sm font-medium flex items-center gap-1.5 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
-                                                        <Package className="w-3.5 h-3.5 text-amber-500" />
-                                                        Takeaway Pack × {order.plates?.length || 0}
-                                                    </div>
-                                                </div>
+                                                        <div className={`rounded-xl p-3 border ${isDark ? 'bg-amber-500/5 border-amber-500/20' : 'bg-[#FAF9F6] border-gray-200'}`}>
+                                                            <div className="flex justify-between items-start mb-1">
+                                                                <span className="text-xs font-black text-amber-600 uppercase tracking-widest">Fees</span>
+                                                                <span className="text-xs font-bold text-amber-600">₦{((order.plates?.length || 0) * 200).toLocaleString()}</span>
+                                                            </div>
+                                                            <div className={`text-sm font-medium flex items-center gap-1.5 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
+                                                                <Package className="w-3.5 h-3.5 text-amber-500" />
+                                                                Takeaway Pack × {order.plates?.length || 0}
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                )}
 
                                                 {order.drinksSnacks?.length > 0 && (
                                                     <div className={`rounded-xl p-3 border ${isDark ? 'bg-amber-500/5 border-amber-500/20' : 'bg-amber-50 border-amber-200'}`}>
@@ -542,12 +570,19 @@ export default function RiderBatchDetails() {
                                     <div className="text-xs text-gray-500 mt-0.5">{order.phone || 'No Phone'}</div>
                                 </td>
                                 <td>
-                                    {order.plates?.map((p: any, i: number) => (
-                                        <div key={i} className="text-sm mb-1.5 flex items-start gap-2">
-                                            <span className="font-black text-[#7C3AED]">Plate {i + 1}:</span>
-                                            <span>{p.items?.map((item: any) => `${item.quantity > 1 ? `${item.quantity}x ` : ''}${item.item?.name || item.name}`).join(', ') || 'No Items'}</span>
+                                    {order.type === 'combo' ? (
+                                        <div className="text-sm mb-1.5 flex flex-col gap-1">
+                                            <span className="font-black text-[#7C3AED]">{order.comboName} × {order.quantity || 1}</span>
+                                            <span>{order.comboItems?.map((item: any) => `${item.quantity > 1 ? `${item.quantity}x ` : ''}${item.name}`).join(', ') || 'No Items'}</span>
                                         </div>
-                                    ))}
+                                    ) : (
+                                        order.plates?.map((p: any, i: number) => (
+                                            <div key={i} className="text-sm mb-1.5 flex items-start gap-2">
+                                                <span className="font-black text-[#7C3AED]">Plate {i + 1}:</span>
+                                                <span>{p.items?.map((item: any) => `${item.quantity > 1 ? `${item.quantity}x ` : ''}${item.item?.name || item.name}`).join(', ') || 'No Items'}</span>
+                                            </div>
+                                        ))
+                                    )}
                                     {order.drinksSnacks?.length > 0 && (
                                         <div className="text-xs font-bold text-amber-500 mt-1">
                                             + {order.drinksSnacks.map((d: any) => `${d.quantity > 1 ? `${d.quantity}x ` : ''}${d.item?.name || d.name}`).join(', ')}
