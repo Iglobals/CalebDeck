@@ -26,7 +26,15 @@ export default function RiderBatches() {
     }, [user]);
 
     const activeBatches = batches.filter(b => b.status === 'OUT_FOR_DELIVERY');
-    const completedBatches = batches.filter(b => b.status === 'DELIVERED');
+
+    const todayStr = new Date().toLocaleDateString();
+    const completedBatches = batches.filter(b => {
+        if (b.status !== 'DELIVERED') return false;
+        const d = (b.createdAt as any)?.seconds
+            ? new Date((b.createdAt as any).seconds * 1000)
+            : b.createdAt ? new Date(b.createdAt) : null;
+        return d ? d.toLocaleDateString() === todayStr : false;
+    });
 
     if (loading) {
         return (
