@@ -44,22 +44,51 @@ export default function AdminAnalytics() {
         });
     }, [orders, timeRange]);
 
+    const isGroupOrder = (o: any) => o.deliveryMode === 'group' || o.deliveryMode === 'GROUP';
+    const isComboOrder = (o: any) => o.type === 'combo';
+
     const orderTypeBreakdown = useMemo(() => {
-        const solo = filteredOrders.filter(o => o.deliveryMode === 'solo' || !o.deliveryMode).length;
-        const g2 = filteredOrders.filter(o => o.deliveryMode === 'group' && o.groupSize === 2).length;
-        const g4 = filteredOrders.filter(o => o.deliveryMode === 'group' && o.groupSize === 4).length;
-        const g6 = filteredOrders.filter(o => o.deliveryMode === 'group' && o.groupSize === 6).length;
-        const g8 = filteredOrders.filter(o => o.deliveryMode === 'group' && o.groupSize === 8).length;
-        const g10 = filteredOrders.filter(o => o.deliveryMode === 'group' && o.groupSize === 10).length;
+        const combo = filteredOrders.filter(o => isComboOrder(o)).length;
+        const solo = filteredOrders.filter(o => !isComboOrder(o) && !isGroupOrder(o)).length;
+        const group = filteredOrders.filter(o => !isComboOrder(o) && isGroupOrder(o)).length;
 
         return [
-            { name: 'Just Me', value: solo },
-            { name: 'Group of 2', value: g2 },
-            { name: 'Group of 4', value: g4 },
-            { name: 'Group of 6', value: g6 },
-            { name: 'Group of 8', value: g8 },
-            { name: 'Group of 10', value: g10 },
+            { name: 'Solo', value: solo },
+            { name: 'Group', value: group },
+            { name: 'Combo Pack', value: combo },
         ].filter(d => d.value > 0);
+    }, [filteredOrders]);
+
+    // Top ordered menu items (across all plate orders)
+    const topMenuItems = useMemo(() => {
+        const itemCounts: Record<string, number> = {};
+
+        filteredOrders.forEach(o => {
+            if (isComboOrder(o)) {
+                // Count combo items
+                const comboItems = o.comboItems || o.items || [];
+                const qty = o.quantity || 1;
+                comboItems.forEach((ci: any) => {
+                    const name = (ci.name || '').trim();
+                    if (name) itemCounts[name] = (itemCounts[name] || 0) + (ci.quantity || 1) * qty;
+                });
+            } else {
+                // Count plate-builder items
+                const plates = o.plates || [];
+                plates.forEach((plate: any) => {
+                    const items = plate.items || [];
+                    items.forEach((pi: any) => {
+                        const name = (pi.item?.name || pi.name || '').trim();
+                        if (name) itemCounts[name] = (itemCounts[name] || 0) + (pi.quantity || 1);
+                    });
+                });
+            }
+        });
+
+        return Object.entries(itemCounts)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
     }, [filteredOrders]);
 
     const COLORS = ['#7C3AED', '#FCD34D', '#10B981', '#F87171', '#3B82F6', '#F97316'];
@@ -247,7 +276,7 @@ export default function AdminAnalytics() {
             </div>
 
             {/* Bottom stats row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 {/* Avg Order Value */}
                 <Card className={`p-6 border ${cardBg}`}>
                     <div className="flex items-center gap-4">
@@ -279,6 +308,21 @@ export default function AdminAnalytics() {
                     </div>
                 </Card>
 
+                {/* Combo Orders */}
+                <Card className={`p-6 border ${cardBg}`}>
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-[#F97316]/10 flex items-center justify-center">
+                            <ShoppingBag className="w-6 h-6 text-[#F97316]" />
+                        </div>
+                        <div>
+                            <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${mutedText}`}>Combo Orders</p>
+                            <p className={`text-2xl font-black tracking-tight ${headingText}`}>
+                                {filteredOrders.filter(o => isComboOrder(o)).length}
+                            </p>
+                        </div>
+                    </div>
+                </Card>
+
                 {/* Period info */}
                 <Card className={`p-6 border ${cardBg}`}>
                     <div className="flex items-center gap-4">
@@ -293,6 +337,49 @@ export default function AdminAnalytics() {
                     </div>
                 </Card>
             </div>
+
+            {/* Top Menu Items — helps admin craft better combos */}
+            <Card className={`p-6 lg:p-8 border ${cardBg}`}>
+                <div className="mb-6">
+                    <h3 className={`text-lg font-black ${headingText}`}>🔥 Top Menu Items</h3>
+                    <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${mutedText}`}>Most ordered items {timeRangeLabel.toLowerCase()} — use this data to build better combo packs</p>
+                </div>
+                {topMenuItems.length > 0 ? (
+                    <div className="space-y-3">
+                        {topMenuItems.map((item, idx) => {
+                            const maxCount = topMenuItems[0]?.count || 1;
+                            const pct = Math.round((item.count / maxCount) * 100);
+                            return (
+                                <div key={idx} className="flex items-center gap-4">
+                                    <span className={`text-xs font-black w-6 text-center ${idx < 3 ? 'text-[#7C3AED]' : mutedText}`}>
+                                        {idx + 1}
+                                    </span>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <span className={`text-sm font-bold truncate ${headingText}`}>{item.name}</span>
+                                            <span className={`text-xs font-black ml-3 flex-shrink-0 ${mutedText}`}>{item.count}×</span>
+                                        </div>
+                                        <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-[#333333]' : 'bg-gray-100'}`}>
+                                            <div
+                                                className="h-full rounded-full transition-all duration-500"
+                                                style={{
+                                                    width: `${pct}%`,
+                                                    backgroundColor: idx === 0 ? '#7C3AED' : idx === 1 ? '#FCD34D' : idx === 2 ? '#10B981' : isDark ? '#555' : '#D1D5DB'
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <div className={`flex flex-col items-center justify-center py-12 ${mutedText}`}>
+                        <ShoppingBag className="w-10 h-10 mb-3 opacity-20" />
+                        <p className="text-xs font-bold">No item data available {timeRangeLabel.toLowerCase()}</p>
+                    </div>
+                )}
+            </Card>
         </AdminLayout>
     );
 }
