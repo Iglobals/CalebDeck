@@ -4,7 +4,7 @@ import { Card } from '../../components/design-system/Card';
 import { Badge } from '../../components/design-system/Badge';
 import { Button } from '../../components/design-system/Button';
 import { Download, Search, Filter, ChevronDown, Trash2, RotateCcw, AlertTriangle, CheckCircle, Package, Clock } from 'lucide-react';
-import { subscribeToAllOrders, trashOrder, recoverOrder, permanentlyDeleteOrder } from '../../../services/db';
+import { subscribeToOrderHistory, trashOrder, recoverOrder, permanentlyDeleteOrder } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 import { format } from 'date-fns';
 
@@ -20,7 +20,7 @@ export default function AdminOrderHistory() {
     const { adminTheme } = useTheme();
 
     useEffect(() => {
-        const unsub = subscribeToAllOrders(setOrders);
+        const unsub = subscribeToOrderHistory(setOrders);
         return () => unsub();
     }, []);
 

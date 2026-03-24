@@ -1,4 +1,4 @@
-import { collection, getDocs, query, where, doc, setDoc, updateDoc, onSnapshot, orderBy, addDoc, serverTimestamp, deleteDoc, getDoc, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, setDoc, updateDoc, onSnapshot, orderBy, addDoc, serverTimestamp, deleteDoc, getDoc, writeBatch, limit, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 
 // Types
@@ -82,6 +82,24 @@ export const subscribeToAllOrders = (callback: (orders: any[]) => void) => {
         callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
         console.error('subscribeToAllOrders error:', error);
+        callback([]);
+    });
+};
+
+// Orders (Admin - History/Analytics) — scoped to last 30 days with limit
+export const subscribeToOrderHistory = (callback: (orders: any[]) => void) => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const q = query(
+        collection(db, 'orders'),
+        where('createdAt', '>=', Timestamp.fromDate(thirtyDaysAgo)),
+        orderBy('createdAt', 'desc'),
+        limit(200)
+    );
+    return onSnapshot(q, (snapshot) => {
+        callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+        console.error('subscribeToOrderHistory error:', error);
         callback([]);
     });
 };
@@ -455,7 +473,7 @@ export const createNotification = async (data: Omit<Notification, 'id' | 'create
                 tokens = [...new Set(tokens)]; // Deduplicate
                 fetch('/api/send-push', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-Api-Key': import.meta.env.VITE_INTERNAL_API_KEY || '' },
                     body: JSON.stringify({ tokens, title: data.title, body: data.message, link: data.link || '/' })
                 }).catch(err => console.warn('Push API failed (likely missing Vercel environment local)', err));
             }

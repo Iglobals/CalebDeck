@@ -105,8 +105,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.plateCount = metadata.plateCount || 1;
         }
 
-        const docRef = await db.collection('orders').add(orderDoc);
-        console.log(`[Webhook] Created order ${docRef.id} from ref: ${reference}`);
+        const orderRef = db.collection('orders').doc(reference);
+        await orderRef.set(orderDoc);
+        console.log(`[Webhook] Created order ${reference} from ref: ${reference}`);
 
         // 5. Admin notification
         try {
@@ -123,7 +124,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             console.error('[Webhook] Notification error:', err);
         }
 
-        return res.status(200).json({ received: true, created: true, orderId: docRef.id });
+        return res.status(200).json({ received: true, created: true, orderId: reference });
     } catch (error: any) {
         console.error('[Webhook] Error:', error);
         // Return 200 to prevent Paystack retries on our errors

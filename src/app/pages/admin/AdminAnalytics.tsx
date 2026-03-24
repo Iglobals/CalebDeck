@@ -5,7 +5,7 @@ import { Badge } from '../../components/design-system/Badge';
 import {
     PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { subscribeToAllOrders } from '../../../services/db';
+import { subscribeToOrderHistory } from '../../../services/db';
 import { TrendingUp, ShoppingBag, Users, DollarSign, CalendarDays, ChevronDown } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, isWithinInterval } from 'date-fns';
@@ -18,7 +18,7 @@ export default function AdminAnalytics() {
     const { adminTheme } = useTheme();
 
     useEffect(() => {
-        const unsub = subscribeToAllOrders(setOrders);
+        const unsub = subscribeToOrderHistory(setOrders);
         return () => unsub();
     }, []);
 

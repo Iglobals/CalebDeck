@@ -2,7 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import axios from 'axios';
-import { combos } from '../src/services/combo-data';
 
 // Init Firebase Admin
 if (getApps().length === 0) {
@@ -76,13 +75,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const isGroup = orderData?.deliveryMode === 'group' || orderData?.deliveryMode === 'GROUP';
 
         if (isCombo) {
-            const comboDef = combos.find(c => c.id === orderData.comboId);
-            if (!comboDef) {
+            const comboDoc = await db.collection('combo_packs').doc(orderData.comboId).get();
+            if (!comboDoc.exists) {
                  return res.status(400).json({ error: 'Invalid combo selected' });
             }
+            const comboData = comboDoc.data()!;
             const quantity = orderData.quantity || 1;
             const deliveryFee = (isGroup ? 580 : 750) * quantity;
-            serverTotal = (comboDef.basePrice * quantity) + deliveryFee;
+            serverTotal = (comboData.basePrice * quantity) + deliveryFee;
         } else {
             const items = orderData?.items || [];
             let foodTotal = 0;
@@ -155,7 +155,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.plateCount = orderData?.plateCount || 1;
         }
 
-        const docRef = await db.collection('orders').add(orderDoc);
+        const orderRef = db.collection('orders').doc(reference);
+        await orderRef.set(orderDoc);
 
         // 6. Create admin notification (server-side)
         try {
@@ -179,7 +180,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 paystackRef: data.reference,
                 amount: paidAmount,
                 paidAt: data.paid_at,
-                firestoreOrderId: docRef.id,
+                firestoreOrderId: reference,
                 orderId
             }
         });

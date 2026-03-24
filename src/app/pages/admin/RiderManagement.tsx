@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import {
     subscribeToRiders,
-    subscribeToAllOrders,
+    subscribeToOrderHistory,
     subscribeToHostels,
     updateRider,
     deleteRider,
@@ -39,7 +39,7 @@ export default function RiderManagement() {
 
     useEffect(() => {
         const unsubRiders = subscribeToRiders(setRiders);
-        const unsubOrders = subscribeToAllOrders(setOrders);
+        const unsubOrders = subscribeToOrderHistory(setOrders);
         const unsubHostels = subscribeToHostels(setHostels);
         const unsubSettings = subscribeToPlatformSettings(setPlatformSettings);
         return () => { unsubRiders(); unsubOrders(); unsubHostels(); unsubSettings(); };
