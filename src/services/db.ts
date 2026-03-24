@@ -41,6 +41,9 @@ export const subscribeToHostels = (callback: (hostels: Hostel[]) => void) => {
     const q = query(collection(db, 'hostels'), where('isActive', '==', true));
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Hostel)));
+    }, (error) => {
+        console.error('subscribeToHostels error:', error);
+        callback([]);
     });
 };
 
@@ -77,6 +80,9 @@ export const subscribeToAllOrders = (callback: (orders: any[]) => void) => {
     );
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+        console.error('subscribeToAllOrders error:', error);
+        callback([]);
     });
 };
 
@@ -95,6 +101,9 @@ export const subscribeToHostelOrders = (hostelId: string, callback: (orders: any
     );
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+        console.error('subscribeToHostelOrders error:', error);
+        callback([]);
     });
 };
 
@@ -112,6 +121,9 @@ export const subscribeToRiderOrdersByHostels = (hostelIds: string[], callback: (
     );
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+        console.error('subscribeToRiderOrdersByHostels error:', error);
+        callback([]);
     });
 };
 // Create Order
@@ -204,6 +216,9 @@ export const subscribeToBatches = (riderId: string, callback: (batches: Batch[])
     );
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Batch)));
+    }, (error) => {
+        console.error('subscribeToBatches error:', error);
+        callback([]);
     });
 };
 
@@ -283,6 +298,9 @@ export const subscribeToRiders = (callback: (riders: Rider[]) => void) => {
     return onSnapshot(q, (snapshot) => {
         const riders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Rider));
         callback(riders);
+    }, (error) => {
+        console.error('subscribeToRiders error:', error);
+        callback([]);
     });
 };
 
@@ -387,6 +405,9 @@ export const subscribeToPlatformSettings = (callback: (settings: PlatformSetting
         } else {
             callback({ riderRatePerDelivery: 300 });
         }
+    }, (error) => {
+        console.error('subscribeToPlatformSettings error:', error);
+        callback({ riderRatePerDelivery: 300 });
     });
 };
 
@@ -461,6 +482,9 @@ export const subscribeToUserNotifications = (userId: string, callback: (notifs: 
             ...doc.data()
         } as Notification));
         callback(notifs);
+    }, (error) => {
+        console.error('subscribeToUserNotifications error:', error);
+        callback([]);
     });
 };
 
@@ -513,6 +537,9 @@ export const subscribeToCombos = (callback: (combos: ComboDefinition[]) => void)
     const q = query(collection(db, 'combo_packs'), orderBy('name', 'asc'));
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ComboDefinition)));
+    }, (error) => {
+        console.error('subscribeToCombos error:', error);
+        callback([]);
     });
 };
 
