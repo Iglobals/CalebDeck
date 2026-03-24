@@ -2,6 +2,7 @@ import { createBrowserRouter, Outlet } from "react-router";
 import { Suspense, lazy } from 'react';
 import { AdminRoleWrapper, RiderRoleWrapper } from './layouts/RoleWrappers';
 import StudentRoleWrapper from './layouts/StudentRoleWrapper';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // --- Lazy Load Student Pages ---
 const LandingPage = lazy(() => import("./pages/student/LandingPage"));
@@ -35,8 +36,14 @@ const RiderBatchDetails = lazy(() => import("./pages/rider/RiderBatchDetails"));
 const RiderBatches = lazy(() => import("./pages/rider/RiderBatches"));
 
 const SuspenseFallback = () => (
-  <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">
-    <div className="w-8 h-8 rounded-full border-4 border-[#7C3AED]/20 border-t-[#7C3AED] animate-spin" />
+  <div className="min-h-screen bg-[#FAF9F6] dark:bg-[#121212] flex flex-col items-center justify-center gap-5">
+    <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-lg">
+      <img src="/calebdeck-logo.jpeg" alt="CalebDeck" className="w-full h-full object-cover" />
+    </div>
+    <div className="flex flex-col items-center gap-2">
+      <div className="w-8 h-8 rounded-full border-4 border-[#7C3AED]/20 border-t-[#7C3AED] animate-spin" />
+      <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 animate-pulse">Loading CalebDeck...</p>
+    </div>
   </div>
 );
 
@@ -44,9 +51,11 @@ export const router = createBrowserRouter([
   {
     path: "/",
     element: (
-      <Suspense fallback={<SuspenseFallback />}>
-        <Outlet />
-      </Suspense>
+      <ErrorBoundary>
+        <Suspense fallback={<SuspenseFallback />}>
+          <Outlet />
+        </Suspense>
+      </ErrorBoundary>
     ),
     children: [
       /* Student Flow */

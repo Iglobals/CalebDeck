@@ -68,7 +68,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return (
         <AuthContext.Provider value={{ user, loading, logout }}>
-            {!loading && children}
+            {loading ? (
+                <div className="min-h-screen bg-[#FAF9F6] flex flex-col items-center justify-center gap-5">
+                    <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-lg">
+                        <img src="/calebdeck-logo.jpeg" alt="CalebDeck" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                        <div className="w-8 h-8 rounded-full border-4 border-[#7C3AED]/20 border-t-[#7C3AED] animate-spin" />
+                        <p className="text-sm font-semibold text-gray-500 animate-pulse">Loading...</p>
+                    </div>
+                </div>
+            ) : children}
         </AuthContext.Provider>
     );
 };

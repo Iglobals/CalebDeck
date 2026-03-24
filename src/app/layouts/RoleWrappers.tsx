@@ -20,7 +20,12 @@ export function AdminRoleWrapper() {
         }
     }, [user, loading, navigate]);
 
-    if (loading) return null;
+    if (loading) return (
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+            <div className="w-8 h-8 rounded-full border-4 border-[#7C3AED]/20 border-t-[#7C3AED] animate-spin" />
+            <p className="text-sm font-semibold text-gray-500 animate-pulse">Loading...</p>
+        </div>
+    );
     if (!user || user.role !== 'ADMIN') return null;
 
     return <div className="min-h-screen bg-background text-foreground transition-colors duration-300"><Outlet /></div>;
@@ -57,7 +62,12 @@ export function RiderRoleWrapper() {
         return () => unsub();
     }, [user]);
 
-    if (loading) return null;
+    if (loading) return (
+        <div className="min-h-screen bg-[#0F0F0F] flex flex-col items-center justify-center gap-4">
+            <div className="w-8 h-8 rounded-full border-4 border-[#7C3AED]/20 border-t-[#7C3AED] animate-spin" />
+            <p className="text-sm font-semibold text-[#9C8F7F] animate-pulse">Loading...</p>
+        </div>
+    );
     if (!user || user.role !== 'RIDER') return null;
 
     const isDark = riderTheme === 'dark';
