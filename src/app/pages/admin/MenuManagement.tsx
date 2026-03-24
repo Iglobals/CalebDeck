@@ -57,24 +57,6 @@ export default function MenuManagement() {
     const searchRef = useRef<HTMLDivElement>(null);
     const { adminTheme } = useTheme();
     const [activeTab, setActiveTab] = useState<'menu' | 'combos'>('menu');
-    const [isSeeding, setIsSeeding] = useState(false);
-
-    const handleSeedCombos = async () => {
-        try {
-            setIsSeeding(true);
-            const count = await seedInitialCombos();
-            if (count > 0) {
-                showToast(`Seeded ${count} default combos!`);
-            } else {
-                showToast('Combo collection is not empty.');
-            }
-        } catch (error) {
-            console.error(error);
-            showToast('Failed to seed combos. Check console.');
-        } finally {
-            setIsSeeding(false);
-        }
-    };
 
     // ─── Combo State ───
     const [combos, setCombos] = useState<ComboDefinition[]>([]);
@@ -778,20 +760,12 @@ export default function MenuManagement() {
                                 </button>
                             ))}
                         </div>
-                        <div className="flex gap-2">
-                            <Button variant="secondary"
-                                onClick={handleSeedCombos} disabled={isSeeding}
-                                className={`px-4 py-4 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] border-2 transition-all ${isDark ? 'border-[#333333] text-[#9C8F7F] hover:bg-[#333333]' : 'border-gray-200 text-gray-600 hover:bg-gray-100'}`}>
-                                <Database className="w-4 h-4 mr-2" strokeWidth={3} />
-                                {isSeeding ? 'Seeding...' : 'Seed Defaults'}
-                            </Button>
-                            <Button variant="primary"
-                                onClick={() => setIsAddingCombo(true)}
-                                className="px-8 py-4 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] bg-[#7C3AED] hover:bg-[#6D28D9] text-white shadow-xl shadow-[#7C3AED]/20">
-                                <Plus className="w-4 h-4 mr-2" strokeWidth={3} />
-                                Add Combo
-                            </Button>
-                        </div>
+                        <Button variant="primary"
+                            onClick={() => setIsAddingCombo(true)}
+                            className="px-8 py-4 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] bg-[#7C3AED] hover:bg-[#6D28D9] text-white shadow-xl shadow-[#7C3AED]/20">
+                            <Plus className="w-4 h-4 mr-2" strokeWidth={3} />
+                            Add Combo
+                        </Button>
                     </div>
 
                     <p className={`text-xs font-bold mb-4 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>

@@ -77,27 +77,31 @@ export default function Checkout() {
     ];
   }, [plates, drinksSnacks]);
 
-  // Calculate Order Total (Server-Side)
+  // Combo total — computed synchronously, no effect needed
+  const comboTotal = React.useMemo(() => {
+    if (!isCombo) return null;
+    const qty = comboOrder.quantity || 1;
+    const base = comboOrder.basePrice || 0;
+    const dMode = currentDeliveryMode || 'solo';
+    const isGrp = dMode === 'group' || dMode === 'GROUP';
+    const delivery = (isGrp ? DELIVERY_FEE_GROUP : DELIVERY_FEE_SOLO) * qty;
+    return {
+      totalAmount: base * qty + delivery,
+      breakdown: { food: base * qty, delivery, takeaway: 0, discount: 0 }
+    };
+  }, [isCombo, comboOrder?.quantity, comboOrder?.basePrice, currentDeliveryMode]);
+
+  // Calculate Order Total (Server-Side) — only for plate orders
   useEffect(() => {
+    if (isCombo) {
+      setOrderTotal(comboTotal);
+      setCalculating(false);
+      return;
+    }
+
+    if (!plates.length) return;
+
     const fetchTotal = async () => {
-      if (isCombo) {
-        // Combo order calculates total locally, skipping API call
-        const qty = comboOrder.quantity || 1;
-        const base = comboOrder.basePrice || 0;
-        const dMode = currentDeliveryMode || 'solo';
-        const isGrp = dMode === 'group' || dMode === 'GROUP';
-        const delivery = (isGrp ? DELIVERY_FEE_GROUP : DELIVERY_FEE_SOLO) * qty;
-        
-        setOrderTotal({
-          totalAmount: base * qty + delivery,
-          breakdown: { food: base * qty, delivery, takeaway: 0, discount: 0 }
-        });
-        setCalculating(false);
-        return;
-      }
-
-      if (!plates.length) return;
-
       setCalculating(true);
       try {
         const response = await calculateOrderTotal({
@@ -117,7 +121,7 @@ export default function Checkout() {
     };
 
     fetchTotal();
-  }, [plates, drinksSnacks, currentDeliveryMode, formData.hostel, isCombo]);
+  }, [plates, drinksSnacks, currentDeliveryMode, formData.hostel, comboTotal, isCombo]);
 
   const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
   const selectedHostel = hostels.find(h => h.id === formData.hostel);
@@ -278,7 +282,13 @@ export default function Checkout() {
       <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border shadow-sm transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button onClick={() => navigate(-1)} className="p-2 hover:bg-muted rounded-xl transition-colors">
+            <button onClick={() => {
+              if (cafeteriaId) {
+                navigate(`/plate-builder/${cafeteriaId}`, { state: { cafeteria, cafeteriaId, sectionId }, replace: true });
+              } else {
+                navigate('/cafeteria', { replace: true });
+              }
+            }} className="p-2 hover:bg-muted rounded-xl transition-colors">
               <ArrowLeft className="w-6 h-6 text-foreground" />
             </button>
             <h1 className="text-2xl font-bold tracking-tight">Checkout</h1>

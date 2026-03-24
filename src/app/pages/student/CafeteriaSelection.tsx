@@ -23,15 +23,14 @@ export default function CafeteriaSelection() {
       image: '/old-cafe-pic.jpeg',
       prepTime: '12 min',
       status: 'open',
-      popular: true
+      popular: false
     },
     {
       id: 'new',
       name: 'New Cafeteria',
       image: '/new-cafe pic.jpeg',
-      prepTime: '15 min',
       status: 'open',
-      popular: false
+      popular: true
     }
   ];
 

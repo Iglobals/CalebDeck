@@ -18,7 +18,6 @@ import { MenuItem, ComboDefinition, subscribeToCombos, seedCombos } from '../../
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 import { useTheme } from '../../../context/ThemeContext';
-import { seedInitialCombos } from '../../../services/combo-data';
 
 interface PlateItem {
   item: MenuItem;
@@ -106,12 +105,6 @@ export default function PlateBuilder() {
 
   useEffect(() => {
     const unsub = subscribeToCombos((combos) => {
-      if (combos.length === 0 && combosLoading) {
-        // Auto-seed if empty
-        seedInitialCombos().then((count) => {
-          if (count > 0) console.log(`Seeded ${count} initial combos`);
-        });
-      }
       setAllCombos(combos);
       setCombosLoading(false);
     });
@@ -557,11 +550,7 @@ export default function PlateBuilder() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 mt-2">
-                          <Button variant="outline" className="w-full flex items-center justify-center gap-1.5" onClick={scrollToBuilder}>
-                            <ChefHat className="w-4 h-4" />
-                            Build Plate
-                          </Button>
+                        <div className="grid grid-cols-1 gap-3 mt-2">
                           <Button
                             variant="primary"
                             className={`w-full font-bold transition-all ${!comboReady ? 'opacity-60' : ''}`}
