@@ -244,8 +244,7 @@ export default function Checkout() {
   };
 
   const currentHour = new Date().getHours();
-  // Operational hours: 12pm to 11pm (12 to 23) - TEMPORARY FOR TESTING
-  const isClosed = currentHour < 12 || currentHour >= 23;
+  const isClosed = currentHour < 12 || currentHour >= 18;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
