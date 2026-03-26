@@ -244,7 +244,8 @@ export default function Checkout() {
   };
 
   const currentHour = new Date().getHours();
-  const isClosed = currentHour < 12 || currentHour >= 18;
+  // Operational hours: 12pm to 11pm (12 to 23) - TEMPORARY FOR TESTING
+  const isClosed = currentHour < 12 || currentHour >= 23;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -307,7 +308,7 @@ export default function Checkout() {
                 <Lock className="w-8 h-8 flex-shrink-0 text-red-500" />
                 <div>
                   <h4 className="font-black text-lg">Ordering Currently Closed</h4>
-                  <p className="font-medium text-sm">CalebDeck is currently closed. Ordering hours are between 12:00 PM and 6:00 PM.</p>
+                  <p className="font-medium text-sm">CalebDeck is currently closed. Ordering hours are between 12:00 PM and 11:00 PM.</p>
                 </div>
               </div>
             )}
