@@ -175,6 +175,16 @@ export const createOrder = async (orderData: any) => {
 };
 
 
+export const getOrderById = async (id: string): Promise<any> => {
+    const docRef = doc(db, 'orders', id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() };
+    }
+    return null;
+};
+
+
 export const subscribeToRiderOrders = (riderId: string, callback: (orders: any[]) => void) => {
     const q = query(
         collection(db, 'orders'),

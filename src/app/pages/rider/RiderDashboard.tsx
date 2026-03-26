@@ -30,6 +30,7 @@ export default function RiderDashboard() {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [riderStatus, setRiderStatus] = useState<'available' | 'offline'>('offline');
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const isDark = riderTheme === 'dark';
 
@@ -41,11 +42,13 @@ export default function RiderDashboard() {
   useEffect(() => {
     if (!user) return;
     const loadRider = async () => {
+      setLoading(true);
       const riderData = await getRiderById(user.uid);
       if (riderData) {
         setRider(riderData);
         setRiderStatus(riderData.status === 'available' ? 'available' : 'offline');
       }
+      setLoading(false);
     };
     loadRider();
   }, [user]);
@@ -154,7 +157,8 @@ export default function RiderDashboard() {
         {/* Massive Availability Toggle */}
         <button
           onClick={handleStatusToggle}
-          className={`w-full relative overflow-hidden flex items-center justify-between p-6 rounded-3xl border-2 transition-all active:scale-[0.98] ${riderStatus === 'available'
+          disabled={loading}
+          className={`w-full relative overflow-hidden flex items-center justify-between p-6 rounded-3xl border-2 transition-all active:scale-[0.98] ${loading ? 'opacity-50 animate-pulse' : ''} ${riderStatus === 'available'
             ? (isDark ? 'bg-[#7C3AED]/10 border-[#7C3AED]/30 shadow-lg shadow-[#7C3AED]/10' : 'bg-purple-100 border-purple-300 shadow-lg shadow-purple-200')
             : (isDark ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-white border-gray-200 shadow-sm')
             }`}
@@ -171,13 +175,13 @@ export default function RiderDashboard() {
                 ? (isDark ? 'text-[#FAF9F6]' : 'text-gray-900')
                 : (isDark ? 'text-[#9C8F7F]' : 'text-gray-500')
                 }`}>
-                {riderStatus === 'available' ? "You're Online" : "You're Offline"}
+                {loading ? 'Booting...' : (riderStatus === 'available' ? "You're Online" : "You're Offline")}
               </h2>
               <p className={`text-sm font-medium mt-0.5 ${riderStatus === 'available'
                 ? (isDark ? 'text-[#7C3AED]' : 'text-purple-600')
                 : (isDark ? 'text-[#666666]' : 'text-gray-400')
                 }`}>
-                {riderStatus === 'available' ? 'Receiving Dispatches' : 'Tap to Go Online'}
+                {loading ? 'Checking status...' : (riderStatus === 'available' ? 'Receiving Dispatches' : 'Tap to Go Online')}
               </p>
             </div>
           </div>

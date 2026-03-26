@@ -103,7 +103,10 @@ export default function AdminOrders() {
                     return;
                 }
             } else {
-                riderToAssign = riders.find(r => r.assignedHostelIds?.includes(hostel.id) && r.status === 'available');
+                riderToAssign = riders.find(r => 
+                    (r.id === hostel.defaultRiderId || r.id === hostel.assistantRiderId) && 
+                    r.status === 'available'
+                );
             }
 
             if (!riderToAssign) return;
@@ -301,7 +304,10 @@ export default function AdminOrders() {
                                             {paidCount > 0 && (
                                                 <div onClick={e => e.stopPropagation()}>
                                                     {(() => {
-                                                        const onlineDesignated = riders.filter(r => r.assignedHostelIds?.includes(hostel.id) && r.status === 'available');
+                                                        const onlineDesignated = riders.filter(r => 
+                                                            (r.id === hostel.defaultRiderId || r.id === hostel.assistantRiderId) && 
+                                                            r.status === 'available'
+                                                        );
                                                         const isEmergency = onlineDesignated.length === 0;
 
                                                         return (

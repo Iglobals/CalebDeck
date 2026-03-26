@@ -16,20 +16,27 @@ export default function CafeteriaSelection() {
   const navigate = useNavigate();
   const { studentTheme } = useTheme();
 
+  const currentTime = new Date();
+  const hour = currentTime.getHours();
+  // Operational hours: 12pm to 6pm (12 to 18)
+  const isClosed = hour < 12 || hour >= 18;
+  const statusLabel = isClosed ? 'CalebDeck is Closed' : 'Open now';
+  const statusType = isClosed ? 'inactive' : 'active';
+
   const cafeterias = [
     {
       id: 'old',
       name: 'Old Cafeteria',
       image: '/old-cafe-pic.jpeg',
       prepTime: '12 min',
-      status: 'open',
+      status: isClosed ? 'closed' : 'open',
       popular: false
     },
     {
       id: 'new',
       name: 'New Cafeteria',
       image: '/new-cafe pic.jpeg',
-      status: 'open',
+      status: isClosed ? 'closed' : 'open',
       popular: true
     }
   ];
@@ -40,6 +47,12 @@ export default function CafeteriaSelection() {
   ];
 
   const handleCafeteriaClick = (cafeteriaId: string) => {
+    if (isClosed) {
+      toast.info('CalebDeck is currently closed. Operational hours: 12pm - 6pm.', {
+        position: 'top-center'
+      });
+      return;
+    }
     const caf = cafeterias.find(c => c.id === cafeteriaId);
     // Old Cafe has no front/back — go directly to plate builder
     if (cafeteriaId === 'old') {
@@ -134,7 +147,7 @@ export default function CafeteriaSelection() {
                             <h2 className="text-3xl font-bold text-white mb-2">
                               {cafeteria.name}
                             </h2>
-                            <StatusDot status="active" label="Open now" className="text-white drop-shadow-md" />
+                            <StatusDot status={statusType} label={statusLabel} className="text-white drop-shadow-md" />
                           </div>
                         </div>
                       </div>
@@ -144,8 +157,8 @@ export default function CafeteriaSelection() {
                           <Clock className="w-5 h-5 text-secondary" />
                           <span className="font-medium">Est. prep time: {cafeteria.prepTime}</span>
                         </div>
-                        <Button variant="primary" className="px-8">
-                          Select
+                        <Button variant={isClosed ? 'secondary' : 'primary'} className="px-8" disabled={isClosed}>
+                          {isClosed ? 'Closed' : 'Select'}
                         </Button>
                       </div>
                     </div>

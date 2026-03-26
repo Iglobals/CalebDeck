@@ -5,9 +5,9 @@ import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
 import { ProgressStepper } from '../../components/design-system/ProgressStepper';
-import { CheckCircle, MapPin, Clock, Phone, Sparkles } from 'lucide-react';
+import { CheckCircle, MapPin, Clock, Phone, Sparkles, RefreshCw, AlertCircle } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
-import { subscribeToOrderStatus, getRiderById, getHostelById, Rider } from '../../../services/db';
+import { subscribeToOrderStatus, getRiderById, getHostelById, Rider, getOrderById } from '../../../services/db';
 
 const TRACKING_STEPS = ['Received', 'Out for Delivery', 'On The Way', 'Delivered'];
 
@@ -55,6 +55,7 @@ export default function OrderSuccess() {
   const [showTracking, setShowTracking] = useState(false);
   const [rider, setRider] = useState<Rider | null>(null);
   const [orderStatus, setOrderStatus] = useState<string>('PAID');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const enjoyMealRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -70,7 +71,6 @@ export default function OrderSuccess() {
   }, [hostel]);
 
   useEffect(() => {
-    if (!firestoreOrderId) return;
     const unsub = subscribeToOrderStatus(firestoreOrderId, (order) => {
       if (order) {
         setOrderStatus(order.status);
@@ -89,8 +89,40 @@ export default function OrderSuccess() {
         }
       }
     });
-    return unsub;
+
+    // Check for network connectivity
+    const handleOnline = () => {
+        // Force refresh if back online
+        refreshStatus();
+    };
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+        unsub();
+        window.removeEventListener('online', handleOnline);
+    };
   }, [firestoreOrderId]);
+
+  const refreshStatus = async () => {
+    if (!firestoreOrderId || isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+        const orderDataRaw = await getOrderById(firestoreOrderId);
+        const order = orderDataRaw as any;
+        if (order) {
+            setOrderStatus(order.status);
+            setCurrentStep(STATUS_TO_STEP[order.status] ?? 0);
+            if (order.assignedRiderId) {
+                const r = await getRiderById(order.assignedRiderId);
+                if (r) setRider(r);
+            }
+        }
+    } catch (err) {
+        console.error("Manual refresh failed:", err);
+    } finally {
+        setTimeout(() => setIsRefreshing(false), 800);
+    }
+  };
 
   const estimatedTime = 25 - (currentStep * 6);
 
@@ -173,11 +205,24 @@ export default function OrderSuccess() {
                 Track Live Order
               </Button>
 
-              <Link to="/">
-                <Button variant="ghost" size="lg" className="w-full opacity-60 hover:opacity-100">
-                  Return to cafeteria
+              <div className="flex flex-col gap-2">
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={refreshStatus}
+                    disabled={isRefreshing}
+                    className="w-full opacity-60 hover:opacity-100 flex items-center justify-center gap-2"
+                >
+                    <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    {isRefreshing ? 'Syncing...' : 'Sync Status'}
                 </Button>
-              </Link>
+
+                <Link to="/">
+                    <Button variant="ghost" size="sm" className="w-full opacity-40 hover:opacity-100">
+                    Return to home
+                    </Button>
+                </Link>
+              </div>
             </div>
           </div>
         </main>

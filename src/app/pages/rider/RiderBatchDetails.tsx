@@ -77,8 +77,12 @@ export default function RiderBatchDetails() {
             await updateOrder(orderId, { status: 'DELIVERED' });
 
             const updatedBatchOrders = batchOrders.map(o => o.id === orderId ? { ...o, status: 'DELIVERED' } : o);
-            const allDone = updatedBatchOrders.every(o => o.status === 'DELIVERED');
-            if (allDone && batch) {
+            
+            // Very lenient check: if all orders THE RIDER SEES are delivered,
+            // we mark the batch as complete to prevent it getting stuck in Active.
+            const allLocalDelivered = updatedBatchOrders.length > 0 && updatedBatchOrders.every(o => o.status === 'DELIVERED');
+
+            if (allLocalDelivered && batch) {
                 await updateBatch(batch.id, { status: 'DELIVERED' });
             }
         } finally {
@@ -111,6 +115,7 @@ export default function RiderBatchDetails() {
                     await updateOrder(orderId, { status: 'DELIVERED' });
                 }
             }
+            // Explicitly mark batch as delivered
             await updateBatch(batch.id, { status: 'DELIVERED' });
         } finally {
             setLoadingActions(prev => ({ ...prev, batch_delivered: false }));

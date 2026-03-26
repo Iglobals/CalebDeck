@@ -111,15 +111,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // 5. Admin notification
         try {
+            const adminMsg = `${orderDoc.fullName} just ordered from ${orderDoc.hostelName || orderDoc.hostel}`;
             await db.collection('notifications').add({
                 userId: 'admin',
-                title: 'New Order (Webhook)',
-                message: `${orderDoc.fullName} placed an order recovered via webhook`,
+                title: 'New Order',
+                message: adminMsg,
                 type: 'order',
                 link: '/admin/orders',
                 isRead: false,
                 createdAt: FieldValue.serverTimestamp()
             });
+
+            // 6. Trigger Admin Push Notification
+            const adminsSnap = await db.collection('admin_users').get();
+            const adminIds = adminsSnap.docs.map(d => d.id);
+            
+            if (adminIds.length > 0 && process.env.INTERNAL_API_KEY) {
+                const protocol = req.headers['x-forwarded-proto'] || 'https';
+                const host = req.headers.host || 'calebdeck.com'; // fallback
+                const apiUrl = `${protocol}://${host}/api/send-push`;
+                
+                await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Api-Key': process.env.INTERNAL_API_KEY
+                    },
+                    body: JSON.stringify({
+                        title: 'New Order',
+                        body: adminMsg,
+                        userIds: adminIds,
+                        link: '/admin/orders'
+                    })
+                }).catch(err => console.error('[Webhook] API Push error:', err));
+            }
         } catch (err) {
             console.error('[Webhook] Notification error:', err);
         }
