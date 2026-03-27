@@ -34,7 +34,7 @@ export default function Checkout() {
     cafeteriaId = isCombo ? comboOrder.cafeteriaId : 'old',
     sectionId = isCombo ? comboOrder.sectionId : 'none'
   } = locationState;
-  
+
   const currentDeliveryMode = sessionStorage.getItem('cd_deliveryMode') || initialDeliveryMode;
 
   const [hostels, setHostels] = useState<Hostel[]>([]);
@@ -244,8 +244,7 @@ export default function Checkout() {
   };
 
   const currentHour = new Date().getHours();
-  // Operational hours: 12pm to 11pm (12 to 23) - TEMPORARY FOR TESTING
-  const isClosed = currentHour < 12 || currentHour >= 23;
+  const isClosed = currentHour < 12 || currentHour >= 18;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -308,7 +307,7 @@ export default function Checkout() {
                 <Lock className="w-8 h-8 flex-shrink-0 text-red-500" />
                 <div>
                   <h4 className="font-black text-lg">Ordering Currently Closed</h4>
-                  <p className="font-medium text-sm">CalebDeck is currently closed. Ordering hours are between 12:00 PM and 11:00 PM.</p>
+                  <p className="font-medium text-sm">CalebDeck is currently closed. Ordering hours are between 12:00 PM and 6:00 PM.</p>
                 </div>
               </div>
             )}
@@ -403,7 +402,7 @@ export default function Checkout() {
 
               {/* Plates Breakdown */}
               <div className="space-y-6 mb-8 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                
+
                 {isCombo ? (
                   <div className="p-4 rounded-2xl bg-muted/30 border border-border/50 transition-all hover:bg-muted/50">
                     <div className="flex justify-between items-center mb-3">
@@ -415,10 +414,10 @@ export default function Checkout() {
                     <div className="space-y-1">
                       {comboOrder.comboItems.map((item: any, idx: number) => (
                         <div key={idx} className="flex gap-2 text-sm font-medium">
-                           <span className="text-primary mt-0.5">•</span>
-                           <span className="text-muted-foreground flex-1">
-                             {item.name} {item.quantity > 1 ? <span className="text-xs opacity-60 ml-1">×{item.quantity}</span> : ''}
-                           </span>
+                          <span className="text-primary mt-0.5">•</span>
+                          <span className="text-muted-foreground flex-1">
+                            {item.name} {item.quantity > 1 ? <span className="text-xs opacity-60 ml-1">×{item.quantity}</span> : ''}
+                          </span>
                         </div>
                       ))}
                     </div>
