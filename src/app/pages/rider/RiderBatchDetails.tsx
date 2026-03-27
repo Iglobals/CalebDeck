@@ -346,8 +346,12 @@ export default function RiderBatchDetails() {
                         const isExpanded = expandedOrders.has(order.id);
                         const isOtw = order.status === 'ON_THE_WAY' || order.status === 'OUT_FOR_DELIVERY';
 
+                        const comboBasePrice = order.type === 'combo'
+                            ? (order.basePrice || Math.round((order.total || 0) / (order.quantity || 1)))
+                            : 0;
+
                         const totalOrderPrice = order.type === 'combo' 
-                            ? ((order.basePrice || 0) * (order.quantity || 1)) 
+                            ? (comboBasePrice * (order.quantity || 1)) 
                             : ((order.plates?.reduce((acc: number, p: any) => acc + (p.price || p.total || 0), 0) || 0)
                                 + (order.drinksSnacks?.reduce((acc: number, d: any) => acc + (d.price || d.total || 0), 0) || 0));
 
@@ -411,7 +415,7 @@ export default function RiderBatchDetails() {
                                                     <div className={`rounded-xl p-3 border ${isDark ? 'bg-[#222222]/50 border-[#333333]' : 'bg-gray-50 border-gray-200'}`}>
                                                         <div className="flex justify-between items-start mb-1">
                                                             <span className="text-xs font-black text-purple-600 uppercase tracking-widest">{order.comboName} × {order.quantity || 1}</span>
-                                                            <span className="text-xs font-bold text-amber-500">₦{((order.basePrice || 0) * (order.quantity || 1)).toLocaleString()}</span>
+                                                            <span className="text-xs font-bold text-amber-500">₦{(comboBasePrice * (order.quantity || 1)).toLocaleString()}</span>
                                                         </div>
                                                         <div className={`text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
                                                             {order.comboItems?.map((item: any) => `${item.quantity > 1 ? `${item.quantity}x ` : ''}${item.name}`).join(', ') || 'No items'}

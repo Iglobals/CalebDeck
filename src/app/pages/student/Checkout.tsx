@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router';
 import { Logo } from '../../components/design-system/Logo';
 import { Card } from '../../components/design-system/Card';
@@ -41,6 +41,7 @@ export default function Checkout() {
   const [loadingHostels, setLoadingHostels] = useState(true);
   const [calculating, setCalculating] = useState(false);
   const [orderTotal, setOrderTotal] = useState<{ totalAmount: number; breakdown: any } | null>(null);
+  const paymentProcessingRef = useRef(false);
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -93,9 +94,11 @@ export default function Checkout() {
 
   // Calculate Order Total (Server-Side) — only for plate orders
   useEffect(() => {
+    // Don't override calculating state while payment is being processed
+    if (paymentProcessingRef.current) return;
+
     if (isCombo) {
       setOrderTotal(comboTotal);
-      // Only stop calculating if we actually have a total
       if (comboTotal) setCalculating(false);
       return;
     }
@@ -174,6 +177,7 @@ export default function Checkout() {
   const initializePayment = usePaystackPayment(config);
 
   const onSuccess = async (reference: any) => {
+    paymentProcessingRef.current = true;
     setCalculating(true);
 
     const orderData = {
@@ -230,6 +234,7 @@ export default function Checkout() {
       console.error("Verification error:", error);
       toast.error("Payment verification failed. Please contact support.");
     } finally {
+      paymentProcessingRef.current = false;
       setCalculating(false);
     }
   };
@@ -509,7 +514,7 @@ export default function Checkout() {
                 {calculating ? (
                   <>
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    Calculating...
+                    {paymentProcessingRef.current ? 'Processing Order...' : 'Calculating...'}
                   </>
                 ) : (
                   <>

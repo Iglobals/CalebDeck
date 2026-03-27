@@ -3,18 +3,42 @@ import { messaging } from './firebase';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from './firebase';
 
+/**
+ * Explicitly register the Firebase messaging service worker FIRST,
+ * then pass its registration to getToken(). This prevents the
+ * AbortError caused by Firebase trying to auto-register a conflicting SW.
+ */
+const getServiceWorkerRegistration = async (): Promise<ServiceWorkerRegistration | undefined> => {
+    if (!('serviceWorker' in navigator)) return undefined;
+    try {
+        const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+            scope: '/',
+        });
+        // Wait for the SW to be ready
+        await navigator.serviceWorker.ready;
+        return registration;
+    } catch (err) {
+        console.warn('Service worker registration failed:', err);
+        return undefined;
+    }
+};
+
 const acquireFCMToken = async (retries = 2): Promise<string | null> => {
     if (!messaging) return null;
+
+    // Get SW registration first
+    const swRegistration = await getServiceWorkerRegistration();
+
     for (let attempt = 0; attempt < retries; attempt++) {
         try {
             const token = await getToken(messaging, {
-                vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY
+                vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
+                serviceWorkerRegistration: swRegistration,
             });
             if (token) return token;
         } catch (err) {
             console.warn(`FCM token attempt ${attempt + 1} failed:`, err);
             if (attempt < retries - 1) {
-                // Wait before retry — push service may need time to register
                 await new Promise(r => setTimeout(r, 2000));
             }
         }

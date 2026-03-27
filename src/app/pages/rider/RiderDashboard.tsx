@@ -93,8 +93,18 @@ export default function RiderDashboard() {
   const deliveredOrders = todayOrders.filter(o => o.status === 'DELIVERED');
 
   // Filter for active batches assigned to this rider — ONLY today's batches
+  // Also exclude batches where ALL orders are already delivered (stuck batch fix)
   const activeBatches = batches.filter(b => {
     if (b.status !== 'OUT_FOR_DELIVERY') return false;
+    
+    // Check if all orders in this batch are delivered (batch status wasn't updated)
+    if (b.orderIds && b.orderIds.length > 0) {
+      const batchOrdersList = orders.filter(o => b.orderIds.includes(o.id));
+      if (batchOrdersList.length > 0 && batchOrdersList.every(o => o.status === 'DELIVERED')) {
+        return false; // All orders delivered, batch is stuck — hide it
+      }
+    }
+    
     const createdAt = b.createdAt as any;
     let d: Date | null = null;
     if (createdAt != null) {
