@@ -63,6 +63,9 @@ export default function RiderBatchDetails() {
         setLoadingActions(prev => ({ ...prev, [`on_the_way_${orderId}`]: true }));
         try {
             await updateOrder(orderId, { status: 'ON_THE_WAY' });
+        } catch (err: any) {
+            console.error('Failed to mark On The Way:', err);
+            alert('Failed to update order status. Please check your connection and try again.');
         } finally {
             setLoadingActions(prev => ({ ...prev, [`on_the_way_${orderId}`]: false }));
         }
@@ -77,14 +80,19 @@ export default function RiderBatchDetails() {
             await updateOrder(orderId, { status: 'DELIVERED' });
 
             const updatedBatchOrders = batchOrders.map(o => o.id === orderId ? { ...o, status: 'DELIVERED' } : o);
-            
-            // Very lenient check: if all orders THE RIDER SEES are delivered,
-            // we mark the batch as complete to prevent it getting stuck in Active.
             const allLocalDelivered = updatedBatchOrders.length > 0 && updatedBatchOrders.every(o => o.status === 'DELIVERED');
 
             if (allLocalDelivered && batch) {
-                await updateBatch(batch.id, { status: 'DELIVERED' });
+                try {
+                    await updateBatch(batch.id, { status: 'DELIVERED' });
+                } catch (batchErr) {
+                    console.error('Failed to update batch status:', batchErr);
+                    alert('Order marked delivered, but batch status failed to update. Please contact admin.');
+                }
             }
+        } catch (err: any) {
+            console.error('Failed to mark Delivered:', err);
+            alert('Failed to update order. Please check your connection and try again.');
         } finally {
             setLoadingActions(prev => ({ ...prev, [`delivered_${orderId}`]: false }));
         }
@@ -100,6 +108,9 @@ export default function RiderBatchDetails() {
                     await updateOrder(orderId, { status: 'ON_THE_WAY' });
                 }
             }
+        } catch (err: any) {
+            console.error('Failed to mark batch On The Way:', err);
+            alert('Failed to update some orders. Please check your connection and try again.');
         } finally {
             setLoadingActions(prev => ({ ...prev, batch_on_the_way: false }));
         }
@@ -115,8 +126,10 @@ export default function RiderBatchDetails() {
                     await updateOrder(orderId, { status: 'DELIVERED' });
                 }
             }
-            // Explicitly mark batch as delivered
             await updateBatch(batch.id, { status: 'DELIVERED' });
+        } catch (err: any) {
+            console.error('Failed to mark batch Delivered:', err);
+            alert('Failed to complete batch. Please check your connection and try again.');
         } finally {
             setLoadingActions(prev => ({ ...prev, batch_delivered: false }));
         }

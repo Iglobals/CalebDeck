@@ -1,0 +1,116 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helper Functions ───
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN';
+    }
+
+    function isRider() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'RIDER';
+    }
+
+    // ─── Menu Items ───
+    match /menu_items/{itemId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ─── Combo Packs ───
+    match /combo_packs/{comboId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ─── Hostels ───
+    match /hostels/{hostelId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ─── Orders ───
+    // Public read: students track orders by unpredictable document ID
+    // Server creates orders (Firebase Admin SDK bypasses rules)
+    match /orders/{orderId} {
+      allow read: if true;
+
+      allow create: if isAdmin();
+
+      // Admin or assigned rider can update
+      allow update: if isAdmin() ||
+        (isRider() && resource.data.assignedRiderId == request.auth.uid);
+
+      allow delete: if isAdmin();
+    }
+
+    // ─── Batches ───
+    // Riders MUST be able to update their own batches (mark as delivered)
+    match /batches/{batchId} {
+      allow read: if isAdmin() ||
+        (isRider() && resource.data.riderId == request.auth.uid);
+      allow create: if isAdmin();
+      allow update: if isAdmin() ||
+        (isRider() && resource.data.riderId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // ─── Riders ───
+    // Public read: students see assigned rider name/phone on tracking page
+    match /riders/{riderId} {
+      allow read: if true;
+
+      allow update: if isAdmin() ||
+        (isAuthenticated() && request.auth.uid == riderId);
+
+      allow create, delete: if isAdmin();
+    }
+
+    // ─── Users (Auth profiles) ───
+    match /users/{userId} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAdmin() ||
+        (isAuthenticated() && request.auth.uid == userId);
+
+      // Admin reads all users (for FCM tokens, etc.)
+      allow read: if isAdmin();
+
+      allow delete: if isAdmin();
+    }
+
+    // ─── Notifications ───
+    match /notifications/{notifId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (resource.data.userId == 'admin' && isAdmin())
+      );
+
+      allow create: if isAuthenticated();
+
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (resource.data.userId == 'admin' && isAdmin())
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // ─── Settings ───
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ─── Default deny ───
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

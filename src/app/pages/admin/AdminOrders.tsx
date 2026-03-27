@@ -231,6 +231,12 @@ export default function AdminOrders() {
 
     return (
         <AdminLayout title="Today's Orders">
+            {loading ? (
+                <div className="flex flex-col items-center justify-center py-32 gap-4">
+                    <div className={`w-12 h-12 border-4 border-t-transparent rounded-full animate-spin ${isDark ? 'border-[#7C3AED]' : 'border-purple-600'}`}></div>
+                    <p className={`text-sm font-bold uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Loading Orders...</p>
+                </div>
+            ) : (<>
             <div className="space-y-6">
                 {/* Search */}
                 <Card className={`border ${isDark ? 'border-[#333333] bg-[#222222]' : 'border-gray-100 bg-white shadow-sm'}`}>
@@ -575,6 +581,7 @@ export default function AdminOrders() {
                     </Card>
                 </div>
             )}
+            </>)}
         </AdminLayout>
     );
 }

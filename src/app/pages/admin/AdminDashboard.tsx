@@ -27,11 +27,14 @@ export default function AdminDashboard() {
   const [hostels, setHostels] = useState<Hostel[]>([]);
   const [dispatchingHostel, setDispatchingHostel] = useState<string | null>(null);
   const [emergencyCard, setEmergencyCard] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = subscribeToAllOrders(setOrders);
-    const unsubRiders = subscribeToRiders(setRiders);
-    const unsubHostels = subscribeToHostels(setHostels);
+    let loaded = 0;
+    const checkLoaded = () => { loaded++; if (loaded >= 3) setLoading(false); };
+    const unsub = subscribeToAllOrders((data) => { setOrders(data); checkLoaded(); });
+    const unsubRiders = subscribeToRiders((data) => { setRiders(data); checkLoaded(); });
+    const unsubHostels = subscribeToHostels((data) => { setHostels(data); checkLoaded(); });
     return () => { unsub(); unsubRiders(); unsubHostels(); };
   }, []);
 
@@ -175,6 +178,17 @@ export default function AdminDashboard() {
   const StatusDot = ({ status }: { status: string }) => (
     <span className={`inline-block w-2 h-2 rounded-full ${status === 'available' ? 'bg-green-500' : status === 'busy' ? 'bg-yellow-500' : 'bg-gray-400'}`} />
   );
+
+  if (loading) {
+    return (
+      <AdminLayout title="Dashboard">
+        <div className="flex flex-col items-center justify-center py-32 gap-4">
+          <div className={`w-12 h-12 border-4 border-t-transparent rounded-full animate-spin ${isDark ? 'border-[#7C3AED]' : 'border-purple-600'}`}></div>
+          <p className={`text-sm font-bold uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Loading Dashboard...</p>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout title="Dashboard">
