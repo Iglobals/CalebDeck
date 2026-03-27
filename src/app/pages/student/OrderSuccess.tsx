@@ -22,9 +22,12 @@ export default function OrderSuccess() {
   const location = useLocation();
   const { studentTheme } = useTheme();
 
-  const savedOrder = !location.state ? (() => {
-    try { return JSON.parse(localStorage.getItem('calebdeck_last_order') || 'null'); } catch { return null; }
-  })() : null;
+  const savedOrder = (() => {
+    try { 
+      const data = localStorage.getItem('calebdeck_last_order');
+      return data ? JSON.parse(data) : null; 
+    } catch { return null; }
+  })();
 
   const orderData = location.state || savedOrder || {};
 
@@ -71,6 +74,8 @@ export default function OrderSuccess() {
   }, [hostel]);
 
   useEffect(() => {
+    if (!firestoreOrderId) return;
+    
     const unsub = subscribeToOrderStatus(firestoreOrderId, (order) => {
       if (order) {
         setOrderStatus(order.status);

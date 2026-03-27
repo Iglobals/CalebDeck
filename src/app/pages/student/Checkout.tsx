@@ -95,7 +95,8 @@ export default function Checkout() {
   useEffect(() => {
     if (isCombo) {
       setOrderTotal(comboTotal);
-      setCalculating(false);
+      // Only stop calculating if we actually have a total
+      if (comboTotal) setCalculating(false);
       return;
     }
 
@@ -191,7 +192,8 @@ export default function Checkout() {
         comboName: comboOrder.comboName,
         comboItems: comboOrder.comboItems,
         quantity: comboOrder.quantity,
-        plateCount: comboOrder.quantity
+        plateCount: comboOrder.quantity,
+        basePrice: comboOrder.basePrice // Save basePrice so dashboards can display it
       } : {
         items,
         plates,

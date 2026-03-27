@@ -191,7 +191,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
                         <button
                             onClick={async () => {
                                 if (user?.uid) {
-                                    await requestNotificationPermissionAndSaveToken(user.uid, 'users');
+                                    await requestNotificationPermissionAndSaveToken(user.uid, 'admin_users');
                                     setPushPermissionStatus(Notification.permission);
                                 }
                             }}

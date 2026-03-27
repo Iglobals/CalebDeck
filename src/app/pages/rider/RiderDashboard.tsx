@@ -86,20 +86,37 @@ export default function RiderDashboard() {
 
   const todayStr = new Date().toLocaleDateString();
   const todayOrders = orders.filter(o => {
-    const d = o.createdAt?.seconds ? new Date(o.createdAt.seconds * 1000) : o.createdAt ? new Date(o.createdAt) : null;
+    const d = (o.createdAt?.seconds) ? new Date(o.createdAt.seconds * 1000) : o.createdAt ? new Date(o.createdAt) : null;
     return d ? d.toLocaleDateString() === todayStr : false;
   });
 
   const deliveredOrders = todayOrders.filter(o => o.status === 'DELIVERED');
 
-  // Filter for active batches assigned to this rider
-  const activeBatches = batches.filter(b => b.status === 'OUT_FOR_DELIVERY');
+  // Filter for active batches assigned to this rider — ONLY today's batches
+  const activeBatches = batches.filter(b => {
+    if (b.status !== 'OUT_FOR_DELIVERY') return false;
+    const createdAt = b.createdAt as any;
+    let d: Date | null = null;
+    if (createdAt != null) {
+      if (typeof createdAt === 'object' && 'seconds' in createdAt) {
+        d = new Date(createdAt.seconds * 1000);
+      } else {
+        d = new Date(createdAt);
+      }
+    }
+    return d ? d.toLocaleDateString() === todayStr : true; // Fallback to true if no date
+  });
 
   const riderRate = platformSettings?.riderRatePerDelivery || 300;
 
   const getOrderEarnings = (o: any) => {
     const platesCount = o.type === 'combo' ? (o.quantity || 1) : (o.plates?.length || 1);
-    const rate = (o.deliveryMode === 'group' || o.deliveryMode === 'GROUP') ? 250 : 350;
+    
+    // Use platform settings for rate, with group discount logic
+    const baseRate = platformSettings?.riderRatePerDelivery || 350;
+    const isGroup = o.deliveryMode === 'group' || o.deliveryMode === 'GROUP';
+    const rate = isGroup ? Math.max(250, baseRate - 100) : baseRate;
+    
     const earning = platesCount * rate;
     return o.isEmergency ? earning * 1.5 : earning;
   };

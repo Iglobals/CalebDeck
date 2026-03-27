@@ -124,11 +124,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             // 6. Trigger Admin Push Notification
             const adminsSnap = await db.collection('admin_users').get();
-            const adminIds = adminsSnap.docs.map(d => d.id);
+            let allAdminTokens: string[] = [];
             
-            if (adminIds.length > 0 && process.env.INTERNAL_API_KEY) {
+            adminsSnap.docs.forEach(doc => {
+                const data = doc.data();
+                if (data.fcmTokens && Array.isArray(data.fcmTokens)) {
+                    allAdminTokens = [...allAdminTokens, ...data.fcmTokens];
+                }
+            });
+            
+            if (allAdminTokens.length > 0 && process.env.INTERNAL_API_KEY) {
                 const protocol = req.headers['x-forwarded-proto'] || 'https';
-                const host = req.headers.host || 'calebdeck.com'; // fallback
+                const host = req.headers.host || 'calebdeck.com'; 
                 const apiUrl = `${protocol}://${host}/api/send-push`;
                 
                 await fetch(apiUrl, {
@@ -140,7 +147,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     body: JSON.stringify({
                         title: 'New Order',
                         body: adminMsg,
-                        userIds: adminIds,
+                        tokens: allAdminTokens,
                         link: '/admin/orders'
                     })
                 }).catch(err => console.error('[Webhook] API Push error:', err));

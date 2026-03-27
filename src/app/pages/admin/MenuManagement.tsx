@@ -57,6 +57,7 @@ export default function MenuManagement() {
     const searchRef = useRef<HTMLDivElement>(null);
     const { adminTheme } = useTheme();
     const [activeTab, setActiveTab] = useState<'menu' | 'combos'>('menu');
+    const [loading, setLoading] = useState(true);
 
     // ─── Combo State ───
     const [combos, setCombos] = useState<ComboDefinition[]>([]);
@@ -180,9 +181,11 @@ export default function MenuManagement() {
     };
 
     useEffect(() => {
+        setLoading(true);
         const q = query(collection(db, 'menu_items'), orderBy('category', 'asc'));
         const unsub = onSnapshot(q, (snapshot) => {
             setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem)));
+            setLoading(false);
         });
         return () => unsub();
     }, []);
@@ -618,68 +621,74 @@ export default function MenuManagement() {
 
                     {/* Items Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                        {filteredItems.length === 0 && (
+                        {loading ? (
+                            <div className="col-span-full py-20 flex flex-col items-center justify-center gap-4">
+                                <div className={`w-12 h-12 border-4 border-t-transparent rounded-full animate-spin ${isDark ? 'border-[#7C3AED]' : 'border-purple-600'}`}></div>
+                                <p className={`text-sm font-bold uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Loading Menu...</p>
+                            </div>
+                        ) : filteredItems.length === 0 ? (
                             <div className={`col-span-full p-12 text-center rounded-2xl border-2 border-dashed ${isDark ? 'border-[#333333] text-[#9C8F7F]' : 'border-gray-100 text-gray-400'}`}>
                                 <UtensilsCrossed className="w-10 h-10 mx-auto mb-3 opacity-20" />
                                 <p className="font-bold text-sm">No items in {activeCafeteria === 'old' ? 'Old Caf' : `New Caf → ${activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}`}</p>
                                 <p className="text-xs mt-1 opacity-60">Add items with the button above</p>
                             </div>
+                        ) : (
+                            filteredItems.map((item) => (
+                                <Card key={item.id} className={`group relative p-0 overflow-hidden border transition-all hover:shadow-xl ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'}`}>
+                                    <div className="h-44 relative overflow-hidden bg-[#2A2A2A]">
+                                        {item.image ? (
+                                            <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center opacity-10">
+                                                <UtensilsCrossed className="w-12 h-12" />
+                                            </div>
+                                        )}
+                                        {!item.isAvailable && (
+                                            <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2">
+                                                <EyeOff className="w-7 h-7 text-white/80" />
+                                                <span className="text-white/80 text-[10px] font-black uppercase tracking-widest">Unavailable</span>
+                                            </div>
+                                        )}
+                                        <div className="absolute top-3 right-3">
+                                            <Badge variant={item.isAvailable ? 'green' : 'gray'} className="text-[9px] font-black uppercase tracking-widest py-1 px-3 backdrop-blur-md">
+                                                {item.isAvailable ? 'Available' : 'Hidden'}
+                                            </Badge>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-5">
+                                        <div className="mb-4">
+                                            <div className="flex justify-between items-start gap-2 mb-1">
+                                                <h4 className={`font-black text-base tracking-tight leading-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{item.name}</h4>
+                                                <span className="font-black text-[#10B981] text-base whitespace-nowrap">₦{item.price?.toLocaleString()}</span>
+                                            </div>
+                                            <p className={`text-[10px] font-bold uppercase tracking-[0.15em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
+                                                {item.category} · {item.cafeteriaId === 'old' ? 'Old' : 'New'} Caf{item.cafeteriaId !== 'old' ? ` · ${item.sectionId || 'front'}` : ''}
+                                            </p>
+                                        </div>
+
+                                        <div className="flex gap-2 pt-4 border-t border-dashed border-gray-500/10">
+                                            <Button variant="ghost"
+                                                className={`flex-1 flex gap-2 items-center justify-center py-2.5 rounded-xl font-bold uppercase tracking-[0.15em] text-[10px] ${isDark ? 'bg-[#2A2A2A] text-[#FAF9F6] hover:bg-[#333333]' : 'bg-gray-50 hover:bg-gray-100'}`}
+                                                onClick={() => handleToggleAvailability(item)}>
+                                                {item.isAvailable ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                                <span className="hidden sm:inline">{item.isAvailable ? 'Unavailable' : 'Available'}</span>
+                                            </Button>
+                                            <Button variant="ghost"
+                                                className={`px-3 py-2.5 rounded-xl transition-all ${isDark ? 'bg-[#2A2A2A] hover:bg-[#7C3AED]/20 text-[#7C3AED]' : 'bg-gray-50 hover:bg-purple-50 text-[#7C3AED]'}`}
+                                                onClick={() => openEditModal(item)}>
+                                                <Pencil className="w-3.5 h-3.5" />
+                                            </Button>
+                                            <Button variant="ghost"
+                                                className={`px-3 py-2.5 rounded-xl transition-all ${isDark ? 'bg-[#2A2A2A] hover:bg-red-500/20' : 'bg-gray-50 hover:bg-red-50'}`}
+                                                onClick={() => handleDeleteItem(item.id)}>
+                                                <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </Card>
+                            ))
                         )}
-                        {filteredItems.map((item) => (
-                            <Card key={item.id} className={`group relative p-0 overflow-hidden border transition-all hover:shadow-xl ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'}`}>
-                                <div className="h-44 relative overflow-hidden bg-[#2A2A2A]">
-                                    {item.image ? (
-                                        <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500" />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center opacity-10">
-                                            <UtensilsCrossed className="w-12 h-12" />
-                                        </div>
-                                    )}
-                                    {!item.isAvailable && (
-                                        <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2">
-                                            <EyeOff className="w-7 h-7 text-white/80" />
-                                            <span className="text-white/80 text-[10px] font-black uppercase tracking-widest">Unavailable</span>
-                                        </div>
-                                    )}
-                                    <div className="absolute top-3 right-3">
-                                        <Badge variant={item.isAvailable ? 'green' : 'gray'} className="text-[9px] font-black uppercase tracking-widest py-1 px-3 backdrop-blur-md">
-                                            {item.isAvailable ? 'Available' : 'Hidden'}
-                                        </Badge>
-                                    </div>
-                                </div>
-
-                                <div className="p-5">
-                                    <div className="mb-4">
-                                        <div className="flex justify-between items-start gap-2 mb-1">
-                                            <h4 className={`font-black text-base tracking-tight leading-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{item.name}</h4>
-                                            <span className="font-black text-[#10B981] text-base whitespace-nowrap">₦{item.price?.toLocaleString()}</span>
-                                        </div>
-                                        <p className={`text-[10px] font-bold uppercase tracking-[0.15em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
-                                            {item.category} · {item.cafeteriaId === 'old' ? 'Old' : 'New'} Caf{item.cafeteriaId !== 'old' ? ` · ${item.sectionId || 'front'}` : ''}
-                                        </p>
-                                    </div>
-
-                                    <div className="flex gap-2 pt-4 border-t border-dashed border-gray-500/10">
-                                        <Button variant="ghost"
-                                            className={`flex-1 flex gap-2 items-center justify-center py-2.5 rounded-xl font-bold uppercase tracking-[0.15em] text-[9px] ${isDark ? 'bg-[#2A2A2A] text-[#FAF9F6] hover:bg-[#333333]' : 'bg-gray-50 hover:bg-gray-100'}`}
-                                            onClick={() => handleToggleAvailability(item)}>
-                                            {item.isAvailable ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                                            <span className="hidden sm:inline">{item.isAvailable ? 'Unavailable' : 'Available'}</span>
-                                        </Button>
-                                        <Button variant="ghost"
-                                            className={`px-3 py-2.5 rounded-xl transition-all ${isDark ? 'bg-[#2A2A2A] hover:bg-[#7C3AED]/20 text-[#7C3AED]' : 'bg-gray-50 hover:bg-purple-50 text-[#7C3AED]'}`}
-                                            onClick={() => openEditModal(item)}>
-                                            <Pencil className="w-3.5 h-3.5" />
-                                        </Button>
-                                        <Button variant="ghost"
-                                            className={`px-3 py-2.5 rounded-xl transition-all ${isDark ? 'bg-[#2A2A2A] hover:bg-red-500/20' : 'bg-gray-50 hover:bg-red-50'}`}
-                                            onClick={() => handleDeleteItem(item.id)}>
-                                            <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            </Card>
-                        ))}
                     </div>
 
                     {/* Add Item Modal */}

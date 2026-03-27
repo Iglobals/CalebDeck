@@ -484,7 +484,9 @@ export default function AdminOrders() {
                                     <div className={`p-8 rounded-3xl border transition-all ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white shadow-sm'}`}>
                                         <div className="flex justify-between items-center mb-6">
                                             <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#7C3AED]">{selectedOrder.comboName} × {selectedOrder.quantity || 1}</h5>
-                                            <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-black'}`}>₦{((selectedOrder.basePrice || 0) * (selectedOrder.quantity || 1)).toLocaleString()}</span>
+                                            <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-black'}`}>
+                                                ₦{((selectedOrder.basePrice || (selectedOrder.total / (selectedOrder.quantity || 1))) * (selectedOrder.quantity || 1)).toLocaleString()}
+                                            </span>
                                         </div>
                                         <div className="space-y-4">
                                             {selectedOrder.comboItems?.map((item: any, iidx: number) => (

@@ -22,7 +22,7 @@ const acquireFCMToken = async (retries = 2): Promise<string | null> => {
     return null;
 };
 
-export const requestNotificationPermissionAndSaveToken = async (userId: string, targetCollection: 'users' | 'riders') => {
+export const requestNotificationPermissionAndSaveToken = async (userId: string, targetCollection: 'users' | 'riders' | 'admin_users') => {
     if (!messaging) return;
     try {
         const permission = await Notification.requestPermission();
