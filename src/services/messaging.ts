@@ -1,6 +1,6 @@
 import { getToken, onMessage } from 'firebase/messaging';
 import { messaging } from './firebase';
-import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, setDoc, arrayUnion } from 'firebase/firestore';
 import { db } from './firebase';
 
 /**
@@ -14,7 +14,6 @@ const getServiceWorkerRegistration = async (): Promise<ServiceWorkerRegistration
         const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
             scope: '/',
         });
-        // Wait for the SW to be ready
         await navigator.serviceWorker.ready;
         return registration;
     } catch (err) {
@@ -23,49 +22,71 @@ const getServiceWorkerRegistration = async (): Promise<ServiceWorkerRegistration
     }
 };
 
-const acquireFCMToken = async (retries = 2): Promise<string | null> => {
+const acquireFCMToken = async (swRegistration?: ServiceWorkerRegistration, retries = 3): Promise<string | null> => {
     if (!messaging) return null;
-
-    // Get SW registration first
-    const swRegistration = await getServiceWorkerRegistration();
 
     for (let attempt = 0; attempt < retries; attempt++) {
         try {
-            const token = await getToken(messaging, {
+            const tokenOptions: any = {
                 vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
-                serviceWorkerRegistration: swRegistration,
-            });
-            if (token) return token;
+            };
+            if (swRegistration) {
+                tokenOptions.serviceWorkerRegistration = swRegistration;
+            }
+            const token = await getToken(messaging, tokenOptions);
+            if (token) {
+                console.log(`FCM token acquired on attempt ${attempt + 1}`);
+                return token;
+            }
         } catch (err) {
             console.warn(`FCM token attempt ${attempt + 1} failed:`, err);
             if (attempt < retries - 1) {
-                await new Promise(r => setTimeout(r, 2000));
+                await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
             }
         }
     }
     return null;
 };
 
-export const requestNotificationPermissionAndSaveToken = async (userId: string, targetCollection: 'users' | 'riders' | 'admin_users') => {
-    if (!messaging) return;
+/**
+ * Request notification permission and save FCM token to Firestore.
+ * targetCollection: 'users' for admins, 'riders' for riders
+ */
+export const requestNotificationPermissionAndSaveToken = async (userId: string, targetCollection: 'users' | 'riders') => {
+    if (!messaging) {
+        console.warn('Firebase Messaging not available');
+        return;
+    }
     try {
         const permission = await Notification.requestPermission();
-        if (permission === 'granted') {
-            const token = await acquireFCMToken();
-            if (token) {
-                const userRef = doc(db, targetCollection, userId);
-                await updateDoc(userRef, { fcmTokens: arrayUnion(token) }).catch(err => {
-                    console.error('Error saving FCM token to Firestore', err);
-                });
-                console.log('Firebase Cloud Messaging token acquired and saved');
-            } else {
-                console.warn('Could not acquire FCM token after retries. Push notifications may not work. Try clearing site data and refreshing.');
-            }
-        } else {
+        if (permission !== 'granted') {
             console.log('Notification permission not granted.');
+            return;
+        }
+
+        // Step 1: Register the SW
+        const swRegistration = await getServiceWorkerRegistration();
+
+        // Step 2: Get FCM token (separate from Firestore save)
+        const token = await acquireFCMToken(swRegistration);
+
+        if (!token) {
+            console.warn('Could not acquire FCM token after retries. Push notifications may not work.');
+            return;
+        }
+
+        // Step 3: Save token to Firestore — use setDoc with merge so it works
+        // even if the document doesn't exist yet
+        try {
+            const userRef = doc(db, targetCollection, userId);
+            await setDoc(userRef, { fcmTokens: arrayUnion(token) }, { merge: true });
+            console.log(`FCM token saved to ${targetCollection}/${userId}`);
+        } catch (err) {
+            console.error('Error saving FCM token to Firestore:', err);
+            // Token was still acquired — push may work if the backend has old tokens
         }
     } catch (error) {
-        console.error('Failed to get FCM token', error);
+        console.error('Failed to set up push notifications:', error);
     }
 };
 

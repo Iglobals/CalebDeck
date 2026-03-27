@@ -99,6 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.comboItems = metadata.comboItems || [];
             orderDoc.quantity = metadata.quantity || 1;
             orderDoc.plateCount = metadata.quantity || 1;
+            orderDoc.basePrice = metadata.basePrice || 0;
         } else {
             orderDoc.plates = metadata.plates || [];
             orderDoc.drinksSnacks = metadata.drinksSnacks || [];
@@ -123,7 +124,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
 
             // 6. Trigger Admin Push Notification
-            const adminsSnap = await db.collection('admin_users').get();
+            const adminsSnap = await db.collection('users').where('role', '==', 'ADMIN').get();
             let allAdminTokens: string[] = [];
             
             adminsSnap.docs.forEach(doc => {

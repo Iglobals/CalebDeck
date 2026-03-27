@@ -149,6 +149,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.comboItems = orderData.comboItems || []; // Structured items array
             orderDoc.quantity = orderData.quantity || 1;
             orderDoc.plateCount = orderData.quantity || 1; // For generic calculation
+            orderDoc.basePrice = orderData.basePrice || 0; // Persist for dashboard pricing
         } else {
             orderDoc.plates = orderData?.plates || [];
             orderDoc.drinksSnacks = orderData?.drinksSnacks || [];

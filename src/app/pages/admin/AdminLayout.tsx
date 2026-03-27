@@ -47,6 +47,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
     const { user } = useAuth();
     const searchRef = useRef<HTMLDivElement>(null);
 
+    // Listen for foreground push notifications
+    useEffect(() => {
+        const unsub = onForegroundMessage((payload) => {
+            console.log('Admin foreground push received:', payload);
+        });
+        return () => unsub();
+    }, []);
+
     const menuItems = [
         { id: 'dashboard', path: '/admin', icon: <LayoutDashboard className="w-5 h-5" />, label: 'Dashboard' },
         { id: 'orders', path: '/admin/orders', icon: <ShoppingBag className="w-5 h-5" />, label: 'Orders' },
@@ -191,7 +199,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
                         <button
                             onClick={async () => {
                                 if (user?.uid) {
-                                    await requestNotificationPermissionAndSaveToken(user.uid, 'admin_users');
+                                    await requestNotificationPermissionAndSaveToken(user.uid, 'users');
                                     setPushPermissionStatus(Notification.permission);
                                 }
                             }}
