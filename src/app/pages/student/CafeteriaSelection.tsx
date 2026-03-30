@@ -18,8 +18,8 @@ export default function CafeteriaSelection() {
 
   const currentTime = new Date();
   const hour = currentTime.getHours();
-  // Operational hours: 10am to 10pm (10 to 22) — testing; will change to 6pm (18) later
-  const isClosed = hour < 10 || hour >= 22;
+  // Operational hours: 10am to 11pm (10 to 23) — testing; will change to 6pm (18) later
+  const isClosed = hour < 10 || hour >= 23;
   const statusLabel = isClosed ? 'CalebDeck is Closed' : 'Open now';
   const statusType = isClosed ? 'inactive' : 'active';
 
