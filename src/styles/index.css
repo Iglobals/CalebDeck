@@ -7,3 +7,9 @@ body {
     max-width: 100vw;
     overflow-x: clip;
 }
+
+/* Fix for PWA Safe Area / Notch on iOS devices */
+header.sticky.top-0, 
+nav.sticky.top-0 {
+    padding-top: env(safe-area-inset-top, 0px);
+}
