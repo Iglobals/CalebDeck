@@ -35,7 +35,7 @@ export default function LearnMore() {
               <li>Browse participating campus cafeterias and select your desired menu items.</li>
               <li>Use the plate builder to customise portions and add extras.</li>
               <li>Checkout securely using your preferred payment method.</li>
-              <li>Track your order and receive delivery directly to your room.</li>
+              <li>Track your order and receive delivery directly to your hostel.</li>
             </ol>
             <p>
               Our system batches orders regularly to keep meals hot and delivery times

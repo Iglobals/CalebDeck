@@ -38,7 +38,7 @@ export default function LandingPage() {
     },
     {
       icon: <Truck className="w-8 h-8 text-secondary" />,
-      title: 'Delivered to Your Room',
+      title: 'Delivered to Your Hostel',
       description: 'Skip the queue. We deliver directly to your hostel.'
     }
   ];

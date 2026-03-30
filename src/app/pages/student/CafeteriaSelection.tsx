@@ -18,8 +18,8 @@ export default function CafeteriaSelection() {
 
   const currentTime = new Date();
   const hour = currentTime.getHours();
-  // Operational hours: 12pm to 6pm (12 to 18)
-  const isClosed = hour < 12 || hour >= 18;
+  // Operational hours: 10am to 10pm (10 to 22) — testing; will change to 6pm (18) later
+  const isClosed = hour < 10 || hour >= 22;
   const statusLabel = isClosed ? 'CalebDeck is Closed' : 'Open now';
   const statusType = isClosed ? 'inactive' : 'active';
 
@@ -48,7 +48,7 @@ export default function CafeteriaSelection() {
 
   const handleCafeteriaClick = (cafeteriaId: string) => {
     if (isClosed) {
-      toast.info('CalebDeck is currently closed. Operational hours: 12pm - 6pm.', {
+      toast.info('CalebDeck is currently closed. Operational hours: 10am - 6pm.', {
         position: 'top-center'
       });
       return;
@@ -83,7 +83,7 @@ export default function CafeteriaSelection() {
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       <SEO
         title="Cafeterias — CalebDeck Food Delivery"
-        description="Browse all open cafeterias at Caleb University. Order freshly prepared meals directly to your hostel room."
+        description="Browse all open cafeterias at Caleb University. Order freshly prepared meals directly to your hostel."
       />
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-sm transition-colors duration-300">

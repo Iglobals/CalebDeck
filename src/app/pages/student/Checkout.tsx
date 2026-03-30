@@ -251,7 +251,7 @@ export default function Checkout() {
   };
 
   const currentHour = new Date().getHours();
-  const isClosed = currentHour < 12 || currentHour >= 18;
+  const isClosed = currentHour < 10 || currentHour >= 22;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
