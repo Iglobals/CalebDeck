@@ -8,6 +8,8 @@ import { Input, Select, Textarea } from '../../components/design-system/Input';
 import { ArrowLeft, Lock, Shield, CreditCard, MapPin, User, Phone, Package } from 'lucide-react';
 import { getActiveHostels, Hostel } from '../../../services/db';
 import { calculateOrderTotal, verifyPayment } from '../../../services/functions';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../../services/firebase';
 import { usePaystackPayment } from 'react-paystack';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
@@ -206,70 +208,67 @@ export default function Checkout() {
       })
     };
 
-    // Retry logic — payment is confirmed by Paystack, so we just need
-    // to get the order through. Retry up to 2 times on network failure.
-    const MAX_RETRIES = 2;
-    let lastError: any = null;
+    const clearSession = () => {
+      sessionStorage.removeItem('cd_plates');
+      sessionStorage.removeItem('cd_drinksSnacks');
+      sessionStorage.removeItem('cd_deliveryMode');
+      sessionStorage.removeItem('cd_groupSize');
+      sessionStorage.removeItem('cd_comboOrder');
+    };
 
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        const result = await verifyPayment({
-          reference: reference.reference,
-          orderData
-        });
-
-        const serverData = result.data || result;
-
-        sessionStorage.removeItem('cd_plates');
-        sessionStorage.removeItem('cd_drinksSnacks');
-        sessionStorage.removeItem('cd_deliveryMode');
-        sessionStorage.removeItem('cd_groupSize');
-        sessionStorage.removeItem('cd_comboOrder');
-
-        navigate('/order-success', {
-          state: {
-            ...orderData,
-            firestoreOrderId: serverData.firestoreOrderId,
-            orderId: serverData.orderId || orderId,
-            paymentReference: reference.reference,
-            status: 'PAID'
-          }
-        });
-        return; // Success — exit
-      } catch (error) {
-        lastError = error;
-        console.warn(`Verification attempt ${attempt + 1} failed:`, error);
-        if (attempt < MAX_RETRIES) {
-          await new Promise(r => setTimeout(r, 3000)); // Wait 3s before retry
+    const goToSuccess = (firestoreId: string, finalOrderId: string) => {
+      clearSession();
+      navigate('/order-success', {
+        state: {
+          ...orderData,
+          firestoreOrderId: firestoreId,
+          orderId: finalOrderId,
+          paymentReference: reference.reference,
+          status: 'PAID'
         }
+      });
+    };
+
+    // Try verify-payment — if it fails, retry once
+    try {
+      const result = await verifyPayment({ reference: reference.reference, orderData });
+      const serverData = result.data || result;
+      goToSuccess(serverData.firestoreOrderId, serverData.orderId || orderId);
+      return;
+    } catch (firstError) {
+      console.warn('Verification attempt 1 failed:', firstError);
+      // Wait 3s then retry once
+      await new Promise(r => setTimeout(r, 3000));
+      try {
+        const result = await verifyPayment({ reference: reference.reference, orderData });
+        const serverData = result.data || result;
+        goToSuccess(serverData.firestoreOrderId, serverData.orderId || orderId);
+        return;
+      } catch (secondError) {
+        console.warn('Verification attempt 2 failed:', secondError);
       }
     }
 
-    // All retries failed — but payment DID succeed on Paystack's side
-    // The webhook likely already created the order
-    console.error("All verification attempts failed:", lastError);
+    // Both retries failed — check Firestore directly
+    // The webhook may have already created the order
+    try {
+      const orderSnap = await getDoc(doc(db, 'orders', reference.reference));
+      if (orderSnap.exists()) {
+        const existingOrder = orderSnap.data();
+        toast.success('Your payment was successful and your order is confirmed!', { autoClose: 5000 });
+        goToSuccess(orderSnap.id, existingOrder.orderId || orderId);
+        return;
+      }
+    } catch (firestoreErr) {
+      console.warn('Firestore fallback check failed:', firestoreErr);
+    }
+
+    // Absolute last resort — payment succeeded on Paystack but we can't confirm the order
     toast.warning(
-      "Your payment was successful! Your order may take a moment to appear. If it doesn't show up, please contact support with your reference.",
+      'Your payment was successful! Your order may take a moment to appear. If it doesn\'t show up, please contact support.',
       { autoClose: 10000 }
     );
-
-    // Still try to navigate to order-success with what we have
-    sessionStorage.removeItem('cd_plates');
-    sessionStorage.removeItem('cd_drinksSnacks');
-    sessionStorage.removeItem('cd_deliveryMode');
-    sessionStorage.removeItem('cd_groupSize');
-    sessionStorage.removeItem('cd_comboOrder');
-
-    navigate('/order-success', {
-      state: {
-        ...orderData,
-        firestoreOrderId: reference.reference,
-        orderId,
-        paymentReference: reference.reference,
-        status: 'PAID'
-      }
-    });
-
+    goToSuccess(reference.reference, orderId);
     paymentProcessingRef.current = false;
     setCalculating(false);
   };
