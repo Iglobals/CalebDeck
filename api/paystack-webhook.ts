@@ -56,13 +56,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const reference = paymentData.reference;
 
         // 3. Idempotent — check if order already exists
-        const existingSnap = await db.collection('orders')
-            .where('paymentReference', '==', reference)
-            .limit(1)
-            .get();
+        //    If verify-payment already wrote the full order (source='verified'),
+        //    don't overwrite it — verify-payment has the complete plate data.
+        //    If we (webhook) created a skeleton earlier, verify-payment will overwrite us.
+        const orderRef = db.collection('orders').doc(reference);
+        const existingDoc = await orderRef.get();
 
-        if (!existingSnap.empty) {
-            console.log(`[Webhook] Order already exists for ref: ${reference}`);
+        if (existingDoc.exists) {
+            const existingData = existingDoc.data()!;
+            if (existingData.source !== 'webhook') {
+                // verify-payment already wrote the complete order — don't touch it
+                console.log(`[Webhook] Complete order already exists for ref: ${reference}`);
+                return res.status(200).json({ received: true, duplicate: true });
+            }
+            // It's our own webhook skeleton — verify-payment will overwrite later
+            console.log(`[Webhook] Webhook skeleton already exists for ref: ${reference}`);
             return res.status(200).json({ received: true, duplicate: true });
         }
 

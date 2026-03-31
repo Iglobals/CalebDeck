@@ -38,18 +38,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: 'Payment reference is required' });
         }
 
-        // 1. Check for duplicate — idempotent
-        const existingSnap = await db.collection('orders').where('paymentReference', '==', reference).limit(1).get();
-        if (!existingSnap.empty) {
-            const existing = existingSnap.docs[0];
-            return res.status(200).json({
-                data: {
-                    success: true,
-                    message: 'Order already exists',
-                    firestoreOrderId: existing.id,
-                    orderId: existing.data().orderId
-                }
-            });
+        // 1. Check if a COMPLETE order already exists (created by a previous verify-payment call)
+        //    If the order was created by the webhook (source='webhook'), we OVERWRITE it
+        //    because the webhook version lacks plate item details.
+        const orderRef = db.collection('orders').doc(reference);
+        const existingDoc = await orderRef.get();
+
+        if (existingDoc.exists) {
+            const existingData = existingDoc.data()!;
+            // If this order was already fully created by verify-payment (not webhook),
+            // return it immediately — true idempotency
+            if (existingData.source !== 'webhook') {
+                return res.status(200).json({
+                    data: {
+                        success: true,
+                        message: 'Order already exists',
+                        firestoreOrderId: existingDoc.id,
+                        orderId: existingData.orderId
+                    }
+                });
+            }
+            // Otherwise, fall through to overwrite the webhook skeleton with full data
+            console.log(`[verify-payment] Overwriting webhook skeleton for ref: ${reference}`);
         }
 
         // 2. Verify with Paystack
@@ -118,7 +128,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             // Log but don't block — use Paystack's verified amount as the source of truth
         }
 
-        // 5. Create order in Firestore (server-side)
+        // 5. Create/overwrite order in Firestore (server-side)
+        //    ALWAYS write the full order — this overwrites any webhook skeleton
         const orderId = orderData?.orderId || `CD-${Math.floor(10000 + Math.random() * 90000)}`;
 
         const orderDoc: any = {
@@ -138,6 +149,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             assignedRiderId: null,
             batchId: null,
             status: 'PAID',
+            source: 'verified', // Mark as fully verified — webhook won't overwrite this
             createdAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp()
         };
@@ -151,27 +163,66 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.plateCount = orderData.quantity || 1; // For generic calculation
             orderDoc.basePrice = orderData.basePrice || 0; // Persist for dashboard pricing
         } else {
+            orderDoc.type = 'plate';
             orderDoc.plates = orderData?.plates || [];
             orderDoc.drinksSnacks = orderData?.drinksSnacks || [];
             orderDoc.plateCount = orderData?.plateCount || 1;
         }
 
-        const orderRef = db.collection('orders').doc(reference);
         await orderRef.set(orderDoc);
 
-        // 6. Create admin notification (server-side)
-        try {
-            await db.collection('notifications').add({
-                userId: 'admin',
-                title: 'New Order Received',
-                message: `${orderDoc.fullName || 'A student'} just ordered from ${orderDoc.hostelName || orderDoc.hostel}`,
-                type: 'order',
-                link: '/admin/orders',
-                isRead: false,
-                createdAt: FieldValue.serverTimestamp()
-            });
-        } catch (notifErr) {
-            console.error('Failed to create admin notification:', notifErr);
+        // 6. Create admin notification (only if it's a fresh order, not an overwrite)
+        if (!existingDoc.exists) {
+            try {
+                await db.collection('notifications').add({
+                    userId: 'admin',
+                    title: 'New Order Received',
+                    message: `${orderDoc.fullName || 'A student'} just ordered from ${orderDoc.hostelName || orderDoc.hostel}`,
+                    type: 'order',
+                    link: '/admin/orders',
+                    isRead: false,
+                    createdAt: FieldValue.serverTimestamp()
+                });
+            } catch (notifErr) {
+                console.error('Failed to create admin notification:', notifErr);
+            }
+        }
+
+        // 7. Trigger Admin Push Notification (only for fresh orders)
+        if (!existingDoc.exists) {
+            try {
+                const adminsSnap = await db.collection('users').where('role', '==', 'ADMIN').get();
+                let allAdminTokens: string[] = [];
+                adminsSnap.docs.forEach(doc => {
+                    const d = doc.data();
+                    if (d.fcmTokens && Array.isArray(d.fcmTokens)) {
+                        allAdminTokens = [...allAdminTokens, ...d.fcmTokens];
+                    }
+                });
+
+                if (allAdminTokens.length > 0 && process.env.INTERNAL_API_KEY) {
+                    const protocol = req.headers['x-forwarded-proto'] || 'https';
+                    const host = req.headers.host || 'calebdeck.com';
+                    const apiUrl = `${protocol}://${host}/api/send-push`;
+                    const adminMsg = `${orderDoc.fullName || 'A student'} just ordered from ${orderDoc.hostelName || orderDoc.hostel}`;
+
+                    await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Api-Key': process.env.INTERNAL_API_KEY
+                        },
+                        body: JSON.stringify({
+                            title: 'New Order',
+                            body: adminMsg,
+                            tokens: allAdminTokens,
+                            link: '/admin/orders'
+                        })
+                    }).catch(err => console.error('[verify-payment] Push error:', err));
+                }
+            } catch (pushErr) {
+                console.error('[verify-payment] Push notification error:', pushErr);
+            }
         }
 
         return res.status(200).json({

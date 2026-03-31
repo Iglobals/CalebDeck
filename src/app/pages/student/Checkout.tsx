@@ -197,7 +197,7 @@ export default function Checkout() {
         comboItems: comboOrder.comboItems,
         quantity: comboOrder.quantity,
         plateCount: comboOrder.quantity,
-        basePrice: comboOrder.basePrice // Save basePrice so dashboards can display it
+        basePrice: comboOrder.basePrice
       } : {
         items,
         plates,
@@ -206,37 +206,72 @@ export default function Checkout() {
       })
     };
 
-    try {
-      // Server creates the order after verifying payment
-      const result = await verifyPayment({
-        reference: reference.reference,
-        orderData
-      });
+    // Retry logic — payment is confirmed by Paystack, so we just need
+    // to get the order through. Retry up to 2 times on network failure.
+    const MAX_RETRIES = 2;
+    let lastError: any = null;
 
-      const serverData = result.data || result;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const result = await verifyPayment({
+          reference: reference.reference,
+          orderData
+        });
 
-      sessionStorage.removeItem('cd_plates');
-      sessionStorage.removeItem('cd_drinksSnacks');
-      sessionStorage.removeItem('cd_deliveryMode');
-      sessionStorage.removeItem('cd_groupSize');
-      sessionStorage.removeItem('cd_comboOrder');
+        const serverData = result.data || result;
 
-      navigate('/order-success', {
-        state: {
-          ...orderData,
-          firestoreOrderId: serverData.firestoreOrderId,
-          orderId: serverData.orderId || orderId,
-          paymentReference: reference.reference,
-          status: 'PAID'
+        sessionStorage.removeItem('cd_plates');
+        sessionStorage.removeItem('cd_drinksSnacks');
+        sessionStorage.removeItem('cd_deliveryMode');
+        sessionStorage.removeItem('cd_groupSize');
+        sessionStorage.removeItem('cd_comboOrder');
+
+        navigate('/order-success', {
+          state: {
+            ...orderData,
+            firestoreOrderId: serverData.firestoreOrderId,
+            orderId: serverData.orderId || orderId,
+            paymentReference: reference.reference,
+            status: 'PAID'
+          }
+        });
+        return; // Success — exit
+      } catch (error) {
+        lastError = error;
+        console.warn(`Verification attempt ${attempt + 1} failed:`, error);
+        if (attempt < MAX_RETRIES) {
+          await new Promise(r => setTimeout(r, 3000)); // Wait 3s before retry
         }
-      });
-    } catch (error) {
-      console.error("Verification error:", error);
-      toast.error("Payment verification failed. Please contact support.");
-    } finally {
-      paymentProcessingRef.current = false;
-      setCalculating(false);
+      }
     }
+
+    // All retries failed — but payment DID succeed on Paystack's side
+    // The webhook likely already created the order
+    console.error("All verification attempts failed:", lastError);
+    toast.warning(
+      "Your payment was successful! Your order may take a moment to appear. If it doesn't show up, please contact support with your reference.",
+      { autoClose: 10000 }
+    );
+
+    // Still try to navigate to order-success with what we have
+    sessionStorage.removeItem('cd_plates');
+    sessionStorage.removeItem('cd_drinksSnacks');
+    sessionStorage.removeItem('cd_deliveryMode');
+    sessionStorage.removeItem('cd_groupSize');
+    sessionStorage.removeItem('cd_comboOrder');
+
+    navigate('/order-success', {
+      state: {
+        ...orderData,
+        firestoreOrderId: reference.reference,
+        orderId,
+        paymentReference: reference.reference,
+        status: 'PAID'
+      }
+    });
+
+    paymentProcessingRef.current = false;
+    setCalculating(false);
   };
 
   const onClose = () => {
@@ -253,13 +288,17 @@ export default function Checkout() {
   const currentHour = new Date().getHours();
   const isClosed = currentHour < 10 || currentHour >= 18;
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!orderTotal || isClosed) return;
-    initializePayment({ onSuccess: onSuccess as any, onClose: onClose });
+    if (!orderTotal || isClosed || isSubmitting) return;
+    setIsSubmitting(true);
+    initializePayment({ onSuccess: onSuccess as any, onClose: () => { onClose(); setIsSubmitting(false); } });
   };
 
-  const canSubmit = formData.fullName && formData.phone && formData.hostel && orderTotal && !calculating && !isClosed;
+  const canSubmit = formData.fullName && formData.phone && formData.hostel && orderTotal && !calculating && !isClosed && !isSubmitting;
+
 
   const hostelOptions = [
     { value: '', label: 'Select your hostel' },
