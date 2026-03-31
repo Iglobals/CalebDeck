@@ -38,6 +38,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: 'Payment reference is required' });
         }
 
+        // Server-side operating hours check (10am–6pm WAT = UTC+1)
+        const now = new Date();
+        const watHour = (now.getUTCHours() + 1) % 24;
+        if (watHour < 10 || watHour >= 18) {
+            console.warn(`[verify-payment] Order attempt outside hours: ${watHour}:00 WAT, ref=${reference}`);
+            // Don't block — log and proceed. The payment already went through on Paystack.
+            // Blocking here would leave the user with a paid but unprocessed order.
+        }
+
         // 1. Check if a COMPLETE order already exists (created by a previous verify-payment call)
         //    If the order was created by the webhook (source='webhook'), we OVERWRITE it
         //    because the webhook version lacks plate item details.
