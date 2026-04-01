@@ -20,6 +20,7 @@ import {
 } from '../../../services/db';
 import { NotificationPanel } from '../../components/NotificationPanel';
 import { requestNotificationPermissionAndSaveToken, onForegroundMessage } from '../../../services/messaging';
+import { BankDetailsModal } from '../../components/BankDetailsModal';
 
 export default function RiderDashboard() {
   const { user } = useAuth();
@@ -31,6 +32,7 @@ export default function RiderDashboard() {
   const [riderStatus, setRiderStatus] = useState<'available' | 'offline'>('offline');
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showBankModal, setShowBankModal] = useState(false);
 
   const isDark = riderTheme === 'dark';
 
@@ -47,6 +49,11 @@ export default function RiderDashboard() {
       if (riderData) {
         setRider(riderData);
         setRiderStatus(riderData.status === 'available' ? 'available' : 'offline');
+        
+        // Show bank details modal if bank is not configured yet
+        if (!riderData.bankName) {
+            setShowBankModal(true);
+        }
       }
       setLoading(false);
     };
@@ -136,6 +143,16 @@ export default function RiderDashboard() {
 
   return (
     <div className={`min-h-screen pb-24 md:pb-8 transition-colors ${isDark ? 'bg-[#0F0F0F]' : 'bg-[#FAF9F6]'}`}>
+      
+      {/* Payout Details Modal (Mandatory Setup) */}
+      {rider && (
+        <BankDetailsModal 
+           isOpen={showBankModal} 
+           onClose={() => setShowBankModal(false)} 
+           rider={rider} 
+        />
+      )}
+
       {/* Mobile Top Nav */}
       <header className={`sticky top-0 backdrop-blur-xl border-b z-40 md:hidden ${isDark ? 'bg-[#0F0F0F]/90 border-[#222222]' : 'bg-[#FAF9F6]/90 border-gray-200'}`}>
         <div className="px-5 py-4 flex items-center justify-between">
@@ -235,19 +252,22 @@ export default function RiderDashboard() {
             </div>
           </Card>
 
-          <Card className={`min-h-[140px] flex flex-col justify-between relative overflow-hidden group shadow-none border ${isDark ? 'bg-[#1A1A1A] border-[#FCD34D]/20' : 'bg-white border-amber-200'}`}>
-            <div className="absolute inset-0 bg-gradient-to-br from-[#FCD34D]/10 to-transparent"></div>
-            <div className="flex items-center justify-between relative z-10">
+          <button 
+            onClick={() => navigate('/rider/wallet')}
+            className={`min-h-[140px] flex flex-col justify-between relative overflow-hidden group shadow-none border text-left rounded-3xl p-5 hover:scale-[0.98] transition-transform ${isDark ? 'bg-[#1A1A1A] border-[#FCD34D]/20' : 'bg-white border-amber-200'}`}
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-[#FCD34D]/10 to-transparent pointer-events-none"></div>
+            <div className="flex items-center justify-between relative z-10 w-full">
               <div className="w-10 h-10 rounded-xl bg-[#FCD34D]/20 flex items-center justify-center">
                 <DollarSign className="w-5 h-5 text-amber-500" />
               </div>
-              <TrendingUp className="w-4 h-4 text-amber-500" />
+              <ChevronRight className="w-5 h-5 text-amber-500 opacity-50 group-hover:opacity-100 transition-opacity" />
             </div>
-            <div className="relative z-10">
+            <div className="relative z-10 mt-6">
               <h3 className="text-3xl font-black text-amber-500 tracking-tight">₦{todayEarnings.toLocaleString()}</h3>
-              <p className={`text-[11px] font-bold uppercase tracking-widest mt-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Earnings Today</p>
+              <p className={`text-[11px] font-bold uppercase tracking-widest mt-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Wallet & Incentives</p>
             </div>
-          </Card>
+          </button>
         </div>
 
         {/* Today's Batches List */}

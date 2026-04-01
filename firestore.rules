@@ -102,6 +102,24 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ─── Rider Stats & Earnings ───
+    match /riderStats/{riderId}/weekly/{weekId} {
+      allow read: if isAdmin() || (isRider() && request.auth.uid == riderId);
+      allow write: if isAdmin() || (isRider() && request.auth.uid == riderId);
+    }
+
+    match /riderEarnings/{riderId}/daily/{date} {
+      allow read: if isAdmin() || (isRider() && request.auth.uid == riderId);
+      allow write: if isAdmin() || (isRider() && request.auth.uid == riderId);
+    }
+
+    match /bonus_claims/{claimId} {
+      allow read: if isAdmin() || (isRider() && resource.data.riderId == request.auth.uid);
+      allow create: if isRider() && request.resource.data.riderId == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
     // ─── Settings ───
     match /settings/{settingId} {
       allow read: if true;

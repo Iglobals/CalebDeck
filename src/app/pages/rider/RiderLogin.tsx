@@ -2,8 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { Logo } from '../../components/design-system/Logo';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
-import { Phone, Lock, ChevronRight, Bike, Mail, User, Briefcase, Globe, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { Phone, Lock, ChevronRight, Bike, Mail, User, Briefcase, Globe, Eye, EyeOff, ArrowLeft, Building, Hash, UserSquare } from 'lucide-react';
 import { useNavigate } from 'react-router';
+
+const NIGERIAN_BANKS = [
+    'Access Bank', 'Branch', 'Carbon', 'Ecobank Nigeria', 'FairMoney',
+    'Fidelity Bank', 'First Bank of Nigeria', 'First City Monument Bank',
+    'Globus Bank', 'Guaranty Trust Bank (GTB)', 'Heritage Bank', 'Jaiz Bank',
+    'Keystone Bank', 'Kuda Bank', 'Lotus Bank', 'Moniepoint',
+    'Nova Merchant Bank', 'OPay', 'Palmpay', 'Paga', 'Polaris Bank',
+    'PremiumTrust Bank', 'Providus Bank', 'Stanbic IBTC Bank',
+    'Standard Chartered Bank', 'Sterling Bank', 'SunTrust Bank', 'TajBank',
+    'Titan Trust Bank', 'Union Bank of Nigeria', 'United Bank for Africa (UBA)',
+    'Unity Bank', 'VFD Microfinance Bank', 'Wema Bank', 'Zenith Bank'
+];
 import { auth, db } from '../../../services/firebase';
 import { useAuth } from '../../../context/AuthContext';
 import {
@@ -23,6 +35,9 @@ export default function RiderLogin({ initialMode = 'login' }: { initialMode?: 'l
         fullName: '',
         phone: '',
         department: '',
+        bankName: '',
+        accountNumber: '',
+        accountName: ''
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -107,8 +122,12 @@ export default function RiderLogin({ initialMode = 'login' }: { initialMode?: 'l
     const handleOnboarding = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!auth.currentUser) return;
-        if (!formData.fullName.trim() || !formData.phone.trim()) {
+        if (!formData.fullName.trim() || !formData.phone.trim() || !formData.bankName.trim() || !formData.accountNumber.trim() || !formData.accountName.trim()) {
             setError('Please fill in all required fields.');
+            return;
+        }
+        if (formData.accountNumber.trim().length !== 10) {
+            setError('Account number must be 10 digits.');
             return;
         }
         setLoading(true);
@@ -137,6 +156,9 @@ export default function RiderLogin({ initialMode = 'login' }: { initialMode?: 'l
                 isActive: false,  // Pending — admin activates
                 assignedHostelIds: [],
                 earnings: 0,
+                bankName: formData.bankName.trim(),
+                accountNumber: formData.accountNumber.trim(),
+                accountName: formData.accountName.trim(),
                 role: 'rider',
                 createdAt: new Date().toISOString()
             });
@@ -223,6 +245,57 @@ export default function RiderLogin({ initialMode = 'login' }: { initialMode?: 'l
                                             value={formData.department}
                                             onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                                             placeholder="e.g. Computer Science"
+                                            className={inputClass}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[9px] font-black text-[#9C8F7F] uppercase tracking-widest ml-1">Bank Name</label>
+                                    <div className="relative">
+                                        <Building className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9C8F7F]" />
+                                        <input
+                                            type="text"
+                                            required
+                                            list="rider-banks"
+                                            value={formData.bankName}
+                                            onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
+                                            placeholder="Choose or type bank"
+                                            className={inputClass}
+                                        />
+                                        <datalist id="rider-banks">
+                                            {NIGERIAN_BANKS.map(bank => <option key={bank} value={bank} />)}
+                                        </datalist>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[9px] font-black text-[#9C8F7F] uppercase tracking-widest ml-1">Account Number</label>
+                                    <div className="relative">
+                                        <Hash className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9C8F7F]" />
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            pattern="^\d{10}$"
+                                            required
+                                            value={formData.accountNumber}
+                                            onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+                                            placeholder="10-digit account number"
+                                            className={inputClass}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[9px] font-black text-[#9C8F7F] uppercase tracking-widest ml-1">Account Name</label>
+                                    <div className="relative">
+                                        <UserSquare className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9C8F7F]" />
+                                        <input
+                                            type="text"
+                                            required
+                                            value={formData.accountName}
+                                            onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
+                                            placeholder="Name on account"
                                             className={inputClass}
                                         />
                                     </div>

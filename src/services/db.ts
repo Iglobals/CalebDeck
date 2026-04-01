@@ -1,4 +1,4 @@
-import { collection, getDocs, query, where, doc, setDoc, updateDoc, onSnapshot, orderBy, addDoc, serverTimestamp, deleteDoc, getDoc, writeBatch, limit, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, setDoc, updateDoc, onSnapshot, orderBy, addDoc, serverTimestamp, deleteDoc, getDoc, writeBatch, limit, Timestamp, runTransaction, arrayUnion } from 'firebase/firestore';
 import { db } from './firebase';
 
 // Types
@@ -312,6 +312,9 @@ export interface Rider {
     isActive: boolean;
     assignedHostelIds: string[];
     earnings?: number;
+    bankName?: string;
+    accountNumber?: string;
+    accountName?: string;
 }
 
 export const getRiderById = async (riderId: string): Promise<Rider | null> => {
@@ -615,4 +618,199 @@ export const seedCombos = async (combos: Omit<ComboDefinition, 'id'>[]) => {
         count++;
     }
     return count;
+};
+
+// ─── Rider Tracking & Earnings ───
+export interface RiderWeeklyStats {
+    totalDeliveries: number;
+    activeDays: number;
+    dailyTrips: Record<string, number>;
+    completedOrderIds: string[];
+}
+
+export interface RiderDailyEarnings {
+    date: string;
+    totalEarned: number;
+    totalDeliveries: number;
+    completedOrderIds: string[];
+}
+
+export interface BonusClaim {
+    id: string;
+    riderId: string;
+    riderName: string;
+    rewardType: 'REFUEL_DECK' | 'REFUEL_DECK_PLUS';
+    weekId: string;
+    status: 'PENDING' | 'SORTED';
+    createdAt: any;
+    sortedAt?: any;
+}
+
+export const getIsoWeek = (date: Date) => {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return `${d.getUTCFullYear()}-W${weekNo.toString().padStart(2, '0')}`;
+};
+
+export const recordDelivery = async (riderId: string, orderId: string, isBonusOrder: boolean, amountEarned: number) => {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-CA');
+    const weekId = getIsoWeek(now);
+
+    const statsRef = doc(db, 'riderStats', riderId, 'weekly', weekId);
+    const earningsRef = doc(db, 'riderEarnings', riderId, 'daily', dateStr);
+
+    try {
+        await runTransaction(db, async (transaction) => {
+            const statsDoc = await transaction.get(statsRef);
+            const earningsDoc = await transaction.get(earningsRef);
+
+            const statsData = statsDoc.exists() ? statsDoc.data() : null;
+            const earningsData = earningsDoc.exists() ? earningsDoc.data() : null;
+
+            const sCompleted = statsData ? (statsData.completedOrderIds || []) : [];
+            if (sCompleted.includes(orderId)) {
+                return; // Already processed
+            }
+
+            // 1. Update Weekly Stats
+            const dailyTrips = statsData ? (statsData.dailyTrips || {}) : {};
+            const todaysTrips = (dailyTrips[dateStr] || 0) + 1;
+            dailyTrips[dateStr] = todaysTrips;
+
+            const nextActiveDays = Object.keys(dailyTrips).length;
+            const nextTotalDeliveries = (statsData ? statsData.totalDeliveries || 0 : 0) + 1;
+
+            if (!statsDoc.exists()) {
+                transaction.set(statsRef, {
+                    totalDeliveries: 1,
+                    activeDays: 1,
+                    dailyTrips: { [dateStr]: 1 },
+                    completedOrderIds: [orderId]
+                });
+            } else {
+                transaction.update(statsRef, {
+                    totalDeliveries: nextTotalDeliveries,
+                    activeDays: nextActiveDays,
+                    dailyTrips,
+                    completedOrderIds: arrayUnion(orderId)
+                });
+            }
+
+            // 2. Update Daily Earnings (skip if bonus order)
+            if (!isBonusOrder) {
+                const nextEarning = (earningsData ? earningsData.totalEarned || 0 : 0) + amountEarned;
+                const nextDailyDeliv = (earningsData ? earningsData.totalDeliveries || 0 : 0) + 1;
+                
+                if (!earningsDoc.exists()) {
+                    transaction.set(earningsRef, {
+                        date: dateStr,
+                        totalEarned: nextEarning,
+                        totalDeliveries: 1,
+                        completedOrderIds: [orderId]
+                    });
+                } else {
+                    transaction.update(earningsRef, {
+                        totalEarned: nextEarning,
+                        totalDeliveries: nextDailyDeliv,
+                        completedOrderIds: arrayUnion(orderId)
+                    });
+                }
+
+                // 3. Update lifetime earnings on rider doc
+                const riderRef = doc(db, 'riders', riderId);
+                const riderDoc = await transaction.get(riderRef);
+                if (riderDoc.exists()) {
+                    const rData = riderDoc.data();
+                    transaction.update(riderRef, {
+                        earnings: (rData.earnings || 0) + amountEarned
+                    });
+                }
+            }
+        });
+    } catch (e) {
+        console.error("Error recording delivery stats/earnings:", e);
+    }
+};
+
+export const subscribeToRiderWeeklyStats = (riderId: string, weekId: string, callback: (stats: RiderWeeklyStats | null) => void) => {
+    const statsRef = doc(db, 'riderStats', riderId, 'weekly', weekId);
+    return onSnapshot(statsRef, (docSnap) => {
+        if (docSnap.exists()) callback(docSnap.data() as RiderWeeklyStats);
+        else callback(null);
+    }, (error) => {
+        console.error('subscribeToRiderWeeklyStats error:', error);
+        callback(null);
+    });
+};
+
+export const subscribeToRiderDailyEarnings = (riderId: string, callback: (earnings: RiderDailyEarnings[]) => void) => {
+    const q = query(collection(db, 'riderEarnings', riderId, 'daily'), orderBy('date', 'desc'), limit(14));
+    return onSnapshot(q, (snapshot) => {
+        callback(snapshot.docs.map(doc => doc.data() as RiderDailyEarnings));
+    }, (error) => {
+        console.error('subscribeToRiderDailyEarnings error:', error);
+        callback([]);
+    });
+};
+
+export const claimRiderBonus = async (riderId: string, riderName: string, rewardType: 'REFUEL_DECK' | 'REFUEL_DECK_PLUS', weekId: string) => {
+    const q = query(collection(db, 'bonus_claims'), where('riderId', '==', riderId), where('weekId', '==', weekId));
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) throw new Error('Bonus already claimed for this week.');
+
+    await addDoc(collection(db, 'bonus_claims'), {
+        riderId,
+        riderName,
+        rewardType,
+        weekId,
+        status: 'PENDING',
+        createdAt: serverTimestamp()
+    });
+
+    try {
+        await addDoc(collection(db, 'notifications'), {
+            userId: 'admin',
+            title: 'New Bonus Claimed 🎁',
+            message: `${riderName} has claimed a ${rewardType === 'REFUEL_DECK' ? 'Refuel Deck' : 'Refuel Deck Plus'} bonus.`,
+            type: 'system',
+            isRead: false,
+            link: '/admin/riders',
+            createdAt: serverTimestamp()
+        });
+    } catch (e) {}
+};
+
+export const subscribeToPendingBonusClaims = (callback: (claims: BonusClaim[]) => void) => {
+    const q = query(collection(db, 'bonus_claims'), where('status', '==', 'PENDING'), orderBy('createdAt', 'desc'));
+    return onSnapshot(q, (snapshot) => {
+         callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BonusClaim)));
+    }, (error) => {
+        console.error('subscribeToPendingBonusClaims error:', error);
+        callback([]);
+    });
+};
+
+export const getRiderBonusClaims = async (riderId: string, weekId: string): Promise<BonusClaim[]> => {
+    const q = query(collection(db, 'bonus_claims'), where('riderId', '==', riderId), where('weekId', '==', weekId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BonusClaim));
+};
+
+export const subscribeToRiderBonusClaims = (riderId: string, callback: (claims: BonusClaim[]) => void) => {
+    const q = query(collection(db, 'bonus_claims'), where('riderId', '==', riderId), orderBy('createdAt', 'desc'));
+    return onSnapshot(q, (snapshot) => {
+         callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BonusClaim)));
+    }, (error) => {
+        console.error('subscribeToRiderBonusClaims error:', error);
+        callback([]);
+    });
+};
+
+export const markBonusClaimSorted = async (claimId: string) => {
+    const claimRef = doc(db, 'bonus_claims', claimId);
+    await updateDoc(claimRef, { status: 'SORTED', sortedAt: serverTimestamp() });
 };

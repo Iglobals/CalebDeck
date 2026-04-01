@@ -8,7 +8,7 @@ import {
 import { useAuth } from '../../../context/AuthContext';
 import { useTheme } from '../../../context/ThemeContext';
 import { useNavigate, useParams } from 'react-router';
-import { subscribeToRiderOrders, subscribeToBatches, updateOrder, updateBatch, Batch } from '../../../services/db';
+import { subscribeToRiderOrders, subscribeToBatches, updateOrder, updateBatch, Batch, recordDelivery, subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 import { format } from 'date-fns';
 
 export default function RiderBatchDetails() {
@@ -21,6 +21,12 @@ export default function RiderBatchDetails() {
     const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
     const [initialized, setInitialized] = useState(false);
     const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
+    const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+
+    useEffect(() => {
+        const unsub = subscribeToPlatformSettings(setPlatformSettings);
+        return unsub;
+    }, []);
 
     const isDark = riderTheme === 'dark';
 
@@ -75,9 +81,24 @@ export default function RiderBatchDetails() {
 
     const markDelivered = async (orderId: string, e: React.MouseEvent) => {
         e.stopPropagation();
+        if (!user) return;
+        
+        const order = batchOrders.find(o => o.id === orderId);
         setLoadingActions(prev => ({ ...prev, [`delivered_${orderId}`]: true }));
         try {
             await updateOrder(orderId, { status: 'DELIVERED' });
+
+            if (order) {
+                const platesCount = order.type === 'combo' ? (order.quantity || 1) : (order.plates?.length || 1);
+                const baseRate = platformSettings?.riderRatePerDelivery || 350;
+                const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
+                const rate = isGroup ? Math.max(250, baseRate - 100) : baseRate;
+                const earning = platesCount * rate;
+                const finalEarning = order.isEmergency ? earning * 1.5 : earning;
+                
+                // Track stats & earnings
+                recordDelivery(user.uid, orderId, false, finalEarning).catch(console.error);
+            }
 
             const updatedBatchOrders = batchOrders.map(o => o.id === orderId ? { ...o, status: 'DELIVERED' } : o);
             const allLocalDelivered = updatedBatchOrders.length > 0 && updatedBatchOrders.every(o => o.status === 'DELIVERED');
@@ -263,6 +284,7 @@ export default function RiderBatchDetails() {
 
     const deliveredCount = batchOrders.filter(o => o.status === 'DELIVERED').length;
     const allDelivered = deliveredCount === batchOrders.length && batchOrders.length > 0;
+    const allOnTheWay = batchOrders.length > 0 && batchOrders.every(o => o.status === 'ON_THE_WAY' || o.status === 'DELIVERED');
 
     return (
         <div className={`min-h-screen pb-24 md:pb-8 transition-colors ${isDark ? 'bg-[#0F0F0F]' : 'bg-[#FAF9F6]'}`}>
@@ -320,12 +342,16 @@ export default function RiderBatchDetails() {
                 {!allDelivered && batchOrders.length > 0 && (
                     <div className="flex gap-3 mt-4">
                         <button
-                            disabled={loadingActions['batch_on_the_way']}
+                            disabled={loadingActions['batch_on_the_way'] || allOnTheWay}
                             onClick={markBatchOnTheWay}
-                            className={`flex-1 py-4 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm shadow-lg shadow-amber-500/20 ${loadingActions['batch_on_the_way'] ? 'opacity-70 cursor-not-allowed' : ''}`}
+                            className={`flex-1 py-4 font-bold rounded-2xl transition-all flex items-center justify-center gap-2 text-sm ${
+                                allOnTheWay
+                                ? 'bg-amber-500/50 text-white cursor-not-allowed shadow-none'
+                                : 'bg-amber-500 hover:bg-amber-600 text-white active:scale-[0.98] shadow-lg shadow-amber-500/20'
+                            } ${loadingActions['batch_on_the_way'] ? 'opacity-70 cursor-not-allowed' : ''}`}
                         >
                             <Truck className={`w-5 h-5 ${loadingActions['batch_on_the_way'] ? 'animate-pulse' : ''}`} />
-                            {loadingActions['batch_on_the_way'] ? 'Updating...' : 'Mark All On The Way'}
+                            {loadingActions['batch_on_the_way'] ? 'Updating...' : allOnTheWay ? 'All On The Way' : 'Mark All On The Way'}
                         </button>
                         <button
                             disabled={loadingActions['batch_delivered']}

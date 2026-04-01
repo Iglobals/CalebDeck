@@ -34,6 +34,7 @@ const RiderDashboard = lazy(() => import("./pages/rider/RiderDashboard"));
 const RiderOrderHistory = lazy(() => import("./pages/rider/RiderOrderHistory"));
 const RiderBatchDetails = lazy(() => import("./pages/rider/RiderBatchDetails"));
 const RiderBatches = lazy(() => import("./pages/rider/RiderBatches"));
+const RiderWallet = lazy(() => import("./pages/rider/RiderWallet"));
 
 const SuspenseFallback = () => (
   <div className="min-h-screen bg-[#FAF9F6] dark:bg-[#121212] flex flex-col items-center justify-center gap-5">
@@ -97,6 +98,7 @@ export const router = createBrowserRouter([
         children: [
           { index: true, Component: RiderDashboard },
           { path: "history", Component: RiderOrderHistory },
+          { path: "wallet", Component: RiderWallet },
           { path: "analytics", lazy: () => import('./pages/rider/RiderAnalytics').then(m => ({ Component: m.default })) },
           { path: "batch/:batchId", Component: RiderBatchDetails },
           { path: "batches", Component: RiderBatches },

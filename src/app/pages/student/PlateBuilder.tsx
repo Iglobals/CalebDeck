@@ -4,7 +4,7 @@ import { Logo } from '../../components/design-system/Logo';
 import { GlassCard } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
-import { ArrowLeft, Plus, Minus, X, AlertTriangle, Users, ChevronDown, ChevronUp, Trash2, ChefHat } from 'lucide-react';
+import { ArrowLeft, Plus, Minus, X, AlertTriangle, Users, ChevronDown, ChevronUp, Trash2, ChefHat, Gift, Lock } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { ThemeToggle } from '../../components/ThemeToggle';
 import { toast } from 'react-toastify';
@@ -490,7 +490,6 @@ export default function PlateBuilder() {
                           {combo.items.map((item, i) => {
                             const parsed = parseComboItemOptions(item.name);
                             if (parsed) {
-                              // Render radio options
                               const selectedOption = comboSelections[combo.id]?.[i] || '';
                               return (
                                 <li key={i} className="text-sm">
@@ -503,7 +502,14 @@ export default function PlateBuilder() {
                                       {parsed.options.map(option => (
                                         <button
                                           key={option}
-                                          onClick={() => setComboOptionSelection(combo.id, i, option)}
+                                          onClick={() => {
+                                            setComboSelections(prev => {
+                                              const newSelections = { ...prev };
+                                              if (!newSelections[combo.id]) newSelections[combo.id] = {};
+                                              newSelections[combo.id][i] = option;
+                                              return newSelections;
+                                            });
+                                          }}
                                           className={`flex items-center gap-1 px-2.5 py-1 rounded-[8px] text-[11px] font-bold transition-all border ${selectedOption === option
                                               ? 'border-primary bg-primary/10 text-primary shadow-sm'
                                               : 'border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:bg-primary/5'
@@ -525,7 +531,6 @@ export default function PlateBuilder() {
                                 </li>
                               );
                             }
-                            // Regular item (no options)
                             return (
                               <li key={i} className="text-sm text-muted-foreground flex items-start gap-2 leading-tight">
                                 <span className="text-primary mt-0.5">•</span>
@@ -565,6 +570,61 @@ export default function PlateBuilder() {
                   </GlassCard>
                 );
               })}
+            </div>
+
+            {/* Rider Incentives Section */}
+            <div className="mt-12 pt-8 border-t border-border/50">
+              <div className="flex items-center gap-3 mb-6">
+                <h2 className="text-2xl font-black text-foreground">Rider Incentives 🎯</h2>
+                <Badge variant="purple" className="shadow-sm">Riders Only • Performance Reward</Badge>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Refuel Deck */}
+                <div onClick={() => toast.info('Available only to active CalebDeck riders')} className="relative overflow-hidden rounded-2xl border-2 border-dashed border-border p-6 bg-card cursor-pointer group hover:border-primary/50 transition-colors">
+                  <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Lock className="w-8 h-8 text-muted-foreground mb-2" />
+                    <span className="font-bold text-sm text-foreground">Riders Only</span>
+                  </div>
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-blue-500 mb-1">Refuel Deck</h3>
+                      <p className="text-xs text-muted-foreground font-medium">Unlock at 130 deliveries/week</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
+                      <Gift className="w-5 h-5" />
+                    </div>
+                  </div>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-center gap-2"><span className="text-blue-400">•</span>2 Portions of Rice</li>
+                    <li className="flex items-center gap-2"><span className="text-blue-400">•</span>1 Medium Fish</li>
+                    <li className="flex items-center gap-2"><span className="text-blue-400">•</span>1 Bottle of Water (Eva)</li>
+                    <li className="flex items-center gap-2 font-bold text-foreground"><span className="text-blue-400">•</span>+ ₦1,000 Data Bonus</li>
+                  </ul>
+                </div>
+
+                {/* Refuel Deck Plus */}
+                <div onClick={() => toast.info('Available only to active CalebDeck riders')} className="relative overflow-hidden rounded-2xl border-2 border-dashed border-border p-6 bg-card cursor-pointer group hover:border-amber-500/50 transition-colors">
+                  <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Lock className="w-8 h-8 text-muted-foreground mb-2" />
+                    <span className="font-bold text-sm text-foreground">Riders Only</span>
+                  </div>
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-amber-500 mb-1">Refuel Deck Plus</h3>
+                      <p className="text-xs text-muted-foreground font-medium">Unlock at 180 deliveries/week</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">
+                      <Gift className="w-5 h-5" />
+                    </div>
+                  </div>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-center gap-2"><span className="text-amber-400">•</span>2 Portions of Rice</li>
+                    <li className="flex items-center gap-2"><span className="text-amber-400">•</span>1 Tail Fish</li>
+                    <li className="flex items-center gap-2"><span className="text-amber-400">•</span>1 Drink (Fanta/Coke/Pepsi)</li>
+                    <li className="flex items-center gap-2 font-bold text-foreground"><span className="text-amber-400">•</span>+ ₦1,500 Data Bonus</li>
+                  </ul>
+                </div>
+              </div>
             </div>
 
             <div ref={buildYourPlateRef} className="flex items-center gap-4 py-8">

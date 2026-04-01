@@ -285,7 +285,7 @@ export default function Checkout() {
   };
 
   const currentHour = new Date().getHours();
-  const isClosed = currentHour < 10 || currentHour >= 18;
+  const isClosed = currentHour < 10 || currentHour >= 23; // TEMPORARY 11PM
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 

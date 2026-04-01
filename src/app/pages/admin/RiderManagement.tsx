@@ -10,7 +10,12 @@ import {
     UserCheck,
     UserPlus,
     MapPin,
-    Trash2
+    Trash2,
+    Gift,
+    CheckCircle,
+    Copy,
+    Building,
+    Hash
 } from 'lucide-react';
 import {
     subscribeToRiders,
@@ -23,7 +28,10 @@ import {
     Hostel,
     PlatformSettings,
     subscribeToPlatformSettings,
-    updatePlatformSettings
+    updatePlatformSettings,
+    BonusClaim,
+    subscribeToPendingBonusClaims,
+    markBonusClaimSorted
 } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 
@@ -31,18 +39,28 @@ export default function RiderManagement() {
     const [riders, setRiders] = useState<Rider[]>([]);
     const [hostels, setHostels] = useState<Hostel[]>([]);
     const [orders, setOrders] = useState<any[]>([]);
-    const [activeTab, setActiveTab] = useState<'riders' | 'assignment'>('riders');
+    const [claims, setClaims] = useState<BonusClaim[]>([]);
+    const [activeTab, setActiveTab] = useState<'riders' | 'assignment' | 'bonuses'>('riders');
     const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
     const [isEditingRate, setIsEditingRate] = useState(false);
     const [newRate, setNewRate] = useState('');
     const { adminTheme } = useTheme();
 
+    const [isLoading, setIsLoading] = useState(true);
+
     useEffect(() => {
-        const unsubRiders = subscribeToRiders(setRiders);
-        const unsubOrders = subscribeToOrderHistory(setOrders);
-        const unsubHostels = subscribeToHostels(setHostels);
+        let loaded = { riders: false, orders: false, hostels: false, claims: false };
+        const checkDone = () => {
+            if (Object.values(loaded).every(v => v)) setIsLoading(false);
+        };
+
+        const unsubRiders = subscribeToRiders(data => { setRiders(data); loaded.riders = true; checkDone(); });
+        const unsubOrders = subscribeToOrderHistory(data => { setOrders(data); loaded.orders = true; checkDone(); });
+        const unsubHostels = subscribeToHostels(data => { setHostels(data); loaded.hostels = true; checkDone(); });
         const unsubSettings = subscribeToPlatformSettings(setPlatformSettings);
-        return () => { unsubRiders(); unsubOrders(); unsubHostels(); unsubSettings(); };
+        const unsubClaims = subscribeToPendingBonusClaims(data => { setClaims(data); loaded.claims = true; checkDone(); });
+        
+        return () => { unsubRiders(); unsubOrders(); unsubHostels(); unsubSettings(); unsubClaims(); };
     }, []);
 
     const isDark = adminTheme === 'dark';
@@ -77,6 +95,14 @@ export default function RiderManagement() {
             await updatePlatformSettings({ riderRatePerDelivery: rate });
         }
         setIsEditingRate(false);
+    };
+
+    const handleCopy = (text: string) => {
+        navigator.clipboard.writeText(text);
+    };
+
+    const handleSortClaim = async (claimId: string) => {
+        await markBonusClaimSorted(claimId);
     };
 
     const statusColors = { available: 'green', busy: 'gold', offline: 'gray' } as const;
@@ -145,7 +171,7 @@ export default function RiderManagement() {
             </div>
 
             {/* Tabs */}
-            <div className={`flex gap-2 p-1.5 rounded-2xl mb-8 w-fit ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-50'}`}>
+            <div className={`flex gap-2 p-1.5 rounded-2xl mb-8 w-fit flex-wrap ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-50'}`}>
                 <button className={tabClass('riders')} onClick={() => setActiveTab('riders')}>
                     <Users className="w-3.5 h-3.5 inline mr-2" />
                     All Riders
@@ -154,9 +180,20 @@ export default function RiderManagement() {
                     <MapPin className="w-3.5 h-3.5 inline mr-2" />
                     Hostel Assignment
                 </button>
+                <button className={tabClass('bonuses')} onClick={() => setActiveTab('bonuses')}>
+                    <Gift className="w-3.5 h-3.5 inline mr-2" />
+                    Bonus Approvals {claims.length > 0 && <span className="ml-2 bg-red-500 text-white rounded-full px-1.5 py-0.5 text-[8px]">{claims.length}</span>}
+                </button>
             </div>
 
             {/* Tab Content */}
+            {isLoading ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                    <div className={`w-12 h-12 border-4 rounded-full animate-spin mb-4 ${isDark ? 'border-[#7C3AED] border-t-transparent' : 'border-purple-600 border-t-transparent'}`} />
+                    <p className={`text-sm font-bold tracking-widest uppercase ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Loading Data...</p>
+                </div>
+            ) : (
+                <>
             {activeTab === 'riders' ? (
                 <div>
                     {/* Pending Riders */}
@@ -248,6 +285,27 @@ export default function RiderManagement() {
                                             <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{rider.phone}</span>
                                         </div>
 
+                                        <div className={`mb-6 p-4 rounded-xl border ${isDark ? 'bg-[#1A1A1A] border-[#333333]' : 'bg-gray-50 border-gray-100'}`}>
+                                            <p className={`text-[9px] font-black uppercase tracking-widest mb-3 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Payout Details</p>
+                                            
+                                            {rider.bankName && rider.accountNumber ? (
+                                                <div className="space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex flex-col">
+                                                            <span className={`text-xs font-medium ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{rider.bankName}</span>
+                                                            <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{rider.accountNumber}</span>
+                                                            <span className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'} mt-1`}>{rider.accountName}</span>
+                                                        </div>
+                                                        <button onClick={() => handleCopy(rider.accountNumber!)} className={`p-2 rounded-lg transition-colors ${isDark ? 'bg-[#333333] hover:bg-[#444444] text-[#FAF9F6]' : 'bg-white hover:bg-gray-100 text-gray-700'}`}>
+                                                            <Copy className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-red-500 font-bold">Not configured</p>
+                                            )}
+                                        </div>
+
                                         <div className="flex gap-3">
                                             <Button
                                                 variant="ghost"
@@ -275,7 +333,7 @@ export default function RiderManagement() {
                         </div>
                     )}
                 </div>
-            ) : (
+            ) : activeTab === 'assignment' ? (
                 /* Hostel Assignment Tab */
                 <div className="space-y-4">
                     {hostels.length > 0 ? hostels.map(hostel => (
@@ -334,6 +392,47 @@ export default function RiderManagement() {
                         </div>
                     )}
                 </div>
+            ) : (
+                /* Bonuses Tab */
+                <div className="space-y-4">
+                    <h3 className={`text-lg font-black tracking-tight mb-4 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Pending Bonus Claims</h3>
+                    {claims.length > 0 ? claims.map(claim => (
+                        <Card key={claim.id} className={`${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-blue-100'}`}>
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 p-5">
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${claim.rewardType === 'REFUEL_DECK_PLUS' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>
+                                        <Gift className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <h4 className={`text-lg font-black uppercase ${claim.rewardType === 'REFUEL_DECK_PLUS' ? 'text-amber-500' : 'text-blue-500'}`}>
+                                            {claim.rewardType.replace(/_/g, ' ')}
+                                        </h4>
+                                        <div className={`text-xs font-bold flex items-center gap-2 mt-1 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
+                                            <span>Rider: {claim.riderName}</span>
+                                            <span className="text-gray-500">•</span>
+                                            <span className="text-gray-500">Week: {claim.weekId}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <Button 
+                                    variant="primary"
+                                    onClick={() => handleSortClaim(claim.id)}
+                                    className="px-6 py-3 rounded-xl font-black text-xs uppercase tracking-[0.2em] bg-[#10B981] hover:bg-[#059669] text-white shadow-lg"
+                                >
+                                    <CheckCircle className="w-4 h-4 mr-2 inline" /> Mark Sorted
+                                </Button>
+                            </div>
+                        </Card>
+                    )) : (
+                        <div className={`p-12 text-center rounded-2xl border-2 border-dashed ${isDark ? 'border-[#333333] text-[#9C8F7F]' : 'border-gray-100 text-gray-400'}`}>
+                            <CheckCircle className="w-12 h-12 mx-auto mb-4 opacity-20 text-[#10B981]" />
+                            <p className="font-black uppercase tracking-widest text-[10px]">All caught up!</p>
+                            <p className="text-xs mt-2">No pending bonus claims to process.</p>
+                        </div>
+                    )}
+                </div>
+            )}
+            </>
             )}
         </AdminLayout>
     );
