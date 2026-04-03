@@ -97,8 +97,12 @@ export default function RiderManagement() {
         setIsEditingRate(false);
     };
 
-    const handleCopy = (text: string) => {
+    const [copiedId, setCopiedId] = useState<string | null>(null);
+
+    const handleCopy = (text: string, riderId: string) => {
         navigator.clipboard.writeText(text);
+        setCopiedId(riderId);
+        setTimeout(() => setCopiedId(null), 2000);
     };
 
     const handleSortClaim = async (claimId: string) => {
@@ -296,8 +300,8 @@ export default function RiderManagement() {
                                                             <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{rider.accountNumber}</span>
                                                             <span className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'} mt-1`}>{rider.accountName}</span>
                                                         </div>
-                                                        <button onClick={() => handleCopy(rider.accountNumber!)} className={`p-2 rounded-lg transition-colors ${isDark ? 'bg-[#333333] hover:bg-[#444444] text-[#FAF9F6]' : 'bg-white hover:bg-gray-100 text-gray-700'}`}>
-                                                            <Copy className="w-4 h-4" />
+                                                        <button onClick={() => handleCopy(rider.accountNumber!, rider.id)} className={`p-2 rounded-lg transition-colors ${isDark ? 'bg-[#333333] hover:bg-[#444444] text-[#FAF9F6]' : 'bg-white hover:bg-gray-100 text-gray-700'}`}>
+                                                            {copiedId === rider.id ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
                                                         </button>
                                                     </div>
                                                 </div>
