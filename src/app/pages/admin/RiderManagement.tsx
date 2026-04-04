@@ -145,7 +145,7 @@ export default function RiderManagement() {
                 {/* Rider Earnings Rate Config */}
                 <Card className={`${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'}`}>
                     {!platformSettings ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-4">
                             {[1, 2, 3].map(i => (
                                 <div key={i} className={`p-4 rounded-xl animate-pulse ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-50'}`}>
                                     <div className={`h-3 w-20 rounded mb-3 ${isDark ? 'bg-[#333333]' : 'bg-gray-200'}`} />
@@ -154,7 +154,7 @@ export default function RiderManagement() {
                             ))}
                         </div>
                     ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                         {/* Normal Rate */}
                         <div className={`p-4 rounded-xl ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-50'}`}>
                             <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Normal Plate</p>
