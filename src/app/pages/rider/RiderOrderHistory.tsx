@@ -71,7 +71,13 @@ export default function RiderOrderHistory() {
 
     const getOrderEarnings = (o: any) => {
         const platesCount = o.type === 'combo' ? (o.quantity || 1) : (o.plates?.length || 1);
-        const rate = (o.deliveryMode === 'group' || o.deliveryMode === 'GROUP') ? 250 : 350;
+        const isCombo = o.type === 'combo';
+        const isGroup = o.deliveryMode === 'group' || o.deliveryMode === 'GROUP';
+        const rate = isCombo
+            ? (platformSettings?.comboRatePerDelivery || 250)
+            : isGroup
+                ? (platformSettings?.groupRatePerDelivery || 200)
+                : riderRate;
         const earning = platesCount * rate;
         return o.isEmergency ? earning * 1.5 : earning;
     };

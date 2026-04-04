@@ -42,7 +42,7 @@ export default function RiderManagement() {
     const [claims, setClaims] = useState<BonusClaim[]>([]);
     const [activeTab, setActiveTab] = useState<'riders' | 'assignment' | 'bonuses'>('riders');
     const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
-    const [isEditingRate, setIsEditingRate] = useState(false);
+    const [isEditingRate, setIsEditingRate] = useState<'normal' | 'combo' | 'group' | null>(null);
     const [newRate, setNewRate] = useState('');
     const { adminTheme } = useTheme();
 
@@ -89,12 +89,13 @@ export default function RiderManagement() {
         await assignHostelRiders(hostelId, hostel?.defaultRiderId || null, riderId || null);
     };
 
-    const handleSaveRate = async () => {
+    const handleSaveRate = async (type: 'normal' | 'combo' | 'group') => {
         const rate = parseInt(newRate);
         if (!isNaN(rate) && rate > 0) {
-            await updatePlatformSettings({ riderRatePerDelivery: rate });
+            const key = type === 'normal' ? 'riderRatePerDelivery' : type === 'combo' ? 'comboRatePerDelivery' : 'groupRatePerDelivery';
+            await updatePlatformSettings({ [key]: rate });
         }
-        setIsEditingRate(false);
+        setIsEditingRate(null);
     };
 
     const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -136,40 +137,53 @@ export default function RiderManagement() {
                 </div>
 
                 {/* Rider Earnings Rate Config */}
-                <Card className={`flex flex-col md:flex-row items-start md:items-center gap-4 ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'}`}>
-                    <div>
-                        <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Rate per Delivery</p>
-                        {isEditingRate ? (
-                            <div className="flex gap-2">
-                                <input
-                                    type="number"
-                                    value={newRate}
-                                    onChange={(e) => setNewRate(e.target.value)}
-                                    className={`w-24 text-sm font-bold p-2 rounded-lg border ${isDark ? 'bg-[#1A1A1A] border-[#333333] text-[#FAF9F6]' : 'bg-gray-50 border-gray-100 text-gray-900'}`}
-                                    placeholder="300"
-                                />
-                                <Button size="sm" variant="primary" onClick={handleSaveRate} className="px-3 rounded-lg text-xs font-bold shadow-md">
-                                    Save
-                                </Button>
-                            </div>
-                        ) : (
-                            <div className="flex items-center gap-3">
-                                <h4 className={`text-xl font-black tracking-tight text-[#10B981]`}>
-                                    ₦{platformSettings?.riderRatePerDelivery || 300}
-                                </h4>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                        setNewRate((platformSettings?.riderRatePerDelivery || 300).toString());
-                                        setIsEditingRate(true);
-                                    }}
-                                    className={`px-3 py-1.5 h-auto text-[10px] uppercase font-bold tracking-widest ${isDark ? 'bg-[#333333] text-[#FAF9F6] hover:bg-[#444444]' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                                >
-                                    Edit Rate
-                                </Button>
-                            </div>
-                        )}
+                <Card className={`${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'}`}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Normal Rate */}
+                        <div className={`p-4 rounded-xl ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-50'}`}>
+                            <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Normal Plate</p>
+                            {isEditingRate === 'normal' ? (
+                                <div className="flex gap-2">
+                                    <input type="number" value={newRate} onChange={(e) => setNewRate(e.target.value)} className={`w-20 text-sm font-bold p-2 rounded-lg border ${isDark ? 'bg-[#0F0F0F] border-[#333333] text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-900'}`} placeholder="300" />
+                                    <Button size="sm" variant="primary" onClick={() => handleSaveRate('normal')} className="px-3 rounded-lg text-xs font-bold shadow-md">Save</Button>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <h4 className="text-lg font-black text-[#10B981]">₦{platformSettings?.riderRatePerDelivery || 300}</h4>
+                                    <button onClick={() => { setNewRate((platformSettings?.riderRatePerDelivery || 300).toString()); setIsEditingRate('normal'); }} className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${isDark ? 'bg-[#333333] text-[#FAF9F6] hover:bg-[#444444]' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>Edit</button>
+                                </div>
+                            )}
+                        </div>
+                        {/* Combo Rate */}
+                        <div className={`p-4 rounded-xl ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-50'}`}>
+                            <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Combo Order</p>
+                            {isEditingRate === 'combo' ? (
+                                <div className="flex gap-2">
+                                    <input type="number" value={newRate} onChange={(e) => setNewRate(e.target.value)} className={`w-20 text-sm font-bold p-2 rounded-lg border ${isDark ? 'bg-[#0F0F0F] border-[#333333] text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-900'}`} placeholder="250" />
+                                    <Button size="sm" variant="primary" onClick={() => handleSaveRate('combo')} className="px-3 rounded-lg text-xs font-bold shadow-md">Save</Button>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <h4 className="text-lg font-black text-[#7C3AED]">₦{platformSettings?.comboRatePerDelivery || 250}</h4>
+                                    <button onClick={() => { setNewRate((platformSettings?.comboRatePerDelivery || 250).toString()); setIsEditingRate('combo'); }} className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${isDark ? 'bg-[#333333] text-[#FAF9F6] hover:bg-[#444444]' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>Edit</button>
+                                </div>
+                            )}
+                        </div>
+                        {/* Group Rate */}
+                        <div className={`p-4 rounded-xl ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-50'}`}>
+                            <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Group Order</p>
+                            {isEditingRate === 'group' ? (
+                                <div className="flex gap-2">
+                                    <input type="number" value={newRate} onChange={(e) => setNewRate(e.target.value)} className={`w-20 text-sm font-bold p-2 rounded-lg border ${isDark ? 'bg-[#0F0F0F] border-[#333333] text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-900'}`} placeholder="200" />
+                                    <Button size="sm" variant="primary" onClick={() => handleSaveRate('group')} className="px-3 rounded-lg text-xs font-bold shadow-md">Save</Button>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <h4 className="text-lg font-black text-[#F59E0B]">₦{platformSettings?.groupRatePerDelivery || 200}</h4>
+                                    <button onClick={() => { setNewRate((platformSettings?.groupRatePerDelivery || 200).toString()); setIsEditingRate('group'); }} className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${isDark ? 'bg-[#333333] text-[#FAF9F6] hover:bg-[#444444]' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>Edit</button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </Card>
             </div>

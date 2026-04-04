@@ -415,6 +415,8 @@ export const migrateMainToBase = async (): Promise<number> => {
 // ─── Platform Settings ───
 export interface PlatformSettings {
     riderRatePerDelivery: number;
+    comboRatePerDelivery?: number;
+    groupRatePerDelivery?: number;
     [key: string]: any;
 }
 

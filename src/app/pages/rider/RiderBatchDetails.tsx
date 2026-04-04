@@ -90,9 +90,13 @@ export default function RiderBatchDetails() {
 
             if (order) {
                 const platesCount = order.type === 'combo' ? (order.quantity || 1) : (order.plates?.length || 1);
-                const baseRate = platformSettings?.riderRatePerDelivery || 350;
+                const isCombo = order.type === 'combo';
                 const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
-                const rate = isGroup ? Math.max(250, baseRate - 100) : baseRate;
+                const rate = isCombo
+                    ? (platformSettings?.comboRatePerDelivery || 250)
+                    : isGroup
+                        ? (platformSettings?.groupRatePerDelivery || 200)
+                        : (platformSettings?.riderRatePerDelivery || 350);
                 const earning = platesCount * rate;
                 const finalEarning = order.isEmergency ? earning * 1.5 : earning;
                 
@@ -478,7 +482,7 @@ export default function RiderBatchDetails() {
                                                     <div className={`rounded-xl p-3 border ${isDark ? 'bg-amber-500/5 border-amber-500/20' : 'bg-amber-50 border-amber-200'}`}>
                                                         <div className="flex justify-between items-start mb-1">
                                                             <span className="text-xs font-black text-amber-600 uppercase tracking-widest">Extras</span>
-                                                            <span className="text-xs font-bold text-amber-600">₦{order.drinksSnacks.reduce((a: number, b: any) => a + (b.total || b.price || 0), 0).toLocaleString()}</span>
+                                                            <span className="text-xs font-bold text-amber-600">₦{order.drinksSnacks.reduce((a: number, b: any) => a + ((b.item?.price || b.price || 0) * (b.quantity || 1)), 0).toLocaleString()}</span>
                                                         </div>
                                                         <div className={`text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
                                                             {order.drinksSnacks.map((d: any) => `${d.quantity > 1 ? `${d.quantity}x ` : ''}${d.item?.name || d.name}`).join(', ')}
