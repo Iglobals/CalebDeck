@@ -665,8 +665,11 @@ export const recordDelivery = async (riderId: string, orderId: string, isBonusOr
 
     try {
         await runTransaction(db, async (transaction) => {
+            // ALL READS FIRST — Firestore requires reads before writes
             const statsDoc = await transaction.get(statsRef);
             const earningsDoc = await transaction.get(earningsRef);
+            const riderRef = doc(db, 'riders', riderId);
+            const riderDoc = await transaction.get(riderRef);
 
             const statsData = statsDoc.exists() ? statsDoc.data() : null;
             const earningsData = earningsDoc.exists() ? earningsDoc.data() : null;
@@ -721,8 +724,6 @@ export const recordDelivery = async (riderId: string, orderId: string, isBonusOr
                 }
 
                 // 3. Update lifetime earnings on rider doc
-                const riderRef = doc(db, 'riders', riderId);
-                const riderDoc = await transaction.get(riderRef);
                 if (riderDoc.exists()) {
                     const rData = riderDoc.data();
                     transaction.update(riderRef, {
