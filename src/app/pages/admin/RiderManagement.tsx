@@ -44,6 +44,7 @@ export default function RiderManagement() {
     const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
     const [isEditingRate, setIsEditingRate] = useState<'normal' | 'combo' | 'group' | null>(null);
     const [newRate, setNewRate] = useState('');
+    const [savingRate, setSavingRate] = useState(false);
     const { adminTheme } = useTheme();
 
     const [isLoading, setIsLoading] = useState(true);
@@ -92,8 +93,13 @@ export default function RiderManagement() {
     const handleSaveRate = async (type: 'normal' | 'combo' | 'group') => {
         const rate = parseInt(newRate);
         if (!isNaN(rate) && rate > 0) {
-            const key = type === 'normal' ? 'riderRatePerDelivery' : type === 'combo' ? 'comboRatePerDelivery' : 'groupRatePerDelivery';
-            await updatePlatformSettings({ [key]: rate });
+            setSavingRate(true);
+            try {
+                const key = type === 'normal' ? 'riderRatePerDelivery' : type === 'combo' ? 'comboRatePerDelivery' : 'groupRatePerDelivery';
+                await updatePlatformSettings({ [key]: rate });
+            } finally {
+                setSavingRate(false);
+            }
         }
         setIsEditingRate(null);
     };
@@ -138,6 +144,16 @@ export default function RiderManagement() {
 
                 {/* Rider Earnings Rate Config */}
                 <Card className={`${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'}`}>
+                    {!platformSettings ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className={`p-4 rounded-xl animate-pulse ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-50'}`}>
+                                    <div className={`h-3 w-20 rounded mb-3 ${isDark ? 'bg-[#333333]' : 'bg-gray-200'}`} />
+                                    <div className={`h-6 w-16 rounded ${isDark ? 'bg-[#333333]' : 'bg-gray-200'}`} />
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {/* Normal Rate */}
                         <div className={`p-4 rounded-xl ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-50'}`}>
@@ -145,7 +161,7 @@ export default function RiderManagement() {
                             {isEditingRate === 'normal' ? (
                                 <div className="flex gap-2">
                                     <input type="number" value={newRate} onChange={(e) => setNewRate(e.target.value)} className={`w-20 text-sm font-bold p-2 rounded-lg border ${isDark ? 'bg-[#0F0F0F] border-[#333333] text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-900'}`} placeholder="300" />
-                                    <Button size="sm" variant="primary" onClick={() => handleSaveRate('normal')} className="px-3 rounded-lg text-xs font-bold shadow-md">Save</Button>
+                                    <Button size="sm" variant="primary" onClick={() => handleSaveRate('normal')} disabled={savingRate} className="px-3 rounded-lg text-xs font-bold shadow-md">{savingRate ? 'Saving…' : 'Save'}</Button>
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-2">
@@ -160,7 +176,7 @@ export default function RiderManagement() {
                             {isEditingRate === 'combo' ? (
                                 <div className="flex gap-2">
                                     <input type="number" value={newRate} onChange={(e) => setNewRate(e.target.value)} className={`w-20 text-sm font-bold p-2 rounded-lg border ${isDark ? 'bg-[#0F0F0F] border-[#333333] text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-900'}`} placeholder="250" />
-                                    <Button size="sm" variant="primary" onClick={() => handleSaveRate('combo')} className="px-3 rounded-lg text-xs font-bold shadow-md">Save</Button>
+                                    <Button size="sm" variant="primary" onClick={() => handleSaveRate('combo')} disabled={savingRate} className="px-3 rounded-lg text-xs font-bold shadow-md">{savingRate ? 'Saving…' : 'Save'}</Button>
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-2">
@@ -175,7 +191,7 @@ export default function RiderManagement() {
                             {isEditingRate === 'group' ? (
                                 <div className="flex gap-2">
                                     <input type="number" value={newRate} onChange={(e) => setNewRate(e.target.value)} className={`w-20 text-sm font-bold p-2 rounded-lg border ${isDark ? 'bg-[#0F0F0F] border-[#333333] text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-900'}`} placeholder="200" />
-                                    <Button size="sm" variant="primary" onClick={() => handleSaveRate('group')} className="px-3 rounded-lg text-xs font-bold shadow-md">Save</Button>
+                                    <Button size="sm" variant="primary" onClick={() => handleSaveRate('group')} disabled={savingRate} className="px-3 rounded-lg text-xs font-bold shadow-md">{savingRate ? 'Saving…' : 'Save'}</Button>
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-2">
@@ -185,6 +201,7 @@ export default function RiderManagement() {
                             )}
                         </div>
                     </div>
+                    )}
                 </Card>
             </div>
 
