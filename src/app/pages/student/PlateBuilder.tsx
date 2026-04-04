@@ -983,13 +983,13 @@ export default function PlateBuilder() {
                     </div>
                     {/* Sticky Add Drinks Button */}
                     <div className="sticky bottom-6 pt-4 pb-2 z-30 pointer-events-none">
-                      <div className="pointer-events-auto">
+                      <div className="pointer-events-auto pr-[4.5rem] md:pr-0">
                         <Button
                           variant="primary"
                           size="lg"
                           disabled={Object.entries(currentDrinks).filter(([id]) => foodItems.find(f => f.id === id)?.category === 'drink').length === 0}
                           onClick={commitDrinks}
-                          className="w-fit sm:w-full px-8 sm:px-0 py-6 text-base sm:text-lg xl:text-xl whitespace-nowrap rounded-2xl shadow-2xl shadow-primary/20 transition-all duration-300 active:scale-95"
+                          className="w-full py-6 text-base sm:text-lg xl:text-xl rounded-2xl shadow-2xl shadow-primary/20 transition-all duration-300 active:scale-95"
                         >
                           Add Beverages to Order
                         </Button>
@@ -1038,13 +1038,13 @@ export default function PlateBuilder() {
                       </div>
                       {/* Sticky Add Snacks Button */}
                       <div className="sticky bottom-6 pt-4 pb-2 z-20 pointer-events-none">
-                        <div className="pointer-events-auto">
+                        <div className="pointer-events-auto pr-[4.5rem] md:pr-0">
                           <Button
                             variant="primary"
                             size="lg"
                             disabled={Object.entries(currentSnacks).filter(([id]) => foodItems.find(f => f.id === id)?.category === 'snack').length === 0}
                             onClick={commitSnacks}
-                            className="w-fit sm:w-full px-8 sm:px-0 py-6 text-base sm:text-lg xl:text-xl whitespace-nowrap rounded-2xl shadow-2xl shadow-primary/20 transition-all duration-300 active:scale-95"
+                            className="w-full py-6 text-base sm:text-lg xl:text-xl rounded-2xl shadow-2xl shadow-primary/20 transition-all duration-300 active:scale-95"
                           >
                             Add Snacks to Order
                           </Button>
