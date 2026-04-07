@@ -43,26 +43,6 @@ export default function LandingPage() {
     }
   ];
 
-  const testimonials = [
-    {
-      name: 'Chioma A.',
-      hostel: 'Deborah Hall',
-      text: 'CalebDeck saved me over 2 hours a week. I can now focus on my studies!',
-      avatar: 'CA'
-    },
-    {
-      name: 'David O.',
-      hostel: 'Integrity Hall',
-      text: 'The group order feature is amazing. We save money and get food faster.',
-      avatar: 'DO'
-    },
-    {
-      name: 'Faith M.',
-      hostel: 'Mary Hall',
-      text: 'Premium quality service. Feels like a well-funded startup!',
-      avatar: 'FM'
-    }
-  ];
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
@@ -79,9 +59,7 @@ export default function LandingPage() {
             <a href="#how-it-works" className="text-foreground/80 hover:text-secondary transition-colors font-medium">
               How it works
             </a>
-            <a href="#testimonials" className="text-foreground/80 hover:text-secondary transition-colors font-medium">
-              Testimonials
-            </a>
+
             <div className="flex items-center gap-4">
               {user?.role === 'ADMIN' && (
                 <Link to="/admin">
@@ -150,36 +128,35 @@ export default function LandingPage() {
             <div className="flex items-center gap-6 pt-4">
               <div className="text-center">
                 <div className={`text-3xl font-bold ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'
-                  }`}>20k+</div>
+                  }`}>2</div>
                 <div className={`text-sm ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'
-                  }`}>Orders delivered</div>
+                  }`}>Cafeterias</div>
               </div>
               <div className={`w-px h-12 ${studentTheme === 'dark' ? 'bg-[#333333]' : 'bg-gray-200'
                 }`}></div>
               <div className="text-center">
                 <div className={`text-3xl font-bold ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'
-                  }`}>4.9</div>
-                <div className={`text-sm flex items-center gap-1 ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'
+                  }`}>1</div>
+                <div className={`text-sm flex items-center justify-center gap-1 ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'
                   }`}>
-                  <Star className="w-4 h-4 fill-[#FCD34D] text-[#FCD34D]" />
-                  Rating
+                  Campus
                 </div>
               </div>
               <div className={`w-px h-12 ${studentTheme === 'dark' ? 'bg-[#333333]' : 'bg-gray-200'
                 }`}></div>
               <div className="text-center">
                 <div className={`text-3xl font-bold ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'
-                  }`}>30min</div>
+                  }`}>0</div>
                 <div className={`text-sm ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'
-                  }`}>Avg. delivery</div>
+                  }`}>Queues</div>
               </div>
             </div>
           </div>
           <div className="relative">
             <div className="relative rounded-3xl overflow-hidden" style={{ boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)' }}>
               <ImageWithFallback
-                src="https://images.unsplash.com/photo-1687709645238-0470ff08a6bf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxoYXBweSUyMHN0dWRlbnQlMjBlYXRpbmclMjBtZWFsJTIwY2FtcHVzfGVufDF8fHx8MTc3MTMzODg2MXww&ixlib=rb-4.1.0&q=60&w=640"
-                alt="Happy student with meal"
+                src="/old-cafe-pic.jpeg"
+                alt="Old Cafeteria"
                 className="w-full h-full object-cover"
                 loading="eager"
               />
@@ -289,40 +266,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section id="testimonials" className="py-24 md:py-32">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-6xl mb-6 font-bold">
-              Trusted by Students
-            </h2>
-            <p className="text-xl text-muted-foreground">Join the elite community of tech-savvy students at Caleb University.</p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="hover:border-secondary/20 transition-all duration-500">
-                <div className="space-y-6">
-                  <div className="flex items-center gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-5 h-5 fill-primary text-primary" />
-                    ))}
-                  </div>
-                  <p className="text-lg italic leading-relaxed">"{testimonial.text}"</p>
-                  <div className="flex items-center gap-4 pt-4">
-                    <div className="w-14 h-14 rounded-2xl bg-secondary text-secondary-foreground flex items-center justify-center font-bold text-xl shadow-lg">
-                      {testimonial.avatar}
-                    </div>
-                    <div>
-                      <div className="font-bold text-lg">{testimonial.name}</div>
-                      <div className="text-sm text-muted-foreground font-medium">{testimonial.hostel}</div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
+
 
       {/* CTA Section */}
       <section className="max-w-7xl mx-auto px-6 py-16 md:py-24">
