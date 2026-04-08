@@ -135,7 +135,9 @@ export default function Checkout() {
 
   const config = {
     reference: (new Date()).getTime().toString(),
-    email: "guest@calebdeck.com",
+    email: formData.fullName
+      ? `${formData.fullName.trim().toLowerCase().replace(/\s+/g, '.')}@calebdeck.com`
+      : "guest@calebdeck.com",
     amount: Math.round((orderTotal?.totalAmount || 0) * 100),
     publicKey: paystackKey as string,
     metadata: {

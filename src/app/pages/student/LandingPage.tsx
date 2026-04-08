@@ -53,7 +53,7 @@ export default function LandingPage() {
 
       {/* Navigation */}
       <nav className="sticky top-0 bg-background/95 backdrop-blur-md z-50 border-b border-border transition-colors duration-300">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <Logo size="md" />
           <div className="hidden md:flex items-center gap-8">
             <a href="#how-it-works" className="text-foreground/80 hover:text-secondary transition-colors font-medium">
@@ -76,7 +76,7 @@ export default function LandingPage() {
               </Link>
             </div>
           </div>
-          <div className="md:hidden flex items-center gap-4">
+          <div className="md:hidden flex items-center gap-2 sm:gap-4">
             {user?.role === 'ADMIN' && (
               <Link to="/admin">
                 <Button variant="secondary" size="sm" className="border-[#7C3AED] text-[#7C3AED]">Admin</Button>
@@ -95,9 +95,9 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-6 py-16 md:py-24">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16 md:py-24">
         <div className="grid md:grid-cols-2 gap-12 items-center">
-          <div className="space-y-8">
+          <div className="space-y-6 sm:space-y-8">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 border border-secondary/20 text-secondary text-sm font-semibold">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
@@ -105,12 +105,12 @@ export default function LandingPage() {
               </span>
               Batching Orders Now
             </div>
-            <h1 className="text-5xl md:text-7xl leading-tight tracking-tight font-bold">
+            <h1 className="text-3xl sm:text-5xl md:text-7xl leading-tight tracking-tight font-bold">
               Skip the queue. <br />
               <span className="text-secondary">Premium</span> food <br />
               delivery.
             </h1>
-            <p className="text-xl text-muted-foreground leading-relaxed max-w-lg">
+            <p className="text-base sm:text-xl text-muted-foreground leading-relaxed max-w-lg">
               Save up to 45 minutes every day. Direct delivery to your hostel. Experience a new standard in campus dining.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
@@ -125,9 +125,9 @@ export default function LandingPage() {
                 </Button>
               </Link>
             </div>
-            <div className="flex items-center gap-6 pt-4">
+            <div className="flex items-center gap-4 sm:gap-6 pt-4">
               <div className="text-center">
-                <div className={`text-3xl font-bold ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'
+                <div className={`text-2xl sm:text-3xl font-bold ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'
                   }`}>2</div>
                 <div className={`text-sm ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'
                   }`}>Cafeterias</div>
@@ -135,7 +135,7 @@ export default function LandingPage() {
               <div className={`w-px h-12 ${studentTheme === 'dark' ? 'bg-[#333333]' : 'bg-gray-200'
                 }`}></div>
               <div className="text-center">
-                <div className={`text-3xl font-bold ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'
+                <div className={`text-2xl sm:text-3xl font-bold ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'
                   }`}>1</div>
                 <div className={`text-sm flex items-center justify-center gap-1 ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'
                   }`}>
@@ -145,7 +145,7 @@ export default function LandingPage() {
               <div className={`w-px h-12 ${studentTheme === 'dark' ? 'bg-[#333333]' : 'bg-gray-200'
                 }`}></div>
               <div className="text-center">
-                <div className={`text-3xl font-bold ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'
+                <div className={`text-2xl sm:text-3xl font-bold ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'
                   }`}>0</div>
                 <div className={`text-sm ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'
                   }`}>Queues</div>
@@ -172,7 +172,7 @@ export default function LandingPage() {
       <section id="how-it-works" className="bg-muted/30 py-24 md:py-32">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-6xl mb-6 font-bold">
+            <h2 className="text-2xl sm:text-4xl md:text-6xl mb-6 font-bold">
               Elevated Experience
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">Three simple steps to reclaim your time and enjoy premium campus meals.</p>
@@ -197,7 +197,7 @@ export default function LandingPage() {
       <section id="install-app" className={`py-24 md:py-32 ${studentTheme === 'dark' ? 'bg-[#0A0A0A]' : 'bg-white'}`}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className={`text-4xl md:text-5xl mb-6 font-black tracking-tight ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
+            <h2 className={`text-2xl sm:text-4xl md:text-5xl mb-6 font-black tracking-tight ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
               Get the App Experience
             </h2>
             <p className={`text-xl max-w-2xl mx-auto ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Install CalebDeck directly on your home screen for faster access. No app store required.</p>
@@ -270,13 +270,13 @@ export default function LandingPage() {
 
       {/* CTA Section */}
       <section className="max-w-7xl mx-auto px-6 py-16 md:py-24">
-        <div className="relative rounded-[3rem] overflow-hidden bg-secondary p-12 md:p-24 text-center">
+        <div className="relative rounded-[2rem] sm:rounded-[3rem] overflow-hidden bg-secondary p-8 sm:p-12 md:p-24 text-center">
           <div className="text-center absolute inset-0 bg-gradient-to-br from-secondary to-secondary/80"></div>
           <div className="relative z-10  space-y-6">
-            <h2 className="text-3xl md:text-5xl font-bold text-secondary-foreground">
+            <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold text-secondary-foreground">
               Ready to skip the queue?
             </h2>
-            <p className="text-xl text-secondary-foreground/80 max-w-2xl mx-auto ">
+            <p className="text-base sm:text-xl text-secondary-foreground/80 max-w-2xl mx-auto ">
               Join thousands of students saving time every day with CalebDeck. Your premium lifestyle starts here.
             </p>
             <Link to="/cafeteria">
