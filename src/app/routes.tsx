@@ -3,6 +3,7 @@ import { Suspense, lazy } from 'react';
 import { AdminRoleWrapper, RiderRoleWrapper } from './layouts/RoleWrappers';
 import StudentRoleWrapper from './layouts/StudentRoleWrapper';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { RootWrapper } from './components/RootWrapper';
 
 // --- Lazy Load Student Pages ---
 const LandingPage = lazy(() => import("./pages/student/LandingPage"));
@@ -54,7 +55,7 @@ export const router = createBrowserRouter([
     element: (
       <ErrorBoundary>
         <Suspense fallback={<SuspenseFallback />}>
-          <Outlet />
+          <RootWrapper />
         </Suspense>
       </ErrorBoundary>
     ),
