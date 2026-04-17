@@ -8,6 +8,7 @@ import { ProgressStepper } from '../../components/design-system/ProgressStepper'
 import { CheckCircle, MapPin, Clock, Phone, Sparkles, RefreshCw, AlertCircle } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import { subscribeToOrderStatus, getRiderById, getHostelById, Rider, getOrderById } from '../../../services/db';
+import { trackOrderTracked } from '../../../services/analytics';
 
 const TRACKING_STEPS = ['Received', 'Out for Delivery', 'On The Way', 'Delivered'];
 
@@ -80,6 +81,9 @@ export default function OrderSuccess() {
       if (order) {
         setOrderStatus(order.status);
         setCurrentStep(STATUS_TO_STEP[order.status] ?? 0);
+        
+        // Track order status updates
+        trackOrderTracked(orderId, order.status);
 
         if (order.assignedRiderId) {
           getRiderById(order.assignedRiderId).then(r => {

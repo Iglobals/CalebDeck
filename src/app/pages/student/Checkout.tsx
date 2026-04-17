@@ -13,6 +13,13 @@ import { db } from '../../../services/firebase';
 import { usePaystackPayment } from 'react-paystack';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
+import { 
+  trackCheckoutView, 
+  trackDeliveryModeSelected, 
+  trackPaymentInitiated, 
+  trackOrderPlaced,
+  trackPaymentFailed 
+} from '../../../services/analytics';
 
 const DELIVERY_FEE_SOLO = 750;
 const DELIVERY_FEE_GROUP = 580;
@@ -58,6 +65,16 @@ export default function Checkout() {
       try {
         const activeHostels = await getActiveHostels();
         setHostels(activeHostels);
+        
+        // Track checkout view when hostels are loaded
+        if (orderTotal) {
+          trackCheckoutView(
+            orderTotal.totalAmount,
+            plates.length + Object.keys(drinksSnacks).length,
+            cafeteriaId,
+            cafeteria
+          );
+        }
       } catch (error) {
         console.error("Error fetching hostels:", error);
         toast.error("Failed to load hostels");
@@ -220,6 +237,18 @@ export default function Checkout() {
 
     const goToSuccess = (firestoreId: string, finalOrderId: string) => {
       clearSession();
+      
+      // Track order placed
+      trackOrderPlaced(
+        finalOrderId,
+        orderData.total,
+        items.length,
+        cafeteriaId,
+        cafeteria,
+        currentDeliveryMode,
+        reference.reference
+      );
+      
       navigate('/order-success', {
         state: {
           ...orderData,
@@ -294,6 +323,14 @@ export default function Checkout() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!orderTotal || isClosed || isSubmitting) return;
+    
+    // Track payment initiation
+    trackPaymentInitiated(
+      orderTotal.totalAmount,
+      currentDeliveryMode,
+      'paystack'
+    );
+    
     setIsSubmitting(true);
     initializePayment({ onSuccess: onSuccess as any, onClose: () => { onClose(); setIsSubmitting(false); } });
   };

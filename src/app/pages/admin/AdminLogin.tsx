@@ -9,6 +9,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../../../services/firebase';
 import { useAuth } from '../../../context/AuthContext';
+import { trackAdminLoginAttempt } from '../../../services/analytics';
 
 export default function AdminLogin() {
     const [email, setEmail] = useState('');
@@ -36,7 +37,7 @@ export default function AdminLogin() {
             const userDoc = await getDoc(doc(db, 'users', res.user.uid));
 
             if (userDoc.exists() && userDoc.data().role === 'ADMIN') {
-
+                trackAdminLoginAttempt(email, true);
             } else if (!userDoc.exists() && res.user.email === 'admin@calebdeck.com') {
                 // Auto-repair: admin doc is missing, recreate it
                 await setDoc(doc(db, 'users', res.user.uid), {
@@ -45,14 +46,17 @@ export default function AdminLogin() {
                     fullName: 'CalebDeck Admin',
                     createdAt: new Date().toISOString(),
                 }, { merge: true });
+                trackAdminLoginAttempt(email, true);
                 window.location.href = '/admin';
                 return;
             } else {
                 setError('Access denied. This account does not have admin privileges.');
+                trackAdminLoginAttempt(email, false);
                 await auth.signOut();
             }
         } catch (err: any) {
             setError('Invalid email or password. Please try again.');
+            trackAdminLoginAttempt(email, false);
         } finally {
             setLoading(false);
         }

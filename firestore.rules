@@ -69,7 +69,9 @@ service cloud.firestore {
       allow update: if isAdmin() ||
         (isAuthenticated() && request.auth.uid == riderId);
 
-      allow create, delete: if isAdmin();
+      allow create: if isAdmin() ||
+        (isAuthenticated() && request.auth.uid == riderId);
+      allow delete: if isAdmin();
     }
 
     // ─── Users (Auth profiles) ───

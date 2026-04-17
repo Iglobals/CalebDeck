@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-
+import { getAnalytics } from "firebase/analytics";
 import { getMessaging } from "firebase/messaging";
 
 const firebaseConfig = {
@@ -17,7 +17,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-
+const analytics = getAnalytics(app);
+export { analytics };
 
 // Messaging (FCM) requires service worker setup, handling gracefully if not supported/blocked
 let messaging = null;

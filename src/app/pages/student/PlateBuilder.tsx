@@ -18,6 +18,7 @@ import { MenuItem, ComboDefinition, subscribeToCombos, seedCombos } from '../../
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 import { useTheme } from '../../../context/ThemeContext';
+import { trackPlateBuilderView, trackItemAdded, trackPlateAdded, trackDeliveryModeSelected } from '../../../services/analytics';
 
 interface PlateItem {
   item: MenuItem;
@@ -263,9 +264,19 @@ export default function PlateBuilder() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [availableCombos.length]);
 
+  // Track page view on load
+  useEffect(() => {
+    trackPlateBuilderView(cafeteriaId, cafeteria);
+  }, [cafeteriaId, cafeteria]);
+
   useEffect(() => sessionStorage.setItem('cd_plates', JSON.stringify(plates)), [plates]);
   useEffect(() => sessionStorage.setItem('cd_drinksSnacks', JSON.stringify(drinksSnacks)), [drinksSnacks]);
   useEffect(() => sessionStorage.setItem('cd_deliveryMode', deliveryMode), [deliveryMode]);
+  
+  // Track delivery mode changes
+  useEffect(() => {
+    trackDeliveryModeSelected(deliveryMode, deliveryMode === 'group' ? groupSize : 1);
+  }, [deliveryMode, groupSize]);
   useEffect(() => sessionStorage.setItem('cd_groupSize', groupSize.toString()), [groupSize]);
 
   if (loading) {
@@ -403,6 +414,10 @@ export default function PlateBuilder() {
     };
 
     setPlates([...plates, newPlate]);
+    
+    // Track plate created with item count and total price
+    trackPlateAdded(builderType, items.length, total, cafeteriaId);
+    
     setCurrentBuild({});
     setSelectedSwallow(null);
     setSelectedSoup(null);
