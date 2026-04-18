@@ -15,7 +15,11 @@ import {
     CheckCircle,
     Copy,
     Building,
-    Hash
+    Hash,
+    ChevronDown,
+    ChevronUp,
+    Package,
+    Clock
 } from 'lucide-react';
 import {
     subscribeToRiders,
@@ -46,6 +50,7 @@ export default function RiderManagement() {
     const [newRate, setNewRate] = useState('');
     const [savingRate, setSavingRate] = useState(false);
     const { adminTheme } = useTheme();
+    const [expandedRider, setExpandedRider] = useState<string | null>(null);
 
     const [isLoading, setIsLoading] = useState(true);
 
@@ -340,6 +345,123 @@ export default function RiderManagement() {
                                                 <p className="text-xs text-red-500 font-bold">Not configured</p>
                                             )}
                                         </div>
+
+                                        {/* Order History Toggle */}
+                                        <button
+                                            onClick={() => setExpandedRider(expandedRider === rider.id ? null : rider.id)}
+                                            className={`w-full mb-4 p-3 rounded-xl border flex items-center justify-between transition-all ${
+                                                expandedRider === rider.id
+                                                    ? isDark ? 'bg-[#7C3AED]/10 border-[#7C3AED]/30' : 'bg-purple-50 border-purple-200'
+                                                    : isDark ? 'bg-[#1A1A1A] border-[#333333] hover:border-[#444444]' : 'bg-gray-50 border-gray-100 hover:border-gray-200'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <Package className={`w-4 h-4 ${expandedRider === rider.id ? 'text-[#7C3AED]' : isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
+                                                <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${expandedRider === rider.id ? 'text-[#7C3AED]' : isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+                                                    Order History ({riderOrders.filter(o => o.status === 'DELIVERED').length} delivered)
+                                                </span>
+                                            </div>
+                                            {expandedRider === rider.id ? <ChevronUp className="w-4 h-4 text-[#7C3AED]" /> : <ChevronDown className={`w-4 h-4 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />}
+                                        </button>
+
+                                        {/* Expanded Order History */}
+                                        {expandedRider === rider.id && (
+                                            <div className={`mb-4 rounded-xl border overflow-hidden ${isDark ? 'border-[#333333]' : 'border-gray-100'}`}>
+                                                {riderOrders.length === 0 ? (
+                                                    <div className={`p-8 text-center ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-50'}`}>
+                                                        <Package className={`w-8 h-8 mx-auto mb-2 ${isDark ? 'text-[#333333]' : 'text-gray-300'}`} />
+                                                        <p className={`text-xs font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>No orders assigned yet</p>
+                                                    </div>
+                                                ) : (
+                                                    <div className={`max-h-[400px] overflow-y-auto ${isDark ? 'bg-[#1A1A1A]' : 'bg-white'}`}>
+                                                        {riderOrders
+                                                            .sort((a: any, b: any) => {
+                                                                const dateA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : new Date(a.createdAt).getTime();
+                                                                const dateB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : new Date(b.createdAt).getTime();
+                                                                return (dateB || 0) - (dateA || 0);
+                                                            })
+                                                            .map((order: any, idx: number) => {
+                                                                const orderDate = order.createdAt?.seconds
+                                                                    ? new Date(order.createdAt.seconds * 1000)
+                                                                    : new Date(order.createdAt);
+                                                                const isCombo = order.type === 'combo';
+                                                                const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
+                                                                const isDelivered = order.status === 'DELIVERED';
+
+                                                                return (
+                                                                    <div
+                                                                        key={order.id}
+                                                                        className={`px-4 py-3 flex flex-col gap-2 ${
+                                                                            idx !== riderOrders.length - 1
+                                                                                ? isDark ? 'border-b border-[#222222]' : 'border-b border-gray-50'
+                                                                                : ''
+                                                                        }`}
+                                                                    >
+                                                                        <div className="flex items-center justify-between">
+                                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                                <span className={`text-xs font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
+                                                                                    {order.fullName || order.studentName || 'Student'}
+                                                                                </span>
+                                                                                <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
+                                                                                    CD-{order.orderId?.slice(-5) || order.id?.slice(-5)}
+                                                                                </span>
+                                                                                {isCombo && <Badge variant="purple" className="text-[8px] font-black uppercase px-1.5 py-0.5">Combo</Badge>}
+                                                                                {isGroup && <Badge variant="gold" className="text-[8px] font-black uppercase px-1.5 py-0.5">Group</Badge>}
+                                                                                {!isCombo && !isGroup && <Badge variant="gray" className="text-[8px] font-black uppercase px-1.5 py-0.5">Plate</Badge>}
+                                                                            </div>
+                                                                            <Badge
+                                                                                variant={isDelivered ? 'green' : order.status === 'ON_THE_WAY' ? 'gold' : 'purple'}
+                                                                                className="text-[8px] font-black uppercase px-1.5 py-0.5"
+                                                                            >
+                                                                                {isDelivered ? 'Delivered' : order.status?.replace(/_/g, ' ') || 'Pending'}
+                                                                            </Badge>
+                                                                        </div>
+
+                                                                        <div className={`text-[11px] leading-relaxed ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+                                                                            {isCombo ? (
+                                                                                <span>
+                                                                                    <span className="font-bold">{order.comboName}</span> × {order.quantity || 1}
+                                                                                    {order.comboItems?.length > 0 && (
+                                                                                        <span> — {order.comboItems.map((i: any) => `${i.quantity > 1 ? `${i.quantity}x ` : ''}${i.name}`).join(', ')}</span>
+                                                                                    )}
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span>
+                                                                                    {order.plates?.length || 0} plate{(order.plates?.length || 0) !== 1 ? 's' : ''}
+                                                                                    {order.plates?.map((p: any, pi: number) => (
+                                                                                        p.items?.length > 0
+                                                                                            ? ` [${p.items.map((item: any) => item.item?.name || item.name).join(', ')}]`
+                                                                                            : ''
+                                                                                    )).filter(Boolean).join('')}
+                                                                                    {order.drinksSnacks?.length > 0 && ` + ${order.drinksSnacks.length} extra${order.drinksSnacks.length !== 1 ? 's' : ''}`}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+
+                                                                        <div className="flex items-center justify-between">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <MapPin className={`w-3 h-3 ${isDark ? 'text-[#666666]' : 'text-gray-300'}`} />
+                                                                                <span className={`text-[10px] font-bold ${isDark ? 'text-[#666666]' : 'text-gray-400'}`}>
+                                                                                    {order.hostelName || order.hostel || '—'}
+                                                                                </span>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-3">
+                                                                                <span className="text-[10px] font-black text-[#10B981]">₦{(order.total || 0).toLocaleString()}</span>
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <Clock className={`w-3 h-3 ${isDark ? 'text-[#666666]' : 'text-gray-300'}`} />
+                                                                                    <span className={`text-[10px] font-bold ${isDark ? 'text-[#666666]' : 'text-gray-400'}`}>
+                                                                                        {!isNaN(orderDate.getTime()) ? orderDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' ' + orderDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                                                                    </span>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
 
                                         <div className="flex gap-3">
                                             <Button
