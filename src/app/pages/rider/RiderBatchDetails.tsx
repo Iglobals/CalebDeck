@@ -142,13 +142,26 @@ export default function RiderBatchDetails() {
     };
 
     const markBatchDelivered = async () => {
-        if (!batch) return;
+        if (!batch || !user) return;
         setLoadingActions(prev => ({ ...prev, batch_delivered: true }));
         try {
             for (const orderId of batch.orderIds) {
                 const order = batchOrders.find(o => o.id === orderId);
                 if (order && order.status !== 'DELIVERED') {
                     await updateOrder(orderId, { status: 'DELIVERED' });
+
+                    // Record earnings for each order (same logic as individual markDelivered)
+                    const platesCount = order.type === 'combo' ? (order.quantity || 1) : (order.plates?.length || 1);
+                    const isCombo = order.type === 'combo';
+                    const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
+                    const rate = isCombo
+                        ? (platformSettings?.comboRatePerDelivery || 250)
+                        : isGroup
+                            ? (platformSettings?.groupRatePerDelivery || 200)
+                            : (platformSettings?.riderRatePerDelivery || 350);
+                    const earning = platesCount * rate;
+                    const finalEarning = order.isEmergency ? earning * 1.5 : earning;
+                    recordDelivery(user.uid, orderId, false, finalEarning).catch(console.error);
                 }
             }
             await updateBatch(batch.id, { status: 'DELIVERED' });

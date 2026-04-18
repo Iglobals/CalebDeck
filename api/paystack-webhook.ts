@@ -114,7 +114,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.plateCount = metadata.plateCount || 1;
         }
 
-        const orderRef = db.collection('orders').doc(reference);
         await orderRef.set(orderDoc);
         console.log(`[Webhook] Created order ${reference} from ref: ${reference}`);
 
