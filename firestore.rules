@@ -122,6 +122,14 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ─── Rider Payouts ───
+    match /rider_payouts/{payoutId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.riderId == request.auth.uid);
+      allow create: if isAdmin() || isAuthenticated();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
     // ─── Settings ───
     match /settings/{settingId} {
       allow read: if true;

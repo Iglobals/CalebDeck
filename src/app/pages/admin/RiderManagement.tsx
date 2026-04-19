@@ -35,7 +35,8 @@ import {
     updatePlatformSettings,
     BonusClaim,
     subscribeToPendingBonusClaims,
-    markBonusClaimSorted
+    markBonusClaimSorted,
+    markRiderPaidOut
 } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 
@@ -51,6 +52,8 @@ export default function RiderManagement() {
     const [savingRate, setSavingRate] = useState(false);
     const { adminTheme } = useTheme();
     const [expandedRider, setExpandedRider] = useState<string | null>(null);
+    const [payoutConfirm, setPayoutConfirm] = useState<{ rider: Rider; amount: number } | null>(null);
+    const [payingOut, setPayingOut] = useState(false);
 
     const [isLoading, setIsLoading] = useState(true);
 
@@ -119,6 +122,18 @@ export default function RiderManagement() {
 
     const handleSortClaim = async (claimId: string) => {
         await markBonusClaimSorted(claimId);
+    };
+
+    const handlePayoutRider = async (rider: Rider, amount: number) => {
+        setPayingOut(true);
+        try {
+            await markRiderPaidOut(rider.id, rider.name, amount);
+            setPayoutConfirm(null);
+        } catch (err: any) {
+            alert('Failed to mark payout: ' + (err.message || 'Unknown error'));
+        } finally {
+            setPayingOut(false);
+        }
     };
 
     const statusColors = { available: 'green', busy: 'gold', offline: 'gray' } as const;
@@ -317,6 +332,14 @@ export default function RiderManagement() {
                                             <div className={`p-4 rounded-xl ${isDark ? 'bg-[#2A2A2A]' : 'bg-gray-50'}`}>
                                                 <p className={`text-[9px] font-black uppercase tracking-widest mb-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Earnings</p>
                                                 <p className="text-xl font-black text-[#10B981]">₦{(rider.earnings || 0).toLocaleString()}</p>
+                                                {(rider.earnings || 0) > 0 && (
+                                                    <button
+                                                        onClick={() => setPayoutConfirm({ rider, amount: rider.earnings || 0 })}
+                                                        className={`mt-2 w-full py-2 rounded-lg text-[9px] font-black uppercase tracking-[0.15em] transition-all ${isDark ? 'bg-[#10B981]/15 text-[#10B981] hover:bg-[#10B981]/25 border border-[#10B981]/20' : 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-200'}`}
+                                                    >
+                                                        ✓ Mark Sorted
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
 
@@ -358,7 +381,7 @@ export default function RiderManagement() {
                                             <div className="flex items-center gap-2">
                                                 <Package className={`w-4 h-4 ${expandedRider === rider.id ? 'text-[#7C3AED]' : isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
                                                 <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${expandedRider === rider.id ? 'text-[#7C3AED]' : isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
-                                                    Order History ({riderOrders.filter(o => o.status === 'DELIVERED').length} delivered)
+                                                    Today's Orders ({riderOrders.filter(o => { const d = o.createdAt?.seconds ? new Date(o.createdAt.seconds * 1000).toLocaleDateString() : new Date(o.createdAt).toLocaleDateString(); return d === todayStr; }).length})
                                                 </span>
                                             </div>
                                             {expandedRider === rider.id ? <ChevronUp className="w-4 h-4 text-[#7C3AED]" /> : <ChevronDown className={`w-4 h-4 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />}
@@ -367,14 +390,14 @@ export default function RiderManagement() {
                                         {/* Expanded Order History */}
                                         {expandedRider === rider.id && (
                                             <div className={`mb-4 rounded-xl border overflow-hidden ${isDark ? 'border-[#333333]' : 'border-gray-100'}`}>
-                                                {riderOrders.length === 0 ? (
+                                                {(() => { const todayOrders = riderOrders.filter(o => { const d = o.createdAt?.seconds ? new Date(o.createdAt.seconds * 1000).toLocaleDateString() : new Date(o.createdAt).toLocaleDateString(); return d === todayStr; }); return todayOrders.length === 0 ? (
                                                     <div className={`p-8 text-center ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-50'}`}>
                                                         <Package className={`w-8 h-8 mx-auto mb-2 ${isDark ? 'text-[#333333]' : 'text-gray-300'}`} />
-                                                        <p className={`text-xs font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>No orders assigned yet</p>
+                                                        <p className={`text-xs font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>No orders today</p>
                                                     </div>
                                                 ) : (
-                                                    <div className={`max-h-[400px] overflow-y-auto ${isDark ? 'bg-[#1A1A1A]' : 'bg-white'}`}>
-                                                        {riderOrders
+                                                    <div className={`max-h-[280px] overflow-y-auto ${isDark ? 'bg-[#1A1A1A]' : 'bg-white'}`}>
+                                                        {todayOrders
                                                             .sort((a: any, b: any) => {
                                                                 const dateA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : new Date(a.createdAt).getTime();
                                                                 const dateB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : new Date(b.createdAt).getTime();
@@ -392,7 +415,7 @@ export default function RiderManagement() {
                                                                     <div
                                                                         key={order.id}
                                                                         className={`px-4 py-3 flex flex-col gap-2 ${
-                                                                            idx !== riderOrders.length - 1
+                                                                            idx !== todayOrders.length - 1
                                                                                 ? isDark ? 'border-b border-[#222222]' : 'border-b border-gray-50'
                                                                                 : ''
                                                                         }`}
@@ -459,7 +482,7 @@ export default function RiderManagement() {
                                                                 );
                                                             })}
                                                     </div>
-                                                )}
+                                                ); })()}
                                             </div>
                                         )}
 
@@ -590,6 +613,60 @@ export default function RiderManagement() {
                 </div>
             )}
             </>
+            )}
+
+            {/* Payout Confirmation Modal */}
+            {payoutConfirm && (
+                <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !payingOut && setPayoutConfirm(null)}></div>
+                    <div className={`relative w-full max-w-sm rounded-3xl p-8 shadow-2xl ${isDark ? 'bg-[#222222]' : 'bg-white'}`}>
+                        <div className="text-center mb-6">
+                            <div className="w-14 h-14 rounded-full bg-[#10B981]/10 flex items-center justify-center mx-auto mb-4">
+                                <CheckCircle className="w-7 h-7 text-[#10B981]" />
+                            </div>
+                            <h3 className={`font-black text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                Confirm Payout
+                            </h3>
+                            <p className={`text-sm mt-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+                                You are about to mark <strong className={isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}>{payoutConfirm.rider.name}</strong>'s earnings as paid.
+                            </p>
+                        </div>
+
+                        <div className={`p-4 rounded-xl mb-6 ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-50'}`}>
+                            <div className="flex items-center justify-between mb-3">
+                                <span className={`text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Amount</span>
+                                <span className="text-2xl font-black text-[#10B981]">₦{payoutConfirm.amount.toLocaleString()}</span>
+                            </div>
+                            {payoutConfirm.rider.bankName && (
+                                <div className={`pt-3 border-t text-xs ${isDark ? 'border-[#333333] text-[#9C8F7F]' : 'border-gray-200 text-gray-500'}`}>
+                                    <p>{payoutConfirm.rider.bankName} • {payoutConfirm.rider.accountNumber}</p>
+                                    <p className="font-bold mt-0.5">{payoutConfirm.rider.accountName}</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <p className={`text-[10px] text-center mb-4 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
+                            This will reset their earnings to ₦0 and record the payout.
+                        </p>
+
+                        <div className="space-y-3">
+                            <button
+                                onClick={() => handlePayoutRider(payoutConfirm.rider, payoutConfirm.amount)}
+                                disabled={payingOut}
+                                className="w-full py-3.5 rounded-xl font-bold text-sm bg-[#10B981] text-white hover:bg-[#059669] transition-all disabled:opacity-50"
+                            >
+                                {payingOut ? 'Processing...' : `Confirm — Paid ₦${payoutConfirm.amount.toLocaleString()}`}
+                            </button>
+                            <button
+                                onClick={() => setPayoutConfirm(null)}
+                                disabled={payingOut}
+                                className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all ${isDark ? 'text-[#9C8F7F] hover:bg-[#2A2A2A]' : 'text-gray-500 hover:bg-gray-50'}`}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </AdminLayout>
     );

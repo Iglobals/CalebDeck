@@ -3,8 +3,8 @@ import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
 import { Badge } from '../../components/design-system/Badge';
 import { Button } from '../../components/design-system/Button';
-import { Download, Search, Filter, ChevronDown, Trash2, RotateCcw, AlertTriangle, CheckCircle, Package, Clock } from 'lucide-react';
-import { subscribeToOrderHistory, trashOrder, recoverOrder, permanentlyDeleteOrder } from '../../../services/db';
+import { Download, Search, Filter, ChevronDown, Trash2, RotateCcw, AlertTriangle, CheckCircle, Package, Clock, Users } from 'lucide-react';
+import { subscribeToOrderHistory, subscribeToRiders, trashOrder, recoverOrder, permanentlyDeleteOrder, Rider } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 import { format } from 'date-fns';
 
@@ -12,6 +12,7 @@ type ViewMode = 'active' | 'trash';
 
 export default function AdminOrderHistory() {
     const [orders, setOrders] = useState<any[]>([]);
+    const [riders, setRiders] = useState<Rider[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [viewMode, setViewMode] = useState<ViewMode>('active');
@@ -21,7 +22,8 @@ export default function AdminOrderHistory() {
 
     useEffect(() => {
         const unsub = subscribeToOrderHistory(setOrders);
-        return () => unsub();
+        const unsubRiders = subscribeToRiders(setRiders);
+        return () => { unsub(); unsubRiders(); };
     }, []);
 
     const isDark = adminTheme === 'dark';
@@ -96,6 +98,7 @@ export default function AdminOrderHistory() {
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
         const date = parseDate(order.createdAt);
+        const riderName = order.assignedRiderId ? (riders.find(r => r.id === order.assignedRiderId)?.name || 'Unknown') : 'Unassigned';
         const html = `
             <html>
             <head>
@@ -133,6 +136,8 @@ export default function AdminOrderHistory() {
                 <div class="value" style="font-size:14px">${date ? format(date, 'PPpp') : 'N/A'}</div>
                 <div class="label">Status</div>
                 <div class="value" style="font-size:14px;color:#7C3AED">${order.status || 'PENDING'}</div>
+                <div class="label">Fulfilled By</div>
+                <div class="value" style="font-size:14px">${riderName}</div>
                 <div class="label">Items</div>
                 ${order.type === 'combo' ? (
                     `<div style="font-size:11px;font-weight:900;color:#7C3AED;margin-top:10px">${order.comboName} × ${order.quantity || 1}</div>` +
@@ -268,13 +273,14 @@ export default function AdminOrderHistory() {
                                 <th className={`py-4 px-4 lg:px-6 text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Total</th>
                                 <th className={`py-4 px-4 lg:px-6 text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Status</th>
                                 <th className={`py-4 px-4 lg:px-6 text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Date</th>
+                                <th className={`hidden md:table-cell py-4 px-4 lg:px-6 text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Rider</th>
                                 <th className={`py-4 px-4 lg:px-6 text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Actions</th>
                             </tr>
                         </thead>
                         <tbody className={`divide-y ${isDark ? 'divide-[#333333]' : 'divide-gray-50'}`}>
                             {filteredOrders.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className={`py-16 text-center ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
+                                    <td colSpan={8} className={`py-16 text-center ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
                                         <div className="flex flex-col items-center gap-3">
                                             {viewMode === 'trash' ? (
                                                 <>
@@ -297,7 +303,7 @@ export default function AdminOrderHistory() {
                                     groupedOrders.map(({ period, orders: periodOrders }) => (
                                         <React.Fragment key={period}>
                                             <tr>
-                                                <td colSpan={7} className={`py-3 px-6 ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-50'}`}>
+                                                <td colSpan={8} className={`py-3 px-6 ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-50'}`}>
                                                     <div className="flex items-center gap-3">
                                                         <span className={`text-[10px] font-black uppercase tracking-[0.3em] ${period === 'Today' ? 'text-[#7C3AED]' :
                                                             period === 'This Week' ? 'text-[#FCD34D]' :
@@ -347,6 +353,15 @@ export default function AdminOrderHistory() {
                                                             {date ? format(date, 'MMM d, yyyy') : 'N/A'}
                                                             <br />
                                                             <span className="text-[10px] opacity-70">{date ? format(date, 'h:mm a') : ''}</span>
+                                                        </td>
+                                                        <td className={`hidden md:table-cell py-4 px-4 lg:px-6`}>
+                                                            {order.assignedRiderId ? (
+                                                                <span className={`text-xs font-bold ${isDark ? 'text-[#FCD34D]' : 'text-purple-600'}`}>
+                                                                    {riders.find(r => r.id === order.assignedRiderId)?.name || 'Unknown'}
+                                                                </span>
+                                                            ) : (
+                                                                <span className={`text-[10px] font-bold ${isDark ? 'text-[#666666]' : 'text-gray-300'}`}>—</span>
+                                                            )}
                                                         </td>
                                                         <td className="py-4 px-4 lg:px-6">
                                                             <div className="flex items-center gap-1">
@@ -402,6 +417,15 @@ export default function AdminOrderHistory() {
                                                     {date ? format(date, 'MMM d, yyyy') : 'N/A'}
                                                     <br />
                                                     <span className="text-[10px] opacity-70">{date ? format(date, 'h:mm a') : ''}</span>
+                                                </td>
+                                                <td className={`hidden md:table-cell py-4 px-4 lg:px-6`}>
+                                                    {order.assignedRiderId ? (
+                                                        <span className={`text-xs font-bold ${isDark ? 'text-[#FCD34D]' : 'text-purple-600'}`}>
+                                                            {riders.find(r => r.id === order.assignedRiderId)?.name || 'Unknown'}
+                                                        </span>
+                                                    ) : (
+                                                        <span className={`text-[10px] font-bold ${isDark ? 'text-[#666666]' : 'text-gray-300'}`}>—</span>
+                                                    )}
                                                 </td>
                                                 <td className="py-4 px-4 lg:px-6">
                                                     <div className="flex items-center gap-1">

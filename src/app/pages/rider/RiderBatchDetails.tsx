@@ -319,6 +319,11 @@ export default function RiderBatchDetails() {
                                 <Badge variant={allDelivered ? 'green' : 'gold'} className="text-[9px] font-black uppercase tracking-widest">
                                     {allDelivered ? 'Done' : `${deliveredCount}/${batchOrders.length}`}
                                 </Badge>
+                                {batch.isEmergency && (
+                                    <Badge className="text-[9px] font-black uppercase tracking-widest bg-red-500/10 text-red-500 border border-red-500/20">
+                                        ⚡ Emergency Bonus
+                                    </Badge>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -429,6 +434,9 @@ export default function RiderBatchDetails() {
                                                 </span>
                                                 {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
                                                     <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5">Group</Badge>
+                                                )}
+                                                {order.isEmergency && (
+                                                    <Badge className="text-[9px] uppercase font-black px-1.5 py-0.5 bg-red-500/10 text-red-500">⚡ 1.5x</Badge>
                                                 )}
                                             </div>
                                         </div>

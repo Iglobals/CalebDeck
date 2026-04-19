@@ -297,6 +297,12 @@ export default function RiderDashboard() {
                       <span>{batch.orderCount} Orders</span>
                       <span className={isDark ? 'text-[#333333]' : 'text-gray-200'}>|</span>
                       <span className="text-amber-500 font-bold">{batch.plateCount} Items</span>
+                      {batch.isEmergency && (
+                        <>
+                          <span className={isDark ? 'text-[#333333]' : 'text-gray-200'}>|</span>
+                          <span className="text-red-500 font-bold uppercase tracking-wider text-[10px]">⚡ Emergency</span>
+                        </>
+                      )}
                       {orders.some((o: any) => batch.orderIds?.includes(o.id) && (o.deliveryMode === 'group' || o.deliveryMode === 'GROUP')) && (
                         <>
                           <span className={isDark ? 'text-[#333333]' : 'text-gray-200'}>|</span>

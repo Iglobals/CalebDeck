@@ -11,8 +11,10 @@ import {
     Rider, 
     subscribeToRiderDailyEarnings, 
     subscribeToRiderWeeklyStats,
+    subscribeToRiderPayouts,
     RiderDailyEarnings,
     RiderWeeklyStats,
+    RiderPayout,
     getIsoWeek,
     claimRiderBonus,
     subscribeToRiderBonusClaims,
@@ -26,11 +28,12 @@ export default function RiderWallet() {
     const { riderTheme } = useTheme();
     const isDark = riderTheme === 'dark';
 
-    const [activeTab, setActiveTab] = useState<'earnings' | 'incentives'>('earnings');
+    const [activeTab, setActiveTab] = useState<'earnings' | 'payouts' | 'incentives'>('earnings');
     const [rider, setRider] = useState<Rider | null>(null);
     const [dailyEarnings, setDailyEarnings] = useState<RiderDailyEarnings[]>([]);
     const [weeklyStats, setWeeklyStats] = useState<RiderWeeklyStats | null>(null);
     const [claims, setClaims] = useState<BonusClaim[]>([]);
+    const [payouts, setPayouts] = useState<RiderPayout[]>([]);
     const [showBankModal, setShowBankModal] = useState(false);
     const [loadingClaim, setLoadingClaim] = useState(false);
 
@@ -48,11 +51,13 @@ export default function RiderWallet() {
         const unsubEarnings = subscribeToRiderDailyEarnings(user.uid, setDailyEarnings);
         const unsubStats = subscribeToRiderWeeklyStats(user.uid, currentWeekId, setWeeklyStats);
         const unsubClaims = subscribeToRiderBonusClaims(user.uid, setClaims);
+        const unsubPayouts = subscribeToRiderPayouts(user.uid, setPayouts);
 
         return () => {
             unsubEarnings();
             unsubStats();
             unsubClaims();
+            unsubPayouts();
         };
     }, [user, currentWeekId]);
 
@@ -117,9 +122,14 @@ export default function RiderWallet() {
                     <div className="relative z-10 flex flex-col items-center text-center">
                         <p className={`text-[10px] font-black uppercase tracking-widest mb-2 ${isDark ? 'text-[#9C8F7F]' : 'text-white/70'}`}>Lifetime Earnings</p>
                         <h2 className={`text-5xl font-black tracking-tighter ${isDark ? 'text-[#10B981]' : 'text-white'}`}>
-                            <span className="text-2xl mr-1 opacity-70">₦</span>
+                            <span className={`text-2xl mr-1 opacity-70`}>₦</span>
                             {(rider?.earnings || 0).toLocaleString()}
                         </h2>
+                        {payouts.length > 0 && (
+                            <p className={`text-xs mt-1 ${isDark ? 'text-[#9C8F7F]' : 'text-white/60'}`}>
+                                Total Paid Out (30d): ₦{payouts.reduce((sum, p) => sum + p.amount, 0).toLocaleString()}
+                            </p>
+                        )}
 
                         <div className={`mt-6 w-full flex items-center justify-between p-4 rounded-2xl ${isDark ? 'bg-[#222222]' : 'bg-white/10 backdrop-blur-sm'}`}>
                             <div className="flex items-center gap-3 text-left">
@@ -147,6 +157,9 @@ export default function RiderWallet() {
                 <div className={`flex p-1.5 rounded-2xl ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-100'}`}>
                     <button className={tabClass('earnings')} onClick={() => setActiveTab('earnings')}>
                         <Wallet className="w-4 h-4" /> Earnings
+                    </button>
+                    <button className={tabClass('payouts')} onClick={() => setActiveTab('payouts')}>
+                        <CheckCircle className="w-4 h-4" /> Payouts
                     </button>
                     <button className={tabClass('incentives')} onClick={() => setActiveTab('incentives')}>
                         <Gift className="w-4 h-4" /> Incentives
@@ -176,6 +189,35 @@ export default function RiderWallet() {
                             <div className={`text-center py-10 border-2 border-dashed rounded-2xl ${isDark ? 'border-[#222222] text-[#9C8F7F]' : 'border-gray-200 text-gray-400'}`}>
                                 <Clock className="w-8 h-8 mx-auto mb-3 opacity-30" />
                                 <p className="text-xs font-bold uppercase tracking-widest">No earnings data yet</p>
+                            </div>
+                        )}
+                    </div>
+                ) : activeTab === 'payouts' ? (
+                    <div className="space-y-4">
+                        <h3 className={`text-sm font-black uppercase tracking-widest ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Payout History (Last 30 Days)</h3>
+                        {payouts.length > 0 ? payouts.map(payout => {
+                            const payDate = payout.paidAt?.seconds ? new Date(payout.paidAt.seconds * 1000) : new Date(payout.paidAt);
+                            return (
+                                <div key={payout.id} className={`flex items-center justify-between p-4 rounded-2xl border ${isDark ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-white border-gray-100'}`}>
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isDark ? 'bg-[#10B981]/10' : 'bg-green-50'}`}>
+                                            <CheckCircle className={`w-5 h-5 ${isDark ? 'text-[#10B981]' : 'text-green-500'}`} />
+                                        </div>
+                                        <div>
+                                            <p className={`font-black tracking-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
+                                                {!isNaN(payDate.getTime()) ? payDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : 'Unknown Date'}
+                                            </p>
+                                            <p className={`text-[10px] font-black uppercase tracking-widest mt-0.5 ${isDark ? 'text-[#10B981]' : 'text-green-600'}`}>Paid Out</p>
+                                        </div>
+                                    </div>
+                                    <h4 className={`text-xl font-black ${isDark ? 'text-[#10B981]' : 'text-[#059669]'}`}>+₦{payout.amount.toLocaleString()}</h4>
+                                </div>
+                            );
+                        }) : (
+                            <div className={`text-center py-10 border-2 border-dashed rounded-2xl ${isDark ? 'border-[#222222] text-[#9C8F7F]' : 'border-gray-200 text-gray-400'}`}>
+                                <CheckCircle className="w-8 h-8 mx-auto mb-3 opacity-30" />
+                                <p className="text-xs font-bold uppercase tracking-widest">No payouts yet</p>
+                                <p className="text-[10px] mt-1 opacity-70">Your payout history will appear here when admin processes your earnings.</p>
                             </div>
                         )}
                     </div>

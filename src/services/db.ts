@@ -817,3 +817,64 @@ export const markBonusClaimSorted = async (claimId: string) => {
     const claimRef = doc(db, 'bonus_claims', claimId);
     await updateDoc(claimRef, { status: 'SORTED', sortedAt: serverTimestamp() });
 };
+
+// ─── Rider Payout Management ───
+export interface RiderPayout {
+    id: string;
+    riderId: string;
+    riderName: string;
+    amount: number;
+    paidAt: any;
+}
+
+export const markRiderPaidOut = async (riderId: string, riderName: string, amount: number) => {
+    if (amount <= 0) throw new Error('No earnings to pay out');
+
+    // 1. Record the payout transaction
+    await addDoc(collection(db, 'rider_payouts'), {
+        riderId,
+        riderName,
+        amount,
+        paidAt: serverTimestamp()
+    });
+
+    // 2. Reset rider earnings to 0
+    const riderRef = doc(db, 'riders', riderId);
+    await updateDoc(riderRef, { earnings: 0 });
+};
+
+export const subscribeToRiderPayouts = (riderId: string, callback: (payouts: RiderPayout[]) => void) => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const q = query(
+        collection(db, 'rider_payouts'),
+        where('riderId', '==', riderId),
+        where('paidAt', '>=', Timestamp.fromDate(thirtyDaysAgo)),
+        orderBy('paidAt', 'desc'),
+        limit(50)
+    );
+    return onSnapshot(q, (snapshot) => {
+        callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as RiderPayout)));
+    }, (error) => {
+        console.error('subscribeToRiderPayouts error:', error);
+        callback([]);
+    });
+};
+
+// For admin: get all payouts across all riders (last 30 days)
+export const subscribeToAllRiderPayouts = (callback: (payouts: RiderPayout[]) => void) => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const q = query(
+        collection(db, 'rider_payouts'),
+        where('paidAt', '>=', Timestamp.fromDate(thirtyDaysAgo)),
+        orderBy('paidAt', 'desc'),
+        limit(100)
+    );
+    return onSnapshot(q, (snapshot) => {
+        callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as RiderPayout)));
+    }, (error) => {
+        console.error('subscribeToAllRiderPayouts error:', error);
+        callback([]);
+    });
+};
