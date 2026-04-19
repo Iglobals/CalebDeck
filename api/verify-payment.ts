@@ -173,8 +173,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.basePrice = orderData.basePrice || 0; // Persist for dashboard pricing
         } else {
             orderDoc.type = 'plate';
-            orderDoc.plates = orderData?.plates || [];
-            orderDoc.drinksSnacks = orderData?.drinksSnacks || [];
+            
+            // Strip out massive base64 images from the arrays to save Firestore size (prevent 1MB limit crash)
+            const cleanPlates = (orderData?.plates || []).map((plate: any) => ({
+                ...plate,
+                items: (plate.items || []).map((i: any) => {
+                    const cleanI = { ...i };
+                    delete cleanI.image;
+                    if (cleanI.item) {
+                        cleanI.item = { ...cleanI.item };
+                        delete cleanI.item.image;
+                    }
+                    return cleanI;
+                })
+            }));
+
+            const cleanSnacks = (orderData?.drinksSnacks || []).map((snack: any) => {
+                const cleanS = { ...snack };
+                delete cleanS.image;
+                return cleanS;
+            });
+
+            orderDoc.plates = cleanPlates;
+            orderDoc.drinksSnacks = cleanSnacks;
             orderDoc.plateCount = orderData?.plateCount || 1;
         }
 
