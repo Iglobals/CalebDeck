@@ -98,10 +98,9 @@ export default function RiderBatchDetails() {
                         ? (platformSettings?.groupRatePerDelivery || 200)
                         : (platformSettings?.riderRatePerDelivery || 350);
                 const earning = platesCount * rate;
-                const finalEarning = order.isEmergency ? earning * 1.5 : earning;
                 
                 // Track stats & earnings
-                recordDelivery(user.uid, orderId, false, finalEarning).catch(console.error);
+                recordDelivery(user.uid, orderId, false, earning).catch(console.error);
             }
 
             const updatedBatchOrders = batchOrders.map(o => o.id === orderId ? { ...o, status: 'DELIVERED' } : o);
@@ -160,8 +159,7 @@ export default function RiderBatchDetails() {
                             ? (platformSettings?.groupRatePerDelivery || 200)
                             : (platformSettings?.riderRatePerDelivery || 350);
                     const earning = platesCount * rate;
-                    const finalEarning = order.isEmergency ? earning * 1.5 : earning;
-                    recordDelivery(user.uid, orderId, false, finalEarning).catch(console.error);
+                    recordDelivery(user.uid, orderId, false, earning).catch(console.error);
                 }
             }
             await updateBatch(batch.id, { status: 'DELIVERED' });
@@ -321,7 +319,7 @@ export default function RiderBatchDetails() {
                                 </Badge>
                                 {batch.isEmergency && (
                                     <Badge className="text-[9px] font-black uppercase tracking-widest bg-red-500/10 text-red-500 border border-red-500/20">
-                                        ⚡ Emergency Bonus
+                                        ⚡ Emergency Redirect
                                     </Badge>
                                 )}
                             </div>
@@ -436,7 +434,7 @@ export default function RiderBatchDetails() {
                                                     <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5">Group</Badge>
                                                 )}
                                                 {order.isEmergency && (
-                                                    <Badge className="text-[9px] uppercase font-black px-1.5 py-0.5 bg-red-500/10 text-red-500">⚡ 1.5x</Badge>
+                                                    <Badge className="text-[9px] uppercase font-black px-1.5 py-0.5 bg-red-500/10 text-red-500">⚡ Redirect</Badge>
                                                 )}
                                             </div>
                                         </div>

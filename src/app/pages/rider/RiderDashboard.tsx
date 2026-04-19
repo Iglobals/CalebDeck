@@ -136,7 +136,7 @@ export default function RiderDashboard() {
             ? (platformSettings?.groupRatePerDelivery || 200)
             : (platformSettings?.riderRatePerDelivery || 350);
     const earning = platesCount * rate;
-    return o.isEmergency ? earning * 1.5 : earning;
+    return earning;
   };
 
   const todayEarnings = deliveredOrders.reduce((acc, o) => acc + getOrderEarnings(o), 0);
