@@ -78,6 +78,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const metadata = paymentData.metadata || {};
         const paidAmount = paymentData.amount / 100;
 
+        // 4b. GUARD: Only process CalebDeck transactions
+        // If this transaction has no CalebDeck-specific metadata, it belongs to another product
+        // sharing the same Paystack account (e.g. IES). Silently ignore it.
+        const isCalebDeck = metadata.orderId?.startsWith('CD-') ||
+            metadata.cafeteriaId ||
+            metadata.hostel ||
+            metadata.source === 'calebdeck';
+
+        if (!isCalebDeck) {
+            console.log(`[Webhook] Ignoring non-CalebDeck transaction: ${reference} (amount: ${paidAmount})`);
+            return res.status(200).json({ received: true, ignored: true, reason: 'not_calebdeck' });
+        }
+
         const orderDoc: any = {
             orderId: metadata.orderId || `CD-WH-${Math.floor(10000 + Math.random() * 90000)}`,
             fullName: metadata.fullName || metadata.studentName || 'Unknown (Webhook)',
