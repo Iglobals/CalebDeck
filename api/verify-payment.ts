@@ -47,17 +47,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             // Blocking here would leave the user with a paid but unprocessed order.
         }
 
-        // 1. Check if a COMPLETE order already exists (created by a previous verify-payment call)
-        //    If the order was created by the webhook (source='webhook'), we OVERWRITE it
-        //    because the webhook version lacks plate item details.
+        // 1. Check if order already exists
+        //    - source='verified' → already fully processed, skip
+        //    - source='pre_saved' (PENDING_PAYMENT) → items already saved, just update status after verification
+        //    - source='webhook' → skeleton without items, overwrite with full data
         const orderRef = db.collection('orders').doc(reference);
         const existingDoc = await orderRef.get();
 
         if (existingDoc.exists) {
             const existingData = existingDoc.data()!;
-            // If this order was already fully created by verify-payment (not webhook),
-            // return it immediately — true idempotency
-            if (existingData.source !== 'webhook') {
+
+            // Already fully verified — true idempotency
+            if (existingData.source === 'verified') {
                 return res.status(200).json({
                     data: {
                         success: true,
@@ -67,8 +68,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     }
                 });
             }
-            // Otherwise, fall through to overwrite the webhook skeleton with full data
-            console.log(`[verify-payment] Overwriting webhook skeleton for ref: ${reference}`);
+
+            // Pre-saved order (items already in DB) — verify payment then just flip status
+            if (existingData.source === 'pre_saved' && existingData.status === 'PENDING_PAYMENT') {
+                console.log(`[verify-payment] Found pre-saved order for ref: ${reference}, verifying payment...`);
+                // Don't return yet — fall through to verify with Paystack, then update status
+            }
+
+            // Webhook skeleton — fall through to overwrite with full data
+            if (existingData.source === 'webhook') {
+                console.log(`[verify-payment] Overwriting webhook skeleton for ref: ${reference}`);
+            }
         }
 
         // 2. Verify with Paystack
@@ -199,15 +209,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.plateCount = orderData?.plateCount || 1;
         }
 
-        await orderRef.set(orderDoc);
+        // For pre-saved orders, just update the status — item data is already in Firestore
+        const isPreSaved = existingDoc.exists && existingDoc.data()?.source === 'pre_saved';
 
-        // 6. Create admin notification (only if it's a fresh order, not an overwrite)
-        if (!existingDoc.exists) {
+        if (isPreSaved) {
+            await orderRef.set({
+                status: 'PAID',
+                source: 'verified',
+                total: paidAmount, // Use Paystack-verified amount
+                updatedAt: FieldValue.serverTimestamp()
+            }, { merge: true });
+            console.log(`[verify-payment] Updated pre-saved order to PAID: ${reference}`);
+        } else {
+            await orderRef.set(orderDoc);
+        }
+
+        // 6. Create admin notification (for fresh orders or pre-saved orders becoming PAID)
+        if (!existingDoc.exists || isPreSaved) {
             try {
+                const notifyName = isPreSaved ? existingDoc.data()?.fullName : orderDoc.fullName;
+                const notifyHostel = isPreSaved ? existingDoc.data()?.hostelName : orderDoc.hostelName;
                 await db.collection('notifications').add({
                     userId: 'admin',
                     title: 'New Order Received',
-                    message: `${orderDoc.fullName || 'A student'} just ordered from ${orderDoc.hostelName || orderDoc.hostel}`,
+                    message: `${notifyName || 'A student'} just ordered from ${notifyHostel || 'campus'}`,
                     type: 'order',
                     link: '/admin/orders',
                     isRead: false,

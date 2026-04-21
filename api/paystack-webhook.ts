@@ -56,20 +56,67 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const reference = paymentData.reference;
 
         // 3. Idempotent — check if order already exists
-        //    If verify-payment already wrote the full order (source='verified'),
-        //    don't overwrite it — verify-payment has the complete plate data.
-        //    If we (webhook) created a skeleton earlier, verify-payment will overwrite us.
         const orderRef = db.collection('orders').doc(reference);
         const existingDoc = await orderRef.get();
 
         if (existingDoc.exists) {
             const existingData = existingDoc.data()!;
+
+            // Pre-saved order (items already complete) — just flip status to PAID
+            if (existingData.source === 'pre_saved' && existingData.status === 'PENDING_PAYMENT') {
+                await orderRef.update({
+                    status: 'PAID',
+                    source: 'webhook_confirmed',
+                    updatedAt: FieldValue.serverTimestamp()
+                });
+                console.log(`[Webhook] Confirmed pre-saved order: ${reference}`);
+
+                // Send admin notification since this is the payment confirmation
+                try {
+                    const adminMsg = `${existingData.fullName} just ordered from ${existingData.hostelName || existingData.hostel}`;
+                    await db.collection('notifications').add({
+                        userId: 'admin',
+                        title: 'New Order',
+                        message: adminMsg,
+                        type: 'order',
+                        link: '/admin/orders',
+                        isRead: false,
+                        createdAt: FieldValue.serverTimestamp()
+                    });
+
+                    // Push notification to admin
+                    const adminsSnap = await db.collection('users').where('role', '==', 'ADMIN').get();
+                    let allAdminTokens: string[] = [];
+                    adminsSnap.docs.forEach(doc => {
+                        const data = doc.data();
+                        if (data.fcmTokens && Array.isArray(data.fcmTokens)) {
+                            allAdminTokens = [...allAdminTokens, ...data.fcmTokens];
+                        }
+                    });
+                    if (allAdminTokens.length > 0 && process.env.INTERNAL_API_KEY) {
+                        const protocol = req.headers['x-forwarded-proto'] || 'https';
+                        const host = req.headers.host || 'calebdeck.com';
+                        const apiUrl = `${protocol}://${host}/api/send-push`;
+                        await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-Api-Key': process.env.INTERNAL_API_KEY },
+                            body: JSON.stringify({ title: 'New Order', body: adminMsg, tokens: allAdminTokens, link: '/admin/orders' })
+                        }).catch(err => console.error('[Webhook] Push error:', err));
+                    }
+                } catch (err) {
+                    console.error('[Webhook] Notification error on pre-saved confirm:', err);
+                }
+
+                return res.status(200).json({ received: true, confirmed: true });
+            }
+
+            // Already fully created by verify-payment — don't touch
             if (existingData.source !== 'webhook') {
-                // verify-payment already wrote the complete order — don't touch it
                 console.log(`[Webhook] Complete order already exists for ref: ${reference}`);
                 return res.status(200).json({ received: true, duplicate: true });
             }
-            // It's our own webhook skeleton — verify-payment will overwrite later
+
+            // Our own webhook skeleton — already exists
             console.log(`[Webhook] Webhook skeleton already exists for ref: ${reference}`);
             return res.status(200).json({ received: true, duplicate: true });
         }

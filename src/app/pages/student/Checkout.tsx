@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router';
 import { Logo } from '../../components/design-system/Logo';
 import { Card } from '../../components/design-system/Card';
@@ -150,8 +150,11 @@ export default function Checkout() {
   const selectedHostel = hostels.find(h => h.id === formData.hostel);
   const orderId = React.useMemo(() => `CD-${Math.floor(10000 + Math.random() * 90000)}`, []);
 
+  // Stable payment reference — generated once, used for pre-save + Paystack + verify
+  const paymentRef = useRef((new Date()).getTime().toString());
+
   const config = {
-    reference: (new Date()).getTime().toString(),
+    reference: paymentRef.current,
     email: formData.fullName
       ? `${formData.fullName.trim().toLowerCase().replace(/\s+/g, '.')}@calebdeck.com`
       : "guest@calebdeck.com",
@@ -320,7 +323,7 @@ export default function Checkout() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!orderTotal || isClosed || isSubmitting) return;
     
@@ -332,6 +335,49 @@ export default function Checkout() {
     );
     
     setIsSubmitting(true);
+
+    // PRE-SAVE: Save the complete order to Firestore BEFORE payment
+    // This ensures items are never lost, even if verify-payment fails later
+    try {
+      const preSaveData = {
+        orderId,
+        fullName: formData.fullName,
+        studentName: formData.fullName,
+        phone: formData.phone,
+        hostel: formData.hostel,
+        hostelName: selectedHostel?.name || formData.hostel,
+        instructions: formData.instructions,
+        total: orderTotal?.totalAmount,
+        cafeteria,
+        cafeteriaId,
+        sectionId,
+        deliveryMode: currentDeliveryMode,
+        ...(isCombo ? {
+          type: 'combo',
+          comboId: comboOrder.comboId,
+          comboName: comboOrder.comboName,
+          comboItems: comboOrder.comboItems,
+          quantity: comboOrder.quantity,
+          plateCount: comboOrder.quantity,
+          basePrice: comboOrder.basePrice
+        } : {
+          plates,
+          drinksSnacks: drinksSnacksItems,
+          plateCount: plates.length
+        })
+      };
+
+      await fetch('/api/pre-save-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reference: paymentRef.current, orderData: preSaveData })
+      });
+      console.log('[Checkout] Order pre-saved successfully');
+    } catch (preSaveErr) {
+      // Pre-save failed — proceed anyway, verify-payment is still the primary path
+      console.warn('[Checkout] Pre-save failed (non-blocking):', preSaveErr);
+    }
+
     initializePayment({ onSuccess: onSuccess as any, onClose: () => { onClose(); setIsSubmitting(false); } });
   };
 
