@@ -570,6 +570,10 @@ export default function Checkout() {
                               <span className="text-foreground">₦{(item.item.price * item.quantity).toLocaleString()}</span>
                             </div>
                           ))}
+                          <div className="flex justify-between text-sm font-medium pt-1 mt-1 border-t border-border/30">
+                            <span className="text-muted-foreground">Takeaway Pack</span>
+                            <span className="text-foreground">₦200</span>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -609,15 +613,7 @@ export default function Checkout() {
                   </div>
                 )}
 
-                {!isCombo && (
-                  <div className="flex justify-between items-center text-muted-foreground font-medium">
-                    <div className="flex items-center gap-2">
-                      <Package className="w-4 h-4" />
-                      <span>Takeaway Pack (₦200 × {plates.length})</span>
-                    </div>
-                    <span>₦{(200 * plates.length).toLocaleString()}</span>
-                  </div>
-                )}
+
 
 
 
