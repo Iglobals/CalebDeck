@@ -23,6 +23,17 @@ export interface Hostel {
     isActive: boolean;
 }
 
+export interface Review {
+    id?: string;
+    orderId: string;
+    studentName: string;
+    rating: number; // 1 to 5
+    feedback: string;
+    cafeteria: string;
+    riderName: string;
+    createdAt?: any;
+}
+
 // Hostels
 export const getActiveHostels = async (): Promise<Hostel[]> => {
     const q = query(collection(db, 'hostels'), where('isActive', '==', true));
@@ -200,11 +211,31 @@ export const subscribeToRiderOrders = (riderId: string, callback: (orders: any[]
                 return (dateB || 0) - (dateA || 0);
             });
         callback(sortedDocs);
+    });
+};
+
+// Reviews
+export const submitReview = async (review: Review) => {
+    return addDoc(collection(db, 'reviews'), {
+        ...review,
+        createdAt: serverTimestamp()
+    });
+};
+
+export const subscribeToReviews = (callback: (reviews: Review[]) => void) => {
+    const q = query(
+        collection(db, 'reviews'),
+        orderBy('createdAt', 'desc'),
+        limit(100)
+    );
+    return onSnapshot(q, (snapshot) => {
+        callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Review)));
     }, (error) => {
-        console.error("Error fetching rider orders:", error);
+        console.error('subscribeToReviews error:', error);
         callback([]);
     });
 };
+
 
 // Subscribe to a single order's status (for student order tracking)
 export const subscribeToOrderStatus = (orderId: string, callback: (order: any) => void) => {

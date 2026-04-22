@@ -586,7 +586,7 @@ export default function Checkout() {
                           {drinksSnacksItems.map(({ item, quantity }: any) => (
                             <div key={item.id} className="flex justify-between text-sm font-medium">
                               <span className="text-muted-foreground font-medium">{item.name} <span className="text-xs opacity-60">×{quantity}</span></span>
-                              <span className="text-foreground">₦{((item.price + (item.price < 1000 ? 50 : 0)) * quantity).toLocaleString()}</span>
+                              <span className="text-foreground">₦{(item.price * quantity).toLocaleString()}</span>
                             </div>
                           ))}
                         </div>
@@ -624,6 +624,16 @@ export default function Checkout() {
                   </div>
                   <span>₦{((orderTotal?.breakdown?.platform || 100) + (orderTotal?.breakdown?.processing || 200)).toLocaleString()}</span>
                 </div>
+                
+                {(orderTotal?.breakdown?.cafeCharge || 0) > 0 && (
+                  <div className="flex justify-between items-center text-muted-foreground font-medium">
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-4 h-4 opacity-0" />
+                      <span>Cafe Charge</span>
+                    </div>
+                    <span>₦{(orderTotal?.breakdown?.cafeCharge || 0).toLocaleString()}</span>
+                  </div>
+                )}
 
                 <div className="flex justify-between items-center pt-4 border-t border-border gap-4">
                   <span className="text-2xl font-black">Total Due</span>

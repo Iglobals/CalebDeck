@@ -122,6 +122,8 @@ export default function AdminOrders() {
 
     const getStatusBadge = (status: string) => {
         const map: Record<string, { variant: string; label: string }> = {
+            PENDING_PAYMENT: { variant: 'amber', label: 'Payment Pending' },
+            FAILED: { variant: 'gray', label: 'Failed' },
             PAID: { variant: 'gold', label: 'Paid' },
             OUT_FOR_DELIVERY: { variant: 'purple', label: 'Out for Delivery' },
             ON_THE_WAY: { variant: 'amber', label: 'On The Way' },
@@ -566,6 +568,50 @@ export default function AdminOrders() {
                                             </div>
                                         </div>
                                     )}
+
+                                    {/* Breakdown of Fees */}
+                                    <div className={`p-8 rounded-3xl border ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white shadow-sm'}`}>
+                                        <h5 className="text-xs font-black uppercase tracking-[0.2em] text-blue-500 mb-6">Fee Breakdown</h5>
+                                        <div className="space-y-4">
+                                            <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10">
+                                                <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Delivery Fee {(selectedOrder.deliveryMode === 'group' || selectedOrder.deliveryMode === 'GROUP') ? '(Group)' : '(Solo)'}</p>
+                                                <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>
+                                                    ₦{(((selectedOrder.deliveryMode === 'group' || selectedOrder.deliveryMode === 'GROUP') ? 580 : 750) * (selectedOrder.quantity || selectedOrder.plates?.length || 1)).toLocaleString()}
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10">
+                                                <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Service & Processing Fee</p>
+                                                <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>₦300</span>
+                                            </div>
+                                            
+                                            {(() => {
+                                                const deliveryAmount = (((selectedOrder.deliveryMode === 'group' || selectedOrder.deliveryMode === 'GROUP') ? 580 : 750) * (selectedOrder.quantity || selectedOrder.plates?.length || 1));
+                                                const takeawayAmount = selectedOrder.type !== 'combo' ? (selectedOrder.plates?.length || 0) * 200 : 0;
+                                                const serviceProcessing = 300;
+                                                
+                                                let foodAmount = 0;
+                                                if (selectedOrder.type === 'combo') {
+                                                    foodAmount = (selectedOrder.basePrice || (selectedOrder.total / (selectedOrder.quantity || 1))) * (selectedOrder.quantity || 1);
+                                                } else {
+                                                    foodAmount += selectedOrder.plates?.reduce((acc: number, p: any) => acc + (p.total || 0), 0) || 0;
+                                                    foodAmount += selectedOrder.drinksSnacks?.reduce((acc: number, a: any) => acc + ((a.item?.price || a.price || 0) * (a.quantity || 1)), 0) || 0;
+                                                }
+                                                
+                                                const predictedBase = foodAmount + deliveryAmount + takeawayAmount + serviceProcessing;
+                                                const difference = (selectedOrder.total || 0) - predictedBase;
+                                                
+                                                if (difference >= 40 && difference <= 60) {
+                                                    return (
+                                                        <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10">
+                                                            <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Cafe Charge</p>
+                                                            <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>₦50</span>
+                                                        </div>
+                                                    );
+                                                }
+                                                return null;
+                                            })()}
+                                        </div>
+                                    </div>
 
                                     {(selectedOrder.notes || selectedOrder.instructions) && (selectedOrder.notes || selectedOrder.instructions).trim() !== '' && (
                                         <div className={`p-8 rounded-3xl border ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white'}`}>

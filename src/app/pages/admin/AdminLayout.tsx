@@ -13,7 +13,8 @@ import {
     X as CloseIcon,
     UtensilsCrossed,
     LogOut,
-    ArrowRight
+    ArrowRight,
+    Star
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useTheme } from '../../../context/ThemeContext';
@@ -33,6 +34,7 @@ const SEARCHABLE_ITEMS = [
     { label: 'Riders', keywords: ['riders', 'driver', 'delivery', 'available', 'online', 'offline', 'busy'], path: '/admin/riders', icon: '🏍️' },
     { label: 'Menu Management', keywords: ['menu', 'food', 'item', 'rice', 'pasta', 'swallow', 'protein', 'price', 'available', 'unavailable', 'cafeteria', 'section'], path: '/admin/menu', icon: '🍽️' },
     { label: 'Analytics', keywords: ['analytics', 'revenue', 'chart', 'report', 'trend', 'profit', 'sales'], path: '/admin/analytics', icon: '📈' },
+    { label: 'Reviews', keywords: ['reviews', 'star', 'feedback', 'student', 'rating', 'comment'], path: '/admin/reviews', icon: '⭐' },
     { label: 'Order History', keywords: ['history', 'past', 'old', 'receipt', 'date', 'archive', 'delete', 'trash', 'recover'], path: '/admin/history', icon: '📋' },
 ];
 
@@ -61,6 +63,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
         { id: 'riders', path: '/admin/riders', icon: <Users className="w-5 h-5" />, label: 'Riders' },
         { id: 'menu', path: '/admin/menu', icon: <UtensilsCrossed className="w-5 h-5" />, label: 'Menu Management' },
         { id: 'analytics', path: '/admin/analytics', icon: <BarChart3 className="w-5 h-5" />, label: 'Analytics' },
+        { id: 'reviews', path: '/admin/reviews', icon: <Star className="w-5 h-5" />, label: 'Reviews' },
         { id: 'history', path: '/admin/history', icon: <Package className="w-5 h-5" />, label: 'Order History' },
     ];
 

@@ -34,7 +34,12 @@ export default function AdminOrderHistory() {
         setTimeout(() => setToast({ message: '', visible: false }), 3000);
     };
 
-    const activeOrders = orders.filter(o => o.status === 'DELIVERED' || o.status === 'CANCELLED');
+    const limitDate = new Date('2026-04-07T00:00:00Z');
+    const activeOrders = orders.filter(o => {
+        if (o.status === 'TRASHED') return false;
+        const d = parseDate(o.createdAt);
+        return d && d >= limitDate;
+    });
     const trashedOrders = orders.filter(o => o.status === 'TRASHED');
     const currentOrders = viewMode === 'active' ? activeOrders : trashedOrders;
 
@@ -178,6 +183,8 @@ export default function AdminOrderHistory() {
     };
 
     const statusColors: Record<string, string> = {
+        PENDING_PAYMENT: isDark ? 'bg-amber-500/10 text-amber-500' : 'bg-amber-50 text-amber-600',
+        FAILED: isDark ? 'bg-gray-500/10 text-gray-400' : 'bg-gray-100 text-gray-500',
         PENDING: isDark ? 'bg-yellow-500/10 text-yellow-500' : 'bg-yellow-50 text-yellow-600',
         PAID: isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600',
         CONFIRMED: isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600',
@@ -189,7 +196,7 @@ export default function AdminOrderHistory() {
         TRASHED: isDark ? 'bg-gray-500/10 text-gray-400' : 'bg-gray-100 text-gray-500',
     };
 
-    const activeStatuses = ['all', 'DELIVERED', 'CANCELLED'];
+    const activeStatuses = ['all', 'PENDING_PAYMENT', 'PAID', 'OUT_FOR_DELIVERY', 'ON_THE_WAY', 'DELIVERED', 'FAILED', 'CANCELLED'];
 
     return (
         <AdminLayout title="Order History">

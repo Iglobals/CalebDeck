@@ -47,8 +47,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
 
-        // 2. Only process successful charges
-        if (event.event !== 'charge.success') {
+        // 2. Only process successful and failed charges
+        if (event.event !== 'charge.success' && event.event !== 'charge.failed') {
             return res.status(200).json({ received: true });
         }
 
@@ -61,6 +61,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (existingDoc.exists) {
             const existingData = existingDoc.data()!;
+
+            // Handle failed charges
+            if (event.event === 'charge.failed') {
+                if (existingData.status === 'PENDING_PAYMENT') {
+                    await orderRef.update({
+                        status: 'FAILED',
+                        updatedAt: FieldValue.serverTimestamp()
+                    });
+                    console.log(`[Webhook] Marked pre-saved order as FAILED: ${reference}`);
+                }
+                return res.status(200).json({ received: true, failed: true });
+            }
 
             // Pre-saved order (items already complete) — just flip status to PAID
             if (existingData.source === 'pre_saved' && existingData.status === 'PENDING_PAYMENT') {
@@ -136,6 +148,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!isCalebDeck) {
             console.log(`[Webhook] Ignoring non-CalebDeck transaction: ${reference} (amount: ${paidAmount})`);
             return res.status(200).json({ received: true, ignored: true, reason: 'not_calebdeck' });
+        }
+
+        // 4c. GUARD: If the charge failed and it's a new order (not pre-saved), ignore it entirely.
+        if (event.event === 'charge.failed') {
+            console.log(`[Webhook] Ignoring failed new order: ${reference}`);
+            return res.status(200).json({ received: true, ignored: true, reason: 'failed_transaction' });
         }
 
         const orderDoc: any = {

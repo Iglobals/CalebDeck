@@ -7,7 +7,7 @@ import { Badge } from '../../components/design-system/Badge';
 import { ProgressStepper } from '../../components/design-system/ProgressStepper';
 import { CheckCircle, MapPin, Clock, Phone, Sparkles, RefreshCw, AlertCircle } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
-import { subscribeToOrderStatus, getRiderById, getHostelById, Rider, getOrderById } from '../../../services/db';
+import { subscribeToOrderStatus, getRiderById, getHostelById, Rider, getOrderById, submitReview } from '../../../services/db';
 import { trackOrderTracked } from '../../../services/analytics';
 
 const TRACKING_STEPS = ['Received', 'Out for Delivery', 'On The Way', 'Delivered'];
@@ -60,7 +60,18 @@ export default function OrderSuccess() {
   const [rider, setRider] = useState<Rider | null>(null);
   const [orderStatus, setOrderStatus] = useState<string>('PAID');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewText, setReviewText] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const enjoyMealRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+     if (orderId && localStorage.getItem(`reviewed_${orderId}`)) {
+         setHasReviewed(true);
+     }
+  }, [orderId]);
 
   useEffect(() => {
     if (!hostel) return;
@@ -130,6 +141,28 @@ export default function OrderSuccess() {
         console.error("Manual refresh failed:", err);
     } finally {
         setTimeout(() => setIsRefreshing(false), 800);
+    }
+  };
+
+  const handleReviewSubmit = async () => {
+    if (!orderId || !firestoreOrderId) return;
+    setIsSubmittingReview(true);
+    try {
+      await submitReview({
+        orderId: firestoreOrderId,
+        studentName: fullName || 'Student',
+        rating: reviewRating,
+        feedback: reviewText,
+        cafeteria: cafeteria || 'General',
+        riderName: rider?.name || 'Unknown'
+      });
+      localStorage.setItem(`reviewed_${orderId}`, 'true');
+      setHasReviewed(true);
+      setIsReviewOpen(false);
+    } catch (e) {
+      console.error('Failed to submit review', e);
+    } finally {
+      setIsSubmittingReview(false);
     }
   };
 
@@ -399,6 +432,11 @@ export default function OrderSuccess() {
                   Your order has been delivered. Thank you for choosing CalebDeck for your premium campus dining.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">
+                  {!hasReviewed && (
+                    <Button variant="secondary" onClick={() => setIsReviewOpen(true)} className="flex-1 py-5 rounded-2xl">
+                      Rate Experience
+                    </Button>
+                  )}
                   <Link to="/" className="flex-1">
                     <Button variant="primary" className="w-full py-5 rounded-2xl">
                       Done
@@ -407,6 +445,34 @@ export default function OrderSuccess() {
                 </div>
               </div>
             </Card>
+          </div>
+        )}
+
+        {isReviewOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+             <div className="bg-card w-full max-w-md rounded-3xl p-8 relative shadow-2xl">
+                <button onClick={() => setIsReviewOpen(false)} className="absolute top-6 right-6 text-muted-foreground hover:text-foreground">
+                   ×
+                </button>
+                <h3 className="text-2xl font-black mb-2 text-center text-[#7C3AED]">Rate Your Experience</h3>
+                <p className="text-sm text-center text-muted-foreground mb-6">How was your order and delivery from {cafeteria || 'us'}?</p>
+                <div className="flex justify-center gap-2 mb-6">
+                   {[1, 2, 3, 4, 5].map((star) => (
+                      <button key={star} onClick={() => setReviewRating(star)} className={`text-4xl transition-transform ${star <= reviewRating ? 'text-[#FCD34D] scale-110' : 'text-gray-300'}`}>
+                         ★
+                      </button>
+                   ))}
+                </div>
+                <textarea 
+                   className="w-full bg-secondary/10 border-2 border-secondary/20 rounded-2xl p-4 text-sm mb-6 min-h-[100px] outline-none font-medium resize-none placeholder:text-muted-foreground focus:border-primary/50" 
+                   placeholder="Any feedback? (Optional)"
+                   value={reviewText}
+                   onChange={e => setReviewText(e.target.value)}
+                />
+                <Button variant="primary" disabled={isSubmittingReview} onClick={handleReviewSubmit} className="w-full py-4 text-lg">
+                   {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
+                </Button>
+             </div>
           </div>
         )}
       </main>

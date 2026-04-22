@@ -115,20 +115,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const quantity = orderData.quantity || 1;
             const deliveryFee = (isGroup ? 580 : 750) * quantity;
             
-            let smallItemFee = 0;
+            let cafeCharge = 0;
             if (comboData.basePrice < 1000) {
-                smallItemFee = 50 * quantity;
+                cafeCharge = 50;
             }
 
-            serverTotal = (comboData.basePrice * quantity) + deliveryFee + platformFee + processingFee + smallItemFee;
+            serverTotal = (comboData.basePrice * quantity) + deliveryFee + platformFee + processingFee + cafeCharge;
         } else {
             const items = orderData?.items || [];
             let foodTotal = 0;
-            let smallItemFee = 0;
+            let cafeCharge = 0;
 
             if (items.length > 0) {
                 const itemRefs = items.map((i: any) => db!.collection('menu_items').doc(i.id));
                 const itemDocs = await db!.getAll(...itemRefs);
+                let hasSmallAddon = false;
 
                 for (let idx = 0; idx < itemDocs.length; idx++) {
                     const doc = itemDocs[idx];
@@ -142,19 +143,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         currentPrice = items[idx].price || 0;
                     }
 
-                    // Inflate small addon items by 50 silently
                     if (items[idx].isAddon && currentPrice < 1000) {
-                        currentPrice += 50;
+                        hasSmallAddon = true;
                     }
 
                     foodTotal += currentPrice * qty;
+                }
+                
+                if (hasSmallAddon) {
+                    cafeCharge = 50;
                 }
             }
 
             const plateCount = typeof orderData?.plateCount === 'number' ? orderData.plateCount : 1;
             const deliveryFee = (isGroup ? 580 : 750) * plateCount;
             const takeawayFee = 200 * plateCount;
-            serverTotal = foodTotal + deliveryFee + takeawayFee + platformFee + processingFee;
+            serverTotal = foodTotal + deliveryFee + takeawayFee + platformFee + processingFee + cafeCharge;
         }
 
         // 4. Verify amount — allow 5% tolerance for rounding
