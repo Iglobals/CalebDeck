@@ -115,12 +115,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const quantity = orderData.quantity || 1;
             const deliveryFee = (isGroup ? 580 : 750) * quantity;
             
-            let cafeCharge = 0;
-            if (comboData.basePrice < 1000) {
-                cafeCharge = 50;
-            }
-
-            serverTotal = (comboData.basePrice * quantity) + deliveryFee + platformFee + processingFee + cafeCharge;
+            // Add service and processing fee for combos
+            serverTotal = (comboData.basePrice * quantity) + deliveryFee + platformFee + processingFee;
         } else {
             const items = orderData?.items || [];
             let foodTotal = 0;
@@ -129,7 +125,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (items.length > 0) {
                 const itemRefs = items.map((i: any) => db!.collection('menu_items').doc(i.id));
                 const itemDocs = await db!.getAll(...itemRefs);
-                let hasSmallAddon = false;
 
                 for (let idx = 0; idx < itemDocs.length; idx++) {
                     const doc = itemDocs[idx];
@@ -139,26 +134,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     if (doc.exists) {
                         currentPrice = doc.data()!.price || 0;
                     } else {
-                        // Use client price for drinks/add-ons that may have different IDs
                         currentPrice = items[idx].price || 0;
                     }
 
                     if (items[idx].isAddon && currentPrice < 1000) {
-                        hasSmallAddon = true;
+                        currentPrice += 50;
                     }
 
                     foodTotal += currentPrice * qty;
-                }
-                
-                if (hasSmallAddon) {
-                    cafeCharge = 50;
                 }
             }
 
             const plateCount = typeof orderData?.plateCount === 'number' ? orderData.plateCount : 1;
             const deliveryFee = (isGroup ? 580 : 750) * plateCount;
             const takeawayFee = 200 * plateCount;
-            serverTotal = foodTotal + deliveryFee + takeawayFee + platformFee + processingFee + cafeCharge;
+            serverTotal = foodTotal + deliveryFee + takeawayFee + platformFee + processingFee;
         }
 
         // 4. Verify amount — allow 5% tolerance for rounding

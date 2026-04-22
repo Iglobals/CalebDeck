@@ -107,8 +107,8 @@ export default function Checkout() {
     const isGrp = dMode === 'group' || dMode === 'GROUP';
     const delivery = (isGrp ? DELIVERY_FEE_GROUP : DELIVERY_FEE_SOLO) * qty;
     return {
-      totalAmount: base * qty + delivery,
-      breakdown: { food: base * qty, delivery, takeaway: 0, discount: 0 }
+      totalAmount: base * qty + delivery + 300,
+      breakdown: { food: base * qty, delivery, takeaway: 0, discount: 0, platform: 100, processing: 200 }
     };
   }, [isCombo, comboOrder?.quantity, comboOrder?.basePrice, currentDeliveryMode]);
 
@@ -583,12 +583,15 @@ export default function Checkout() {
                       <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
                         <h4 className="font-bold uppercase tracking-wider text-xs text-primary mb-3">Add-ons</h4>
                         <div className="space-y-1">
-                          {drinksSnacksItems.map(({ item, quantity }: any) => (
-                            <div key={item.id} className="flex justify-between text-sm font-medium">
-                              <span className="text-muted-foreground font-medium">{item.name} <span className="text-xs opacity-60">×{quantity}</span></span>
-                              <span className="text-foreground">₦{(item.price * quantity).toLocaleString()}</span>
-                            </div>
-                          ))}
+                          {drinksSnacksItems.map(({ item, quantity }: any) => {
+                            const inflatedPrice = item.price + (item.price < 1000 && item.isAddon ? 50 : 0);
+                            return (
+                              <div key={item.id} className="flex justify-between text-sm font-medium">
+                                <span className="text-muted-foreground font-medium">{item.name} <span className="text-xs opacity-60">×{quantity}</span></span>
+                                <span className="text-foreground">₦{(inflatedPrice * quantity).toLocaleString()}</span>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -624,16 +627,6 @@ export default function Checkout() {
                   </div>
                   <span>₦{((orderTotal?.breakdown?.platform || 100) + (orderTotal?.breakdown?.processing || 200)).toLocaleString()}</span>
                 </div>
-                
-                {(orderTotal?.breakdown?.cafeCharge || 0) > 0 && (
-                  <div className="flex justify-between items-center text-muted-foreground font-medium">
-                    <div className="flex items-center gap-2">
-                      <Shield className="w-4 h-4 opacity-0" />
-                      <span>Cafe Charge</span>
-                    </div>
-                    <span>₦{(orderTotal?.breakdown?.cafeCharge || 0).toLocaleString()}</span>
-                  </div>
-                )}
 
                 <div className="flex justify-between items-center pt-4 border-t border-border gap-4">
                   <span className="text-2xl font-black">Total Due</span>

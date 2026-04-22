@@ -6,7 +6,7 @@ import {
     PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer
 } from 'recharts';
 import { subscribeToOrderHistory } from '../../../services/db';
-import { TrendingUp, ShoppingBag, Users, DollarSign, CalendarDays, ChevronDown } from 'lucide-react';
+import { TrendingUp, ShoppingBag, Users, DollarSign, CalendarDays, ChevronDown, Shield } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, isWithinInterval } from 'date-fns';
 
@@ -111,7 +111,13 @@ export default function AdminAnalytics() {
     }, [orders, timeRange]);
 
     const totalOrders = filteredOrders.length;
-    const totalRevenue = filteredOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    const totalTotal = filteredOrders.reduce((sum, o) => sum + (o.total || o.amount || 0), 0);
+    const totalSystemFees = filteredOrders.reduce((sum, o) => {
+        const platform = o.breakdown?.platform ?? 100;
+        const processing = o.breakdown?.processing ?? 200;
+        return sum + platform + processing;
+    }, 0);
+    const totalRevenue = totalTotal;
     const deliveredOrders = filteredOrders.filter(o => o.status === 'DELIVERED').length;
     const fulfillmentRate = totalOrders > 0 ? ((deliveredOrders / totalOrders) * 100).toFixed(0) : '0';
     const uniqueCustomers = new Set(filteredOrders.map(o => o.phone).filter(Boolean)).size;
@@ -144,10 +150,11 @@ export default function AdminAnalytics() {
             </div>
 
             {/* KPI Row */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
                 {[
                     { label: 'Total Orders', value: totalOrders.toString(), icon: <ShoppingBag className="w-5 h-5" />, color: '#7C3AED' },
                     { label: 'Revenue', value: `₦${totalRevenue.toLocaleString()}`, icon: <DollarSign className="w-5 h-5" />, color: '#10B981' },
+                    { label: 'Fees Collected', value: `₦${totalSystemFees.toLocaleString()}`, icon: <Shield className="w-5 h-5" />, color: '#F43F5E' },
                     { label: 'Unique Customers', value: uniqueCustomers.toString(), icon: <Users className="w-5 h-5" />, color: '#FCD34D' },
                     { label: 'Fulfilled', value: `${fulfillmentRate}%`, icon: <TrendingUp className="w-5 h-5" />, color: '#3B82F6' },
                 ].map((kpi, i) => (

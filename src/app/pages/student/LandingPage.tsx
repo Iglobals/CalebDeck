@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Logo } from '../../components/design-system/Logo';
 import { Button } from '../../components/design-system/Button';
@@ -8,11 +8,66 @@ import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
 import SEO from '../../components/SEO';
+import { submitReview } from '../../../services/db';
+import toast from 'react-hot-toast';
 
 export default function LandingPage() {
   const { studentTheme } = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  // Global Review State
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewText, setReviewText] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [pastOrder, setPastOrder] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const orderJson = localStorage.getItem('calebdeck_last_order');
+      if (orderJson) {
+        const order = JSON.parse(orderJson);
+        const hasReviewed = localStorage.getItem(`reviewed_${order.orderId}`);
+        const lastPromptStr = localStorage.getItem('last_global_review_prompt');
+        const lastPrompt = lastPromptStr ? parseInt(lastPromptStr, 10) : 0;
+        
+        // Ensure prompt is shown at most twice a week (3.5 days = 302400000 ms)
+        const canPrompt = (Date.now() - lastPrompt) > 302400000;
+
+        if (!hasReviewed && canPrompt) {
+          // Delay popup by 2 seconds so they have time to see the landing page
+          setTimeout(() => {
+            setPastOrder(order);
+            setIsReviewOpen(true);
+            localStorage.setItem('last_global_review_prompt', Date.now().toString());
+          }, 2000);
+        }
+      }
+    } catch(e) { }
+  }, []);
+
+  const handleReviewSubmit = async () => {
+    if (!pastOrder) return;
+    setIsSubmittingReview(true);
+    try {
+      await submitReview({
+        orderId: pastOrder.orderId,
+        rating: reviewRating,
+        feedback: reviewText,
+        riderId: pastOrder.assignedRiderId,
+        cafeteria: pastOrder.cafeteria || 'Cafeteria',
+        studentName: user?.fullName || 'Anonymous'
+      });
+      localStorage.setItem(`reviewed_${pastOrder.orderId}`, 'true');
+      toast.success('Thanks for your feedback!');
+      setIsReviewOpen(false);
+    } catch(e) {
+      toast.error('Failed to submit review');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   // Smart PWA Routing: if launched from Home Screen, auto-redirect staff
   useEffect(() => {
@@ -309,6 +364,35 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Global Review Modal */}
+      {isReviewOpen && pastOrder && (
+         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="bg-card w-full max-w-md rounded-3xl p-8 relative shadow-2xl">
+               <button onClick={() => setIsReviewOpen(false)} className="absolute top-6 right-6 text-muted-foreground hover:text-foreground text-2xl leading-none">
+                  ×
+               </button>
+               <h3 className="text-2xl font-black mb-2 text-center text-[#7C3AED]">Rate Your Experience</h3>
+               <p className="text-sm text-center text-muted-foreground mb-6">How was your recent order from {pastOrder.cafeteria || 'us'}?</p>
+               <div className="flex justify-center gap-2 mb-6">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                     <button key={star} onClick={() => setReviewRating(star)} className={`text-4xl transition-transform ${star <= reviewRating ? 'text-[#FCD34D] scale-110' : 'text-gray-300'}`}>
+                        ★
+                     </button>
+                  ))}
+               </div>
+               <textarea 
+                  className="w-full bg-secondary/10 border-2 border-secondary/20 rounded-2xl p-4 text-sm mb-6 min-h-[100px] outline-none font-medium resize-none placeholder:text-muted-foreground focus:border-primary/50" 
+                  placeholder="Any feedback on the food or rider? (Optional)"
+                  value={reviewText}
+                  onChange={e => setReviewText(e.target.value)}
+               />
+               <Button variant="primary" disabled={isSubmittingReview} onClick={handleReviewSubmit} className="w-full py-4 text-lg">
+                  {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
+               </Button>
+            </div>
+         </div>
+      )}
     </div>
   );
 }

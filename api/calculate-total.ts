@@ -56,14 +56,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (doc.exists) {
                 currentPrice = doc.data()!.price || 0;
             } else {
-                // For drinks/snacks that may use different ID patterns, use client price
-                // but log it for monitoring
                 console.warn(`[calculate-total] Item not found: ${items[idx].id}, using client price: ${items[idx].price}`);
                 currentPrice = items[idx].price || 0;
             }
             
             if (items[idx].isAddon && currentPrice < 1000) {
-                hasSmallAddon = true;
+                currentPrice += 50;
             }
             
             foodTotal += currentPrice * qty;
@@ -78,9 +76,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         const platformFee = 100;
         const processingFee = 200;
-        const cafeCharge = hasSmallAddon ? 50 : 0;
 
-        const totalAmount = foodTotal + deliveryFee + takeawayFee + platformFee + processingFee + cafeCharge - discount;
+        const totalAmount = foodTotal + deliveryFee + takeawayFee + platformFee + processingFee - discount;
 
         return res.status(200).json({
             data: {
@@ -91,7 +88,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     takeaway: takeawayFee, 
                     platform: platformFee,
                     processing: processingFee,
-                    cafeCharge,
                     discount 
                 },
             }
