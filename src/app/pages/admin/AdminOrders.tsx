@@ -356,6 +356,9 @@ export default function AdminOrders() {
                                                                     <span className={`font-mono text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                                                                         CD-{order.orderId?.slice(-6) || 'N/A'}
                                                                     </span>
+                                                                    {order.cafeteria && (
+                                                                        <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5">{order.cafeteria}</Badge>
+                                                                    )}
                                                                     {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
                                                                         <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5">Group</Badge>
                                                                     )}
@@ -393,6 +396,9 @@ export default function AdminOrders() {
                                                     <span className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                                                         {order.hostelName || order.hostel}
                                                     </span>
+                                                    {order.cafeteria && (
+                                                        <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5 ml-2 mt-1">{order.cafeteria}</Badge>
+                                                    )}
                                                     {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
                                                         <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 ml-2 mt-1">Group</Badge>
                                                     )}
@@ -432,6 +438,9 @@ export default function AdminOrders() {
                                         <h3 className={`text-lg lg:text-xl font-black tracking-tight mb-1 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Order Details</h3>
                                         <div className="flex items-center gap-2">
                                             <p className={`text-xs font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{selectedOrder.orderId}</p>
+                                            {selectedOrder.cafeteria && (
+                                                <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5">{selectedOrder.cafeteria}</Badge>
+                                            )}
                                             {(selectedOrder.deliveryMode === 'group' || selectedOrder.deliveryMode === 'GROUP') && (
                                                 <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5">Group</Badge>
                                             )}

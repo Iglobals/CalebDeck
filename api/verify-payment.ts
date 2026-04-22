@@ -103,6 +103,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const isCombo = orderData?.type === 'combo';
         const isGroup = orderData?.deliveryMode === 'group' || orderData?.deliveryMode === 'GROUP';
 
+        const platformFee = 100;
+        const processingFee = 200;
+
         if (isCombo) {
             const comboDoc = await db.collection('combo_packs').doc(orderData.comboId).get();
             if (!comboDoc.exists) {
@@ -111,10 +114,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const comboData = comboDoc.data()!;
             const quantity = orderData.quantity || 1;
             const deliveryFee = (isGroup ? 580 : 750) * quantity;
-            serverTotal = (comboData.basePrice * quantity) + deliveryFee;
+            
+            let smallItemFee = 0;
+            if (comboData.basePrice < 1000) {
+                smallItemFee = 50 * quantity;
+            }
+
+            serverTotal = (comboData.basePrice * quantity) + deliveryFee + platformFee + processingFee + smallItemFee;
         } else {
             const items = orderData?.items || [];
             let foodTotal = 0;
+            let smallItemFee = 0;
 
             if (items.length > 0) {
                 const itemRefs = items.map((i: any) => db!.collection('menu_items').doc(i.id));
@@ -123,20 +133,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 for (let idx = 0; idx < itemDocs.length; idx++) {
                     const doc = itemDocs[idx];
                     const qty = items[idx].quantity || 1;
+                    let currentPrice = 0;
 
                     if (doc.exists) {
-                        foodTotal += (doc.data()!.price || 0) * qty;
+                        currentPrice = doc.data()!.price || 0;
                     } else {
                         // Use client price for drinks/add-ons that may have different IDs
-                        foodTotal += (items[idx].price || 0) * qty;
+                        currentPrice = items[idx].price || 0;
                     }
+
+                    // Inflate small addon items by 50 silently
+                    if (items[idx].isAddon && currentPrice < 1000) {
+                        currentPrice += 50;
+                    }
+
+                    foodTotal += currentPrice * qty;
                 }
             }
 
             const plateCount = typeof orderData?.plateCount === 'number' ? orderData.plateCount : 1;
             const deliveryFee = (isGroup ? 580 : 750) * plateCount;
             const takeawayFee = 200 * plateCount;
-            serverTotal = foodTotal + deliveryFee + takeawayFee;
+            serverTotal = foodTotal + deliveryFee + takeawayFee + platformFee + processingFee;
         }
 
         // 4. Verify amount — allow 5% tolerance for rounding

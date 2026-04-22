@@ -9,7 +9,11 @@ export const calculateOrderTotal = async (data: any) => {
         let total = 0;
 
         items.forEach((item: any) => {
-            total += (item.price || 0) * (item.quantity || 1);
+            let p = item.price || 0;
+            if (item.isAddon && p < 1000) {
+                p += 50;
+            }
+            total += p * (item.quantity || 1);
         });
 
         const plateCount = typeof providedPlateCount === 'number' ? providedPlateCount : 1;
@@ -21,12 +25,22 @@ export const calculateOrderTotal = async (data: any) => {
             discount = (750 - 580) * plateCount;
         }
 
-        const finalTotal = total + deliveryFee + takeawayFee - discount;
+        const platformFee = 100;
+        const processingFee = 200;
+
+        const finalTotal = total + deliveryFee + takeawayFee + platformFee + processingFee - discount;
 
         return {
             data: {
                 totalAmount: finalTotal,
-                breakdown: { food: total, delivery: deliveryFee, takeaway: takeawayFee, discount },
+                breakdown: { 
+                    food: total, 
+                    delivery: deliveryFee, 
+                    takeaway: takeawayFee, 
+                    platform: platformFee,
+                    processing: processingFee,
+                    discount 
+                },
             }
         };
     }

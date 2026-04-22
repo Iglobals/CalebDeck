@@ -49,15 +49,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         for (let idx = 0; idx < itemDocs.length; idx++) {
             const doc = itemDocs[idx];
             const qty = items[idx].quantity || 1;
+            let currentPrice = 0;
 
             if (doc.exists) {
-                foodTotal += (doc.data()!.price || 0) * qty;
+                currentPrice = doc.data()!.price || 0;
             } else {
                 // For drinks/snacks that may use different ID patterns, use client price
                 // but log it for monitoring
                 console.warn(`[calculate-total] Item not found: ${items[idx].id}, using client price: ${items[idx].price}`);
-                foodTotal += (items[idx].price || 0) * qty;
+                currentPrice = items[idx].price || 0;
             }
+            
+            // Inflate small addon items by 50 silently
+            if (items[idx].isAddon && currentPrice < 1000) {
+                currentPrice += 50;
+            }
+            
+            foodTotal += currentPrice * qty;
         }
 
         const plateCount = typeof providedPlateCount === 'number' ? providedPlateCount : 1;
@@ -66,12 +74,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const deliveryFee = (isGroup ? DELIVERY_FEE_GROUP : DELIVERY_FEE_SOLO) * plateCount;
         const takeawayFee = TAKEAWAY_FEE_PER_PLATE * plateCount;
         const discount = isGroup ? (DELIVERY_FEE_SOLO - DELIVERY_FEE_GROUP) * plateCount : 0;
-        const totalAmount = foodTotal + deliveryFee + takeawayFee;
+        
+        const platformFee = 100;
+        const processingFee = 200;
+
+        const totalAmount = foodTotal + deliveryFee + takeawayFee + platformFee + processingFee - discount;
 
         return res.status(200).json({
             data: {
                 totalAmount,
-                breakdown: { food: foodTotal, delivery: deliveryFee, takeaway: takeawayFee, discount },
+                breakdown: { 
+                    food: foodTotal, 
+                    delivery: deliveryFee, 
+                    takeaway: takeawayFee, 
+                    platform: platformFee,
+                    processing: processingFee,
+                    discount 
+                },
             }
         });
     } catch (error: any) {

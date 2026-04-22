@@ -91,9 +91,10 @@ export default function Checkout() {
       ...plates.flatMap((p: any) => p.items.map((pi: any) => ({
         id: pi.item.id,
         price: pi.item.price,
-        quantity: pi.quantity
+        quantity: pi.quantity,
+        isAddon: false
       }))),
-      ...Object.entries(drinksSnacks).map(([id, qty]) => ({ id, quantity: qty as number }))
+      ...Object.entries(drinksSnacks).map(([id, qty]) => ({ id, quantity: qty as number, isAddon: true }))
     ];
   }, [plates, drinksSnacks]);
 
@@ -581,7 +582,7 @@ export default function Checkout() {
                           {drinksSnacksItems.map(({ item, quantity }: any) => (
                             <div key={item.id} className="flex justify-between text-sm font-medium">
                               <span className="text-muted-foreground font-medium">{item.name} <span className="text-xs opacity-60">×{quantity}</span></span>
-                              <span className="text-foreground">₦{(item.price * quantity).toLocaleString()}</span>
+                              <span className="text-foreground">₦{((item.price + (item.price < 1000 ? 50 : 0)) * quantity).toLocaleString()}</span>
                             </div>
                           ))}
                         </div>
@@ -617,6 +618,16 @@ export default function Checkout() {
                     <span>₦{(200 * plates.length).toLocaleString()}</span>
                   </div>
                 )}
+
+
+
+                <div className="flex justify-between items-center text-muted-foreground font-medium">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4" />
+                    <span>Service & Processing Fee</span>
+                  </div>
+                  <span>₦{((orderTotal?.breakdown?.platform || 100) + (orderTotal?.breakdown?.processing || 200)).toLocaleString()}</span>
+                </div>
 
                 <div className="flex justify-between items-center pt-4 border-t border-border gap-4">
                   <span className="text-2xl font-black">Total Due</span>

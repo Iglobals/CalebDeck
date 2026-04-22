@@ -430,6 +430,9 @@ export default function RiderBatchDetails() {
                                                 <span className={`text-[10px] font-bold tracking-widest font-mono ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                                                     CD-{order.orderId?.slice(-6) || order.id?.slice(-6)}
                                                 </span>
+                                                {order.cafeteria && (
+                                                    <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5">{order.cafeteria}</Badge>
+                                                )}
                                                 {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
                                                     <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5">Group</Badge>
                                                 )}
