@@ -99,9 +99,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // 3. Recalculate total from Firestore prices (server-side validation)
+        const settingsDoc = await db.collection('settings').doc('platform').get();
+        const platformSettings = settingsDoc.exists ? settingsDoc.data() : {};
+        const premiumDeliveryFee = platformSettings!.premiumDeliveryFee || 1250;
+
         let serverTotal = 0;
         const isCombo = orderData?.type === 'combo';
         const isGroup = orderData?.deliveryMode === 'group' || orderData?.deliveryMode === 'GROUP';
+        const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((orderData?.hostel || orderData?.hostelName || '').toString().toLowerCase());
+
+        let baseDeliveryFee = isGroup ? 580 : 750;
+        if (isPremiumHostel) {
+            baseDeliveryFee = premiumDeliveryFee;
+        }
 
         const platformFee = 100;
         const processingFee = 200;
@@ -113,7 +123,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
             const comboData = comboDoc.data()!;
             const quantity = orderData.quantity || 1;
-            const deliveryFee = (isGroup ? 580 : 750) * quantity;
+            const deliveryFee = baseDeliveryFee * quantity;
             
             // Add service and processing fee for combos
             serverTotal = (comboData.basePrice * quantity) + deliveryFee + platformFee + processingFee;
@@ -146,7 +156,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
             const plateCount = typeof orderData?.plateCount === 'number' ? orderData.plateCount : 1;
-            const deliveryFee = (isGroup ? 580 : 750) * plateCount;
+            const deliveryFee = baseDeliveryFee * plateCount;
             const takeawayFee = 200 * plateCount;
             serverTotal = foodTotal + deliveryFee + takeawayFee + platformFee + processingFee;
         }

@@ -78,7 +78,7 @@ export default function AdminDashboard() {
   }, 0);
 
   const totalSystemFees = todayPaidOrders.reduce((sum, o) => {
-     return sum + (o.breakdown?.platform || 0) + (o.breakdown?.processing || 0);
+     return sum + (o.breakdown?.platform || 100) + (o.breakdown?.processing || 200);
   }, 0);
 
   const getRider = (id?: string) => riders.find(r => r.id === id) || null;

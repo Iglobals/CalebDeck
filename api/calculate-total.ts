@@ -35,15 +35,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(500).json({ error: 'Firebase not configured — check FB_SA env vars on Vercel' });
         }
 
-        const { items, deliveryMode, plateCount: providedPlateCount } = req.body;
+        const { items, deliveryMode, plateCount: providedPlateCount, hostelId } = req.body;
 
         if (!items || !Array.isArray(items) || items.length === 0) {
             return res.status(400).json({ error: 'No items provided' });
         }
 
-        // Parallel Firestore reads instead of sequential loop
+        // Fetch platform settings and items in parallel
+        const settingsPromise = db.collection('settings').doc('platform').get();
         const itemRefs = items.map((i: any) => db!.collection('menu_items').doc(i.id));
-        const itemDocs = await db.getAll(...itemRefs);
+        
+        const [settingsDoc, ...itemDocs] = await Promise.all([
+            settingsPromise,
+            db.getAll(...itemRefs)
+        ]);
+
+        const platformSettings = settingsDoc.exists ? settingsDoc.data() : {};
+        const premiumDeliveryFee = platformSettings!.premiumDeliveryFee || 1250;
 
         let foodTotal = 0;
         let hasSmallAddon = false;
@@ -70,9 +78,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const plateCount = typeof providedPlateCount === 'number' ? providedPlateCount : 1;
 
         const isGroup = deliveryMode === 'group' || deliveryMode === 'GROUP';
-        const deliveryFee = (isGroup ? DELIVERY_FEE_GROUP : DELIVERY_FEE_SOLO) * plateCount;
+        const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((hostelId || '').toString().toLowerCase());
+        
+        // Base fee logic
+        let baseDeliveryFee = isGroup ? DELIVERY_FEE_GROUP : DELIVERY_FEE_SOLO;
+        if (isPremiumHostel) {
+            baseDeliveryFee = premiumDeliveryFee;
+        }
+
+        const deliveryFee = baseDeliveryFee * plateCount;
         const takeawayFee = TAKEAWAY_FEE_PER_PLATE * plateCount;
-        const discount = isGroup ? (DELIVERY_FEE_SOLO - DELIVERY_FEE_GROUP) * plateCount : 0;
+        const discount = (isGroup && !isPremiumHostel) ? (DELIVERY_FEE_SOLO - DELIVERY_FEE_GROUP) * plateCount : 0;
         
         const platformFee = 100;
         const processingFee = 200;

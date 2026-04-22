@@ -448,6 +448,8 @@ export interface PlatformSettings {
     riderRatePerDelivery: number;
     comboRatePerDelivery?: number;
     groupRatePerDelivery?: number;
+    premiumDeliveryFee?: number;
+    premiumRiderRate?: number;
     [key: string]: any;
 }
 
@@ -458,20 +460,23 @@ export const getPlatformSettings = async (): Promise<PlatformSettings> => {
         return snapshot.data() as PlatformSettings;
     }
     // Default settings
-    return { riderRatePerDelivery: 300 };
+    return { riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750 };
 };
 
 export const subscribeToPlatformSettings = (callback: (settings: PlatformSettings) => void) => {
     const settingsRef = doc(db, 'settings', 'platform');
     return onSnapshot(settingsRef, (snapshot) => {
         if (snapshot.exists()) {
-            callback(snapshot.data() as PlatformSettings);
+            const data = snapshot.data() as PlatformSettings;
+            if (!data.premiumDeliveryFee) data.premiumDeliveryFee = 1250;
+            if (!data.premiumRiderRate) data.premiumRiderRate = 750;
+            callback(data);
         } else {
-            callback({ riderRatePerDelivery: 300 });
+            callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750 });
         }
     }, (error) => {
         console.error('subscribeToPlatformSettings error:', error);
-        callback({ riderRatePerDelivery: 300 });
+        callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750 });
     });
 };
 

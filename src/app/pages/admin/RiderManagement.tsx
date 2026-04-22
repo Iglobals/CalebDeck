@@ -47,7 +47,7 @@ export default function RiderManagement() {
     const [claims, setClaims] = useState<BonusClaim[]>([]);
     const [activeTab, setActiveTab] = useState<'riders' | 'assignment' | 'bonuses'>('riders');
     const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
-    const [isEditingRate, setIsEditingRate] = useState<'normal' | 'combo' | 'group' | null>(null);
+    const [isEditingRate, setIsEditingRate] = useState<'normal' | 'combo' | 'group' | 'premium_delivery' | 'premium_rider' | null>(null);
     const [newRate, setNewRate] = useState('');
     const [savingRate, setSavingRate] = useState(false);
     const { adminTheme } = useTheme();
@@ -98,12 +98,16 @@ export default function RiderManagement() {
         await assignHostelRiders(hostelId, hostel?.defaultRiderId || null, riderId || null);
     };
 
-    const handleSaveRate = async (type: 'normal' | 'combo' | 'group') => {
+    const handleSaveRate = async (type: 'normal' | 'combo' | 'group' | 'premium_delivery' | 'premium_rider') => {
         const rate = parseInt(newRate);
         if (!isNaN(rate) && rate > 0) {
             setSavingRate(true);
             try {
-                const key = type === 'normal' ? 'riderRatePerDelivery' : type === 'combo' ? 'comboRatePerDelivery' : 'groupRatePerDelivery';
+                const key = type === 'normal' ? 'riderRatePerDelivery' 
+                          : type === 'combo' ? 'comboRatePerDelivery' 
+                          : type === 'group' ? 'groupRatePerDelivery'
+                          : type === 'premium_delivery' ? 'premiumDeliveryFee'
+                          : 'premiumRiderRate';
                 await updatePlatformSettings({ [key]: rate });
             } finally {
                 setSavingRate(false);
@@ -165,8 +169,8 @@ export default function RiderManagement() {
                 {/* Rider Earnings Rate Config */}
                 <Card className={`${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'}`}>
                     {!platformSettings ? (
-                        <div className="grid grid-cols-2 gap-4">
-                            {[1, 2, 3].map(i => (
+                        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                            {[1, 2, 3, 4, 5].map(i => (
                                 <div key={i} className={`p-4 rounded-xl animate-pulse ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-50'}`}>
                                     <div className={`h-3 w-20 rounded mb-3 ${isDark ? 'bg-[#333333]' : 'bg-gray-200'}`} />
                                     <div className={`h-6 w-16 rounded ${isDark ? 'bg-[#333333]' : 'bg-gray-200'}`} />
@@ -174,14 +178,14 @@ export default function RiderManagement() {
                             ))}
                         </div>
                     ) : (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                         {/* Normal Rate */}
-                        <div className={`p-4 rounded-xl ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-50'}`}>
-                            <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Normal Plate</p>
+                        <div className={`p-4 rounded-xl border border-dashed ${isDark ? 'bg-[#333333]/10 border-[#333]' : 'bg-gray-50 border-gray-200'}`}>
+                            <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Rider payout (Solo)</p>
                             {isEditingRate === 'normal' ? (
                                 <div className="flex gap-2">
-                                    <input type="number" value={newRate} onChange={(e) => setNewRate(e.target.value)} className={`w-20 text-sm font-bold p-2 rounded-lg border ${isDark ? 'bg-[#0F0F0F] border-[#333333] text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-900'}`} placeholder="300" />
-                                    <Button size="sm" variant="primary" onClick={() => handleSaveRate('normal')} disabled={savingRate} className="px-3 rounded-lg text-xs font-bold shadow-md">{savingRate ? 'Saving…' : 'Save'}</Button>
+                                    <input type="number" value={newRate} onChange={(e) => setNewRate(e.target.value)} className={`w-16 text-sm font-bold p-2 rounded-lg border ${isDark ? 'bg-[#0F0F0F] border-[#333333] text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-900'}`} placeholder="300" />
+                                    <Button size="sm" variant="primary" onClick={() => handleSaveRate('normal')} disabled={savingRate} className="px-2 rounded-lg text-xs font-bold shadow-md">✓</Button>
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-2">
@@ -191,12 +195,12 @@ export default function RiderManagement() {
                             )}
                         </div>
                         {/* Combo Rate */}
-                        <div className={`p-4 rounded-xl ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-50'}`}>
-                            <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Combo Order</p>
+                        <div className={`p-4 rounded-xl border border-dashed ${isDark ? 'bg-[#333333]/10 border-[#333]' : 'bg-gray-50 border-gray-200'}`}>
+                            <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Rider Payout (Combo)</p>
                             {isEditingRate === 'combo' ? (
                                 <div className="flex gap-2">
-                                    <input type="number" value={newRate} onChange={(e) => setNewRate(e.target.value)} className={`w-20 text-sm font-bold p-2 rounded-lg border ${isDark ? 'bg-[#0F0F0F] border-[#333333] text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-900'}`} placeholder="250" />
-                                    <Button size="sm" variant="primary" onClick={() => handleSaveRate('combo')} disabled={savingRate} className="px-3 rounded-lg text-xs font-bold shadow-md">{savingRate ? 'Saving…' : 'Save'}</Button>
+                                    <input type="number" value={newRate} onChange={(e) => setNewRate(e.target.value)} className={`w-16 text-sm font-bold p-2 rounded-lg border ${isDark ? 'bg-[#0F0F0F] border-[#333333] text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-900'}`} placeholder="250" />
+                                    <Button size="sm" variant="primary" onClick={() => handleSaveRate('combo')} disabled={savingRate} className="px-2 rounded-lg text-xs font-bold shadow-md">✓</Button>
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-2">
@@ -206,17 +210,47 @@ export default function RiderManagement() {
                             )}
                         </div>
                         {/* Group Rate */}
-                        <div className={`p-4 rounded-xl ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-50'}`}>
-                            <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Group Order</p>
+                        <div className={`p-4 rounded-xl border border-dashed ${isDark ? 'bg-[#333333]/10 border-[#333]' : 'bg-gray-50 border-gray-200'}`}>
+                            <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Rider Payout (Group)</p>
                             {isEditingRate === 'group' ? (
                                 <div className="flex gap-2">
-                                    <input type="number" value={newRate} onChange={(e) => setNewRate(e.target.value)} className={`w-20 text-sm font-bold p-2 rounded-lg border ${isDark ? 'bg-[#0F0F0F] border-[#333333] text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-900'}`} placeholder="200" />
-                                    <Button size="sm" variant="primary" onClick={() => handleSaveRate('group')} disabled={savingRate} className="px-3 rounded-lg text-xs font-bold shadow-md">{savingRate ? 'Saving…' : 'Save'}</Button>
+                                    <input type="number" value={newRate} onChange={(e) => setNewRate(e.target.value)} className={`w-16 text-sm font-bold p-2 rounded-lg border ${isDark ? 'bg-[#0F0F0F] border-[#333333] text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-900'}`} placeholder="200" />
+                                    <Button size="sm" variant="primary" onClick={() => handleSaveRate('group')} disabled={savingRate} className="px-2 rounded-lg text-xs font-bold shadow-md">✓</Button>
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-2">
                                     <h4 className="text-lg font-black text-[#F59E0B]">₦{platformSettings?.groupRatePerDelivery || 200}</h4>
                                     <button onClick={() => { setNewRate((platformSettings?.groupRatePerDelivery || 200).toString()); setIsEditingRate('group'); }} className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${isDark ? 'bg-[#333333] text-[#FAF9F6] hover:bg-[#444444]' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>Edit</button>
+                                </div>
+                            )}
+                        </div>
+                        {/* Premium Delivery */}
+                        <div className={`p-4 rounded-xl border border-amber-500/30 ${isDark ? 'bg-amber-500/5' : 'bg-amber-50'}`}>
+                            <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 ${isDark ? 'text-amber-500' : 'text-amber-600'}`}>Premium Delivery</p>
+                            {isEditingRate === 'premium_delivery' ? (
+                                <div className="flex gap-2">
+                                    <input type="number" value={newRate} onChange={(e) => setNewRate(e.target.value)} className={`w-16 text-sm font-bold p-2 rounded-lg border ${isDark ? 'bg-[#0F0F0F] border-[#333333] text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-900'}`} placeholder="1250" />
+                                    <Button size="sm" variant="primary" onClick={() => handleSaveRate('premium_delivery')} disabled={savingRate} className="px-2 rounded-lg text-xs font-bold shadow-md">✓</Button>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <h4 className="text-lg font-black text-amber-500">₦{platformSettings?.premiumDeliveryFee || 1250}</h4>
+                                    <button onClick={() => { setNewRate((platformSettings?.premiumDeliveryFee || 1250).toString()); setIsEditingRate('premium_delivery'); }} className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${isDark ? 'bg-[#333333] text-[#FAF9F6] hover:bg-[#444444]' : 'bg-amber-200 text-amber-800 hover:bg-amber-300'}`}>Edit</button>
+                                </div>
+                            )}
+                        </div>
+                        {/* Premium Rider */}
+                        <div className={`p-4 rounded-xl border border-amber-500/30 ${isDark ? 'bg-amber-500/5' : 'bg-amber-50'}`}>
+                            <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 ${isDark ? 'text-amber-500' : 'text-amber-600'}`}>Prem Rider Payout</p>
+                            {isEditingRate === 'premium_rider' ? (
+                                <div className="flex gap-2">
+                                    <input type="number" value={newRate} onChange={(e) => setNewRate(e.target.value)} className={`w-16 text-sm font-bold p-2 rounded-lg border ${isDark ? 'bg-[#0F0F0F] border-[#333333] text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-900'}`} placeholder="750" />
+                                    <Button size="sm" variant="primary" onClick={() => handleSaveRate('premium_rider')} disabled={savingRate} className="px-2 rounded-lg text-xs font-bold shadow-md">✓</Button>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <h4 className="text-lg font-black text-amber-500">₦{platformSettings?.premiumRiderRate || 750}</h4>
+                                    <button onClick={() => { setNewRate((platformSettings?.premiumRiderRate || 750).toString()); setIsEditingRate('premium_rider'); }} className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${isDark ? 'bg-[#333333] text-[#FAF9F6] hover:bg-[#444444]' : 'bg-amber-200 text-amber-800 hover:bg-amber-300'}`}>Edit</button>
                                 </div>
                             )}
                         </div>

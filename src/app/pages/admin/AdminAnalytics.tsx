@@ -95,8 +95,8 @@ export default function AdminAnalytics() {
 
     const revenueData = useMemo(() => {
         const days = timeRange === 'today' ? 1 : timeRange === 'week' ? 7 : 30;
-        return Array.from({ length: Math.min(days, 14) }).map((_, i) => {
-            const d = subDays(new Date(), Math.min(days, 14) - 1 - i);
+        return Array.from({ length: days }).map((_, i) => {
+            const d = subDays(new Date(), days - 1 - i);
             const dateStr = format(d, 'yyyy-MM-dd');
             const dayOrders = orders.filter(o => {
                 const od = parseDate(o.createdAt || o.date);
@@ -117,8 +117,8 @@ export default function AdminAnalytics() {
     const totalOrders = filteredOrders.length;
     const totalTotal = filteredOrders.reduce((sum, o) => sum + (o.total || o.amount || 0), 0);
     const totalSystemFees = filteredOrders.reduce((sum, o) => {
-        const platform = o.breakdown?.platform || 0;
-        const processing = o.breakdown?.processing || 0;
+        const platform = o.breakdown?.platform || 100;
+        const processing = o.breakdown?.processing || 200;
         return sum + platform + processing;
     }, 0);
     const totalRevenue = totalTotal;

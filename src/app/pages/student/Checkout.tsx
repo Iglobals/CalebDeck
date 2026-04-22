@@ -6,7 +6,7 @@ import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
 import { Input, Select, Textarea } from '../../components/design-system/Input';
 import { ArrowLeft, Lock, Shield, CreditCard, MapPin, User, Phone, Package } from 'lucide-react';
-import { getActiveHostels, Hostel } from '../../../services/db';
+import { getActiveHostels, Hostel, subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 import { calculateOrderTotal, verifyPayment } from '../../../services/functions';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
@@ -59,6 +59,13 @@ export default function Checkout() {
     instructions: ''
   });
 
+  const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+
+  useEffect(() => {
+    const unsub = subscribeToPlatformSettings(setPlatformSettings);
+    return () => unsub();
+  }, []);
+
   // Fetch Hostels
   useEffect(() => {
     const fetchHostels = async () => {
@@ -105,12 +112,18 @@ export default function Checkout() {
     const base = comboOrder.basePrice || 0;
     const dMode = currentDeliveryMode || 'solo';
     const isGrp = dMode === 'group' || dMode === 'GROUP';
-    const delivery = (isGrp ? DELIVERY_FEE_GROUP : DELIVERY_FEE_SOLO) * qty;
+    const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((formData.hostel || '').toLowerCase());
+    
+    let baseDeliveryFee = isGrp ? DELIVERY_FEE_GROUP : DELIVERY_FEE_SOLO;
+    if (isPremiumHostel) {
+        baseDeliveryFee = platformSettings?.premiumDeliveryFee || 1250;
+    }
+    const delivery = baseDeliveryFee * qty;
     return {
       totalAmount: base * qty + delivery + 300,
       breakdown: { food: base * qty, delivery, takeaway: 0, discount: 0, platform: 100, processing: 200 }
     };
-  }, [isCombo, comboOrder?.quantity, comboOrder?.basePrice, currentDeliveryMode]);
+  }, [isCombo, comboOrder?.quantity, comboOrder?.basePrice, currentDeliveryMode, formData.hostel, platformSettings]);
 
   // Calculate Order Total (Server-Side) — only for plate orders
   useEffect(() => {
