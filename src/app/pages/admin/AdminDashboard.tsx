@@ -77,6 +77,10 @@ export default function AdminDashboard() {
     return sum + deliveryRevenue;
   }, 0);
 
+  const totalSystemFees = todayPaidOrders.reduce((sum, o) => {
+     return sum + (o.breakdown?.platform || 0) + (o.breakdown?.processing || 0);
+  }, 0);
+
   const getRider = (id?: string) => riders.find(r => r.id === id) || null;
 
   const hostelCards = hostels.map(hostel => {
@@ -166,6 +170,13 @@ export default function AdminDashboard() {
       color: '#10B981'
     },
     {
+      label: 'Service Fees',
+      value: `₦${totalSystemFees.toLocaleString()}`,
+      change: 'platform net revenue',
+      icon: <Zap className="w-6 h-6" />,
+      color: '#3B82F6'
+    },
+    {
       label: 'Riders Online',
       value: `${riders.filter(r => r.status === 'available').length}/${riders.filter(r => r.isActive !== false).length}`,
       change: `${riders.filter(r => r.status === 'available').length} available`,
@@ -193,7 +204,7 @@ export default function AdminDashboard() {
   return (
     <AdminLayout title="Dashboard">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6 mb-6 lg:mb-8">
         {kpis.map((kpi, index) => (
           <Card key={index} hover className={isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'}>
             <div className="flex items-start justify-between mb-4">

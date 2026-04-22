@@ -97,14 +97,18 @@ export default function AdminAnalytics() {
         const days = timeRange === 'today' ? 1 : timeRange === 'week' ? 7 : 30;
         return Array.from({ length: Math.min(days, 14) }).map((_, i) => {
             const d = subDays(new Date(), Math.min(days, 14) - 1 - i);
-            const dateStr = d.toLocaleDateString();
+            const dateStr = format(d, 'yyyy-MM-dd');
             const dayOrders = orders.filter(o => {
-                const od = parseDate(o.createdAt);
-                return od && od.toLocaleDateString() === dateStr && o.status !== 'CANCELLED';
+                const od = parseDate(o.createdAt || o.date);
+                if (!od) return false;
+                return format(od, 'yyyy-MM-dd') === dateStr && 
+                       o.status !== 'CANCELLED' && 
+                       o.status !== 'FAILED' && 
+                       o.status !== 'PENDING_PAYMENT';
             });
             return {
                 name: format(d, days <= 7 ? 'EEE' : 'MMM d'),
-                revenue: dayOrders.reduce((sum, o) => sum + (o.total || 0), 0),
+                revenue: dayOrders.reduce((sum, o) => sum + (o.total || o.amount || 0), 0),
                 orders: dayOrders.length,
             };
         });
@@ -113,8 +117,8 @@ export default function AdminAnalytics() {
     const totalOrders = filteredOrders.length;
     const totalTotal = filteredOrders.reduce((sum, o) => sum + (o.total || o.amount || 0), 0);
     const totalSystemFees = filteredOrders.reduce((sum, o) => {
-        const platform = o.breakdown?.platform ?? 100;
-        const processing = o.breakdown?.processing ?? 200;
+        const platform = o.breakdown?.platform || 0;
+        const processing = o.breakdown?.processing || 0;
         return sum + platform + processing;
     }, 0);
     const totalRevenue = totalTotal;
