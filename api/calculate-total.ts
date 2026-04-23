@@ -41,20 +41,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: 'No items provided' });
         }
 
-        // Fetch platform settings and items in parallel
-        const settingsPromise = db.collection('settings').doc('platform').get();
+        // FIXED: Fetch platform settings and items separately to avoid Promise.all destructuring bug
+        const settingsDoc = await db.collection('settings').doc('platform').get();
         const itemRefs = items.map((i: any) => db!.collection('menu_items').doc(i.id));
-        
-        const [settingsDoc, ...itemDocs] = await Promise.all([
-            settingsPromise,
-            db.getAll(...itemRefs)
-        ]);
+        const itemDocs = await db.getAll(...itemRefs);
 
         const platformSettings = settingsDoc.exists ? settingsDoc.data() : {};
         const premiumDeliveryFee = platformSettings!.premiumDeliveryFee || 1250;
 
         let foodTotal = 0;
-        let hasSmallAddon = false;
         
         for (let idx = 0; idx < itemDocs.length; idx++) {
             const doc = itemDocs[idx];
@@ -68,6 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 currentPrice = items[idx].price || 0;
             }
             
+            // Add ₦50 markup for addons under ₦1000
             if (items[idx].isAddon && currentPrice < 1000) {
                 currentPrice += 50;
             }
@@ -80,10 +76,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const isGroup = deliveryMode === 'group' || deliveryMode === 'GROUP';
         const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((hostelId || '').toString().toLowerCase());
         
-        // Base fee logic
-        let baseDeliveryFee = isGroup ? DELIVERY_FEE_GROUP : DELIVERY_FEE_SOLO;
+        // FIXED: Premium hostels get 20% discount for group orders (₦1,250 → ₦1,000)
+        let baseDeliveryFee;
         if (isPremiumHostel) {
-            baseDeliveryFee = premiumDeliveryFee;
+            baseDeliveryFee = isGroup ? Math.round(premiumDeliveryFee * 0.8) : premiumDeliveryFee;
+        } else {
+            baseDeliveryFee = isGroup ? DELIVERY_FEE_GROUP : DELIVERY_FEE_SOLO;
         }
 
         const deliveryFee = baseDeliveryFee * plateCount;
@@ -109,6 +107,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         });
     } catch (error: any) {
+        console.error('[calculate-total] Error:', error);
         return res.status(500).json({ error: 'Failed to calculate total', details: error.message });
     }
 }

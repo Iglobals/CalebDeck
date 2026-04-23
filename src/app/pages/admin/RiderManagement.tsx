@@ -47,7 +47,7 @@ export default function RiderManagement() {
     const [claims, setClaims] = useState<BonusClaim[]>([]);
     const [activeTab, setActiveTab] = useState<'riders' | 'assignment' | 'bonuses'>('riders');
     const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
-    const [isEditingRate, setIsEditingRate] = useState<'normal' | 'combo' | 'group' | 'premium_delivery' | 'premium_rider' | null>(null);
+   const [isEditingRate, setIsEditingRate] = useState<'normal' | 'combo' | 'group' | 'premium_delivery' | 'premium_solo_rider' | 'premium_combo_rider' | 'premium_group_rider' | null>(null);
     const [newRate, setNewRate] = useState('');
     const [savingRate, setSavingRate] = useState(false);
     const { adminTheme } = useTheme();
@@ -98,23 +98,25 @@ export default function RiderManagement() {
         await assignHostelRiders(hostelId, hostel?.defaultRiderId || null, riderId || null);
     };
 
-    const handleSaveRate = async (type: 'normal' | 'combo' | 'group' | 'premium_delivery' | 'premium_rider') => {
-        const rate = parseInt(newRate);
-        if (!isNaN(rate) && rate > 0) {
-            setSavingRate(true);
-            try {
-                const key = type === 'normal' ? 'riderRatePerDelivery' 
-                          : type === 'combo' ? 'comboRatePerDelivery' 
-                          : type === 'group' ? 'groupRatePerDelivery'
-                          : type === 'premium_delivery' ? 'premiumDeliveryFee'
-                          : 'premiumRiderRate';
-                await updatePlatformSettings({ [key]: rate });
-            } finally {
-                setSavingRate(false);
-            }
+    const handleSaveRate = async (type: 'normal' | 'combo' | 'group' | 'premium_delivery' | 'premium_solo_rider' | 'premium_combo_rider' | 'premium_group_rider') => {
+    const rate = parseInt(newRate);
+    if (!isNaN(rate) && rate > 0) {
+        setSavingRate(true);
+        try {
+            const key = type === 'normal' ? 'riderRatePerDelivery' 
+                      : type === 'combo' ? 'comboRatePerDelivery' 
+                      : type === 'group' ? 'groupRatePerDelivery'
+                      : type === 'premium_delivery' ? 'premiumDeliveryFee'
+                      : type === 'premium_solo_rider' ? 'premiumSoloRiderRate'
+                      : type === 'premium_combo_rider' ? 'premiumComboRiderRate'
+                      : 'premiumGroupRiderRate';
+            await updatePlatformSettings({ [key]: rate });
+        } finally {
+            setSavingRate(false);
         }
-        setIsEditingRate(null);
-    };
+    }
+    setIsEditingRate(null);
+};
 
     const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -178,7 +180,7 @@ export default function RiderManagement() {
                             ))}
                         </div>
                     ) : (
-                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4">
                         {/* Normal Rate */}
                         <div className={`p-4 rounded-xl border border-dashed ${isDark ? 'bg-[#333333]/10 border-[#333]' : 'bg-gray-50 border-gray-200'}`}>
                             <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Rider payout (Solo)</p>
@@ -239,26 +241,58 @@ export default function RiderManagement() {
                                 </div>
                             )}
                         </div>
-                        {/* Premium Rider */}
-                        <div className={`p-4 rounded-xl border border-amber-500/30 ${isDark ? 'bg-amber-500/5' : 'bg-amber-50'}`}>
-                            <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 ${isDark ? 'text-amber-500' : 'text-amber-600'}`}>Prem Rider Payout</p>
-                            {isEditingRate === 'premium_rider' ? (
-                                <div className="flex gap-2">
-                                    <input type="number" value={newRate} onChange={(e) => setNewRate(e.target.value)} className={`w-16 text-sm font-bold p-2 rounded-lg border ${isDark ? 'bg-[#0F0F0F] border-[#333333] text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-900'}`} placeholder="750" />
-                                    <Button size="sm" variant="primary" onClick={() => handleSaveRate('premium_rider')} disabled={savingRate} className="px-2 rounded-lg text-xs font-bold shadow-md">✓</Button>
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-2">
-                                    <h4 className="text-lg font-black text-amber-500">₦{platformSettings?.premiumRiderRate || 750}</h4>
-                                    <button onClick={() => { setNewRate((platformSettings?.premiumRiderRate || 750).toString()); setIsEditingRate('premium_rider'); }} className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${isDark ? 'bg-[#333333] text-[#FAF9F6] hover:bg-[#444444]' : 'bg-amber-200 text-amber-800 hover:bg-amber-300'}`}>Edit</button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                    )}
-                </Card>
-            </div>
 
+{/* Premium Solo Rider Rate */}
+<div className={`p-4 rounded-xl border border-amber-500/30 ${isDark ? 'bg-amber-500/5' : 'bg-amber-50'}`}>
+    <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 ${isDark ? 'text-amber-500' : 'text-amber-600'}`}>Prem Solo Payout</p>
+    {isEditingRate === 'premium_solo_rider' ? (
+        <div className="flex gap-2">
+            <input type="number" value={newRate} onChange={(e) => setNewRate(e.target.value)} className={`w-16 text-sm font-bold p-2 rounded-lg border ${isDark ? 'bg-[#0F0F0F] border-[#333333] text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-900'}`} placeholder="750" />
+            <Button size="sm" variant="primary" onClick={() => handleSaveRate('premium_solo_rider')} disabled={savingRate} className="px-2 rounded-lg text-xs font-bold shadow-md">✓</Button>
+        </div>
+    ) : (
+        <div className="flex items-center gap-2">
+            <h4 className="text-lg font-black text-amber-500">₦{platformSettings?.premiumSoloRiderRate || 750}</h4>
+            <button onClick={() => { setNewRate((platformSettings?.premiumSoloRiderRate || 750).toString()); setIsEditingRate('premium_solo_rider'); }} className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${isDark ? 'bg-[#333333] text-[#FAF9F6] hover:bg-[#444444]' : 'bg-amber-200 text-amber-800 hover:bg-amber-300'}`}>Edit</button>
+        </div>
+    )}
+</div>
+
+{/* Premium Combo Rider Rate */}
+<div className={`p-4 rounded-xl border border-amber-500/30 ${isDark ? 'bg-amber-500/5' : 'bg-amber-50'}`}>
+    <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 ${isDark ? 'text-amber-500' : 'text-amber-600'}`}>Prem Combo Payout</p>
+    {isEditingRate === 'premium_combo_rider' ? (
+        <div className="flex gap-2">
+            <input type="number" value={newRate} onChange={(e) => setNewRate(e.target.value)} className={`w-16 text-sm font-bold p-2 rounded-lg border ${isDark ? 'bg-[#0F0F0F] border-[#333333] text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-900'}`} placeholder="600" />
+            <Button size="sm" variant="primary" onClick={() => handleSaveRate('premium_combo_rider')} disabled={savingRate} className="px-2 rounded-lg text-xs font-bold shadow-md">✓</Button>
+        </div>
+    ) : (
+        <div className="flex items-center gap-2">
+            <h4 className="text-lg font-black text-amber-500">₦{platformSettings?.premiumComboRiderRate || 600}</h4>
+            <button onClick={() => { setNewRate((platformSettings?.premiumComboRiderRate || 600).toString()); setIsEditingRate('premium_combo_rider'); }} className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${isDark ? 'bg-[#333333] text-[#FAF9F6] hover:bg-[#444444]' : 'bg-amber-200 text-amber-800 hover:bg-amber-300'}`}>Edit</button>
+        </div>
+    )}
+</div>
+
+{/* Premium Group Rider Rate */}
+<div className={`p-4 rounded-xl border border-amber-500/30 ${isDark ? 'bg-amber-500/5' : 'bg-amber-50'}`}>
+    <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 ${isDark ? 'text-amber-500' : 'text-amber-600'}`}>Prem Group Payout</p>
+    {isEditingRate === 'premium_group_rider' ? (
+        <div className="flex gap-2">
+            <input type="number" value={newRate} onChange={(e) => setNewRate(e.target.value)} className={`w-16 text-sm font-bold p-2 rounded-lg border ${isDark ? 'bg-[#0F0F0F] border-[#333333] text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-900'}`} placeholder="600" />
+            <Button size="sm" variant="primary" onClick={() => handleSaveRate('premium_group_rider')} disabled={savingRate} className="px-2 rounded-lg text-xs font-bold shadow-md">✓</Button>
+        </div>
+    ) : (
+        <div className="flex items-center gap-2">
+            <h4 className="text-lg font-black text-amber-500">₦{platformSettings?.premiumGroupRiderRate || 600}</h4>
+            <button onClick={() => { setNewRate((platformSettings?.premiumGroupRiderRate || 600).toString()); setIsEditingRate('premium_group_rider'); }} className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${isDark ? 'bg-[#333333] text-[#FAF9F6] hover:bg-[#444444]' : 'bg-amber-200 text-amber-800 hover:bg-amber-300'}`}>Edit</button>
+        </div>
+    )}
+</div>
+</div>
+ )}
+ </Card>
+ </div>
             {/* Tabs */}
             <div className={`flex gap-2 p-1.5 rounded-2xl mb-8 w-fit flex-wrap ${isDark ? 'bg-[#1A1A1A]' : 'bg-gray-50'}`}>
                 <button className={tabClass('riders')} onClick={() => setActiveTab('riders')}>

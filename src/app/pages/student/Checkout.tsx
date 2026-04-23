@@ -113,11 +113,14 @@ export default function Checkout() {
     const dMode = currentDeliveryMode || 'solo';
     const isGrp = dMode === 'group' || dMode === 'GROUP';
     const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((formData.hostel || '').toLowerCase());
-    
-    let baseDeliveryFee = isGrp ? DELIVERY_FEE_GROUP : DELIVERY_FEE_SOLO;
-    if (isPremiumHostel) {
-        baseDeliveryFee = platformSettings?.premiumDeliveryFee || 1250;
-    }
+
+let baseDeliveryFee;
+if (isPremiumHostel) {
+    const premiumFee = platformSettings?.premiumDeliveryFee || 1250;
+    baseDeliveryFee = isGrp ? Math.round(premiumFee * 0.8) : premiumFee; // 20% off for group
+} else {
+    baseDeliveryFee = isGrp ? DELIVERY_FEE_GROUP : DELIVERY_FEE_SOLO;
+}
     const delivery = baseDeliveryFee * qty;
     return {
       totalAmount: base * qty + delivery + 300,
@@ -615,12 +618,12 @@ export default function Checkout() {
               {/* Delivery Stats */}
               <div className="space-y-4 pt-6 border-t border-border mb-8">
                 <div className="flex justify-between items-center text-muted-foreground font-medium">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
-                    <span>Delivery (₦{DELIVERY_FEE_SOLO} × {isCombo ? (comboOrder.quantity || 1) : plates.length})</span>
-                  </div>
-                  <span>₦{(DELIVERY_FEE_SOLO * (isCombo ? (comboOrder.quantity || 1) : plates.length)).toLocaleString()}</span>
-                </div>
+  <div className="flex items-center gap-2">
+    <MapPin className="w-4 h-4" />
+    <span>Delivery Fee</span>
+  </div>
+  <span>₦{(orderTotal?.breakdown?.delivery || 0).toLocaleString()}</span>
+</div>
 
                 {currentDeliveryMode === 'group' && (
                   <div className="flex justify-between items-center text-green-500 font-bold">
@@ -651,22 +654,11 @@ export default function Checkout() {
                 </div>
               </div>
 
-              {/* Temporary Maintenance Message */}
-              <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-500 flex flex-col gap-2">
-                <div className="flex items-center gap-2 font-bold text-lg">
-                  <Shield className="w-5 h-5" />
-                  System Maintenance
-                </div>
-                <p className="text-sm font-medium opacity-90 leading-relaxed">
-                  We are currently performing scheduled system maintenance and have temporarily paused new orders. We apologize for the inconvenience and will be back online shortly!
-                </p>
-              </div>
-
               {/* Payment Button */}
               <button
                 onClick={handleSubmit}
-                disabled={true}
-                className="w-full py-6 bg-primary text-primary-foreground text-xl font-bold rounded-2xl shadow-xl shadow-primary/20 transition-all duration-300 disabled:grayscale disabled:opacity-50 flex items-center justify-center gap-3 cursor-not-allowed"
+                disabled={!canSubmit}
+                className="w-full py-6 bg-primary text-primary-foreground text-xl font-bold rounded-2xl shadow-xl shadow-primary/20 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:grayscale disabled:opacity-50 flex items-center justify-center gap-3"
               >
                 {calculating ? (
                   <>

@@ -449,6 +449,9 @@ export interface PlatformSettings {
     comboRatePerDelivery?: number;
     groupRatePerDelivery?: number;
     premiumDeliveryFee?: number;
+    premiumSoloRiderRate?: number;  // NEW - for premium solo orders
+    premiumComboRiderRate?: number; // NEW - for premium combo orders
+    premiumGroupRiderRate?: number;
     premiumRiderRate?: number;
     [key: string]: any;
 }
