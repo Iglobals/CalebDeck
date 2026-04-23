@@ -25,6 +25,23 @@ interface PlateItem {
   quantity: number;
 }
 
+const getUnitDisplay = (item: Partial<MenuItem>) => {
+  const name = (item.name || '').toLowerCase();
+  if (name.includes('bread')) return 'unit';
+  if (item.category === 'drink') {
+    if (name.includes('can')) return 'can';
+    if (name.includes('pack') || name.includes('alive') || name.includes('chivita')) return 'pack';
+    return 'bottle';
+  }
+  if (item.category === 'snack') {
+      if (name.includes('shawarma') || name.includes('roll')) return 'wrap';
+      if (name.includes('pie') || name.includes('doughnut') || name.includes('puff')) return 'piece';
+      return 'portion';
+  }
+  if (item.category === 'soup') return 'serving';
+  return item.unit || 'portion';
+};
+
 interface Plate {
   id: string;
   type: 'main' | 'swallow';
@@ -695,7 +712,7 @@ export default function PlateBuilder() {
                             </div>
                             <div>
                               <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
-                              <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit}</p>
+                              <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{getUnitDisplay(item)}</p>
                             </div>
                             <div className="flex items-center justify-between bg-muted/50 rounded-lg p-1">
                               <button
@@ -739,7 +756,7 @@ export default function PlateBuilder() {
                             </div>
                             <div>
                               <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
-                              <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit}</p>
+                              <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{getUnitDisplay(item)}</p>
                             </div>
                             <div className="flex items-center justify-between bg-muted/50 rounded-lg p-1">
                               <button
@@ -787,7 +804,7 @@ export default function PlateBuilder() {
                             </div>
                             <div>
                               <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
-                              <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit}</p>
+                              <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{getUnitDisplay(item)}</p>
                             </div>
                             {selectedSwallow === item.id ? (
                               <div className="flex items-center justify-between bg-muted/50 rounded-lg p-1">
@@ -842,7 +859,7 @@ export default function PlateBuilder() {
                             </div>
                             <div>
                               <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
-                              <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit === 'portion' ? 'serving' : item.unit}</p>
+                              <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{getUnitDisplay(item)}</p>
                             </div>
                             {selectedSoup === item.id ? (
                               <div className="flex items-center justify-between bg-muted/50 rounded-lg p-1">
@@ -897,7 +914,7 @@ export default function PlateBuilder() {
                             </div>
                             <div>
                               <h4 className="font-bold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
-                              <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{item.unit}</p>
+                              <p className="text-sm text-muted-foreground font-semibold">₦{item.price}/{getUnitDisplay(item)}</p>
                             </div>
                             <div className="flex items-center justify-between bg-muted/50 rounded-lg p-1">
                               <button
@@ -974,7 +991,7 @@ export default function PlateBuilder() {
                             </div>
                             <div>
                               <h4 className="font-semibold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
-                              <p className="text-sm text-muted-foreground mt-1">₦{item.price}/{item.unit}</p>
+                              <p className="text-sm text-muted-foreground mt-1">₦{item.price}/{getUnitDisplay(item)}</p>
                             </div>
                             <div className="flex items-center justify-between mt-2">
                               <button
@@ -1029,7 +1046,7 @@ export default function PlateBuilder() {
                               </div>
                               <div>
                                 <h4 className="font-semibold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
-                                <p className="text-sm text-muted-foreground mt-1">₦{item.price}/{item.unit}</p>
+                                <p className="text-sm text-muted-foreground mt-1">₦{item.price}/{getUnitDisplay(item)}</p>
                               </div>
                               <div className="flex items-center justify-between mt-2">
                                 <button
