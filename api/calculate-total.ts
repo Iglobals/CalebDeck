@@ -72,21 +72,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const plateCount = typeof providedPlateCount === 'number' ? providedPlateCount : 1;
-
         const isGroup = deliveryMode === 'group' || deliveryMode === 'GROUP';
         const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((hostelId || '').toString().toLowerCase());
+        const premiumDeliveryFee = platformSettings!.premiumDeliveryFee || 1250;
         
-        // FIXED: Premium hostels get 20% discount for group orders (₦1,250 → ₦1,000)
-        let baseDeliveryFee;
-        if (isPremiumHostel) {
-            baseDeliveryFee = isGroup ? Math.round(premiumDeliveryFee * 0.8) : premiumDeliveryFee;
-        } else {
-            baseDeliveryFee = isGroup ? DELIVERY_FEE_GROUP : DELIVERY_FEE_SOLO;
+        // FIXED: Use base delivery fee for breakdown, and correctly calculate discount without double-discounting
+        const baseDeliveryFee = isPremiumHostel ? premiumDeliveryFee : DELIVERY_FEE_SOLO;
+        let discountPerPlate = 0;
+        if (isGroup) {
+             discountPerPlate = isPremiumHostel ? (premiumDeliveryFee - Math.round(premiumDeliveryFee * 0.8)) : (DELIVERY_FEE_SOLO - DELIVERY_FEE_GROUP);
         }
 
         const deliveryFee = baseDeliveryFee * plateCount;
         const takeawayFee = TAKEAWAY_FEE_PER_PLATE * plateCount;
-        const discount = (isGroup && !isPremiumHostel) ? (DELIVERY_FEE_SOLO - DELIVERY_FEE_GROUP) * plateCount : 0;
+        const discount = discountPerPlate * plateCount;
         
         const platformFee = 100;
         const processingFee = 200;

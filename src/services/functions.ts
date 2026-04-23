@@ -21,16 +21,15 @@ export const calculateOrderTotal = async (data: any) => {
         const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((hostelId || '').toString().toLowerCase());
         const premiumDeliveryFee = 1250;
 
-        let baseDeliveryFee;
-        if (isPremiumHostel) {
-            baseDeliveryFee = isGroup ? Math.round(premiumDeliveryFee * 0.8) : premiumDeliveryFee;
-        } else {
-            baseDeliveryFee = isGroup ? 580 : 750;
+        const baseDeliveryFee = isPremiumHostel ? premiumDeliveryFee : 750;
+        let discountPerPlate = 0;
+        if (isGroup) {
+             discountPerPlate = isPremiumHostel ? (premiumDeliveryFee - Math.round(premiumDeliveryFee * 0.8)) : (750 - 580);
         }
 
         const deliveryFee = baseDeliveryFee * plateCount;
         const takeawayFee = plateCount * 200;
-        const discount = (isGroup && !isPremiumHostel) ? (750 - 580) * plateCount : 0;
+        const discount = discountPerPlate * plateCount;
 
         const platformFee = 100;
         const processingFee = 200;

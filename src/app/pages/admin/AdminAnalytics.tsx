@@ -6,7 +6,7 @@ import {
     PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer
 } from 'recharts';
 import { subscribeToOrderHistory } from '../../../services/db';
-import { TrendingUp, ShoppingBag, Users, DollarSign, CalendarDays, ChevronDown, Shield } from 'lucide-react';
+import { TrendingUp, ShoppingBag, Users, DollarSign, CalendarDays, ChevronDown, Shield, Truck, CheckCircle } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, isWithinInterval } from 'date-fns';
 
@@ -128,6 +128,7 @@ export default function AdminAnalytics() {
 
     const totalOrders = filteredOrders.length;
     const totalTotal = filteredOrders.reduce((sum, o) => sum + (o.total || o.amount || 0), 0);
+    const totalDeliveryFees = filteredOrders.reduce((sum, o) => sum + (o.breakdown?.delivery || 0), 0);
     const totalSystemFees = filteredOrders.reduce((sum, o) => {
         const platform = o.breakdown?.platform || 0;
         const processing = o.breakdown?.processing || 0;
@@ -169,10 +170,10 @@ export default function AdminAnalytics() {
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
                 {[
                     { label: 'Total Orders', value: totalOrders.toString(), icon: <ShoppingBag className="w-5 h-5" />, color: '#7C3AED' },
-                    { label: 'Revenue', value: `₦${totalRevenue.toLocaleString()}`, icon: <DollarSign className="w-5 h-5" />, color: '#10B981' },
-                    { label: 'Fees Collected', value: `₦${totalSystemFees.toLocaleString()}`, icon: <Shield className="w-5 h-5" />, color: '#F43F5E' },
-                    { label: 'Unique Customers', value: uniqueCustomers.toString(), icon: <Users className="w-5 h-5" />, color: '#FCD34D' },
-                    { label: 'Fulfilled', value: `${fulfillmentRate}%`, icon: <TrendingUp className="w-5 h-5" />, color: '#3B82F6' },
+                    { label: 'Gross Revenue', value: `₦${totalRevenue.toLocaleString()}`, icon: <DollarSign className="w-5 h-5" />, color: '#10B981' },
+                    { label: 'Delivery Revenue', value: `₦${totalDeliveryFees.toLocaleString()}`, icon: <Truck className="w-5 h-5" />, color: '#F97316' },
+                    { label: 'Service Fees', value: `₦${totalSystemFees.toLocaleString()}`, icon: <Shield className="w-5 h-5" />, color: '#F43F5E' },
+                    { label: 'Orders Delivered', value: `${deliveredOrders} (${fulfillmentRate}%)`, icon: <CheckCircle className="w-5 h-5" />, color: '#3B82F6' },
                 ].map((kpi, i) => (
                     <Card key={i} className={`${cardBg} border`}>
                         <div className="flex items-center gap-3 mb-3">

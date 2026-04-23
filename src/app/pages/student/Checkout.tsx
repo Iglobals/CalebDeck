@@ -640,10 +640,10 @@ if (isPremiumHostel) {
   <span>₦{(orderTotal?.breakdown?.delivery || 0).toLocaleString()}</span>
 </div>
 
-                {currentDeliveryMode === 'group' && (
+                {currentDeliveryMode === 'group' && orderTotal?.breakdown?.discount > 0 && (
                   <div className="flex justify-between items-center text-green-500 font-bold">
-                    <span>Group Savings (₦170 off per {isCombo ? 'combo' : 'plate'})</span>
-                    <span>-₦{((DELIVERY_FEE_SOLO - DELIVERY_FEE_GROUP) * (isCombo ? (comboOrder.quantity || 1) : plates.length)).toLocaleString()}</span>
+                    <span>Group Savings (₦{(orderTotal.breakdown.discount / (isCombo ? (comboOrder.quantity || 1) : plates.length)).toLocaleString()} off per {isCombo ? 'combo' : 'plate'})</span>
+                    <span>-₦{orderTotal.breakdown.discount.toLocaleString()}</span>
                   </div>
                 )}
 
