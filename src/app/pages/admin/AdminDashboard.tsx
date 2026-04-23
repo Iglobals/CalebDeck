@@ -16,7 +16,7 @@ import {
   Zap,
   X
 } from 'lucide-react';
-import { subscribeToAllOrders, subscribeToRiders, subscribeToHostels, dispatchBatch, Rider, Hostel } from '../../../services/db';
+import { subscribeToAllOrders, subscribeToRiders, subscribeToHostels, dispatchBatch, Rider, Hostel, subscribeToPlatformSettings, updatePlatformSettings, PlatformSettings } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 import { isToday, isYesterday, format } from 'date-fns';
 
@@ -25,6 +25,7 @@ export default function AdminDashboard() {
   const [orders, setOrders] = useState<any[]>([]);
   const [riders, setRiders] = useState<Rider[]>([]);
   const [hostels, setHostels] = useState<Hostel[]>([]);
+  const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
   const [dispatchingHostel, setDispatchingHostel] = useState<string | null>(null);
   const [emergencyCard, setEmergencyCard] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,8 +36,20 @@ export default function AdminDashboard() {
     const unsub = subscribeToAllOrders((data) => { setOrders(data); checkLoaded(); });
     const unsubRiders = subscribeToRiders((data) => { setRiders(data); checkLoaded(); });
     const unsubHostels = subscribeToHostels((data) => { setHostels(data); checkLoaded(); });
-    return () => { unsub(); unsubRiders(); unsubHostels(); };
+    const unsubPlatform = subscribeToPlatformSettings((data) => setPlatformSettings(data));
+    return () => { unsub(); unsubRiders(); unsubHostels(); unsubPlatform(); };
   }, []);
+
+  const handleToggleMaintenance = async () => {
+    if (!platformSettings) return;
+    const currentlyAccepting = platformSettings.isAcceptingOrders !== false; // defaults to true
+    if (!confirm(`Are you sure you want to ${currentlyAccepting ? 'PAUSE' : 'RESUME'} all ordering?`)) return;
+    try {
+      await updatePlatformSettings({ isAcceptingOrders: !currentlyAccepting });
+    } catch (err) {
+      console.error('Failed to update maintenance mode:', err);
+    }
+  };
 
   const parseDate = (d: any) => d?.seconds ? new Date(d.seconds * 1000) : d ? new Date(d) : null;
 
@@ -201,8 +214,40 @@ export default function AdminDashboard() {
     );
   }
 
+  const isAcceptingOrders = platformSettings?.isAcceptingOrders !== false;
+
   return (
     <AdminLayout title="Dashboard">
+      {/* System Maintenance Toggle */}
+      <div className={`mb-8 p-6 rounded-2xl border-2 flex flex-col md:flex-row items-center justify-between gap-6 transition-all ${isDark 
+        ? (isAcceptingOrders ? 'bg-[#222222] border-[#333333]' : 'bg-red-500/10 border-red-500/20 shadow-lg shadow-red-500/5') 
+        : (isAcceptingOrders ? 'bg-white border-gray-100 shadow-sm' : 'bg-red-50 border-red-200 shadow-lg shadow-red-500/5')}`}>
+        <div className="flex items-center gap-4">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isAcceptingOrders 
+            ? (isDark ? 'bg-green-500/10 text-green-400' : 'bg-green-100 text-green-600') 
+            : 'bg-red-500/20 text-red-500'}`}>
+            {isAcceptingOrders ? <CheckCircle className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
+          </div>
+          <div>
+            <h3 className={`text-lg font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
+              {isAcceptingOrders ? 'System Active' : 'System Paused (Maintenance)'}
+            </h3>
+            <p className={`text-sm font-medium ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+              {isAcceptingOrders ? 'Students can place orders normally.' : 'Ordering is currently blocked. No new orders will be accepted.'}
+            </p>
+          </div>
+        </div>
+        <Button 
+          variant={isAcceptingOrders ? 'outline' : 'primary'}
+          className={`px-6 py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${!isAcceptingOrders 
+            ? 'bg-red-500 hover:bg-red-600 text-white border-transparent' 
+            : (isDark ? 'border-[#444444] text-red-400 hover:bg-red-500/10 hover:border-red-500/30' : 'border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300')}`}
+          onClick={handleToggleMaintenance}
+        >
+          {isAcceptingOrders ? 'Pause Ordering' : 'Resume Ordering'}
+        </Button>
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6 mb-6 lg:mb-8">
         {kpis.map((kpi, index) => (

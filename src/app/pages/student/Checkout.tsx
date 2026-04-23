@@ -351,7 +351,9 @@ if (isPremiumHostel) {
   };
 
   const currentHour = new Date().getHours();
-  const isClosed = currentHour < 10 || currentHour >= 18; 
+  const isOutOfHours = currentHour < 10 || currentHour >= 18; 
+  const isMaintenance = platformSettings?.isAcceptingOrders === false;
+  const isClosed = isOutOfHours || isMaintenance;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -469,7 +471,9 @@ if (isPremiumHostel) {
                 <Lock className="w-8 h-8 flex-shrink-0 text-red-500" />
                 <div>
                   <h4 className="font-black text-lg">Ordering Currently Closed</h4>
-                  <p className="font-medium text-sm">CalebDeck is currently closed. Ordering hours are between 12:00 PM and 6:00 PM.</p>
+                  <p className="font-medium text-sm">
+                    {isMaintenance ? 'CalebDeck is currently paused for system maintenance. Please check back shortly.' : 'CalebDeck is currently closed. Ordering hours are between 10:00 AM and 6:00 PM.'}
+                  </p>
                 </div>
               </div>
             )}

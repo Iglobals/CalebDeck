@@ -453,6 +453,7 @@ export interface PlatformSettings {
     premiumComboRiderRate?: number; // NEW - for premium combo orders
     premiumGroupRiderRate?: number;
     premiumRiderRate?: number;
+    isAcceptingOrders?: boolean;
     [key: string]: any;
 }
 
