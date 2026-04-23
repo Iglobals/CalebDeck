@@ -52,10 +52,10 @@ export default function RiderAnalytics() {
         const now = new Date();
         switch (timeframe) {
             case 'this_week':
-                return isWithinInterval(d, { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) });
+                return isWithinInterval(d, { start: startOfWeek(now, { weekStartsOn: 0 }), end: endOfWeek(now, { weekStartsOn: 0 }) });
             case 'last_week':
                 const lastWk = subWeeks(now, 1);
-                return isWithinInterval(d, { start: startOfWeek(lastWk, { weekStartsOn: 1 }), end: endOfWeek(lastWk, { weekStartsOn: 1 }) });
+                return isWithinInterval(d, { start: startOfWeek(lastWk, { weekStartsOn: 0 }), end: endOfWeek(lastWk, { weekStartsOn: 0 }) });
             case 'this_month':
                 return isWithinInterval(d, { start: startOfMonth(now), end: endOfMonth(now) });
             case 'last_month':
@@ -80,12 +80,12 @@ export default function RiderAnalytics() {
     if (timeframe === 'this_week' || timeframe === 'last_week' || timeframe === 'this_month' || timeframe === 'last_month' || timeframe === 'all_time') {
         let startDate: Date, endDate: Date;
         if (timeframe === 'this_week') {
-            startDate = startOfWeek(now, { weekStartsOn: 1 });
-            endDate = endOfWeek(now, { weekStartsOn: 1 });
+            startDate = startOfWeek(now, { weekStartsOn: 0 });
+            endDate = endOfWeek(now, { weekStartsOn: 0 });
         } else if (timeframe === 'last_week') {
             const lastWk = subWeeks(now, 1);
-            startDate = startOfWeek(lastWk, { weekStartsOn: 1 });
-            endDate = endOfWeek(lastWk, { weekStartsOn: 1 });
+            startDate = startOfWeek(lastWk, { weekStartsOn: 0 });
+            endDate = endOfWeek(lastWk, { weekStartsOn: 0 });
         } else if (timeframe === 'this_month') {
             startDate = startOfMonth(now);
             endDate = now; // up to today is fine, or endOfMonth

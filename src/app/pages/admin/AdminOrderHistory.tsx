@@ -62,10 +62,11 @@ export default function AdminOrderHistory() {
         if (!date) return 'Older';
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay()); // Sunday start
 
         if (date >= today) return 'Today';
-        if (date >= weekAgo) return 'This Week';
+        if (date >= weekStart) return 'This Week';
         if (date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()) return 'This Month';
         return 'Older';
     };
@@ -168,7 +169,7 @@ export default function AdminOrderHistory() {
                 ${(order.drinksSnacks || []).length > 0 ? `
                     <div style="font-size:11px;font-weight:900;color:#FCD34D;margin-top:10px">EXTRAS</div>
                     ${order.drinksSnacks.map((it: any) =>
-            `<div class="row"><span>${it.name} × ${it.quantity || 1}</span><span>₦${((it.price || 0) * (it.quantity || 1)).toLocaleString()}</span></div>`
+            `<div class="row"><span>${it?.item?.name || it?.name || 'Add-on'} × ${it?.quantity || 1}</span><span>₦${((it?.item?.price || it?.price || 0) * (it?.quantity || 1)).toLocaleString()}</span></div>`
         ).join('')}
                 ` : ''}
                 <div class="total">Total: ₦${(order.total || 0).toLocaleString()}</div>

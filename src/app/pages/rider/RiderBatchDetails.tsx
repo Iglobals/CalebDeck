@@ -261,8 +261,8 @@ export default function RiderBatchDetails() {
                                 <div class="plate-header">Add-ons</div>
                                 ${order.drinksSnacks.map((item: any) => `
                                     <div class="item-row">
-                                        <span>${item.item?.name || item.name}</span>
-                                        <span style="font-weight: 900;">×${item.quantity}</span>
+                                        <span>${item?.item?.name || item?.name || 'Add-on'}</span>
+                                        <span style="font-weight: 900;">×${item?.quantity || 1}</span>
                                     </div>
                                 `).join('')}
                             ` : ''}

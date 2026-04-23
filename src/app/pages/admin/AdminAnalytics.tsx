@@ -35,7 +35,7 @@ export default function AdminAnalytics() {
                 return d.toLocaleDateString() === now.toLocaleDateString();
             }
             if (timeRange === 'week') {
-                return isWithinInterval(d, { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) });
+                return isWithinInterval(d, { start: startOfWeek(now, { weekStartsOn: 0 }), end: endOfWeek(now, { weekStartsOn: 0 }) });
             }
             if (timeRange === 'month') {
                 return isWithinInterval(d, { start: startOfMonth(now), end: endOfMonth(now) });
@@ -94,9 +94,21 @@ export default function AdminAnalytics() {
     const COLORS = ['#7C3AED', '#FCD34D', '#10B981', '#F87171', '#3B82F6', '#F97316'];
 
     const revenueData = useMemo(() => {
-        const days = timeRange === 'today' ? 1 : timeRange === 'week' ? 7 : 30;
-        return Array.from({ length: days }).map((_, i) => {
-            const d = subDays(new Date(), days - 1 - i);
+        const now = new Date();
+        let chartDays: Date[] = [];
+        
+        if (timeRange === 'today') {
+            chartDays = [now];
+        } else if (timeRange === 'week') {
+            const start = startOfWeek(now, { weekStartsOn: 0 });
+            chartDays = Array.from({ length: 7 }).map((_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
+        } else {
+            const start = startOfMonth(now);
+            const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+            chartDays = Array.from({ length: daysInMonth }).map((_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
+        }
+
+        return chartDays.map(d => {
             const dateStr = format(d, 'yyyy-MM-dd');
             const dayOrders = orders.filter(o => {
                 const od = parseDate(o.createdAt || o.date);
@@ -107,7 +119,7 @@ export default function AdminAnalytics() {
                        o.status !== 'PENDING_PAYMENT';
             });
             return {
-                name: format(d, days <= 7 ? 'EEE' : 'MMM d'),
+                name: format(d, timeRange === 'week' ? 'EEE' : timeRange === 'month' ? 'MMM d' : 'HH:mm'),
                 revenue: dayOrders.reduce((sum, o) => sum + (o.total || o.amount || 0), 0),
                 orders: dayOrders.length,
             };
@@ -117,8 +129,8 @@ export default function AdminAnalytics() {
     const totalOrders = filteredOrders.length;
     const totalTotal = filteredOrders.reduce((sum, o) => sum + (o.total || o.amount || 0), 0);
     const totalSystemFees = filteredOrders.reduce((sum, o) => {
-        const platform = o.breakdown?.platform || 100;
-        const processing = o.breakdown?.processing || 200;
+        const platform = o.breakdown?.platform || 0;
+        const processing = o.breakdown?.processing || 0;
         return sum + platform + processing;
     }, 0);
     const totalRevenue = totalTotal;

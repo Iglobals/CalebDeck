@@ -9,7 +9,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
 import SEO from '../../components/SEO';
 import { submitReview } from '../../../services/db';
-import toast from 'react-hot-toast';
+import { toast } from 'react-toastify';
 
 export default function LandingPage() {
   const { studentTheme } = useTheme();
@@ -55,7 +55,7 @@ export default function LandingPage() {
         orderId: pastOrder.orderId,
         rating: reviewRating,
         feedback: reviewText,
-        riderId: pastOrder.assignedRiderId,
+        riderName: pastOrder.riderName || pastOrder.assignedRiderId || 'Unknown Rider',
         cafeteria: pastOrder.cafeteria || 'Cafeteria',
         studentName: user?.fullName || 'Anonymous'
       });
