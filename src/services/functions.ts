@@ -5,7 +5,7 @@
 
 export const calculateOrderTotal = async (data: any) => {
     if (import.meta.env.DEV) {
-        const { items, deliveryMode, plateCount: providedPlateCount } = data;
+        const { items, deliveryMode, plateCount: providedPlateCount, hostelId } = data;
         let total = 0;
 
         items.forEach((item: any) => {
@@ -17,13 +17,20 @@ export const calculateOrderTotal = async (data: any) => {
         });
 
         const plateCount = typeof providedPlateCount === 'number' ? providedPlateCount : 1;
-        const deliveryFee = plateCount * 750;
-        const takeawayFee = plateCount * 200;
-        let discount = 0;
+        const isGroup = deliveryMode === 'group' || deliveryMode === 'GROUP';
+        const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((hostelId || '').toString().toLowerCase());
+        const premiumDeliveryFee = 1250;
 
-        if (deliveryMode === 'group' || deliveryMode === 'GROUP') {
-            discount = (750 - 580) * plateCount;
+        let baseDeliveryFee;
+        if (isPremiumHostel) {
+            baseDeliveryFee = isGroup ? Math.round(premiumDeliveryFee * 0.8) : premiumDeliveryFee;
+        } else {
+            baseDeliveryFee = isGroup ? 580 : 750;
         }
+
+        const deliveryFee = baseDeliveryFee * plateCount;
+        const takeawayFee = plateCount * 200;
+        const discount = (isGroup && !isPremiumHostel) ? (750 - 580) * plateCount : 0;
 
         const platformFee = 100;
         const processingFee = 200;
