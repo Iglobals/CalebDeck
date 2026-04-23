@@ -651,11 +651,22 @@ export default function Checkout() {
                 </div>
               </div>
 
+              {/* Temporary Maintenance Message */}
+              <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-500 flex flex-col gap-2">
+                <div className="flex items-center gap-2 font-bold text-lg">
+                  <Shield className="w-5 h-5" />
+                  System Maintenance
+                </div>
+                <p className="text-sm font-medium opacity-90 leading-relaxed">
+                  We are currently performing scheduled system maintenance and have temporarily paused new orders. We apologize for the inconvenience and will be back online shortly!
+                </p>
+              </div>
+
               {/* Payment Button */}
               <button
                 onClick={handleSubmit}
-                disabled={!canSubmit}
-                className="w-full py-6 bg-primary text-primary-foreground text-xl font-bold rounded-2xl shadow-xl shadow-primary/20 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:grayscale disabled:opacity-50 flex items-center justify-center gap-3"
+                disabled={true}
+                className="w-full py-6 bg-primary text-primary-foreground text-xl font-bold rounded-2xl shadow-xl shadow-primary/20 transition-all duration-300 disabled:grayscale disabled:opacity-50 flex items-center justify-center gap-3 cursor-not-allowed"
               >
                 {calculating ? (
                   <>
