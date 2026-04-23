@@ -29,9 +29,19 @@ export default function Checkout() {
   const location = useLocation();
   const { studentTheme } = useTheme();
   const locationState = location.state || {};
-  const savedCombo = sessionStorage.getItem('cd_comboOrder');
+
+  // CRITICAL: If location.state has plates, this is a plate order — ignore any stale combo in sessionStorage
+  const hasPlatesInState = Array.isArray(locationState.plates) && locationState.plates.length > 0;
+  const savedCombo = hasPlatesInState ? null : sessionStorage.getItem('cd_comboOrder');
   const comboOrder = locationState.comboOrder || (savedCombo ? JSON.parse(savedCombo) : null);
-  const isCombo = !!comboOrder;
+  const isCombo = !!comboOrder && !hasPlatesInState;
+
+  // Clean up stale combo from sessionStorage when navigating with plates
+  useEffect(() => {
+    if (hasPlatesInState) {
+      sessionStorage.removeItem('cd_comboOrder');
+    }
+  }, [hasPlatesInState]);
 
   const {
     plates = [],
@@ -101,9 +111,14 @@ export default function Checkout() {
         quantity: pi.quantity,
         isAddon: false
       }))),
-      ...Object.entries(drinksSnacks).map(([id, qty]) => ({ id, quantity: qty as number, isAddon: true }))
+      ...drinksSnacksItems.map((dsi: any) => ({
+        id: dsi.item.id,
+        price: dsi.item.price,
+        quantity: dsi.quantity,
+        isAddon: true
+      }))
     ];
-  }, [plates, drinksSnacks]);
+  }, [plates, drinksSnacksItems]);
 
   // Combo total — computed synchronously, no effect needed
   const comboTotal = React.useMemo(() => {

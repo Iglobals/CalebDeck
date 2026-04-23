@@ -254,6 +254,12 @@ export default function PlateBuilder() {
       deliveryMode: 'solo',
     };
 
+    // CRITICAL: Clear any stale plate data before navigating with combo
+    sessionStorage.removeItem('cd_plates');
+    sessionStorage.removeItem('cd_drinksSnacks');
+    sessionStorage.removeItem('cd_deliveryMode');
+    sessionStorage.removeItem('cd_groupSize');
+
     sessionStorage.setItem('cd_comboOrder', JSON.stringify(orderData));
     navigate('/checkout', { state: { comboOrder: orderData } });
   };
@@ -456,7 +462,10 @@ export default function PlateBuilder() {
   const platesSubtotal = plates.reduce((sum, plate) => sum + plate.total, 0);
   const drinksSnacksTotal = Object.entries(drinksSnacks).reduce((sum, [itemId, qty]) => {
     const item = foodItems.find(f => f.id === itemId);
-    return sum + (item?.price || 0) * qty;
+    if (!item) return sum;
+    // Mirror server-side markup: +₦50 for addons under ₦1000
+    const price = item.price < 1000 ? item.price + 50 : item.price;
+    return sum + price * qty;
   }, 0);
 
   const deliveryFee = deliveryMode === 'solo' ? DELIVERY_FEE_SOLO : DELIVERY_FEE_GROUP;
@@ -1294,6 +1303,9 @@ export default function PlateBuilder() {
                 disabled={plates.length === 0 || groupOrderWarning}
                 className="w-full py-6 text-2xl rounded-3xl shadow-xl shadow-primary/20 transition-all duration-500 hover:scale-[1.02] active:scale-95 disabled:grayscale"
                 onClick={() => {
+                  // CRITICAL: Clear any stale combo order before navigating with plates
+                  sessionStorage.removeItem('cd_comboOrder');
+
                   const drinksSnacksItems = Object.entries(drinksSnacks).reduce((acc: any[], [itemId, quantity]) => {
                     const item = foodItems.find(f => f.id === itemId);
                     if (item) acc.push({ item, quantity });
