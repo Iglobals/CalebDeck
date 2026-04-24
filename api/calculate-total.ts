@@ -74,7 +74,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const plateCount = typeof providedPlateCount === 'number' ? providedPlateCount : 1;
         const isGroup = deliveryMode === 'group' || deliveryMode === 'GROUP';
         const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((hostelId || '').toString().toLowerCase());
-        const premiumDeliveryFee = platformSettings!.premiumDeliveryFee || 1250;
         
         // FIXED: Use base delivery fee for breakdown, and correctly calculate discount without double-discounting
         const baseDeliveryFee = isPremiumHostel ? premiumDeliveryFee : DELIVERY_FEE_SOLO;
