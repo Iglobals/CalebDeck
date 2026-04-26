@@ -3,6 +3,7 @@ import { Outlet } from 'react-router';
 import { useTheme } from '../../context/ThemeContext';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { ToastContainer } from 'react-toastify';
+import { MartCartProvider } from '../../context/MartCartContext';
 import 'react-toastify/dist/ReactToastify.css';
 
 export default function StudentRoleWrapper() {
@@ -14,7 +15,9 @@ export default function StudentRoleWrapper() {
 
     return (
         <div className={`min-h-screen transition-colors duration-300 ${studentTheme === 'dark' ? 'bg-[#121212]' : 'bg-[#FAF9F6]'}`}>
-            <Outlet />
+            <MartCartProvider>
+                <Outlet />
+            </MartCartProvider>
             <ThemeToggle theme={studentTheme} onToggle={toggleStudentTheme} />
             <ToastContainer position="top-right" autoClose={3000} />
         </div>

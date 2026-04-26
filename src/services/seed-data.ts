@@ -253,3 +253,81 @@ export const seedData = async () => {
         console.error("Error seeding data:", error);
     }
 };
+
+export const seedMartItems = async () => {
+    const batch = writeBatch(db);
+    
+    const martItems = [
+        // Breakfast & Cereals
+        { name: 'Milk (1 roll)', price: 2000, category: 'Breakfast & Cereals' },
+        { name: 'Milo (1 roll)', price: 2000, category: 'Breakfast & Cereals' },
+        { name: 'Cornflakes Sachet (1 roll)', price: 2000, category: 'Breakfast & Cereals' },
+        { name: 'Carton Cornflakes (Nasco)', price: 4000, category: 'Breakfast & Cereals' },
+        { name: 'Golden Morn (Medium)', price: 4000, category: 'Breakfast & Cereals' },
+        { name: 'Golden Morn (Big)', price: 5500, category: 'Breakfast & Cereals' },
+        { name: 'Golden Morn Sachet (1 roll)', price: 3000, category: 'Breakfast & Cereals' },
+        { name: 'Coco Pops', price: 4000, category: 'Breakfast & Cereals' },
+        { name: 'Rice Crispy', price: 4000, category: 'Breakfast & Cereals' },
+
+        // Spreads & Snacks
+        { name: 'Pringles', price: 3000, category: 'Spreads & Snacks' },
+        { name: 'Nutella', price: 7500, category: 'Spreads & Snacks' },
+        { name: 'Peanut Butter', price: 3000, category: 'Spreads & Snacks' },
+
+        // Sugar & Beverages
+        { name: 'Dangote Sugar (Small)', price: 700, category: 'Sugar & Beverages' },
+        { name: 'Dangote Sugar (Medium)', price: 1500, category: 'Sugar & Beverages' },
+        { name: 'Dangote Sugar (Big)', price: 2500, category: 'Sugar & Beverages' },
+
+        // Perfumes
+        { name: 'Riggs Perfume', price: 4000, category: 'Perfumes' },
+        { name: 'Mosuf (Small)', price: 5000, category: 'Perfumes' },
+        { name: '24k Perfume', price: 7000, category: 'Perfumes' },
+
+        // Personal Care
+        { name: 'Dudu Osun Soap', price: 300, category: 'Personal Care' },
+        { name: 'Toothpaste (Big)', price: 2000, category: 'Personal Care' },
+        { name: 'Small Toothpaste', price: 700, category: 'Personal Care' },
+        { name: 'Air Freshener (Big)', price: 2000, category: 'Personal Care' },
+        { name: 'Small Air Freshener', price: 1200, category: 'Personal Care' },
+        { name: 'Liquid Black Polish', price: 2000, category: 'Personal Care' },
+
+        // Clothing & Accessories
+        { name: 'White Corporate Shirt', price: 8000, category: 'Clothing & Accessories' },
+        { name: 'Black Corporate Shirt', price: 8000, category: 'Clothing & Accessories' },
+        { name: 'Yellow Corporate Shirt', price: 8000, category: 'Clothing & Accessories' },
+        { name: 'Pink Corporate Shirt', price: 8000, category: 'Clothing & Accessories' },
+        { name: 'Black Tie', price: 1500, category: 'Clothing & Accessories' },
+        { name: 'Red Tie', price: 1500, category: 'Clothing & Accessories' },
+        { name: 'Clips', price: 2000, category: 'Clothing & Accessories' },
+        { name: 'Hanger', price: 2500, category: 'Clothing & Accessories' },
+        { name: 'Slippers', price: 1000, category: 'Clothing & Accessories' },
+
+        // Home & Living
+        { name: 'Pillow', price: 7500, category: 'Home & Living' },
+        { name: '5 in one Big Note', price: 2500, category: 'Home & Living' },
+        { name: 'Cloth Dryer', price: 18000, category: 'Home & Living' }
+    ];
+
+    try {
+        const existingItemsSnap = await getDocs(collection(db, 'mart_items'));
+        existingItemsSnap.forEach((docSnap) => {
+            batch.delete(docSnap.ref);
+        });
+
+        martItems.forEach((item) => {
+            const ref = doc(collection(db, 'mart_items'));
+            batch.set(ref, {
+                ...item,
+                imageUrl: '',
+                inStock: true,
+                createdAt: Date.now()
+            });
+        });
+
+        await batch.commit();
+        console.log("Mart items seeded successfully.");
+    } catch (error) {
+        console.error("Error seeding mart items:", error);
+    }
+};

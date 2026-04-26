@@ -10,6 +10,7 @@ import { useAuth } from '../../../context/AuthContext';
 import SEO from '../../components/SEO';
 import { submitReview } from '../../../services/db';
 import { toast } from 'react-toastify';
+import { PaperBagHamburger } from '../../components/design-system/PaperBagHamburger';
 
 export default function LandingPage() {
   const { studentTheme } = useTheme();
@@ -127,24 +128,15 @@ export default function LandingPage() {
                 </Link>
               )}
               <Link to="/cafeteria">
-                <Button variant="primary">Order Now</Button>
+                <Button variant="primary">Order Food</Button>
+              </Link>
+              <Link to="/mart">
+                <Button variant="secondary" className="border-[#10B981] text-[#10B981] hover:bg-[#10B981]/10">Shop Mart</Button>
               </Link>
             </div>
           </div>
-          <div className="md:hidden flex items-center gap-2 sm:gap-4">
-            {user?.role === 'ADMIN' && (
-              <Link to="/admin">
-                <Button variant="secondary" size="sm" className="border-[#7C3AED] text-[#7C3AED]">Admin</Button>
-              </Link>
-            )}
-            {user?.role === 'RIDER' && (
-              <Link to="/rider">
-                <Button variant="secondary" size="sm" className="border-[#FCD34D] text-[#FCD34D]">Rider</Button>
-              </Link>
-            )}
-            <Link to="/cafeteria">
-              <Button variant="primary" size="sm">Order now</Button>
-            </Link>
+          <div className="md:hidden flex items-center justify-end z-[999]">
+            <PaperBagHamburger />
           </div>
         </div>
       </nav>
@@ -162,21 +154,21 @@ export default function LandingPage() {
             </div>
             <h1 className="text-3xl sm:text-5xl md:text-7xl leading-tight tracking-tight font-bold">
               Skip the queue. <br />
-              <span className="text-secondary">Premium</span> food <br />
+              <span className="text-secondary">Premium</span> campus <br />
               delivery.
             </h1>
             <p className="text-base sm:text-xl text-muted-foreground leading-relaxed max-w-lg">
-              Save up to 45 minutes every day. Direct delivery to your hostel. Experience a new standard in campus dining.
+              Food from the cafeteria and essentials from CalebDeck Mart. Delivered directly to your hostel.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Link to="/cafeteria">
-                <Button variant="primary" size="lg" className="px-10">
-                  Order Now <ArrowRight className="w-5 h-5" />
+                <Button variant="primary" size="lg" className="w-full sm:w-auto px-10">
+                  Order Food <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
-              <Link to="/learn-more">
-                <Button variant="secondary" size="lg">
-                  Learn More
+              <Link to="/mart">
+                <Button variant="secondary" size="lg" className="w-full sm:w-auto border-[#10B981] text-[#10B981] hover:bg-[#10B981]/10">
+                  Shop Mart <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
             </div>
@@ -220,6 +212,33 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Services Section */}
+      <section className="py-16 md:py-24 max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="grid md:grid-cols-2 gap-8">
+          <Link to="/cafeteria" className="group">
+            <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl ${studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#FCD34D]/20' : 'bg-amber-50/50 border-amber-200'}`}>
+              <div className="w-16 h-16 rounded-2xl bg-[#FCD34D]/20 flex items-center justify-center mb-6">
+                <span className="text-3xl">🍽️</span>
+              </div>
+              <h3 className={`text-2xl font-bold mb-3 ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Food Delivery</h3>
+              <p className={`text-lg mb-6 ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Hot meals from campus cafeterias, batched and delivered to your hostel.</p>
+              <span className="text-[#FCD34D] font-bold flex items-center gap-2 group-hover:gap-4 transition-all">Order Now <ArrowRight className="w-5 h-5" /></span>
+            </div>
+          </Link>
+          
+          <Link to="/mart" className="group">
+            <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl ${studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#10B981]/20' : 'bg-emerald-50/50 border-emerald-200'}`}>
+              <div className="w-16 h-16 rounded-2xl bg-[#10B981]/20 flex items-center justify-center mb-6">
+                <span className="text-3xl">🛒</span>
+              </div>
+              <h3 className={`text-2xl font-bold mb-3 ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>CalebDeck Mart</h3>
+              <p className={`text-lg mb-6 ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Groceries, snacks, and essentials. Available whenever you need them.</p>
+              <span className="text-[#10B981] font-bold flex items-center gap-2 group-hover:gap-4 transition-all">Shop Mart <ArrowRight className="w-5 h-5" /></span>
+            </div>
+          </Link>
         </div>
       </section>
 

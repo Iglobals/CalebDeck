@@ -237,6 +237,14 @@ export default function RiderBatchDetails() {
                                         <span style="font-weight: 900;">×${item.quantity}</span>
                                     </div>
                                 `).join('')
+                            ) : order.type === 'mart' ? (
+                                `<div class="plate-header">Mart Items</div>` +
+                                (order.items || []).map((item: any) => `
+                                    <div class="item-row">
+                                        <span>${item.name}</span>
+                                        <span style="font-weight: 900;">×${item.quantity}</span>
+                                    </div>
+                                `).join('')
                             ) : (
                                 (order.plates || []).map((p: any, i: number) => `
                                     <div class="plate-header">Plate #${i + 1} — ${p.type || ''}</div>
@@ -249,7 +257,7 @@ export default function RiderBatchDetails() {
                                 `).join('')
                             )}
                             
-                            ${order.type !== 'combo' ? `
+                            ${(order.type !== 'combo' && order.type !== 'mart') ? `
                             <div class="plate-header">Fees</div>
                             <div class="item-row">
                                 <span>Takeaway Pack</span>
@@ -481,6 +489,16 @@ export default function RiderBatchDetails() {
                                                             {order.comboItems?.map((item: any) => `${item.quantity > 1 ? `${item.quantity}x ` : ''}${item.name}`).join(', ') || 'No items'}
                                                         </div>
                                                     </div>
+                                                ) : order.type === 'mart' ? (
+                                                    <div className={`rounded-xl p-3 border ${isDark ? 'bg-[#222222]/50 border-[#333333]' : 'bg-blue-50 border-blue-200'}`}>
+                                                        <div className="flex justify-between items-start mb-1">
+                                                            <span className="text-xs font-black text-blue-600 uppercase tracking-widest">Mart Items</span>
+                                                            <span className="text-xs font-bold text-amber-500">₦{order.totalAmount?.toLocaleString()}</span>
+                                                        </div>
+                                                        <div className={`text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
+                                                            {order.items?.map((item: any) => `${item.quantity > 1 ? `${item.quantity}x ` : ''}${item.name}`).join(', ') || 'No items'}
+                                                        </div>
+                                                    </div>
                                                 ) : (
                                                     <>
                                                         {order.plates?.map((plate: any, i: number) => (
@@ -656,6 +674,11 @@ export default function RiderBatchDetails() {
                                         <div className="text-sm mb-1.5 flex flex-col gap-1">
                                             <span className="font-black text-[#7C3AED]">{order.comboName} × {order.quantity || 1}</span>
                                             <span>{order.comboItems?.map((item: any) => `${item.quantity > 1 ? `${item.quantity}x ` : ''}${item.name}`).join(', ') || 'No Items'}</span>
+                                        </div>
+                                    ) : order.type === 'mart' ? (
+                                        <div className="text-sm mb-1.5 flex items-start gap-2">
+                                            <span className="font-black text-blue-500">Mart:</span>
+                                            <span>{order.items?.map((item: any) => `${item.quantity > 1 ? `${item.quantity}x ` : ''}${item.name}`).join(', ') || 'No Items'}</span>
                                         </div>
                                     ) : (
                                         order.plates?.map((p: any, i: number) => (

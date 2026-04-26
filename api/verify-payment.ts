@@ -48,9 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // 1. Check if order already exists
-        //    - source='verified' → already fully processed, skip
-        //    - source='pre_saved' (PENDING_PAYMENT) → items already saved, just update status after verification
-        //    - source='webhook' → skeleton without items, overwrite with full data
+        const isMartOrder = orderData?.orderType === 'mart';
         const orderRef = db.collection('orders').doc(reference);
         const existingDoc = await orderRef.get();
 
@@ -116,7 +114,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const platformFee = 100;
         const processingFee = 200;
 
-        if (isCombo) {
+        if (isMartOrder) {
+            const items = orderData?.items || [];
+            let martTotal = 0;
+            if (items.length > 0) {
+                const itemRefs = items.map((i: any) => db!.collection('mart_items').doc(i.id));
+                const itemDocs = await db!.getAll(...itemRefs);
+                for (let idx = 0; idx < itemDocs.length; idx++) {
+                    const doc = itemDocs[idx];
+                    const qty = items[idx].quantity || 1;
+                    const currentPrice = doc.exists ? (doc.data()!.price || 0) : (items[idx].price || 0);
+                    martTotal += currentPrice * qty;
+                }
+            }
+            serverTotal = martTotal + baseDeliveryFee + platformFee + processingFee;
+        } else if (isCombo) {
             const comboDoc = await db.collection('combo_packs').doc(orderData.comboId).get();
             if (!comboDoc.exists) {
                  return res.status(400).json({ error: 'Invalid combo selected' });
@@ -195,7 +207,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             updatedAt: FieldValue.serverTimestamp()
         };
 
-        if (isCombo) {
+        if (isMartOrder) {
+            orderDoc.type = 'mart';
+            orderDoc.items = orderData.items || [];
+            orderDoc.totalAmount = paidAmount;
+            orderDoc.subtotal = orderData?.subtotal || (paidAmount - baseDeliveryFee - platformFee - processingFee);
+            orderDoc.deliveryFee = baseDeliveryFee;
+            orderDoc.serviceProcessingFee = platformFee + processingFee;
+            delete orderDoc.total;
+            delete orderDoc.cafeteria;
+            delete orderDoc.cafeteriaId;
+            delete orderDoc.sectionId;
+            delete orderDoc.deliveryMode;
+        } else if (isCombo) {
             orderDoc.type = 'combo';
             orderDoc.comboId = orderData.comboId;
             orderDoc.comboName = orderData.comboName;

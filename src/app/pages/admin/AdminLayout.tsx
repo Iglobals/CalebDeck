@@ -14,7 +14,8 @@ import {
     UtensilsCrossed,
     LogOut,
     ArrowRight,
-    Star
+    Star,
+    Store
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useTheme } from '../../../context/ThemeContext';
@@ -59,9 +60,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
 
     const menuItems = [
         { id: 'dashboard', path: '/admin', icon: <LayoutDashboard className="w-5 h-5" />, label: 'Dashboard' },
-        { id: 'orders', path: '/admin/orders', icon: <ShoppingBag className="w-5 h-5" />, label: 'Orders' },
-        { id: 'riders', path: '/admin/riders', icon: <Users className="w-5 h-5" />, label: 'Riders' },
+        { id: 'orders', path: '/admin/orders', icon: <ShoppingBag className="w-5 h-5" />, label: 'Food Orders' },
+        { id: 'mart-orders', path: '/admin/mart/orders', icon: <Store className="w-5 h-5" />, label: 'Mart Orders' },
+        { id: 'mart-inventory', path: '/admin/mart/inventory', icon: <Package className="w-5 h-5" />, label: 'Mart Inventory' },
         { id: 'menu', path: '/admin/menu', icon: <UtensilsCrossed className="w-5 h-5" />, label: 'Menu Management' },
+        { id: 'riders', path: '/admin/riders', icon: <Users className="w-5 h-5" />, label: 'Riders' },
         { id: 'analytics', path: '/admin/analytics', icon: <BarChart3 className="w-5 h-5" />, label: 'Analytics' },
         { id: 'reviews', path: '/admin/reviews', icon: <Star className="w-5 h-5" />, label: 'Reviews' },
         { id: 'history', path: '/admin/history', icon: <Package className="w-5 h-5" />, label: 'Order History' },

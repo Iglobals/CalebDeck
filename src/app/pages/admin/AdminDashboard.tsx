@@ -80,13 +80,16 @@ export default function AdminDashboard() {
   const totalDeliveryFees = todayPaidOrders.reduce((sum, o) => {
     const platesCount = o.type === 'combo' ? (o.quantity || 1) : (o.plates?.length || 1);
     const isGroup = o.deliveryMode === 'group' || o.deliveryMode === 'GROUP';
+    const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((o.hostel || o.hostelName || '').toString().toLowerCase());
 
     // Revenue collected from user (Delivery Fee only)
-    // Takeaway fees go to the cafeteria, not the platform.
-    const deliveryRevenue = (isGroup ? 580 : 750) * platesCount;
+    let baseDeliveryFee = isGroup ? 580 : 750;
+    if (isPremiumHostel) {
+        baseDeliveryFee = platformSettings?.premiumDeliveryFee || 1250;
+    }
 
-    // We do NOT subtract rider payout here because the platform holds this cash 
-    // until they manually explicitly pay out the riders later.
+    const deliveryRevenue = baseDeliveryFee * platesCount;
+
     return sum + deliveryRevenue;
   }, 0);
 

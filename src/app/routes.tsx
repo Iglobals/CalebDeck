@@ -11,6 +11,9 @@ const CafeteriaSelection = lazy(() => import("./pages/student/CafeteriaSelection
 const PlateBuilder = lazy(() => import("./pages/student/PlateBuilder"));
 const Checkout = lazy(() => import("./pages/student/Checkout"));
 const OrderSuccess = lazy(() => import("./pages/student/OrderSuccess"));
+const MartPage = lazy(() => import("./pages/student/MartPage"));
+const MartCart = lazy(() => import("./pages/student/MartCart"));
+const MartCheckout = lazy(() => import("./pages/student/MartCheckout"));
 
 // --- Lazy Load Info & Legal Pages ---
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
@@ -29,6 +32,8 @@ const AdminOrderHistory = lazy(() => import("./pages/admin/AdminOrderHistory"));
 const AdminSetup = lazy(() => import("./pages/admin/AdminSetup"));
 const SeedData = lazy(() => import("./pages/admin/SeedData"));
 const AdminReviews = lazy(() => import("./pages/admin/AdminReviews"));
+const AdminMartInventory = lazy(() => import("./pages/admin/AdminMartInventory"));
+const AdminMartOrders = lazy(() => import("./pages/admin/AdminMartOrders"));
 
 // --- Lazy Load Rider Pages ---
 const RiderLogin = lazy(() => import("./pages/rider/RiderLogin"));
@@ -71,6 +76,9 @@ export const router = createBrowserRouter([
           { path: "plate-builder/:cafeteriaId", Component: PlateBuilder },
           { path: "checkout", Component: Checkout },
           { path: "order-success", Component: OrderSuccess },
+          { path: "mart", Component: MartPage },
+          { path: "mart/cart", Component: MartCart },
+          { path: "mart/checkout", Component: MartCheckout },
         ]
       },
 
@@ -89,6 +97,8 @@ export const router = createBrowserRouter([
           { path: "history", Component: AdminOrderHistory },
           { path: "reviews", Component: AdminReviews },
           { path: "seed", Component: SeedData },
+          { path: "mart/inventory", Component: AdminMartInventory },
+          { path: "mart/orders", Component: AdminMartOrders },
         ]
       },
 

@@ -55,6 +55,7 @@ export default function AdminOrders() {
     const today = new Date().toLocaleDateString();
 
     const todayOrders = orders.filter(o => {
+        if (o.type === 'mart') return false;
         if (o.status === 'TRASHED' || o.status === 'CANCELLED') return false;
         const d = parseDate(o.createdAt);
         if (!d || d.toLocaleDateString() !== today) return false;

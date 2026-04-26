@@ -56,6 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const reference = paymentData.reference;
 
         // 3. Idempotent — check if order already exists
+        const isMartOrder = paymentData.metadata?.orderType === 'mart';
         const orderRef = db.collection('orders').doc(reference);
         const existingDoc = await orderRef.get();
 
@@ -143,6 +144,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const isCalebDeck = metadata.orderId?.startsWith('CD-') ||
             metadata.cafeteriaId ||
             metadata.hostel ||
+            metadata.orderType === 'mart' ||
             metadata.source === 'calebdeck';
 
         if (!isCalebDeck) {
@@ -178,7 +180,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             updatedAt: FieldValue.serverTimestamp()
         };
 
-        if (metadata.type === 'combo') {
+        if (isMartOrder) {
+            orderDoc.type = 'mart';
+            orderDoc.items = metadata.items || [];
+            orderDoc.totalAmount = paidAmount;
+            orderDoc.subtotal = metadata.subtotal || (paidAmount - 1050); // Fallback: minus 750 delivery and 300 fees
+            orderDoc.deliveryFee = metadata.deliveryFee || 750;
+            orderDoc.serviceProcessingFee = 300;
+            delete orderDoc.total;
+            delete orderDoc.cafeteria;
+            delete orderDoc.cafeteriaId;
+            delete orderDoc.sectionId;
+            delete orderDoc.deliveryMode;
+        } else if (metadata.type === 'combo') {
             orderDoc.type = 'combo';
             orderDoc.comboId = metadata.comboId;
             orderDoc.comboName = metadata.comboName;

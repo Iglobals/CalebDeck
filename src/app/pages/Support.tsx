@@ -1,12 +1,21 @@
 import { Logo } from '../components/design-system/Logo';
 import Footer from '../components/Footer';
+import { useNavigate } from 'react-router';
+import { ArrowLeft } from 'lucide-react';
 
 export default function Support() {
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border transition-colors duration-300">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-center">
-          <Logo size="md" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+          <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl transition-colors hover:bg-muted">
+            <ArrowLeft className="w-6 h-6 text-foreground" />
+          </button>
+          <div className="absolute left-1/2 -translate-x-1/2">
+            <Logo size="md" />
+          </div>
+          <div className="w-10"></div>
         </div>
       </header>
       <main className="max-w-4xl mx-auto px-6 py-16">
