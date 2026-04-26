@@ -68,6 +68,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
         { id: 'analytics', path: '/admin/analytics', icon: <BarChart3 className="w-5 h-5" />, label: 'Analytics' },
         { id: 'reviews', path: '/admin/reviews', icon: <Star className="w-5 h-5" />, label: 'Reviews' },
         { id: 'history', path: '/admin/history', icon: <Package className="w-5 h-5" />, label: 'Order History' },
+        { id: 'settings', path: '/admin/settings', icon: <Settings className="w-5 h-5" />, label: 'Platform Settings' },
     ];
 
     const isDark = adminTheme === 'dark';

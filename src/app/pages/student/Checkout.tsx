@@ -466,13 +466,13 @@ if (isPremiumHostel) {
         <div className="grid lg:grid-cols-[1fr_450px] gap-12">
           {/* Form - Left */}
           <div className="space-y-8">
-            {isClosed && (
+            {isOutOfHours && !isMaintenance && (
               <div className="mb-2 p-5 rounded-2xl bg-red-500/10 border-2 border-red-500/20 text-red-600 dark:text-red-400 flex items-center gap-4 shadow-lg shadow-red-500/5">
                 <Lock className="w-8 h-8 flex-shrink-0 text-red-500" />
                 <div>
                   <h4 className="font-black text-lg">Ordering Currently Closed</h4>
                   <p className="font-medium text-sm">
-                    {isMaintenance ? 'CalebDeck is currently paused for system maintenance. Please check back shortly.' : 'CalebDeck is currently closed. Ordering hours are between 10:00 AM and 6:00 PM.'}
+                    CalebDeck is currently closed. Ordering hours are between 10:00 AM and 6:00 PM.
                   </p>
                 </div>
               </div>

@@ -190,7 +190,7 @@ export default function MartCheckout() {
     if (formData.phone.length < 10) return toast.error('Please enter a valid phone number');
     if (!formData.hostel) return toast.error('Please select your hostel');
 
-    if (platformSettings && platformSettings.isAcceptingOrders === false) {
+    if (platformSettings && (platformSettings.isAcceptingOrders === false || platformSettings.isMartComingSoon === true)) {
       toast.error("Ordering is temporarily paused for maintenance. Please try again later.");
       return;
     }
@@ -214,15 +214,6 @@ export default function MartCheckout() {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-        
-        {platformSettings?.isAcceptingOrders === false && (
-          <div className="mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
-            <p className="text-red-500 font-medium text-center flex items-center justify-center gap-2">
-              <Shield className="w-5 h-5" /> 
-              CalebDeck is currently undergoing maintenance. Ordering is paused.
-            </p>
-          </div>
-        )}
 
         <div className="grid md:grid-cols-5 gap-8">
           <div className="md:col-span-3 space-y-6">

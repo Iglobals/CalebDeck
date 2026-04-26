@@ -96,6 +96,7 @@ export const router = createBrowserRouter([
           { path: "analytics", Component: AdminAnalytics },
           { path: "history", Component: AdminOrderHistory },
           { path: "reviews", Component: AdminReviews },
+          { path: "settings", lazy: () => import('./pages/admin/AdminSettings').then(m => ({ Component: m.default })) },
           { path: "seed", Component: SeedData },
           { path: "mart/inventory", Component: AdminMartInventory },
           { path: "mart/orders", Component: AdminMartOrders },
