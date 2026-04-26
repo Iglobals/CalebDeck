@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Logo } from '../../components/design-system/Logo';
 import { Button } from '../../components/design-system/Button';
-import { ArrowLeft, Search, ShoppingBag, Plus, Minus } from 'lucide-react';
+import { ArrowLeft, Search, ShoppingBag, Plus, Minus, Package } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { useTheme } from '../../../context/ThemeContext';
 import SEO from '../../components/SEO';
 import { useMartCart, CartItem } from '../../../context/MartCartContext';
 import { subscribeToMartItems, MartItem } from '../../../services/mart';
+import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 import { Badge } from '../../components/design-system/Badge';
 
 const CATEGORIES = [
@@ -27,16 +28,20 @@ export default function MartPage() {
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [items, setItems] = useState<MartItem[]>([]);
+  const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
   const { items: cartItems, addItem, removeItem, updateQuantity, totalItems } = useMartCart();
 
   useEffect(() => {
-    const unsubscribe = subscribeToMartItems((fetchedItems) => {
+    const unsubscribeItems = subscribeToMartItems((fetchedItems) => {
       setItems(fetchedItems);
       setLoading(false);
     });
-    return () => unsubscribe();
+    const unsubscribeSettings = subscribeToPlatformSettings((settings) => {
+      setPlatformSettings(settings);
+    });
+    return () => { unsubscribeItems(); unsubscribeSettings(); };
   }, []);
 
   const filteredItems = items.filter(item => {
@@ -92,6 +97,25 @@ export default function MartPage() {
           </div>
         </div>
       </header>
+
+      {platformSettings?.isMartComingSoon === true && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
+          <div className="max-w-md w-full bg-card border border-border rounded-3xl p-8 text-center shadow-2xl animate-fade-in-up">
+            <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Package className="w-10 h-10 text-primary animate-bounce" />
+            </div>
+            <h2 className="text-3xl font-black mb-4">We're Stocking the Shelves! 📦</h2>
+            <p className="text-muted-foreground mb-8 text-lg font-medium">
+              CalebDeck Mart is temporarily closed while we restock inventory and upload new product images. We'll be back online shortly!
+            </p>
+            <Link to="/">
+              <Button variant="primary" className="w-full py-4 text-base rounded-xl font-bold">
+                Return to Home
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         

@@ -181,7 +181,7 @@ export default function MartCheckout() {
   };
 
   const onClose = () => {
-    toast.info("Payment cancelled.");
+    toast.info("Payment cancelled. If this was a network issue, please try again.");
   };
 
   const handlePay = () => {

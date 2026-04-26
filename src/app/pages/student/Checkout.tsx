@@ -340,7 +340,7 @@ if (isPremiumHostel) {
   };
 
   const onClose = () => {
-    console.log('Payment closed');
+    toast.info('Payment cancelled. If this was a network issue, please try again.');
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
