@@ -5,7 +5,7 @@ import { Badge } from '../../components/design-system/Badge';
 import {
     PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { subscribeToOrderHistory } from '../../../services/db';
+import { subscribeToOrderHistory, subscribeToPlatformSettings } from '../../../services/db';
 import { TrendingUp, ShoppingBag, Users, DollarSign, CalendarDays, ChevronDown, Shield, Truck, CheckCircle } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, isWithinInterval } from 'date-fns';
@@ -14,12 +14,17 @@ type TimeRange = 'today' | 'week' | 'month';
 
 export default function AdminAnalytics() {
     const [orders, setOrders] = useState<any[]>([]);
+    const [platformSettings, setPlatformSettings] = useState<any>(null);
     const [timeRange, setTimeRange] = useState<TimeRange>('week');
     const { adminTheme } = useTheme();
 
     useEffect(() => {
-        const unsub = subscribeToOrderHistory(setOrders);
-        return () => unsub();
+        const unsubOrders = subscribeToOrderHistory(setOrders);
+        const unsubSettings = subscribeToPlatformSettings(setPlatformSettings);
+        return () => {
+            unsubOrders();
+            unsubSettings();
+        };
     }, []);
 
     const isDark = adminTheme === 'dark';
@@ -128,10 +133,38 @@ export default function AdminAnalytics() {
 
     const totalOrders = filteredOrders.length;
     const totalTotal = filteredOrders.reduce((sum, o) => sum + (o.total || o.amount || 0), 0);
-    const totalDeliveryFees = filteredOrders.reduce((sum, o) => sum + (o.breakdown?.delivery || 0), 0);
+    const totalDeliveryFees = filteredOrders.reduce((sum, o) => {
+        const platesCount = o.type === 'combo' ? (o.quantity || 1) : (o.plates?.length || 1);
+        const isGroup = o.deliveryMode === 'group' || o.deliveryMode === 'GROUP';
+        const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((o.hostel || o.hostelName || '').toString().toLowerCase());
+
+        let baseDeliveryFee = isGroup ? 580 : 750;
+        
+        // Premium delivery fee was implemented on April 23, 2026
+        const premiumFeeStartDate = new Date('2026-04-23T00:00:00+01:00');
+        const orderDate = parseDate(o.createdAt || o.date);
+        
+        if (isPremiumHostel && orderDate && orderDate >= premiumFeeStartDate) {
+            baseDeliveryFee = platformSettings?.premiumDeliveryFee || 1250;
+        }
+
+        const deliveryRevenue = baseDeliveryFee * platesCount;
+        return sum + deliveryRevenue;
+    }, 0);
     const totalSystemFees = filteredOrders.reduce((sum, o) => {
-        const platform = o.breakdown?.platform || 0;
-        const processing = o.breakdown?.processing || 0;
+        // Service fee was implemented on April 22, 2026 around 12pm WAT
+        const serviceFeeStartDate = new Date('2026-04-22T12:00:00+01:00');
+        const orderDate = parseDate(o.createdAt || o.date);
+
+        let platform = o.breakdown?.platform || 0;
+        let processing = o.breakdown?.processing || 0;
+
+        // Only apply the default 100 + 200 if the order is from after the feature launch
+        if (orderDate && orderDate >= serviceFeeStartDate) {
+            platform = platform || 100;
+            processing = processing || 200;
+        }
+
         return sum + platform + processing;
     }, 0);
     const totalRevenue = totalTotal;
