@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Logo } from '../../components/design-system/Logo';
 import { Button } from '../../components/design-system/Button';
+import { GlassCard } from '../../components/design-system/Card';
 import { ArrowLeft, Search, ShoppingBag, Plus, Minus, Package } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { useTheme } from '../../../context/ThemeContext';
@@ -175,53 +176,74 @@ export default function MartPage() {
               const qty = getCartQuantity(item.id);
               
               return (
-                <div key={item.id} className={`group bg-card border-2 border-border rounded-3xl overflow-hidden hover:border-[#10B981]/30 hover:shadow-xl transition-all duration-500 ${!item.inStock ? 'opacity-60 grayscale-[0.5]' : ''}`}>
-                  <div className="relative aspect-square bg-muted/20 p-6 flex items-center justify-center">
+                <GlassCard 
+                  key={item.id} 
+                  selected={qty > 0} 
+                  unavailable={!item.inStock}
+                  className="flex flex-col h-full !p-0 group transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10"
+                >
+                  {/* Image Container */}
+                  <div className="relative aspect-square bg-muted/30 m-2 sm:m-3 rounded-2xl overflow-hidden shadow-inner">
                     <ImageWithFallback 
                       src={item.imageUrl} 
                       alt={item.name}
-                      className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500"
+                      className="w-full h-full object-contain p-4 sm:p-6 group-hover:scale-110 transition-transform duration-700 ease-out"
                     />
                     {!item.inStock && (
-                      <div className="absolute inset-0 bg-background/50 backdrop-blur-[2px] flex items-center justify-center">
-                        <Badge variant="outline" className="bg-background font-bold px-4 py-1.5 border-2 text-foreground">Out of Stock</Badge>
+                      <div className="absolute inset-0 bg-background/60 backdrop-blur-[3px] flex items-center justify-center p-4">
+                        <Badge variant="outline" className="bg-background/80 font-black px-3 py-1.5 border-2 text-foreground text-[10px] uppercase tracking-tighter">Out of Stock</Badge>
+                      </div>
+                    )}
+                    {qty > 0 && (
+                      <div className="absolute top-2 right-2 bg-[#10B981] text-white text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full shadow-lg border-2 border-background animate-in zoom-in">
+                        {qty}
                       </div>
                     )}
                   </div>
-                  <div className="p-4 sm:p-5">
-                    <p className="text-xs font-bold text-[#10B981] uppercase tracking-wider mb-1">{item.category}</p>
-                    <h3 className="font-bold text-foreground text-base sm:text-lg mb-2 line-clamp-2">{item.name}</h3>
-                    <div className="flex items-center justify-between mt-4">
-                      <span className="font-black text-lg sm:text-xl">₦{item.price}</span>
-                      
-                      {qty > 0 ? (
-                        <div className="flex items-center bg-[#10B981] rounded-full p-1 shadow-lg shadow-[#10B981]/20">
+
+                  {/* Body */}
+                  <div className="p-4 sm:p-5 flex-1 flex flex-col">
+                    <div className="flex-1">
+                      <p className="text-[10px] font-black text-[#10B981] uppercase tracking-[0.2em] mb-1.5 opacity-80">{item.category}</p>
+                      <h3 className="font-bold text-foreground text-sm sm:text-base mb-2 line-clamp-2 min-h-[2.5rem] leading-tight group-hover:text-[#10B981] transition-colors">{item.name}</h3>
+                    </div>
+                    
+                    <div className="flex flex-col gap-4 mt-auto pt-4 border-t border-border/50">
+                      <div className="flex items-center justify-between">
+                        <span className="font-black text-lg sm:text-xl text-foreground">₦{item.price.toLocaleString()}</span>
+                        
+                        {!item.inStock ? (
+                           <Badge variant="secondary" className="opacity-50 text-[10px] font-bold">Sold Out</Badge>
+                        ) : qty === 0 ? (
+                          <button 
+                            onClick={() => handleAddToCart(item)}
+                            className="w-10 h-10 rounded-xl bg-[#10B981]/10 flex items-center justify-center text-[#10B981] hover:bg-[#10B981] hover:text-white transition-all duration-300 shadow-sm"
+                          >
+                            <Plus className="w-5 h-5" />
+                          </button>
+                        ) : null}
+                      </div>
+
+                      {qty > 0 && (
+                        <div className="flex items-center justify-between bg-muted/50 rounded-xl p-1.5 border border-border animate-in slide-in-from-bottom-2">
                           <button 
                             onClick={() => updateQuantity(item.id, qty - 1)}
-                            className="w-7 h-7 flex items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
+                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-background shadow-sm text-foreground hover:bg-red-500 hover:text-white transition-all"
                           >
                             <Minus className="w-4 h-4" />
                           </button>
-                          <span className="w-8 text-center text-white font-bold text-sm">{qty}</span>
+                          <span className="flex-1 text-center text-foreground font-black text-sm">{qty}</span>
                           <button 
                             onClick={() => updateQuantity(item.id, qty + 1)}
-                            className="w-7 h-7 flex items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
+                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#10B981] shadow-sm text-white hover:bg-[#059669] transition-all"
                           >
                             <Plus className="w-4 h-4" />
                           </button>
                         </div>
-                      ) : (
-                        <button 
-                          onClick={() => handleAddToCart(item)}
-                          disabled={!item.inStock}
-                          className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center text-secondary hover:bg-secondary hover:text-secondary-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-secondary/10 disabled:hover:text-secondary"
-                        >
-                          <Plus className="w-6 h-6" />
-                        </button>
                       )}
                     </div>
                   </div>
-                </div>
+                </GlassCard>
               );
             })}
           </div>
