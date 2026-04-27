@@ -57,8 +57,15 @@ export default function AdminOrders() {
 
     const todayOrders = orders.filter(o => {
         if (o.type === 'mart') return false;
-        if (o.status === 'TRASHED' || o.status === 'CANCELLED') return false;
+        if (o.status === 'TRASHED' || o.status === 'CANCELLED' || o.status === 'FAILED') return false;
+        
+        // Treat old PENDING_PAYMENT as failed
         const d = parseDate(o.createdAt);
+        if (o.status === 'PENDING_PAYMENT') {
+            const ageInMinutes = (new Date().getTime() - (d?.getTime() || 0)) / 60000;
+            if (ageInMinutes > 30) return false;
+        }
+
         if (!d || d.toLocaleDateString() !== today) return false;
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
@@ -79,6 +86,19 @@ export default function AdminOrders() {
 
     const unmatchedOrders = todayOrders.filter(o => {
         return !hostels.some(h => o.hostel === h.id || o.hostel === h.name);
+    });
+
+    const failedOrders = orders.filter(o => {
+        if (o.type === 'mart') return false;
+        const d = parseDate(o.createdAt);
+        if (!d || d.toLocaleDateString() !== today) return false;
+        
+        if (o.status === 'FAILED' || o.status === 'CANCELLED') return true;
+        if (o.status === 'PENDING_PAYMENT') {
+            const ageInMinutes = (new Date().getTime() - (d?.getTime() || 0)) / 60000;
+            return ageInMinutes > 30;
+        }
+        return false;
     });
 
     const toggleHostel = (hostelId: string) => {
@@ -131,8 +151,16 @@ export default function AdminOrders() {
             ON_THE_WAY: { variant: 'amber', label: 'On The Way' },
             DELIVERED: { variant: 'green', label: 'Delivered' },
             REFUNDED: { variant: 'red', label: 'Refunded' },
+            CANCELLED: { variant: 'gray', label: 'Cancelled' },
         };
-        const s = map[status] || { variant: 'gray', label: status };
+        let s = map[status];
+        if (status === 'PENDING_PAYMENT') {
+            const d = parseDate(selectedOrder?.createdAt || new Date());
+            const ageInMinutes = (new Date().getTime() - (d?.getTime() || 0)) / 60000;
+            if (ageInMinutes > 30) s = { variant: 'red', label: 'Abandoned / Failed' };
+            else s = map.PENDING_PAYMENT;
+        }
+        if (!s) s = { variant: 'gray', label: status };
         return <Badge variant={s.variant as any} className="text-[9px] font-black uppercase tracking-widest px-3 py-1 text-nowrap">{s.label}</Badge>;
     };
 
@@ -416,6 +444,35 @@ export default function AdminOrders() {
                                         ))}
                                     </div>
                                 </Card>
+                            )}
+
+                            {failedOrders.length > 0 && (
+                                <div className="mt-16 pt-8 border-t border-dashed border-red-500/20">
+                                    <div className="flex items-center gap-4 mb-8">
+                                        <div className="w-10 h-10 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center">
+                                            <AlertTriangle className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <h3 className={`text-xl font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Failed / Abandoned Orders</h3>
+                                            <Badge variant="red" className="ml-2 text-xs font-black">{failedOrders.length}</Badge>
+                                            <p className={`text-[10px] font-bold uppercase tracking-[0.2em] mt-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Attempts that never succeeded today</p>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 opacity-70 hover:opacity-100 transition-opacity">
+                                        {failedOrders.map(order => (
+                                            <Card key={order.id} onClick={() => setSelectedOrder(order)} className={`p-5 border cursor-pointer hover:border-red-500/30 transition-all ${isDark ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-white border-gray-100 shadow-sm'}`}>
+                                                <div className="flex justify-between items-start mb-3">
+                                                    <div className="min-w-0"><h4 className={`text-sm font-bold truncate ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName || 'Guest'}</h4><p className="text-[10px] font-mono text-[#9C8F7F] mt-0.5">CD-{order.orderId?.slice(-6) || 'N/A'}</p></div>
+                                                    {getStatusBadge(order.status)}
+                                                </div>
+                                                <div className="flex justify-between items-end">
+                                                    <div className="space-y-1"><p className={`text-[10px] font-bold ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{order.hostelName || order.hostel || 'Unknown'}</p><p className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{formatDate(order.createdAt)}</p></div>
+                                                    <span className={`text-xs font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{order.total?.toLocaleString()}</span>
+                                                </div>
+                                            </Card>
+                                        ))}
+                                    </div>
+                                </div>
                             )}
                         </div>
                     ) : (

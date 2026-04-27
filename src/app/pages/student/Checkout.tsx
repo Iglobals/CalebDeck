@@ -362,7 +362,9 @@ if (isPremiumHostel) {
   };
 
   const currentHour = new Date().getHours();
-  const isOutOfHours = currentHour < 10 || currentHour >= 18; 
+  const openingHour = platformSettings?.systemOpeningHour ?? 10;
+  const closingHour = platformSettings?.systemClosingHour ?? 18;
+  const isOutOfHours = currentHour < openingHour || currentHour >= closingHour; 
   const isMaintenance = platformSettings?.isAcceptingOrders === false;
   const isClosed = isOutOfHours || isMaintenance;
 
@@ -483,7 +485,7 @@ if (isPremiumHostel) {
                 <div>
                   <h4 className="font-black text-lg">Ordering Currently Closed</h4>
                   <p className="font-medium text-sm">
-                    CalebDeck is currently closed. Ordering hours are between 10:00 AM and 6:00 PM.
+                    CalebDeck is currently closed. Ordering hours are between {openingHour}:00 and {closingHour}:00.
                   </p>
                 </div>
               </div>

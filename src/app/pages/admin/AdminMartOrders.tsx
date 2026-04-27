@@ -23,7 +23,7 @@ export default function AdminMartOrders() {
   const [orders, setOrders] = useState<any[]>([]);
   const [riders, setRiders] = useState<Rider[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'pending' | 'dispatching' | 'completed'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'dispatching' | 'completed' | 'failed'>('pending');
   const [loading, setLoading] = useState(true);
   
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
@@ -52,7 +52,18 @@ export default function AdminMartOrders() {
     // Filter by tab
     if (activeTab === 'pending' && o.status !== 'PAID' && o.status !== 'PREPARING') return false;
     if (activeTab === 'dispatching' && o.status !== 'DISPATCHED') return false;
-    if (activeTab === 'completed' && o.status !== 'DELIVERED') return false;
+    if (activeTab === 'completed' && o.status !== 'DELIVERED' && o.status !== 'REFUNDED') return false;
+    if (activeTab === 'failed') {
+      if (o.status === 'FAILED' || o.status === 'CANCELLED') return true;
+      if (o.status === 'PENDING_PAYMENT') {
+        const d = o.createdAt?.seconds ? new Date(o.createdAt.seconds * 1000) : new Date(o.createdAt);
+        const ageInMinutes = (new Date().getTime() - d.getTime()) / 60000;
+        return ageInMinutes > 30;
+      }
+      return false;
+    }
+    if (activeTab !== 'failed' && (o.status === 'FAILED' || o.status === 'CANCELLED' || o.status === 'PENDING_PAYMENT')) return false;
+
     
     // Filter by search
     if (searchQuery) {
@@ -95,8 +106,8 @@ export default function AdminMartOrders() {
         
         {/* Header Actions */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-          <div className="flex gap-2 p-1 rounded-xl bg-muted/50 border border-border">
-            {(['pending', 'dispatching', 'completed'] as const).map(tab => {
+          <div className="flex gap-2 p-1 rounded-xl bg-muted/50 border border-border overflow-x-auto">
+            {(['pending', 'dispatching', 'completed', 'failed'] as const).map(tab => {
               const count = orders.filter(o => {
                 if (tab === 'pending') return o.status === 'PAID' || o.status === 'PREPARING';
                 if (tab === 'dispatching') return o.status === 'DISPATCHED';
@@ -179,9 +190,11 @@ export default function AdminMartOrders() {
                         <Badge variant="outline" className={
                           order.status === 'PAID' ? 'border-yellow-500 text-yellow-500' :
                           order.status === 'DISPATCHED' ? 'border-blue-500 text-blue-500' :
+                          order.status === 'REFUNDED' ? 'border-red-500 text-red-500' :
+                          (order.status === 'PENDING_PAYMENT' || order.status === 'FAILED') ? 'border-red-400 text-red-400' :
                           'border-green-500 text-green-500'
                         }>
-                          {order.status}
+                          {order.status === 'PENDING_PAYMENT' ? 'FAILED / ABANDONED' : order.status}
                         </Badge>
                       </div>
                     </div>

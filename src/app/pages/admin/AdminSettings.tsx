@@ -3,16 +3,22 @@ import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
-import { Settings, ShieldAlert, Store, Pizza } from 'lucide-react';
+import { Settings, ShieldAlert, Store, Pizza, Clock } from 'lucide-react';
 import { subscribeToPlatformSettings, updatePlatformSettings, PlatformSettings } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 
 export default function AdminSettings() {
   const { adminTheme } = useTheme();
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+  const [openingHour, setOpeningHour] = useState<string>('10');
+  const [closingHour, setClosingHour] = useState<string>('18');
 
   useEffect(() => {
-    const unsub = subscribeToPlatformSettings((data) => setPlatformSettings(data));
+    const unsub = subscribeToPlatformSettings((data) => {
+      setPlatformSettings(data);
+      if (data.systemOpeningHour !== undefined) setOpeningHour(data.systemOpeningHour.toString());
+      if (data.systemClosingHour !== undefined) setClosingHour(data.systemClosingHour.toString());
+    });
     return () => unsub();
   }, []);
 
@@ -45,6 +51,22 @@ export default function AdminSettings() {
       await updatePlatformSettings({ isIPizzaComingSoon: !isIPizzaComingSoon });
     } catch (err) {
       console.error('Failed to update iPizza maintenance mode:', err);
+    }
+  };
+
+  const handleUpdateHours = async () => {
+    const open = parseInt(openingHour);
+    const close = parseInt(closingHour);
+    if (isNaN(open) || isNaN(close) || open < 0 || open > 23 || close < 0 || close > 23) {
+      alert('Please enter valid hours between 0 and 23.');
+      return;
+    }
+    if (!confirm(`Are you sure you want to update operating hours to ${open}:00 - ${close}:00?`)) return;
+    try {
+      await updatePlatformSettings({ systemOpeningHour: open, systemClosingHour: close });
+      alert('Operating hours updated successfully.');
+    } catch (err) {
+      console.error('Failed to update operating hours:', err);
     }
   };
 
@@ -157,6 +179,61 @@ export default function AdminSettings() {
               onClick={handleToggleIPizza}
             >
               {!isIPizzaComingSoon ? 'Close iPizza' : 'Open iPizza'}
+            </Button>
+          </Card>
+
+          {/* Operating Hours Configuration */}
+          <Card className={`p-6 border-l-4 border-l-blue-500`}>
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className={`p-3 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                  <Clock className={`w-6 h-6 text-blue-500`} />
+                </div>
+                <div>
+                  <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Operating Hours</h3>
+                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>System Schedule (0-23)</p>
+                </div>
+              </div>
+            </div>
+            <div className="mb-6 space-y-3">
+              <div>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Opening Hour (e.g. 10 for 10 AM)</label>
+                <input 
+                  type="number" 
+                  min="0" max="23"
+                  value={openingHour}
+                  onChange={(e) => setOpeningHour(e.target.value)}
+                  className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                    isDark 
+                      ? 'bg-[#2A2A2A] border-[#333333] text-white placeholder-gray-500' 
+                      : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400'
+                  }`}
+                />
+              </div>
+              <div>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Closing Hour (e.g. 18 for 6 PM)</label>
+                <input 
+                  type="number" 
+                  min="0" max="23"
+                  value={closingHour}
+                  onChange={(e) => setClosingHour(e.target.value)}
+                  className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                    isDark 
+                      ? 'bg-[#2A2A2A] border-[#333333] text-white placeholder-gray-500' 
+                      : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400'
+                  }`}
+                />
+              </div>
+              <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                Set to 0 and 24 to keep the system open 24/7. Current schedule is from {platformSettings?.systemOpeningHour ?? 10}:00 to {platformSettings?.systemClosingHour ?? 18}:00.
+              </p>
+            </div>
+            <Button
+              variant="primary"
+              className="w-full"
+              onClick={handleUpdateHours}
+            >
+              Save Hours
             </Button>
           </Card>
 

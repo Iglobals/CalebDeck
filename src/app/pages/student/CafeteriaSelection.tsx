@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Logo } from '../../components/design-system/Logo';
 import { Card } from '../../components/design-system/Card';
@@ -10,16 +10,25 @@ import { ThemeToggle } from '../../components/ThemeToggle';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
 import SEO from '../../components/SEO';
+import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 
 export default function CafeteriaSelection() {
   const [selectedCafeteria, setSelectedCafeteria] = useState<string | null>(null);
   const navigate = useNavigate();
   const { studentTheme } = useTheme();
+  const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+
+  useEffect(() => {
+    const unsub = subscribeToPlatformSettings(setPlatformSettings);
+    return () => unsub();
+  }, []);
 
   const currentTime = new Date();
   const hour = currentTime.getHours();
-  // Operational hours: 10am to 6pm (10 to 18)
-  const isClosed = hour < 10 || hour >= 18;
+  
+  const openingHour = platformSettings?.systemOpeningHour ?? 10;
+  const closingHour = platformSettings?.systemClosingHour ?? 18;
+  const isClosed = hour < openingHour || hour >= closingHour;
   const statusLabel = isClosed ? 'CalebDeck is Closed' : 'Open now';
   const statusType = isClosed ? 'inactive' : 'active';
 
@@ -48,7 +57,7 @@ export default function CafeteriaSelection() {
 
   const handleCafeteriaClick = (cafeteriaId: string) => {
     if (isClosed) {
-      toast.info('CalebDeck is currently closed. Operational hours: 10am - 6pm.', {
+      toast.info(`CalebDeck is currently closed. Operational hours: ${openingHour}:00 - ${closingHour}:00.`, {
         position: 'top-center'
       });
       return;

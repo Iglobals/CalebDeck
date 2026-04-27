@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card } from '../../components/design-system/Card';
 import { Badge } from '../../components/design-system/Badge';
 import { useAuth } from '../../../context/AuthContext';
-import { CheckCircle, MapPin, DollarSign, Calendar, ChevronDown, ChevronUp, Search, Filter, FileText, ChevronRight, History, Package } from 'lucide-react';
+import { CheckCircle, MapPin, DollarSign, Calendar, ChevronDown, ChevronUp, Search, Filter, FileText, ChevronRight, History, Package, RotateCcw } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import { subscribeToRiderOrders, PlatformSettings, subscribeToPlatformSettings } from '../../../services/db';
 import { format } from 'date-fns';
@@ -32,7 +32,7 @@ export default function RiderOrderHistory() {
     const riderRate = platformSettings?.riderRatePerDelivery || 300;
 
     const deliveredOrders = useMemo(() => {
-        return orders.filter(o => o.status === 'DELIVERED').sort((a, b) => {
+        return orders.filter(o => o.status === 'DELIVERED' || o.status === 'REFUNDED').sort((a, b) => {
             return (parseDate(b.createdAt)?.getTime() || 0) - (parseDate(a.createdAt)?.getTime() || 0);
         });
     }, [orders]);
@@ -79,7 +79,8 @@ export default function RiderOrderHistory() {
                 ? (platformSettings?.groupRatePerDelivery || 200)
                 : riderRate;
         const earning = platesCount * rate;
-        return o.isEmergency ? earning * 1.5 : earning;
+        const total = o.isEmergency ? earning * 1.5 : earning;
+        return o.status === 'REFUNDED' ? -total : total;
     };
 
     const totalEarnings = deliveredOrders.reduce((acc, o) => acc + getOrderEarnings(o), 0);
@@ -185,8 +186,8 @@ export default function RiderOrderHistory() {
                                             >
                                                 <div className="p-4 cursor-pointer flex flex-wrap sm:flex-nowrap items-center justify-between gap-4" onClick={() => toggleRow(order.id)}>
                                                     <div className="flex items-center gap-4">
-                                                        <div className="w-10 h-10 rounded-xl bg-green-500/10 text-green-500 flex items-center justify-center flex-shrink-0">
-                                                            <CheckCircle className="w-5 h-5" />
+                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${order.status === 'REFUNDED' ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'}`}>
+                                                            {order.status === 'REFUNDED' ? <RotateCcw className="w-5 h-5" /> : <CheckCircle className="w-5 h-5" />}
                                                         </div>
                                                         <div>
                                                             <h3 className={`font-bold text-base leading-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName || 'Student'}</h3>
@@ -202,15 +203,20 @@ export default function RiderOrderHistory() {
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-3 sm:pt-0 mt-2 sm:mt-0">
-                                                        <div className="text-left sm:text-right">
-                                                            <div className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.hostelName || order.hostel}</div>
-                                                            <div className="text-[10px] text-amber-500 font-bold uppercase">{order.type === 'combo' ? `${order.quantity || 1} Combos` : `${order.plates?.length || 0} Plates`}</div>
+                                                        <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-3 sm:pt-0 mt-2 sm:mt-0">
+                                                            <div className="text-left sm:text-right">
+                                                                <div className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.hostelName || order.hostel}</div>
+                                                                <div className="flex items-center gap-2 justify-end">
+                                                                    <div className="text-[10px] text-amber-500 font-bold uppercase">{order.type === 'combo' ? `${order.quantity || 1} Combos` : `${order.plates?.length || 0} Plates`}</div>
+                                                                    {order.status === 'REFUNDED' && (
+                                                                        <Badge variant="red" className="text-[9px] font-black uppercase">Refunded</Badge>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDark ? 'bg-[#222222] text-[#9C8F7F]' : 'bg-gray-100 text-gray-500'}`}>
+                                                                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                                            </div>
                                                         </div>
-                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDark ? 'bg-[#222222] text-[#9C8F7F]' : 'bg-gray-100 text-gray-500'}`}>
-                                                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                                                        </div>
-                                                    </div>
                                                 </div>
 
                                                 {/* Expanded Content */}
