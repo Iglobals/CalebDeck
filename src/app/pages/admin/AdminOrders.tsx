@@ -230,13 +230,47 @@ export default function AdminOrders() {
                             `).join('')}
                         `).join('') || '')}
                         
-                        ${order.type !== 'combo' ? `
-                        <div class="plate-header">Fees</div>
-                        <div class="item-row">
-                            <span>Takeaway Pack (₦200/plate)</span>
-                            <span>×${order.plates?.length || 0}</span>
-                        </div>
-                        ` : ''}
+                        ${(() => {
+                            const hasBreakdown = !!order.breakdown;
+                            const plateCount = order.quantity || order.plates?.length || 1;
+                            const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
+                            const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((order.hostel || order.hostelName || '').toString().toLowerCase());
+                            const baseDeliveryRate = isPremiumHostel ? 1250 : 750;
+                            let calculatedDeliveryAmount = baseDeliveryRate * plateCount;
+                            let calculatedDiscount = 0;
+                            if (isGroup) {
+                                const groupDiscount = isPremiumHostel ? (1250 - Math.round(1250 * 0.8)) : (750 - 580);
+                                calculatedDiscount = groupDiscount * plateCount;
+                            }
+                            const deliveryFee = hasBreakdown ? order.breakdown.delivery : calculatedDeliveryAmount;
+                            const processingFee = hasBreakdown ? (order.breakdown.processing + order.breakdown.platform) : 300;
+                            const discount = hasBreakdown ? order.breakdown.discount : calculatedDiscount;
+                            const takeawayAmount = order.type !== 'combo' ? (order.plates?.length || 0) * 200 : 0;
+                            
+                            return `
+                                <div class="plate-header">Fees</div>
+                                ${order.type !== 'combo' ? `
+                                <div class="item-row">
+                                    <span>Takeaway Pack (₦200/plate)</span>
+                                    <span>₦${takeawayAmount.toLocaleString()}</span>
+                                </div>
+                                ` : ''}
+                                <div class="item-row">
+                                    <span>Delivery Fee ${isGroup ? '(Group)' : '(Solo)'}</span>
+                                    <span>₦${deliveryFee.toLocaleString()}</span>
+                                </div>
+                                <div class="item-row">
+                                    <span>Service & Processing</span>
+                                    <span>₦${processingFee.toLocaleString()}</span>
+                                </div>
+                                ${discount > 0 ? `
+                                <div class="item-row" style="color: #10B981;">
+                                    <span>Group Discount</span>
+                                    <span>-₦${discount.toLocaleString()}</span>
+                                </div>
+                                ` : ''}
+                            `;
+                        })()}
                         ${order.drinksSnacks?.length > 0 ? `
                             <div class="plate-header">Add-ons</div>
                             ${order.drinksSnacks.map((item: any) => `
@@ -529,14 +563,14 @@ export default function AdminOrders() {
                                         </div>
                                     </div>
 
-                                    <Card className={`p-8 border-none ${isDark ? 'bg-[#222222]' : 'bg-gray-50'}`}>
+                                    <Card className={`p-8 border-none ${isDark ? 'bg-[#222222]' : 'bg-gray-50'} min-w-0`}>
                                         <p className="text-[10px] font-black text-[#9C8F7F] uppercase tracking-[0.3em] mb-4">Payment Info</p>
-                                        <div className="flex justify-between items-end">
-                                            <div>
-                                                <p className={`text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Total Paid</p>
-                                                <h3 className="text-3xl font-black text-[#10B981]">₦{selectedOrder.total?.toLocaleString()}</h3>
+                                        <div className="flex flex-wrap sm:flex-nowrap justify-between items-end gap-4 min-w-0">
+                                            <div className="min-w-0 flex-1">
+                                                <p className={`text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'} truncate`}>Total Paid</p>
+                                                <h3 className="text-3xl font-black text-[#10B981] truncate">₦{selectedOrder.total?.toLocaleString()}</h3>
                                             </div>
-                                            <div className="text-right">
+                                            <div className="text-right shrink-0">
                                                 {getStatusBadge(selectedOrder.status)}
                                             </div>
                                         </div>
@@ -633,42 +667,65 @@ export default function AdminOrders() {
                                     <div className={`p-8 rounded-3xl border ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white shadow-sm'}`}>
                                         <h5 className="text-xs font-black uppercase tracking-[0.2em] text-blue-500 mb-6">Fee Breakdown</h5>
                                         <div className="space-y-4">
-                                            <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10">
-                                                <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Delivery Fee {(selectedOrder.deliveryMode === 'group' || selectedOrder.deliveryMode === 'GROUP') ? '(Group)' : '(Solo)'}</p>
-                                                <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>
-                                                    ₦{(((selectedOrder.deliveryMode === 'group' || selectedOrder.deliveryMode === 'GROUP') ? 580 : 750) * (selectedOrder.quantity || selectedOrder.plates?.length || 1)).toLocaleString()}
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10">
-                                                <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Service & Processing Fee</p>
-                                                <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>₦300</span>
-                                            </div>
-                                            
                                             {(() => {
-                                                const deliveryAmount = (((selectedOrder.deliveryMode === 'group' || selectedOrder.deliveryMode === 'GROUP') ? 580 : 750) * (selectedOrder.quantity || selectedOrder.plates?.length || 1));
-                                                const takeawayAmount = selectedOrder.type !== 'combo' ? (selectedOrder.plates?.length || 0) * 200 : 0;
-                                                const serviceProcessing = 300;
+                                                const hasBreakdown = !!selectedOrder.breakdown;
+                                                const plateCount = selectedOrder.quantity || selectedOrder.plates?.length || 1;
+                                                const isGroup = selectedOrder.deliveryMode === 'group' || selectedOrder.deliveryMode === 'GROUP';
+                                                const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((selectedOrder.hostel || selectedOrder.hostelName || '').toString().toLowerCase());
                                                 
-                                                let foodAmount = 0;
-                                                if (selectedOrder.type === 'combo') {
-                                                    foodAmount = (selectedOrder.basePrice || (selectedOrder.total / (selectedOrder.quantity || 1))) * (selectedOrder.quantity || 1);
-                                                } else {
-                                                    foodAmount += selectedOrder.plates?.reduce((acc: number, p: any) => acc + (p.total || 0), 0) || 0;
-                                                    foodAmount += selectedOrder.drinksSnacks?.reduce((acc: number, a: any) => acc + ((a.item?.price || a.price || 0) * (a.quantity || 1)), 0) || 0;
+                                                const baseDeliveryRate = isPremiumHostel ? 1250 : 750;
+                                                let calculatedDeliveryAmount = baseDeliveryRate * plateCount;
+                                                let calculatedDiscount = 0;
+                                                if (isGroup) {
+                                                    const groupDiscount = isPremiumHostel ? (1250 - Math.round(1250 * 0.8)) : (750 - 580);
+                                                    calculatedDiscount = groupDiscount * plateCount;
                                                 }
-                                                
-                                                const predictedBase = foodAmount + deliveryAmount + takeawayAmount + serviceProcessing;
-                                                const difference = (selectedOrder.total || 0) - predictedBase;
-                                                
-                                                if (difference >= 40 && difference <= 60) {
-                                                    return (
+
+                                                const deliveryFee = hasBreakdown ? selectedOrder.breakdown.delivery : calculatedDeliveryAmount;
+                                                const processingFee = hasBreakdown ? (selectedOrder.breakdown.processing + selectedOrder.breakdown.platform) : 300;
+                                                const discount = hasBreakdown ? selectedOrder.breakdown.discount : calculatedDiscount;
+
+                                                return (
+                                                    <>
                                                         <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10">
-                                                            <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Cafe Charge</p>
-                                                            <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>₦50</span>
+                                                            <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Delivery Fee {isGroup ? '(Group)' : '(Solo)'}</p>
+                                                            <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>
+                                                                ₦{deliveryFee.toLocaleString()}
+                                                            </span>
                                                         </div>
-                                                    );
-                                                }
-                                                return null;
+                                                        <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10">
+                                                            <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Service & Processing Fee</p>
+                                                            <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>₦{processingFee.toLocaleString()}</span>
+                                                        </div>
+                                                        {discount > 0 && (
+                                                            <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10 text-green-500">
+                                                                <p className={`text-sm font-bold`}>Group Discount</p>
+                                                                <span className={`text-xs font-bold`}>-₦{discount.toLocaleString()}</span>
+                                                            </div>
+                                                        )}
+                                                        {!hasBreakdown && (() => {
+                                                            const takeawayAmount = selectedOrder.type !== 'combo' ? (selectedOrder.plates?.length || 0) * 200 : 0;
+                                                            let foodAmount = 0;
+                                                            if (selectedOrder.type === 'combo') {
+                                                                foodAmount = (selectedOrder.basePrice || (selectedOrder.total / (selectedOrder.quantity || 1))) * (selectedOrder.quantity || 1);
+                                                            } else {
+                                                                foodAmount += selectedOrder.plates?.reduce((acc: number, p: any) => acc + (p.total || 0), 0) || 0;
+                                                                foodAmount += selectedOrder.drinksSnacks?.reduce((acc: number, a: any) => acc + ((a.item?.price || a.price || 0) * (a.quantity || 1)), 0) || 0;
+                                                            }
+                                                            const predictedBase = foodAmount + deliveryFee + takeawayAmount + processingFee - discount;
+                                                            const difference = (selectedOrder.total || 0) - predictedBase;
+                                                            if (difference >= 40 && difference <= 60) {
+                                                                return (
+                                                                    <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10">
+                                                                        <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Cafe Charge</p>
+                                                                        <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>₦50</span>
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            return null;
+                                                        })()}
+                                                    </>
+                                                );
                                             })()}
                                         </div>
                                     </div>

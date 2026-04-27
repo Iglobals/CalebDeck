@@ -159,13 +159,47 @@ export default function AdminOrderHistory() {
                     ).join('')
                 )}
                 
-                ${order.type !== 'combo' ? `
-                <div style="font-size:11px;font-weight:900;color:#999;margin-top:10px;text-transform:uppercase">FEES</div>
-                <div class="row">
-                    <span>Takeaway Pack × ${(order.plates || []).length}</span>
-                    <span>₦${((order.plates || []).length * 200).toLocaleString()}</span>
-                </div>
-                ` : ''}
+                ${(() => {
+                    const hasBreakdown = !!order.breakdown;
+                    const plateCount = order.quantity || order.plates?.length || 1;
+                    const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
+                    const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((order.hostel || order.hostelName || '').toString().toLowerCase());
+                    const baseDeliveryRate = isPremiumHostel ? 1250 : 750;
+                    let calculatedDeliveryAmount = baseDeliveryRate * plateCount;
+                    let calculatedDiscount = 0;
+                    if (isGroup) {
+                        const groupDiscount = isPremiumHostel ? (1250 - Math.round(1250 * 0.8)) : (750 - 580);
+                        calculatedDiscount = groupDiscount * plateCount;
+                    }
+                    const deliveryFee = hasBreakdown ? order.breakdown.delivery : calculatedDeliveryAmount;
+                    const processingFee = hasBreakdown ? (order.breakdown.processing + order.breakdown.platform) : 300;
+                    const discount = hasBreakdown ? order.breakdown.discount : calculatedDiscount;
+                    const takeawayAmount = order.type !== 'combo' ? (order.plates?.length || 0) * 200 : 0;
+                    
+                    return `
+                        <div style="font-size:11px;font-weight:900;color:#999;margin-top:10px;text-transform:uppercase">FEES</div>
+                        ${order.type !== 'combo' ? `
+                        <div class="row">
+                            <span>Takeaway Pack × ${order.plates?.length || 0}</span>
+                            <span>₦${takeawayAmount.toLocaleString()}</span>
+                        </div>
+                        ` : ''}
+                        <div class="row">
+                            <span>Delivery Fee ${isGroup ? '(Group)' : '(Solo)'}</span>
+                            <span>₦${deliveryFee.toLocaleString()}</span>
+                        </div>
+                        <div class="row">
+                            <span>Service & Processing</span>
+                            <span>₦${processingFee.toLocaleString()}</span>
+                        </div>
+                        ${discount > 0 ? `
+                        <div class="row" style="color: #10B981;">
+                            <span>Group Discount</span>
+                            <span>-₦${discount.toLocaleString()}</span>
+                        </div>
+                        ` : ''}
+                    `;
+                })()}
                 ${(order.drinksSnacks || []).length > 0 ? `
                     <div style="font-size:11px;font-weight:900;color:#FCD34D;margin-top:10px">EXTRAS</div>
                     ${order.drinksSnacks.map((it: any) =>

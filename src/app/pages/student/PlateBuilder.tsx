@@ -1223,7 +1223,7 @@ export default function PlateBuilder() {
                       <div className="font-extrabold text-foreground flex items-center gap-2">
                         <Users className="w-4 h-4" /> Group
                       </div>
-                      <div className="text-xs text-green-500 font-semibold">23% off</div>
+                      <div className="text-xs text-green-500 font-semibold">20% off</div>
                       <div className="text-xs text-muted-foreground font-bold mt-1">₦580/plate</div>
                       {deliveryMode === 'group' && <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-secondary animate-pulse"></div>}
                     </button>
