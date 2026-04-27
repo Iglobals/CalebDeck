@@ -34,6 +34,7 @@ export default function AdminAnalytics() {
     const filteredOrders = useMemo(() => {
         const now = new Date();
         return orders.filter(o => {
+            if (o.status === 'REFUNDED') return false;
             const d = parseDate(o.createdAt);
             if (!d) return false;
             if (timeRange === 'today') {

@@ -12,9 +12,10 @@ import {
     Printer,
     Clock,
     X,
-    Package
+    Package,
+    RotateCcw
 } from 'lucide-react';
-import { subscribeToAllOrders, subscribeToHostels, Hostel, subscribeToRiders, Rider, dispatchBatch } from '../../../services/db';
+import { subscribeToAllOrders, subscribeToHostels, Hostel, subscribeToRiders, Rider, dispatchBatch, markOrderRefunded } from '../../../services/db';
 import { formatDistanceToNow } from 'date-fns';
 import { useTheme } from '../../../context/ThemeContext';
 
@@ -129,6 +130,7 @@ export default function AdminOrders() {
             OUT_FOR_DELIVERY: { variant: 'purple', label: 'Out for Delivery' },
             ON_THE_WAY: { variant: 'amber', label: 'On The Way' },
             DELIVERED: { variant: 'green', label: 'Delivered' },
+            REFUNDED: { variant: 'red', label: 'Refunded' },
         };
         const s = map[status] || { variant: 'gray', label: status };
         return <Badge variant={s.variant as any} className="text-[9px] font-black uppercase tracking-widest px-3 py-1 text-nowrap">{s.label}</Badge>;
@@ -625,11 +627,27 @@ export default function AdminOrders() {
 
                             {/* Footer — Print only, no dispatch */}
                             <div className={`p-8 flex items-center justify-between border-t ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-gray-50 border-gray-100'}`}>
-                                <div className="flex items-center gap-3">
-                                    <Clock className="w-5 h-5 text-[#9C8F7F]" />
-                                    <span className={`text-xs font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
-                                        Placed {formatDate(selectedOrder.createdAt)}
-                                    </span>
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex items-center gap-3">
+                                        <Clock className="w-5 h-5 text-[#9C8F7F]" />
+                                        <span className={`text-xs font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+                                            Placed {formatDate(selectedOrder.createdAt)}
+                                        </span>
+                                    </div>
+                                    {selectedOrder.status !== 'REFUNDED' && (
+                                        <button 
+                                            onClick={async () => {
+                                                if (window.confirm('Are you sure you want to mark this order as REFUNDED? This will exclude it from analytics and deduct payout from the rider.')) {
+                                                    await markOrderRefunded(selectedOrder.id);
+                                                    setSelectedOrder(null);
+                                                }
+                                            }}
+                                            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-tighter text-red-500 hover:text-red-400 transition-colors"
+                                        >
+                                            <RotateCcw className="w-3.5 h-3.5" />
+                                            Refund Order
+                                        </button>
+                                    )}
                                 </div>
                                 <Button
                                     variant="ghost"

@@ -778,8 +778,87 @@ export const recordDelivery = async (riderId: string, orderId: string, isBonusOr
                 }
             }
         });
+
+        // 4. Store the actual payout amount on the order document for refund calculations
+        const orderRef = doc(db, 'orders', orderId);
+        await updateDoc(orderRef, { payout: amountEarned });
     } catch (e) {
         console.error("Error recording delivery stats/earnings:", e);
+    }
+};
+
+export const recordRefund = async (riderId: string, orderId: string, amountToDeduct: number) => {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-CA');
+    const weekId = getIsoWeek(now);
+
+    const statsRef = doc(db, 'riderStats', riderId, 'weekly', weekId);
+    const earningsRef = doc(db, 'riderEarnings', riderId, 'daily', dateStr);
+
+    try {
+        await runTransaction(db, async (transaction) => {
+            const statsDoc = await transaction.get(statsRef);
+            const earningsDoc = await transaction.get(earningsRef);
+            const riderRef = doc(db, 'riders', riderId);
+            const riderDoc = await transaction.get(riderRef);
+
+            // 1. Update Weekly Stats (decrement totalDeliveries, but leave dailyTrips count? 
+            // Actually dailyTrips is for visual, but totalDeliveries affects payouts/bonuses)
+            if (statsDoc.exists()) {
+                const statsData = statsDoc.data();
+                const completed = statsData.completedOrderIds || [];
+                if (completed.includes(orderId)) {
+                    transaction.update(statsRef, {
+                        totalDeliveries: Math.max(0, (statsData.totalDeliveries || 0) - 1),
+                        // We keep the order in completedOrderIds but maybe mark it? 
+                        // Actually let's just keep it so it's not double-refunded
+                    });
+                }
+            }
+
+            // 2. Update Daily Earnings
+            if (earningsDoc.exists()) {
+                const earningsData = earningsDoc.data();
+                transaction.update(earningsRef, {
+                    totalEarned: Math.max(-99999, (earningsData.totalEarned || 0) - amountToDeduct),
+                    totalDeliveries: Math.max(0, (earningsData.totalDeliveries || 0) - 1),
+                });
+            }
+
+            // 3. Update lifetime earnings on rider doc
+            if (riderDoc.exists()) {
+                const rData = riderDoc.data();
+                transaction.update(riderRef, {
+                    earnings: (rData.earnings || 0) - amountToDeduct
+                });
+            }
+        });
+    } catch (e) {
+        console.error("Error recording refund stats/earnings:", e);
+    }
+};
+
+export const markOrderRefunded = async (orderId: string) => {
+    const orderRef = doc(db, 'orders', orderId);
+    const orderSnap = await getDoc(orderRef);
+    if (!orderSnap.exists()) return;
+
+    const order = orderSnap.data();
+    if (order.status === 'REFUNDED') return;
+
+    await updateDoc(orderRef, {
+        status: 'REFUNDED',
+        refundedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+    });
+
+    // If it was already assigned/delivered, we need to deduct from the rider
+    if (order.assignedRiderId && order.status === 'DELIVERED') {
+        // Use the stored payout if available, fallback to a standard rate if not (for legacy orders)
+        const amountToDeduct = order.payout || 0;
+        if (amountToDeduct > 0) {
+            await recordRefund(order.assignedRiderId, orderId, amountToDeduct);
+        }
     }
 };
 

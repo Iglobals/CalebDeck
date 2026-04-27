@@ -183,11 +183,11 @@ export default function MartPage() {
                   className="flex flex-col h-full !p-0 group transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10"
                 >
                   {/* Image Container */}
-                  <div className="relative aspect-square bg-muted/30 m-2 sm:m-3 rounded-2xl overflow-hidden shadow-inner">
+                  <div className="relative aspect-square bg-muted/30 m-2 sm:m-4 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center">
                     <ImageWithFallback 
                       src={item.imageUrl} 
                       alt={item.name}
-                      className="w-full h-full object-contain p-4 sm:p-6 group-hover:scale-110 transition-transform duration-700 ease-out"
+                      className="w-[85%] h-[85%] object-contain group-hover:scale-110 transition-transform duration-700 ease-out"
                     />
                     {!item.inStock && (
                       <div className="absolute inset-0 bg-background/60 backdrop-blur-[3px] flex items-center justify-center p-4">
@@ -195,17 +195,17 @@ export default function MartPage() {
                       </div>
                     )}
                     {qty > 0 && (
-                      <div className="absolute top-2 right-2 bg-[#10B981] text-white text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full shadow-lg border-2 border-background animate-in zoom-in">
+                      <div className="absolute top-2 right-2 bg-[#10B981] text-white text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full shadow-lg border-2 border-background animate-in zoom-in">
                         {qty}
                       </div>
                     )}
                   </div>
 
                   {/* Body */}
-                  <div className="p-4 sm:p-5 flex-1 flex flex-col">
+                  <div className="p-4 sm:p-6 flex-1 flex flex-col">
                     <div className="flex-1">
                       <p className="text-[10px] font-black text-[#10B981] uppercase tracking-[0.2em] mb-1.5 opacity-80">{item.category}</p>
-                      <h3 className="font-bold text-foreground text-sm sm:text-base mb-2 line-clamp-2 min-h-[2.5rem] leading-tight group-hover:text-[#10B981] transition-colors">{item.name}</h3>
+                      <h3 className="font-bold text-foreground text-sm sm:text-base mb-2 line-clamp-2 min-h-[3rem] leading-tight group-hover:text-[#10B981] transition-colors">{item.name}</h3>
                     </div>
                     
                     <div className="flex flex-col gap-4 mt-auto pt-4 border-t border-border/50">

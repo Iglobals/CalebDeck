@@ -213,6 +213,17 @@ if (isPremiumHostel) {
         plateCount: comboOrder.quantity,
         comboItems: comboOrder.comboItems
       } : {
+        plates: plates.map((p: any) => ({
+          ...p,
+          items: p.items.map((pi: any) => ({
+            item: { id: pi.item.id, name: pi.item.name, price: pi.item.price },
+            quantity: pi.quantity
+          }))
+        })),
+        drinksSnacks: drinksSnacksItems.map((dsi: any) => ({
+          item: { id: dsi.item.id, name: dsi.item.name, price: dsi.item.price },
+          quantity: dsi.quantity
+        })),
         plateCount: plates.length
       }),
       custom_fields: [
