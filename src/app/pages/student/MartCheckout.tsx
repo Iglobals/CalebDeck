@@ -28,8 +28,8 @@ export default function MartCheckout() {
   });
 
   const selectedHostel = hostels.find(h => h.id === formData.hostel);
-  const isPremiumHostel = selectedHostel && ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes(selectedHostel.name.toLowerCase());
-  const MART_DELIVERY_FEE = isPremiumHostel ? 1250 : 750;
+  const MART_DELIVERY_FEE = 1500;
+  const isDev = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   const SERVICE_PROCESSING_FEE = 300;
   const total = subtotal + MART_DELIVERY_FEE + SERVICE_PROCESSING_FEE;
@@ -190,7 +190,7 @@ export default function MartCheckout() {
     if (formData.phone.length < 10) return toast.error('Please enter a valid phone number');
     if (!formData.hostel) return toast.error('Please select your hostel');
 
-    if (platformSettings && (platformSettings.isAcceptingOrders === false || platformSettings.isMartComingSoon === true)) {
+    if (platformSettings && !isDev && (platformSettings.isAcceptingOrders === false || platformSettings.isMartComingSoon === true)) {
       toast.error("Ordering is temporarily paused for maintenance. Please try again later.");
       return;
     }

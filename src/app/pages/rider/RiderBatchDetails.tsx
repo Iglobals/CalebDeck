@@ -94,13 +94,15 @@ export default function RiderBatchDetails() {
                 const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
                 const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((order.hostel || order.hostelName || '').toString().toLowerCase());
                 
-                const rate = isPremiumHostel 
-                    ? (platformSettings?.premiumRiderRate || 750)
-                    : isCombo
-                        ? (platformSettings?.comboRatePerDelivery || 250)
-                        : isGroup
-                            ? (platformSettings?.groupRatePerDelivery || 200)
-                            : (platformSettings?.riderRatePerDelivery || 350);
+                const rate = order.type === 'mart'
+                    ? (platformSettings?.martRatePerDelivery || 500)
+                    : isPremiumHostel 
+                        ? (platformSettings?.premiumRiderRate || 750)
+                        : isCombo
+                            ? (platformSettings?.comboRatePerDelivery || 250)
+                            : isGroup
+                                ? (platformSettings?.groupRatePerDelivery || 200)
+                                : (platformSettings?.riderRatePerDelivery || 350);
                 const earning = platesCount * rate;
                 
                 // Track stats & earnings
@@ -159,13 +161,15 @@ export default function RiderBatchDetails() {
                     const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
                     const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((order.hostel || order.hostelName || '').toString().toLowerCase());
                     
-                    const rate = isPremiumHostel 
-                        ? (platformSettings?.premiumRiderRate || 750)
-                        : isCombo
-                            ? (platformSettings?.comboRatePerDelivery || 250)
-                            : isGroup
-                                ? (platformSettings?.groupRatePerDelivery || 200)
-                                : (platformSettings?.riderRatePerDelivery || 350);
+                    const rate = order.type === 'mart'
+                        ? (platformSettings?.martRatePerDelivery || 500)
+                        : isPremiumHostel 
+                            ? (platformSettings?.premiumRiderRate || 750)
+                            : isCombo
+                                ? (platformSettings?.comboRatePerDelivery || 250)
+                                : isGroup
+                                    ? (platformSettings?.groupRatePerDelivery || 200)
+                                    : (platformSettings?.riderRatePerDelivery || 350);
                     const earning = platesCount * rate;
                     recordDelivery(user.uid, orderId, false, earning).catch(console.error);
                 }

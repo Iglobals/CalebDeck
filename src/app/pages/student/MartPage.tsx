@@ -98,7 +98,7 @@ export default function MartPage() {
         </div>
       </header>
 
-      {platformSettings?.isMartComingSoon === true && (
+      {platformSettings?.isMartComingSoon === true && !(import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
           <div className="max-w-md w-full bg-card border border-border rounded-3xl p-8 text-center shadow-2xl animate-fade-in-up">
             <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">

@@ -453,6 +453,7 @@ export interface PlatformSettings {
     premiumComboRiderRate?: number; // NEW - for premium combo orders
     premiumGroupRiderRate?: number;
     premiumRiderRate?: number;
+    martRatePerDelivery?: number; // NEW - for CalebMart orders
     isAcceptingOrders?: boolean;
     isMartComingSoon?: boolean;
     isIPizzaComingSoon?: boolean;
@@ -466,7 +467,7 @@ export const getPlatformSettings = async (): Promise<PlatformSettings> => {
         return snapshot.data() as PlatformSettings;
     }
     // Default settings
-    return { riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, isAcceptingOrders: true, isMartComingSoon: false, isIPizzaComingSoon: true };
+    return { riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isMartComingSoon: false, isIPizzaComingSoon: true };
 };
 
 export const subscribeToPlatformSettings = (callback: (settings: PlatformSettings) => void) => {
@@ -479,11 +480,11 @@ export const subscribeToPlatformSettings = (callback: (settings: PlatformSetting
             if (data.isAcceptingOrders === undefined) data.isAcceptingOrders = true;
             callback(data);
         } else {
-            callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, isAcceptingOrders: true, isMartComingSoon: false, isIPizzaComingSoon: true });
+            callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isMartComingSoon: false, isIPizzaComingSoon: true });
         }
     }, (error) => {
         console.error('subscribeToPlatformSettings error:', error);
-        callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, isAcceptingOrders: true, isMartComingSoon: false, isIPizzaComingSoon: true });
+        callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isMartComingSoon: false, isIPizzaComingSoon: true });
     });
 };
 

@@ -13,7 +13,7 @@ export function MaintenanceGate({ children }: { children: React.ReactNode }) {
     return () => unsub();
   }, []);
 
-  const isDev = import.meta.env.DEV;
+  const isDev = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   if (!settings) return <>{children}</>;
 

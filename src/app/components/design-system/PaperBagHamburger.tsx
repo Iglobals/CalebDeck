@@ -112,7 +112,7 @@ export function PaperBagHamburger() {
 
   const navLinks = [
     { label: "Order Food", icon: <Utensils className="w-5 h-5 text-[#FCD34D]" />, to: "/cafeteria" },
-    { label: "Caleb Mart", icon: <ShoppingBag className="w-5 h-5 text-[#10B981]" />, to: "/mart" },
+    { label: "CalebDeck Mart", icon: <ShoppingBag className="w-5 h-5 text-[#10B981]" />, to: "/mart" },
     { label: "Support", icon: <Headset className="w-5 h-5 text-[#7C3AED]" />, to: "/support" }
   ];
 

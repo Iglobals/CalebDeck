@@ -7,7 +7,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import SEO from '../../components/SEO';
 
-const MART_DELIVERY_FEE = 750; // Flat fee for Mart Delivery
+const MART_DELIVERY_FEE = 1500; // Flat fee for Mart Delivery
 
 export default function MartCart() {
   const { items, updateQuantity, removeItem, totalItems, subtotal } = useMartCart();

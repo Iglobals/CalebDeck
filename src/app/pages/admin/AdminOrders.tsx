@@ -433,24 +433,24 @@ export default function AdminOrders() {
                             }`}>
                             {/* Header */}
                             <div className={`p-8 flex items-center justify-between border-b ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-gray-50 border-gray-100'}`}>
-                                <div className="flex items-center gap-5">
-                                    <div className="w-14 h-14 rounded-2xl bg-[#7C3AED] text-white flex items-center justify-center shadow-2xl shadow-[#7C3AED]/30">
+                                <div className="flex items-center gap-5 min-w-0">
+                                    <div className="w-14 h-14 rounded-2xl bg-[#7C3AED] text-white flex items-center justify-center shadow-2xl shadow-[#7C3AED]/30 shrink-0">
                                         <ShoppingBag className="w-6 h-6" />
                                     </div>
-                                    <div>
-                                        <h3 className={`text-lg lg:text-xl font-black tracking-tight mb-1 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Order Details</h3>
-                                        <div className="flex items-center gap-2">
-                                            <p className={`text-xs font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{selectedOrder.orderId}</p>
+                                    <div className="min-w-0">
+                                        <h3 className={`text-lg lg:text-xl font-black tracking-tight mb-1 truncate ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Order Details</h3>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <p className={`text-xs font-black uppercase tracking-[0.2em] shrink-0 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{selectedOrder.orderId}</p>
                                             {selectedOrder.cafeteria && (
-                                                <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5">{selectedOrder.cafeteria}</Badge>
+                                                <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5 shrink-0">{selectedOrder.cafeteria}</Badge>
                                             )}
                                             {(selectedOrder.deliveryMode === 'group' || selectedOrder.deliveryMode === 'GROUP') && (
-                                                <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5">Group</Badge>
+                                                <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 shrink-0">Group</Badge>
                                             )}
                                         </div>
                                     </div>
                                 </div>
-                                <button onClick={() => setSelectedOrder(null)} className={`p-3 rounded-xl transition-all ${isDark ? 'hover:bg-[#2A2A2A] text-white' : 'hover:bg-gray-100 text-black'}`}>
+                                <button onClick={() => setSelectedOrder(null)} className={`p-3 rounded-xl transition-all shrink-0 ${isDark ? 'hover:bg-[#2A2A2A] text-white' : 'hover:bg-gray-100 text-black'}`}>
                                     <X className="w-6 h-6" />
                                 </button>
                             </div>
