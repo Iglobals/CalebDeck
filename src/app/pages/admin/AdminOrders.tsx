@@ -565,12 +565,12 @@ export default function AdminOrders() {
 
                                     <Card className={`p-8 border-none ${isDark ? 'bg-[#222222]' : 'bg-gray-50'} min-w-0`}>
                                         <p className="text-[10px] font-black text-[#9C8F7F] uppercase tracking-[0.3em] mb-4">Payment Info</p>
-                                        <div className="flex flex-wrap sm:flex-nowrap justify-between items-end gap-4 min-w-0">
-                                            <div className="min-w-0 flex-1">
-                                                <p className={`text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Total Paid</p>
-                                                <h3 className="text-2xl sm:text-3xl font-black text-[#10B981]">₦{selectedOrder.total?.toLocaleString()}</h3>
+                                        <div className="flex flex-col gap-6">
+                                            <div className="min-w-0">
+                                                <p className={`text-xs font-bold mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Total Paid</p>
+                                                <h3 className="text-3xl font-black text-[#10B981]">₦{selectedOrder.total?.toLocaleString()}</h3>
                                             </div>
-                                            <div className="text-right shrink-0">
+                                            <div className="w-fit">
                                                 {getStatusBadge(selectedOrder.status)}
                                             </div>
                                         </div>
