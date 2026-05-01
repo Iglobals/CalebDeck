@@ -172,7 +172,7 @@ export default function MartPage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-            {filteredItems.map(item => {
+            {filteredItems.map((item, index) => {
               const qty = getCartQuantity(item.id);
               
               return (
@@ -180,14 +180,18 @@ export default function MartPage() {
                   key={item.id} 
                   selected={qty > 0} 
                   unavailable={!item.inStock}
-                  className="flex flex-col h-[380px] sm:h-[430px] md:h-[440px] lg:h-[450px] !p-0 group transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10"
+                  className="h-full min-h-[300px] sm:min-h-[350px] group transition-all duration-300 hover:shadow-xl hover:shadow-primary/10"
                 >
-                  {/* Image Container */}
-                  <div className="relative h-32 sm:h-44 md:h-48 bg-muted/30 m-2 sm:m-4 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center flex-shrink-0">
+                  <div className="space-y-3 h-full flex flex-col">
+                  <div className="relative aspect-square rounded-xl overflow-hidden bg-muted/30 flex items-center justify-center">
                     <ImageWithFallback 
                       src={item.imageUrl} 
                       alt={item.name}
-                      className="w-[85%] h-[85%] object-contain group-hover:scale-110 transition-transform duration-700 ease-out"
+                      loading={index < 8 ? 'eager' : 'lazy'}
+                      decoding="async"
+                      sizes="(max-width: 767px) 45vw, (max-width: 1023px) 30vw, 22vw"
+                      {...({ fetchPriority: index < 8 ? 'high' : 'auto' } as any)}
+                      className="w-[86%] h-[86%] object-contain group-hover:scale-105 transition-transform duration-500 ease-out"
                     />
                     {!item.inStock && (
                       <div className="absolute inset-0 bg-background/60 backdrop-blur-[3px] flex items-center justify-center p-4">
@@ -201,50 +205,32 @@ export default function MartPage() {
                     )}
                   </div>
 
-                  {/* Body */}
-                  <div className="p-3 sm:p-5 flex-1 flex flex-col min-h-0">
-                    <div className="flex-1 min-h-0">
-                      <p className="text-[9px] sm:text-[10px] font-black text-[#10B981] uppercase tracking-[0.12em] sm:tracking-[0.16em] mb-1.5 opacity-80 leading-tight min-h-[1.5rem] sm:min-h-[1.75rem] line-clamp-2">{item.category}</p>
-                      <h3 className="font-bold text-foreground text-sm sm:text-base mb-2 line-clamp-3 h-[3.75rem] sm:h-[4.5rem] leading-tight group-hover:text-[#10B981] transition-colors">{item.name}</h3>
+                  <div className="flex-1 flex flex-col">
+                    <div>
+                      <p className="text-[9px] sm:text-[10px] font-black text-[#10B981] uppercase tracking-[0.12em] sm:tracking-[0.16em] mb-1 opacity-80 leading-tight line-clamp-2 min-h-[1.4rem]">{item.category}</p>
+                      <h3 className="font-bold text-card-foreground text-sm sm:text-base line-clamp-2 min-h-[2.5rem] leading-tight flex items-center group-hover:text-[#10B981] transition-colors">{item.name}</h3>
+                      <p className="text-base sm:text-lg text-muted-foreground font-black mt-1">₦{item.price.toLocaleString()}</p>
                     </div>
                     
-                    <div className="flex flex-col gap-3 mt-auto pt-3 border-t border-border/50">
-                      <div className="flex items-center justify-between">
-                        <span className="font-black text-lg sm:text-xl text-foreground">₦{item.price.toLocaleString()}</span>
-                        
-                        {!item.inStock ? (
-                           <Badge variant="secondary" className="opacity-50 text-[10px] font-bold">Sold Out</Badge>
-                        ) : qty === 0 ? (
-                          <button 
-                            onClick={() => handleAddToCart(item)}
-                            className="w-10 h-10 rounded-xl bg-[#10B981]/10 flex items-center justify-center text-[#10B981] hover:bg-[#10B981] hover:text-white transition-all duration-300 shadow-sm"
-                          >
-                            <Plus className="w-5 h-5" />
-                          </button>
-                        ) : null}
-                      </div>
-
-                      <div className="h-11 flex items-center">
-                      {qty > 0 ? (
-                        <div className="w-full flex items-center justify-between bg-muted/50 rounded-xl p-1.5 border border-border animate-in slide-in-from-bottom-2">
-                          <button 
-                            onClick={() => updateQuantity(item.id, qty - 1)}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-background shadow-sm text-foreground hover:bg-red-500 hover:text-white transition-all"
-                          >
-                            <Minus className="w-4 h-4" />
-                          </button>
-                          <span className="flex-1 text-center text-foreground font-black text-sm">{qty}</span>
-                          <button 
-                            onClick={() => updateQuantity(item.id, qty + 1)}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#10B981] shadow-sm text-white hover:bg-[#059669] transition-all"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="h-11" aria-hidden="true"></div>
-                      )}
-                      </div>
+                    <div className="flex items-center justify-between mt-auto pt-3">
+                      <button
+                        onClick={() => updateQuantity(item.id, qty - 1)}
+                        disabled={!item.inStock || qty === 0}
+                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-muted hover:bg-secondary hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                        aria-label={`Remove ${item.name} from cart`}
+                      >
+                        <Minus className="w-4 h-4" />
+                      </button>
+                      <span className="font-bold text-lg sm:text-xl text-card-foreground">{qty}</span>
+                      <button
+                        onClick={() => handleAddToCart(item)}
+                        disabled={!item.inStock}
+                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-[#10B981] text-white hover:bg-[#059669] disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed transition-all flex items-center justify-center shadow-sm hover:scale-105"
+                        aria-label={`Add ${item.name} to cart`}
+                      >
+                        <Plus className="w-5 h-5" />
+                      </button>
+                    </div>
                     </div>
                   </div>
                 </GlassCard>
