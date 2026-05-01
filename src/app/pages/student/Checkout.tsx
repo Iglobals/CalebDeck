@@ -566,21 +566,22 @@ if (isPremiumHostel) {
                     />
                   </div>
                   {isFemaleHostelSelected && (
-                    <div className="p-6 rounded-[2rem] bg-amber-500/10 border-2 border-amber-500/30 shadow-inner">
-                      <div className="flex gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                          <AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
-                        </div>
-                        <div className="space-y-4">
-                          <div>
-                            <h4 className="font-black text-lg">Female Hostel Delivery Notice</h4>
-                            <p className="text-sm sm:text-base text-muted-foreground font-medium leading-relaxed mt-1">
-                              You are seeing this because you selected {selectedHostel?.name || 'a female hostel'}. CalebDeck currently does not have female delivery agents available for female hostels, and school rules restrict male riders from entering or moving close to those areas.
-                            </p>
-                            <p className="text-sm sm:text-base text-muted-foreground font-medium leading-relaxed mt-3">
-                              To use this service, you agree to personally meet the rider at a suitable school-approved pickup point outside the restricted area. Please do not send an unknown person to collect your order, because CalebDeck can only confirm delivery when the order is handed directly to you.
-                            </p>
+                    <div className="p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] bg-amber-500/10 border-2 border-amber-500/30 shadow-inner">
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                            <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600 dark:text-amber-400" />
                           </div>
+                          <h4 className="font-black text-base sm:text-lg leading-tight">Female Hostel Delivery Notice</h4>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-sm sm:text-base text-muted-foreground font-medium leading-relaxed">
+                            You selected {selectedHostel?.name || 'a female hostel'}. CalebDeck currently does not have female delivery agents for female hostels, and school rules restrict male riders from those areas.
+                          </p>
+                          <p className="text-sm sm:text-base text-muted-foreground font-medium leading-relaxed">
+                            Please meet the rider yourself at the assigned safe pickup point. Do not send an unknown person to collect your order, because CalebDeck can only confirm delivery when the order is handed directly to you.
+                          </p>
+                        </div>
                           <label className="flex items-start gap-3 cursor-pointer">
                             <input
                               type="checkbox"
@@ -599,7 +600,6 @@ if (isPremiumHostel) {
                           >
                             No, return to home
                           </button>
-                        </div>
                       </div>
                     </div>
                   )}

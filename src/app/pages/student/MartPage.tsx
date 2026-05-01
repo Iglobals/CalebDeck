@@ -180,10 +180,10 @@ export default function MartPage() {
                   key={item.id} 
                   selected={qty > 0} 
                   unavailable={!item.inStock}
-                  className="flex flex-col h-full !p-0 group transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10"
+                  className="flex flex-col h-[380px] sm:h-[430px] md:h-[440px] lg:h-[450px] !p-0 group transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10"
                 >
                   {/* Image Container */}
-                  <div className="relative aspect-square bg-muted/30 m-2 sm:m-4 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center">
+                  <div className="relative h-32 sm:h-44 md:h-48 bg-muted/30 m-2 sm:m-4 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center flex-shrink-0">
                     <ImageWithFallback 
                       src={item.imageUrl} 
                       alt={item.name}
@@ -202,13 +202,13 @@ export default function MartPage() {
                   </div>
 
                   {/* Body */}
-                  <div className="p-4 sm:p-6 flex-1 flex flex-col">
-                    <div className="flex-1">
-                      <p className="text-[10px] font-black text-[#10B981] uppercase tracking-[0.2em] mb-1.5 opacity-80">{item.category}</p>
-                      <h3 className="font-bold text-foreground text-sm sm:text-base mb-2 line-clamp-2 min-h-[3rem] leading-tight group-hover:text-[#10B981] transition-colors">{item.name}</h3>
+                  <div className="p-3 sm:p-5 flex-1 flex flex-col min-h-0">
+                    <div className="flex-1 min-h-0">
+                      <p className="text-[9px] sm:text-[10px] font-black text-[#10B981] uppercase tracking-[0.12em] sm:tracking-[0.16em] mb-1.5 opacity-80 leading-tight min-h-[1.5rem] sm:min-h-[1.75rem] line-clamp-2">{item.category}</p>
+                      <h3 className="font-bold text-foreground text-sm sm:text-base mb-2 line-clamp-3 h-[3.75rem] sm:h-[4.5rem] leading-tight group-hover:text-[#10B981] transition-colors">{item.name}</h3>
                     </div>
                     
-                    <div className="flex flex-col gap-4 mt-auto pt-4 border-t border-border/50">
+                    <div className="flex flex-col gap-3 mt-auto pt-3 border-t border-border/50">
                       <div className="flex items-center justify-between">
                         <span className="font-black text-lg sm:text-xl text-foreground">₦{item.price.toLocaleString()}</span>
                         
@@ -224,8 +224,9 @@ export default function MartPage() {
                         ) : null}
                       </div>
 
-                      {qty > 0 && (
-                        <div className="flex items-center justify-between bg-muted/50 rounded-xl p-1.5 border border-border animate-in slide-in-from-bottom-2">
+                      <div className="h-11 flex items-center">
+                      {qty > 0 ? (
+                        <div className="w-full flex items-center justify-between bg-muted/50 rounded-xl p-1.5 border border-border animate-in slide-in-from-bottom-2">
                           <button 
                             onClick={() => updateQuantity(item.id, qty - 1)}
                             className="w-8 h-8 flex items-center justify-center rounded-lg bg-background shadow-sm text-foreground hover:bg-red-500 hover:text-white transition-all"
@@ -240,7 +241,10 @@ export default function MartPage() {
                             <Plus className="w-4 h-4" />
                           </button>
                         </div>
+                      ) : (
+                        <div className="h-11" aria-hidden="true"></div>
                       )}
+                      </div>
                     </div>
                   </div>
                 </GlassCard>

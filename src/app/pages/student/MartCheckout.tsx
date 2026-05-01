@@ -295,16 +295,17 @@ export default function MartCheckout() {
                   onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
                 />
                 {isFemaleHostelSelected && (
-                  <div className="p-5 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30">
-                    <div className="flex gap-3">
-                      <AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-1" />
-                      <div className="space-y-3">
-                        <div>
-                          <h4 className="font-black">Female Hostel Delivery Notice</h4>
-                          <p className="text-sm text-muted-foreground font-medium leading-relaxed mt-1">
-                            School rules restrict male riders from entering or moving close to female hostels. Please meet the rider yourself at a safe, school-approved pickup point outside the restricted area.
-                          </p>
+                  <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                          <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                         </div>
+                        <h4 className="font-black leading-tight">Female Hostel Delivery Notice</h4>
+                      </div>
+                      <p className="text-sm text-muted-foreground font-medium leading-relaxed">
+                        School rules restrict male riders from female hostel areas. Please meet the rider yourself at the assigned safe pickup point outside the restricted area.
+                      </p>
                         <label className="flex items-start gap-3 cursor-pointer">
                           <input
                             type="checkbox"
@@ -316,7 +317,6 @@ export default function MartCheckout() {
                             Yes, I agree to meet the rider myself at a safe, school-approved pickup point.
                           </span>
                         </label>
-                      </div>
                     </div>
                   </div>
                 )}

@@ -421,7 +421,7 @@ export default function LandingPage() {
                 </div>
                 <h3 className={`text-2xl font-black ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>iOS Installation</h3>
               </div>
-              <ol className="space-y-6">
+              <ol className="space-y-6 mb-10">
                 <li className="flex gap-4 items-start">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold flex-shrink-0 ${studentTheme === 'dark' ? 'bg-[#333333] text-[#FAF9F6]' : 'bg-gray-200 text-gray-900'}`}>1</div>
                   <p className={`text-lg leading-relaxed flex-1 ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Open CalebDeck in <strong>Safari</strong>.</p>
@@ -431,6 +431,10 @@ export default function LandingPage() {
                   <p className={`text-lg leading-relaxed flex-1 ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Tap <Share className="w-5 h-5 inline mx-1 -mt-1 text-primary" /> <strong>Share</strong>, then <PlusSquare className="w-5 h-5 inline mx-1 -mt-1" /> <strong>Add to Home Screen</strong>.</p>
                 </li>
               </ol>
+
+              <div className={`relative rounded-3xl overflow-hidden aspect-video border-4 shadow-inner flex items-center justify-center ${studentTheme === 'dark' ? 'bg-[#0A0A0A] border-[#222222]' : 'bg-gray-200 border-white'}`}>
+                <ImageWithFallback src="https://res.cloudinary.com/dpwx4djzx/image/upload/v1772831572/iphone-mock_gehuma.jpg" alt="iOS Install Mockup" className="absolute inset-0 w-full h-full object-contain" />
+              </div>
             </div>
 
             <div className={`p-8 md:p-10 rounded-[3rem] border-2 transition-all duration-500 hover:shadow-xl relative overflow-hidden ${studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-gray-50 border-gray-100'}`}>
@@ -440,7 +444,7 @@ export default function LandingPage() {
                 </div>
                 <h3 className={`text-2xl font-black ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Android Installation</h3>
               </div>
-              <ol className="space-y-6">
+              <ol className="space-y-6 mb-10">
                 <li className="flex gap-4 items-start">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold flex-shrink-0 ${studentTheme === 'dark' ? 'bg-[#333333] text-[#FAF9F6]' : 'bg-gray-200 text-gray-900'}`}>1</div>
                   <p className={`text-lg leading-relaxed flex-1 ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Open CalebDeck in <strong>Chrome</strong>.</p>
@@ -450,6 +454,10 @@ export default function LandingPage() {
                   <p className={`text-lg leading-relaxed flex-1 ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Tap <MoreVertical className="w-5 h-5 inline mx-1 -mt-1" /> then choose <strong>Install app</strong> or <strong>Add to Home screen</strong>.</p>
                 </li>
               </ol>
+
+              <div className={`relative rounded-3xl overflow-hidden aspect-video border-4 shadow-inner flex items-center justify-center ${studentTheme === 'dark' ? 'bg-[#0A0A0A] border-[#222222]' : 'bg-gray-200 border-white'}`}>
+                <ImageWithFallback src="https://res.cloudinary.com/dpwx4djzx/image/upload/v1772831571/android-mock_ulo238.jpg" alt="Android Install Mockup" className="absolute inset-0 w-full h-full object-contain" />
+              </div>
             </div>
           </div>
         </div>
