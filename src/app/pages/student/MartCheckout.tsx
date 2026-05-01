@@ -295,28 +295,40 @@ export default function MartCheckout() {
                   onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
                 />
                 {isFemaleHostelSelected && (
-                  <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30">
-                    <div className="space-y-3">
+                  <div className="p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] bg-amber-500/10 border-2 border-amber-500/30 shadow-inner">
+                    <div className="space-y-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                          <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                          <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600 dark:text-amber-400" />
                         </div>
-                        <h4 className="font-black leading-tight">Female Hostel Delivery Notice</h4>
+                        <h4 className="font-black text-base sm:text-lg leading-tight">Female Hostel Delivery Notice</h4>
                       </div>
-                      <p className="text-sm text-muted-foreground font-medium leading-relaxed">
-                        School rules restrict male riders from female hostel areas. Please meet the rider yourself at the assigned safe pickup point outside the restricted area.
-                      </p>
-                        <label className="flex items-start gap-3 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={femaleHostelAgreement}
-                            onChange={(e) => setFemaleHostelAgreement(e.target.checked)}
-                            className="mt-1 h-5 w-5 rounded border-2 border-amber-500 accent-amber-500"
-                          />
-                          <span className="text-sm font-bold leading-relaxed">
-                            Yes, I agree to meet the rider myself at a safe, school-approved pickup point.
-                          </span>
-                        </label>
+                      <div className="space-y-2">
+                        <p className="text-sm sm:text-base text-muted-foreground font-medium leading-relaxed">
+                          You selected {selectedHostel?.name || 'a female hostel'}. CalebDeck currently does not have female delivery agents for female hostels, and school rules restrict male riders from those areas.
+                        </p>
+                        <p className="text-sm sm:text-base text-muted-foreground font-medium leading-relaxed">
+                          Please meet the rider yourself at the assigned safe pickup point. Do not send an unknown person to collect your order, because CalebDeck can only confirm delivery when the order is handed directly to you.
+                        </p>
+                      </div>
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={femaleHostelAgreement}
+                          onChange={(e) => setFemaleHostelAgreement(e.target.checked)}
+                          className="mt-1 h-5 w-5 rounded border-2 border-amber-500 accent-amber-500"
+                        />
+                        <span className="text-sm sm:text-base font-bold leading-relaxed">
+                          Yes, I agree to meet the rider myself at a safe, school-approved pickup point.
+                        </span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/')}
+                        className="text-sm font-bold text-muted-foreground hover:text-foreground underline underline-offset-4"
+                      >
+                        No, return to home
+                      </button>
                     </div>
                   </div>
                 )}
