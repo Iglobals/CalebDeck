@@ -5,7 +5,7 @@ import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
 import { Input, Select, Textarea } from '../../components/design-system/Input';
-import { ArrowLeft, Lock, Shield, CreditCard, MapPin, User, Phone, Package } from 'lucide-react';
+import { ArrowLeft, Lock, Shield, CreditCard, MapPin, User, AlertTriangle } from 'lucide-react';
 import { getActiveHostels, Hostel, subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 import { calculateOrderTotal, verifyPayment } from '../../../services/functions';
 import { doc, getDoc } from 'firebase/firestore';
@@ -23,6 +23,7 @@ import {
 
 const DELIVERY_FEE_SOLO = 750;
 const DELIVERY_FEE_GROUP = 580;
+const FEMALE_HOSTEL_IDS = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'];
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -68,6 +69,7 @@ export default function Checkout() {
     hostel: '',
     instructions: ''
   });
+  const [femaleHostelAgreement, setFemaleHostelAgreement] = useState(false);
 
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
 
@@ -127,7 +129,7 @@ export default function Checkout() {
     const base = comboOrder.basePrice || 0;
     const dMode = currentDeliveryMode || 'solo';
     const isGrp = dMode === 'group' || dMode === 'GROUP';
-    const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((formData.hostel || '').toLowerCase());
+    const isPremiumHostel = FEMALE_HOSTEL_IDS.includes((formData.hostel || '').toLowerCase());
 
 let baseDeliveryFee;
 if (isPremiumHostel) {
@@ -180,6 +182,7 @@ if (isPremiumHostel) {
 
   const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
   const selectedHostel = hostels.find(h => h.id === formData.hostel);
+  const isFemaleHostelSelected = FEMALE_HOSTEL_IDS.includes((formData.hostel || '').toLowerCase());
   const orderId = React.useMemo(() => `CD-${Math.floor(10000 + Math.random() * 90000)}`, []);
 
   // Stable payment reference — generated once, used for pre-save + Paystack + verify
@@ -201,6 +204,7 @@ if (isPremiumHostel) {
       hostel: formData.hostel,
       hostelName: selectedHostel?.name || formData.hostel,
       instructions: formData.instructions,
+      femaleHostelAgreement,
       cafeteria,
       cafeteriaId,
       sectionId,
@@ -254,6 +258,7 @@ if (isPremiumHostel) {
       hostelName: selectedHostel?.name || formData.hostel,
       total: orderTotal?.totalAmount,
       breakdown: orderTotal?.breakdown,
+      femaleHostelAgreement,
       cafeteria,
       cafeteriaId,
       sectionId,
@@ -356,6 +361,10 @@ if (isPremiumHostel) {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    if (e.target.name === 'hostel') {
+      setFemaleHostelAgreement(false);
+    }
+
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
@@ -374,6 +383,10 @@ if (isPremiumHostel) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!orderTotal || isClosed || isSubmitting) return;
+    if (isFemaleHostelSelected && !femaleHostelAgreement) {
+      toast.info('Please accept the female hostel delivery agreement before payment.');
+      return;
+    }
     
     // Track payment initiation
     trackPaymentInitiated(
@@ -397,6 +410,7 @@ if (isPremiumHostel) {
         instructions: formData.instructions,
         total: orderTotal?.totalAmount,
         breakdown: orderTotal?.breakdown,
+        femaleHostelAgreement,
         cafeteria,
         cafeteriaId,
         sectionId,
@@ -430,7 +444,7 @@ if (isPremiumHostel) {
     initializePayment({ onSuccess: onSuccess as any, onClose: () => { onClose(); setIsSubmitting(false); } });
   };
 
-  const canSubmit = formData.fullName && formData.phone && formData.hostel && orderTotal && !calculating && !isClosed && !isSubmitting;
+  const canSubmit = formData.fullName && formData.phone && formData.hostel && orderTotal && !calculating && !isClosed && !isSubmitting && (!isFemaleHostelSelected || femaleHostelAgreement);
 
 
   const hostelOptions = [
@@ -543,14 +557,52 @@ if (isPremiumHostel) {
                     />
 
                     <Input
-                      label="Additional Instructions"
+                      label="Alternative Food"
                       name="instructions"
                       value={formData.instructions}
                       onChange={handleChange}
-                      placeholder="Any alternative options? (e.g., If Jollof is finished, buy Fried Rice instead)"
+                      placeholder="If your first choice is unavailable, what should we buy instead?"
                       className="md:col-span-2 bg-background/80"
                     />
                   </div>
+                  {isFemaleHostelSelected && (
+                    <div className="p-6 rounded-[2rem] bg-amber-500/10 border-2 border-amber-500/30 shadow-inner">
+                      <div className="flex gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                          <AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <div className="space-y-4">
+                          <div>
+                            <h4 className="font-black text-lg">Female Hostel Delivery Notice</h4>
+                            <p className="text-sm sm:text-base text-muted-foreground font-medium leading-relaxed mt-1">
+                              You are seeing this because you selected {selectedHostel?.name || 'a female hostel'}. CalebDeck currently does not have female delivery agents available for female hostels, and school rules restrict male riders from entering or moving close to those areas.
+                            </p>
+                            <p className="text-sm sm:text-base text-muted-foreground font-medium leading-relaxed mt-3">
+                              To use this service, you agree to personally meet the rider at a suitable school-approved pickup point outside the restricted area. Please do not send an unknown person to collect your order, because CalebDeck can only confirm delivery when the order is handed directly to you.
+                            </p>
+                          </div>
+                          <label className="flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={femaleHostelAgreement}
+                              onChange={(e) => setFemaleHostelAgreement(e.target.checked)}
+                              className="mt-1 h-5 w-5 rounded border-2 border-amber-500 accent-amber-500"
+                            />
+                            <span className="text-sm sm:text-base font-bold leading-relaxed">
+                              Yes, I agree to meet the rider myself at a safe, school-approved pickup point.
+                            </span>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => navigate('/')}
+                            className="text-sm font-bold text-muted-foreground hover:text-foreground underline underline-offset-4"
+                          >
+                            No, return to home
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {/* Trust Bar */}
                   <div className="p-6 rounded-[2rem] bg-secondary/5 border-2 border-secondary/10 shadow-inner">
                     <div className="flex items-center gap-4">

@@ -26,34 +26,43 @@ export default function Support() {
             <h2 className="text-2xl font-semibold mt-8 mb-4 text-secondary">How can we help?</h2>
             <p>
               If you have any questions, feedback, or issues while using CalebDeck,
-              we’re here to help. Below are a few ways to get support:
+              we're here to help. Below are a few ways to get support:
             </p>
             <ul className="list-disc list-inside space-y-2 ml-4">
               <li>Message us on WhatsApp: <a href="https://wa.me/2348072550635" className="underline" target="_blank" rel="noopener noreferrer">0807 255 0635</a></li>
               <li>Email us at <a href="mailto:support@calebdeck.com" className="underline">support@calebdeck.com</a></li>
-              <li>Check the FAQ section below for common questions</li>
+              <li>For order issues, send your name, order ID, hostel, and a clear explanation</li>
             </ul>
           </section>
 
           <section>
             <h2 className="text-2xl font-semibold mt-8 mb-4 text-secondary">Frequently Asked Questions</h2>
-            <p>Here are answers to some common questions:</p>
+            <p>Here are quick answers for common CalebDeck questions:</p>
             <dl className="space-y-4">
-              <dt className="font-semibold">How do I place an order?</dt>
-              <dd>Select a cafeteria, build your plate, and checkout – it’s that simple.</dd>
+              <dt className="font-semibold">Is CalebDeck only for food?</dt>
+              <dd>No. CalebDeck handles cafeteria food and CalebDeck Mart essentials like snacks, drinks, groceries, and useful campus items.</dd>
 
               <dt className="font-semibold">How long does delivery take?</dt>
-              <dd>Delivery times are fast – typically 5–10 minutes once your meal is ready.</dd>
+              <dd>Most food orders arrive in about 20-30 minutes. Mart orders depend on item availability, packing time, distance, weather, and order volume.</dd>
+
+              <dt className="font-semibold">What happens if I stay in a female hostel?</dt>
+              <dd>Because school rules restrict male riders from entering or moving close to female hostels, you must meet the rider yourself at the assigned safe pickup point shown after checkout.</dd>
+
+              <dt className="font-semibold">Can I send someone else to collect my order?</dt>
+              <dd>Please collect your order yourself whenever possible. CalebDeck can only confidently confirm delivery when the rider hands the order to the customer who placed it.</dd>
+
+              <dt className="font-semibold">What should I put in Alternative Food?</dt>
+              <dd>Use it only for backup food choices if your first option is unavailable, for example: "If jollof is finished, buy fried rice."</dd>
 
               <dt className="font-semibold">Can I cancel an order?</dt>
-              <dd>Once an order has been submitted and batching has started it cannot be cancelled, but you can reach out to support for assistance.</dd>
+              <dd>Once an order has been submitted and processing has started, it may not be possible to cancel. Contact support quickly if you need help.</dd>
             </dl>
           </section>
 
           <section>
             <h2 className="text-2xl font-semibold mt-8 mb-4 text-secondary">Contact</h2>
             <p>
-              We are available 24/7 via email or phone. Please include as much detail as possible
+              We are available via email or WhatsApp. Please include as much detail as possible
               so we can assist you quickly.
             </p>
             <p className="flex flex-col sm:flex-row gap-4">
@@ -64,7 +73,7 @@ export default function Support() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-[#25D366] font-bold hover:underline"
               >
-                <span className="text-xl">💬</span> WhatsApp: 0807 255 0635
+                WhatsApp: 0807 255 0635
               </a>
             </p>
           </section>

@@ -11,12 +11,30 @@ import { subscribeToOrderStatus, getRiderById, getHostelById, Rider, getOrderByI
 import { trackOrderTracked } from '../../../services/analytics';
 
 const TRACKING_STEPS = ['Received', 'Out for Delivery', 'On The Way', 'Delivered'];
+const MASS_COMM_PICKUP_HOSTELS = ['mary', 'mary hall', 'rebecca', 'rebecca hall', 'esme', 'esme hall', 'mercy', 'mercy hall', 'deborah', 'deborah hall'];
+const MEDICALS_PICKUP_HOSTELS = ['sussana', 'sussana hall', 'susanna', 'susanna hall'];
 
 const STATUS_TO_STEP: Record<string, number> = {
   PAID: 0,
   OUT_FOR_DELIVERY: 1,
   ON_THE_WAY: 2,
   DELIVERED: 3,
+};
+
+const getPickupPoint = (hostelId: string, hostelName: string) => {
+  const normalizedValues = [hostelId, hostelName]
+    .filter(Boolean)
+    .map(value => value.toLowerCase().trim());
+
+  if (normalizedValues.some(value => MASS_COMM_PICKUP_HOSTELS.includes(value))) {
+    return 'Front of Mass Comm Building';
+  }
+
+  if (normalizedValues.some(value => MEDICALS_PICKUP_HOSTELS.includes(value))) {
+    return 'Caleb Medicals';
+  }
+
+  return 'Front of your hostel/reception';
 };
 
 export default function OrderSuccess() {
@@ -55,6 +73,7 @@ export default function OrderSuccess() {
   }, [location.state]);
 
   const displayHostel = hostelName || hostel || 'Your Hostel';
+  const pickupPoint = getPickupPoint(hostel, hostelName);
   const [currentStep, setCurrentStep] = useState(0);
   const [showTracking, setShowTracking] = useState(false);
   const [rider, setRider] = useState<Rider | null>(null);
@@ -221,8 +240,18 @@ export default function OrderSuccess() {
                     <MapPin className="w-6 h-6 text-secondary" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Delivery Point</p>
+                    <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Hostel</p>
                     <p className="text-xl font-bold">{displayHostel}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                    <MapPin className="w-6 h-6 text-amber-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Pickup Point</p>
+                    <p className="text-xl font-bold">{pickupPoint}</p>
+                    <p className="text-sm text-muted-foreground font-medium mt-1">Meet your rider here when they call or arrive.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
@@ -362,6 +391,13 @@ export default function OrderSuccess() {
               </div>
               <div className="flex items-start gap-4">
                 <div>
+                  <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-1">Pickup Point</p>
+                  <p className="text-lg font-bold">{pickupPoint}</p>
+                  <p className="text-sm text-muted-foreground font-medium">Meet your rider here when they call or arrive.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-4">
+                <div>
                   <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-1">Ordered At</p>
                   <p className="text-lg font-bold">
                     {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
@@ -429,7 +465,7 @@ export default function OrderSuccess() {
                   Enjoy Your Meal!
                 </h3>
                 <p className="text-lg text-muted-foreground font-medium mb-10 leading-relaxed">
-                  Your order has been delivered. Thank you for choosing CalebDeck for your premium campus dining.
+                  Your order has been delivered. Thank you for choosing CalebDeck for fast campus delivery.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">
                   {!hasReviewed && (

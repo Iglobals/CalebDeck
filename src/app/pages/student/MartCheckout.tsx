@@ -5,11 +5,13 @@ import { getActiveHostels, Hostel, subscribeToPlatformSettings, PlatformSettings
 import { verifyPayment } from '../../../services/functions';
 import { usePaystackPayment } from 'react-paystack';
 import { toast } from 'react-toastify';
-import { ArrowLeft, User, Phone, MapPin, Shield, CreditCard, ShoppingBag, Clock } from 'lucide-react';
+import { ArrowLeft, User, Phone, Shield, CreditCard, ShoppingBag, Clock, AlertTriangle } from 'lucide-react';
 import { Input, Select, Textarea } from '../../components/design-system/Input';
 import { Button } from '../../components/design-system/Button';
 import { Card } from '../../components/design-system/Card';
 import SEO from '../../components/SEO';
+
+const FEMALE_HOSTEL_IDS = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'];
 
 export default function MartCheckout() {
   const { items, subtotal, totalItems, clearCart } = useMartCart();
@@ -26,8 +28,10 @@ export default function MartCheckout() {
     hostel: '',
     instructions: ''
   });
+  const [femaleHostelAgreement, setFemaleHostelAgreement] = useState(false);
 
   const selectedHostel = hostels.find(h => h.id === formData.hostel);
+  const isFemaleHostelSelected = FEMALE_HOSTEL_IDS.includes((formData.hostel || '').toLowerCase());
   const MART_DELIVERY_FEE = 1500;
   const isDev = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
@@ -102,6 +106,7 @@ export default function MartCheckout() {
       hostel: formData.hostel,
       hostelName: selectedHostel?.name || '',
       instructions: formData.instructions,
+      femaleHostelAgreement,
       items: items.map(i => ({
         id: i.id,
         name: i.name,
@@ -131,6 +136,7 @@ export default function MartCheckout() {
       hostelId: formData.hostel,
       hostelName: selectedHostel?.name,
       instructions: formData.instructions,
+      femaleHostelAgreement,
       orderType: 'mart',
       items: items.map(i => ({
         id: i.id,
@@ -153,7 +159,9 @@ export default function MartCheckout() {
           orderId: finalOrderId,
           reference: reference.reference,
           totalAmount: total,
-          cafeteria: 'CalebDeck Mart'
+          cafeteria: 'CalebDeck Mart',
+          hostel: formData.hostel,
+          hostelName: selectedHostel?.name || ''
         },
         replace: true
       });
@@ -216,6 +224,9 @@ export default function MartCheckout() {
     if (!formData.phone.trim()) return toast.error('Please enter your phone number');
     if (formData.phone.length < 10) return toast.error('Please enter a valid phone number');
     if (!formData.hostel) return toast.error('Please select your hostel');
+    if (isFemaleHostelSelected && !femaleHostelAgreement) {
+      return toast.info('Please accept the female hostel delivery agreement before payment.');
+    }
 
     if (platformSettings && !isDev && (platformSettings.isAcceptingOrders === false || platformSettings.isMartComingSoon === true)) {
       toast.error("Ordering is temporarily paused for maintenance. Please try again later.");
@@ -270,7 +281,10 @@ export default function MartCheckout() {
                 <Select
                   label="Select Hostel"
                   value={formData.hostel}
-                  onChange={(e) => setFormData({ ...formData, hostel: e.target.value })}
+                  onChange={(e) => {
+                    setFemaleHostelAgreement(false);
+                    setFormData({ ...formData, hostel: e.target.value });
+                  }}
                   options={hostels.map(h => ({ value: h.id, label: h.name }))}
                   required
                 />
@@ -280,6 +294,32 @@ export default function MartCheckout() {
                   value={formData.instructions}
                   onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
                 />
+                {isFemaleHostelSelected && (
+                  <div className="p-5 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30">
+                    <div className="flex gap-3">
+                      <AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-1" />
+                      <div className="space-y-3">
+                        <div>
+                          <h4 className="font-black">Female Hostel Delivery Notice</h4>
+                          <p className="text-sm text-muted-foreground font-medium leading-relaxed mt-1">
+                            School rules restrict male riders from entering or moving close to female hostels. Please meet the rider yourself at a safe, school-approved pickup point outside the restricted area.
+                          </p>
+                        </div>
+                        <label className="flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={femaleHostelAgreement}
+                            onChange={(e) => setFemaleHostelAgreement(e.target.checked)}
+                            className="mt-1 h-5 w-5 rounded border-2 border-amber-500 accent-amber-500"
+                          />
+                          <span className="text-sm font-bold leading-relaxed">
+                            Yes, I agree to meet the rider myself at a safe, school-approved pickup point.
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </Card>
           </div>
@@ -325,6 +365,7 @@ export default function MartCheckout() {
                 variant="primary" 
                 className="w-full py-4 text-lg bg-[#10B981] hover:bg-[#059669] text-white flex items-center justify-center gap-2 shadow-xl shadow-[#10B981]/20"
                 onClick={handlePay}
+                disabled={isFemaleHostelSelected && !femaleHostelAgreement}
               >
                 <CreditCard className="w-5 h-5" /> Pay ₦{total}
               </Button>
