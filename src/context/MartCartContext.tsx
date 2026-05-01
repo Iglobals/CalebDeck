@@ -67,7 +67,7 @@ export function MartCartProvider({ children }: { children: React.ReactNode }) {
     setItems([]);
   };
 
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+  const totalItems = items.length;
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   return (

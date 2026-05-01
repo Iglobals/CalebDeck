@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Logo } from '../../components/design-system/Logo';
 import { Button } from '../../components/design-system/Button';
@@ -7,7 +7,7 @@ import { ArrowLeft, Search, ShoppingBag, Plus, Minus, Package } from 'lucide-rea
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { useTheme } from '../../../context/ThemeContext';
 import SEO from '../../components/SEO';
-import { useMartCart, CartItem } from '../../../context/MartCartContext';
+import { useMartCart } from '../../../context/MartCartContext';
 import { subscribeToMartItems, MartItem } from '../../../services/mart';
 import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 import { Badge } from '../../components/design-system/Badge';
@@ -31,8 +31,18 @@ export default function MartPage() {
   const [items, setItems] = useState<MartItem[]>([]);
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const cartIconRef = useRef<HTMLAnchorElement>(null);
+  const [flyingItem, setFlyingItem] = useState<{
+    imageUrl: string;
+    name: string;
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+    active: boolean;
+  } | null>(null);
 
-  const { items: cartItems, addItem, removeItem, updateQuantity, totalItems } = useMartCart();
+  const { items: cartItems, addItem, updateQuantity, totalItems } = useMartCart();
 
   useEffect(() => {
     const unsubscribeItems = subscribeToMartItems((fetchedItems) => {
@@ -55,8 +65,35 @@ export default function MartPage() {
     return cartItems.find(i => i.id === itemId)?.quantity || 0;
   };
 
-  const handleAddToCart = (item: MartItem) => {
+  const animateToCart = (item: MartItem, sourceElement: HTMLElement) => {
+    const imageElement = sourceElement.closest('[data-mart-card]')?.querySelector('img');
+    const cartElement = cartIconRef.current;
+    if (!imageElement || !cartElement) return;
+
+    const imageRect = imageElement.getBoundingClientRect();
+    const cartRect = cartElement.getBoundingClientRect();
+
+    setFlyingItem({
+      imageUrl: item.imageUrl,
+      name: item.name,
+      startX: imageRect.left + imageRect.width / 2,
+      startY: imageRect.top + imageRect.height / 2,
+      endX: cartRect.left + cartRect.width / 2,
+      endY: cartRect.top + cartRect.height / 2,
+      active: false
+    });
+
+    requestAnimationFrame(() => {
+      setFlyingItem(current => current ? { ...current, active: true } : current);
+      window.setTimeout(() => setFlyingItem(null), 720);
+    });
+  };
+
+  const handleAddToCart = (item: MartItem, sourceElement?: HTMLElement) => {
     if (!item.inStock) return;
+    if (sourceElement && getCartQuantity(item.id) === 0) {
+      animateToCart(item, sourceElement);
+    }
     addItem({
       id: item.id,
       name: item.name,
@@ -72,6 +109,23 @@ export default function MartPage() {
         title="CalebDeck Mart — Campus Grocery Delivery"
         description="Order groceries, snacks, drinks, and essentials delivered directly to your hostel at Caleb University."
       />
+
+      {flyingItem && (
+        <img
+          src={flyingItem.imageUrl}
+          alt=""
+          aria-hidden="true"
+          className="fixed z-[100] w-14 h-14 rounded-2xl object-contain bg-card border border-border shadow-2xl pointer-events-none transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
+          style={{
+            left: flyingItem.active ? flyingItem.endX : flyingItem.startX,
+            top: flyingItem.active ? flyingItem.endY : flyingItem.startY,
+            transform: flyingItem.active
+              ? 'translate(-50%, -50%) scale(0.25) rotate(12deg)'
+              : 'translate(-50%, -50%) scale(1)',
+            opacity: flyingItem.active ? 0.1 : 1
+          }}
+        />
+      )}
       
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm transition-colors duration-300">
@@ -87,10 +141,10 @@ export default function MartPage() {
             </h1>
           </div>
           <div className="flex items-center gap-4">
-             <Link to="/mart/cart" className="relative p-2 rounded-xl hover:bg-muted transition-colors">
+             <Link ref={cartIconRef} to="/mart/cart" className={`relative p-2 rounded-xl hover:bg-muted transition-all duration-300 ${flyingItem?.active ? 'scale-110 bg-[#10B981]/10' : ''}`}>
                 <ShoppingBag className="w-6 h-6 text-foreground" />
                 {totalItems > 0 && (
-                  <span className="absolute top-0 right-0 bg-[#10B981] text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full transform translate-x-1 -translate-y-1">
+                  <span className="absolute top-0 right-0 bg-[#10B981] text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full transform translate-x-1 -translate-y-1 animate-in zoom-in duration-200">
                     {totalItems}
                   </span>
                 )}
@@ -182,7 +236,7 @@ export default function MartPage() {
                   unavailable={!item.inStock}
                   className="h-full min-h-[300px] sm:min-h-[350px] group transition-all duration-300 hover:shadow-xl hover:shadow-primary/10"
                 >
-                  <div className="space-y-3 h-full flex flex-col">
+                  <div data-mart-card className="space-y-3 h-full flex flex-col">
                   <div className="relative aspect-square rounded-xl overflow-hidden bg-muted/30 flex items-center justify-center">
                     <ImageWithFallback 
                       src={item.imageUrl} 
@@ -212,24 +266,37 @@ export default function MartPage() {
                       <p className="text-base sm:text-lg text-muted-foreground font-black mt-1">₦{item.price.toLocaleString()}</p>
                     </div>
                     
-                    <div className="flex items-center justify-between mt-auto pt-3">
-                      <button
-                        onClick={() => updateQuantity(item.id, qty - 1)}
-                        disabled={!item.inStock || qty === 0}
-                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-muted hover:bg-secondary hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                        aria-label={`Remove ${item.name} from cart`}
-                      >
-                        <Minus className="w-4 h-4" />
-                      </button>
-                      <span className="font-bold text-lg sm:text-xl text-card-foreground">{qty}</span>
-                      <button
-                        onClick={() => handleAddToCart(item)}
-                        disabled={!item.inStock}
-                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-[#10B981] text-white hover:bg-[#059669] disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed transition-all flex items-center justify-center shadow-sm hover:scale-105"
-                        aria-label={`Add ${item.name} to cart`}
-                      >
-                        <Plus className="w-5 h-5" />
-                      </button>
+                    <div className="mt-auto pt-3">
+                      {qty === 0 ? (
+                        <button
+                          onClick={(event) => handleAddToCart(item, event.currentTarget)}
+                          disabled={!item.inStock}
+                          className="w-full h-10 rounded-xl bg-[#10B981] text-white hover:bg-[#059669] disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-sm hover:scale-[1.02] font-black uppercase tracking-[0.14em] text-xs"
+                          aria-label={`Select ${item.name}`}
+                        >
+                          <Plus className="w-4 h-4" />
+                          {item.inStock ? 'Select' : 'Sold Out'}
+                        </button>
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <button
+                            onClick={() => updateQuantity(item.id, qty - 1)}
+                            className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-muted hover:bg-secondary hover:text-white transition-colors flex items-center justify-center"
+                            aria-label={`Reduce ${item.name} quantity`}
+                          >
+                            <Minus className="w-4 h-4" />
+                          </button>
+                          <span className="font-bold text-lg sm:text-xl text-card-foreground">{qty}</span>
+                          <button
+                            onClick={() => handleAddToCart(item)}
+                            disabled={!item.inStock}
+                            className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-[#10B981] text-white hover:bg-[#059669] disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed transition-all flex items-center justify-center shadow-sm hover:scale-105"
+                            aria-label={`Increase ${item.name} quantity`}
+                          >
+                            <Plus className="w-5 h-5" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                     </div>
                   </div>
@@ -246,7 +313,7 @@ export default function MartPage() {
           <div className="max-w-md mx-auto">
             <Link to="/mart/cart">
               <Button variant="primary" className="w-full py-4 rounded-2xl shadow-2xl flex items-center justify-between px-6 bg-[#10B981] hover:bg-[#059669] text-white">
-                <span className="bg-white/20 px-3 py-1 rounded-lg font-bold">{totalItems} items</span>
+                <span className="bg-white/20 px-3 py-1 rounded-lg font-bold">{totalItems} {totalItems === 1 ? 'item' : 'items'}</span>
                 <span className="font-bold flex items-center gap-2">View Cart <ArrowLeft className="w-5 h-5 rotate-180" /></span>
               </Button>
             </Link>
