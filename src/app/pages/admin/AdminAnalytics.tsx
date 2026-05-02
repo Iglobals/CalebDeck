@@ -32,8 +32,9 @@ export default function AdminAnalytics() {
     const parseDate = (d: any) => d?.seconds ? new Date(d.seconds * 1000) : d ? new Date(d) : null;
     const now = new Date();
     const shouldShowLastMonth = now.getDate() <= 7;
-    const monthRange: TimeRange = shouldShowLastMonth ? 'lastMonth' : 'month';
-    const rangeOptions: TimeRange[] = ['today', 'week', monthRange];
+    const rangeOptions: TimeRange[] = shouldShowLastMonth
+        ? ['today', 'week', 'month', 'lastMonth']
+        : ['today', 'week', 'month'];
     const excludedStatuses = ['REFUNDED', 'PENDING_PAYMENT', 'FAILED', 'CANCELLED', 'TRASHED'];
     const isCalebDeckOrder = (order: any) => (
         order.type === 'mart' ||

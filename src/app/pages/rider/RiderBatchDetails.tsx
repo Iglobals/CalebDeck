@@ -29,6 +29,7 @@ export default function RiderBatchDetails() {
     }, []);
 
     const isDark = riderTheme === 'dark';
+    const getStudentNote = (order: any) => (order.notes || order.instructions || '').trim();
 
     useEffect(() => {
         if (!user) return;
@@ -279,10 +280,10 @@ export default function RiderBatchDetails() {
                                 `).join('')}
                             ` : ''}
                             
-                            ${(order.notes || order.instructions) ? `
+                            ${getStudentNote(order) ? `
                                 <div style="margin-top: 15px; padding: 10px; background: #fffbeb; border-left: 3px solid #FCD34D; border-radius: 4px;">
                                     <div class="label" style="color: #d97706;">Student Note</div>
-                                    <div style="font-size: 13px; font-weight: 600; font-style: italic; white-space: pre-wrap; word-break: break-word;">"${(order.notes || order.instructions)}"</div>
+                                    <div style="font-size: 13px; font-weight: 600; font-style: italic; white-space: pre-wrap; word-break: break-word;">"${getStudentNote(order)}"</div>
                                 </div>
                             ` : ''}
                         </div>
@@ -556,12 +557,12 @@ export default function RiderBatchDetails() {
                                                             </div>
                                                         </div>
 
-                                                        {(order.notes || order.instructions) && (
+                                                        {getStudentNote(order) && (
                                                             <div className="flex items-start gap-3 text-sm">
                                                                 <FileText className="w-4 h-4 text-amber-500 mt-0.5" />
                                                                 <div>
                                                                     <p className={`text-xs font-bold uppercase tracking-widest mb-0.5 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Student Note</p>
-                                                                    <p className={`font-medium italic border-l-2 pl-2 whitespace-pre-wrap break-words ${isDark ? 'text-[#FAF9F6] border-amber-500/50' : 'text-gray-900 border-amber-500'}`}>"{(order.notes || order.instructions)}"</p>
+                                                                    <p className={`font-medium italic border-l-2 pl-2 whitespace-pre-wrap break-words ${isDark ? 'text-[#FAF9F6] border-amber-500/50' : 'text-gray-900 border-amber-500'}`}>"{getStudentNote(order)}"</p>
                                                                 </div>
                                                             </div>
                                                         )}
@@ -697,9 +698,10 @@ export default function RiderBatchDetails() {
                                             + {order.drinksSnacks.map((d: any) => `${d.quantity > 1 ? `${d.quantity}x ` : ''}${d.item?.name || d.name}`).join(', ')}
                                         </div>
                                     )}
-                                    {(order.notes || order.instructions) && (
-                                        <div className="mt-2 p-2 bg-gray-50 border-l-2 border-gray-300 italic text-xs text-gray-600 whitespace-pre-wrap break-words">
-                                            "{(order.notes || order.instructions)}"
+                                    {getStudentNote(order) && (
+                                        <div className="mt-2 p-2 bg-gray-50 border-l-2 border-gray-300 text-xs text-gray-600 whitespace-pre-wrap break-words">
+                                            <div className="font-black uppercase tracking-widest text-[10px] text-gray-500 mb-1">Student Note</div>
+                                            <div className="italic">"{getStudentNote(order)}"</div>
                                         </div>
                                     )}
                                 </td>

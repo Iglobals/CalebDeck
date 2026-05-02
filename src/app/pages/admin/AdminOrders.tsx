@@ -224,6 +224,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
             alert('Please allow popups for this site to print tickets.');
             return;
         }
+        const studentNote = (order.notes || order.instructions || '').trim();
 
         const html = `
             <html>
@@ -240,6 +241,8 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                         .section { margin-bottom: 25px; }
                         .label { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; color: #9C8F7F; margin-bottom: 8px; }
                         .value { font-size: 18px; font-weight: 900; }
+                        .note-box { padding: 12px; background: #fffbeb; border-left: 4px solid #FCD34D; border-radius: 6px; }
+                        .note-text { font-size: 13px; font-weight: 600; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
                         .item-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed #eee; font-size: 14px; }
                         .plate-header { font-size: 11px; font-weight: 900; color: #7C3AED; text-transform: uppercase; letter-spacing: 2px; margin: 14px 0 8px; }
                         .footer { margin-top: 40px; border-top: 2px solid #7C3AED; padding-top: 20px; text-align: center; font-size: 12px; font-weight: 700; color: #9C8F7F; }
@@ -264,6 +267,12 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                         <div class="label">Delivery</div>
                         <div class="value">${order.hostelName || order.hostel}</div>
                     </div>
+                    ${studentNote ? `
+                    <div class="section note-box">
+                        <div class="label">Student Note</div>
+                        <div class="note-text">${studentNote}</div>
+                    </div>
+                    ` : ''}
                     <div class="section">
                         <div class="label">Items</div>
                         ${order.type === 'combo' ? `
