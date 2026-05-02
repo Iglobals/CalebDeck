@@ -352,7 +352,7 @@ export default function LandingPage() {
 
       {/* FAQ */}
       <section id="faq" className="py-20 md:py-28 max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="text-center max-w-3xl mx-auto mb-12 md:mb-16">
+        <div className="text-left md:text-center max-w-3xl mx-auto mb-12 md:mb-16">
             <div className="inline-flex items-center justify-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-bold">
               <HelpCircle className="w-4 h-4" />
               Questions students ask
