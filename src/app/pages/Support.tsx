@@ -26,11 +26,10 @@ export default function Support() {
             <h2 className="text-2xl font-semibold mt-8 mb-4 text-secondary">How can we help?</h2>
             <p>
               If you have any questions, feedback, or issues while using CalebDeck,
-              we're here to help. Below are a few ways to get support:
+              we're here to help. WhatsApp is the fastest way to reach support:
             </p>
             <ul className="list-disc list-inside space-y-2 ml-4">
               <li>Message us on WhatsApp: <a href="https://wa.me/2348072550635" className="underline" target="_blank" rel="noopener noreferrer">0807 255 0635</a></li>
-              <li>Email us at <a href="mailto:support@calebdeck.com" className="underline">support@calebdeck.com</a></li>
               <li>For order issues, send your name, order ID, hostel, and a clear explanation</li>
             </ul>
           </section>
@@ -62,11 +61,10 @@ export default function Support() {
           <section>
             <h2 className="text-2xl font-semibold mt-8 mb-4 text-secondary">Contact</h2>
             <p>
-              We are available via email or WhatsApp. Please include as much detail as possible
+              We are available on WhatsApp. Please include as much detail as possible
               so we can assist you quickly.
             </p>
             <p className="flex flex-col sm:flex-row gap-4">
-              <a href="mailto:support@calebdeck.com" className="underline">support@calebdeck.com</a>
               <a
                 href="https://wa.me/2348072550635"
                 target="_blank"

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { Logo } from '../../components/design-system/Logo';
 import { Button } from '../../components/design-system/Button';
 import { Card } from '../../components/design-system/Card';
-import { Clock, CheckCircle, Truck, Star, ArrowRight, Smartphone, Share, PlusSquare, MoreVertical, HelpCircle, MessageCircle } from 'lucide-react';
+import { Clock, CheckCircle, Truck, Star, ArrowRight, Smartphone, Share, PlusSquare, MoreVertical, HelpCircle, MessageCircle, Utensils, ShoppingBag, X } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -16,6 +16,7 @@ export default function LandingPage() {
   const { studentTheme } = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const supportWhatsapp = 'https://wa.me/2348072550635';
 
   // Global Review State
   const [isReviewOpen, setIsReviewOpen] = useState(false);
@@ -148,7 +149,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       <SEO
-        title="CalebDeck — Caleb University Campus Delivery"
+        title="CalebDeck - Caleb University Campus Delivery"
         description="Campus delivery for Caleb University students. Place convenient campus orders to your hostel area or assigned pickup point."
       />
 
@@ -201,12 +202,12 @@ export default function LandingPage() {
               Open for Campus Orders
             </div>
             <h1 className="text-3xl sm:text-5xl md:text-7xl leading-tight tracking-tight font-bold">
-              Campus orders <br />
-              without the <br />
-              the stress.
+              Place your <br />
+              campus orders <br />
+              without stress.
             </h1>
             <p className="text-base sm:text-xl text-muted-foreground leading-relaxed max-w-lg">
-              Skip the cafeteria queue, handle useful campus needs, and get your order delivered to your hostel area or assigned pickup point.
+              Order meals, snacks, essentials, and other campus needs through CalebDeck, then meet your rider at your hostel area or assigned pickup point.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Link to="/cafeteria">
@@ -269,7 +270,7 @@ export default function LandingPage() {
           <Link to="/cafeteria" className="group">
             <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl ${studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#FCD34D]/20' : 'bg-amber-50/50 border-amber-200'}`}>
               <div className="w-16 h-16 rounded-2xl bg-[#FCD34D]/20 flex items-center justify-center mb-6">
-                <span className="text-3xl">🍽️</span>
+                <Utensils className="w-8 h-8 text-[#FCD34D]" />
               </div>
               <h3 className={`text-2xl font-bold mb-3 ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Food Delivery</h3>
               <p className={`text-lg mb-6 ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Hot meals from campus cafeterias delivered to your hostel area or agreed pickup point.</p>
@@ -280,7 +281,7 @@ export default function LandingPage() {
           <Link to="/mart" className="group">
             <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl ${studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#10B981]/20' : 'bg-emerald-50/50 border-emerald-200'}`}>
               <div className="w-16 h-16 rounded-2xl bg-[#10B981]/20 flex items-center justify-center mb-6">
-                <span className="text-3xl">🛒</span>
+                <ShoppingBag className="w-8 h-8 text-[#10B981]" />
               </div>
               <h3 className={`text-2xl font-bold mb-3 ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>CalebDeck Mart</h3>
               <p className={`text-lg mb-6 ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Groceries, snacks, drinks, and essentials delivered around campus when you need them.</p>
@@ -351,31 +352,25 @@ export default function LandingPage() {
 
       {/* FAQ */}
       <section id="faq" className="py-20 md:py-28 max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="grid lg:grid-cols-[0.8fr_1.2fr] gap-10 lg:gap-16 items-start">
-          <div className="space-y-5">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-bold">
+        <div className="text-center max-w-3xl mx-auto mb-12 md:mb-16">
+            <div className="inline-flex items-center justify-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-bold">
               <HelpCircle className="w-4 h-4" />
               Questions students ask
             </div>
-            <h2 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight">
+            <h2 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight mt-5">
               Clear answers before you order.
             </h2>
-            <p className="text-lg text-muted-foreground leading-relaxed">
+            <p className="text-lg text-muted-foreground leading-relaxed mt-5">
               CalebDeck works best when pickup points, backup food choices, and support details are clear from the start.
             </p>
-            <Link to="/support" className="inline-flex items-center gap-2 text-secondary font-black hover:gap-3 transition-all">
-              <MessageCircle className="w-5 h-5" />
-              Contact support
-            </Link>
-          </div>
-          <div className="space-y-4">
+        </div>
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5 lg:gap-6">
             {faqs.map((faq) => (
-              <Card key={faq.question} className="border border-border/60 bg-card/50 shadow-sm">
+              <Card key={faq.question} className="border border-border/60 bg-card/50 shadow-sm h-full">
                 <h3 className="text-lg font-black mb-2">{faq.question}</h3>
                 <p className="text-muted-foreground leading-relaxed">{faq.answer}</p>
               </Card>
             ))}
-          </div>
         </div>
       </section>
 
@@ -463,6 +458,32 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Support */}
+      <section className="py-16 md:py-24 max-w-7xl mx-auto px-4 sm:px-6">
+        <div className={`grid md:grid-cols-[0.9fr_1.1fr] gap-8 lg:gap-12 items-center rounded-[2rem] border p-8 sm:p-10 md:p-14 ${studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#333333]' : 'bg-gray-50 border-gray-100'}`}>
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 border border-secondary/20 text-secondary text-sm font-bold mb-5">
+              <MessageCircle className="w-4 h-4" />
+              Customer Support
+            </div>
+            <h2 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight">
+              Still need clarity?
+            </h2>
+            <p className="text-lg text-muted-foreground leading-relaxed mt-4">
+              Reach CalebDeck support with your name, order ID, hostel, and what happened so the team can trace it quickly.
+            </p>
+          </div>
+          <div>
+            <a href={supportWhatsapp} target="_blank" rel="noopener noreferrer" className={`block rounded-2xl border p-5 transition-all hover:-translate-y-1 ${studentTheme === 'dark' ? 'bg-[#222222] border-[#333333] hover:border-secondary/50' : 'bg-white border-gray-100 hover:border-secondary/40'}`}>
+              <MessageCircle className="w-6 h-6 text-secondary mb-4" />
+              <p className="font-black text-xl">Chat on WhatsApp</p>
+              <p className="text-sm text-muted-foreground mt-2">0807 255 0635</p>
+              <p className="text-sm text-muted-foreground mt-4 leading-relaxed">Fastest way to get help with payment confirmation, pickup point questions, wrong orders, or delivery issues.</p>
+            </a>
+          </div>
+        </div>
+      </section>
+
       <footer className="border-t border-border py-20 bg-muted/20">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-12">
@@ -486,14 +507,14 @@ export default function LandingPage() {
          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
             <div className="bg-card w-full max-w-md rounded-3xl p-8 relative shadow-2xl">
                <button onClick={() => setIsReviewOpen(false)} className="absolute top-6 right-6 text-muted-foreground hover:text-foreground text-2xl leading-none">
-                  ×
+                  <X className="w-6 h-6" />
                </button>
                <h3 className="text-2xl font-black mb-2 text-center text-[#7C3AED]">Rate Your Experience</h3>
                <p className="text-sm text-center text-muted-foreground mb-6">How was your recent order from {pastOrder.cafeteria || 'us'}?</p>
                <div className="flex justify-center gap-2 mb-6">
                   {[1, 2, 3, 4, 5].map((star) => (
-                     <button key={star} onClick={() => setReviewRating(star)} className={`text-4xl transition-transform ${star <= reviewRating ? 'text-[#FCD34D] scale-110' : 'text-gray-300'}`}>
-                        ★
+                     <button key={star} onClick={() => setReviewRating(star)} className={`transition-transform ${star <= reviewRating ? 'text-[#FCD34D] scale-110' : 'text-gray-300'}`}>
+                        <Star className="w-10 h-10 fill-current" />
                      </button>
                   ))}
                </div>

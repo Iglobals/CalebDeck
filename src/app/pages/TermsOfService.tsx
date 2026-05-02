@@ -79,7 +79,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-2xl font-semibold mt-8 mb-4 text-secondary">9. Contact Information</h2>
             <p>
-              If you have any questions about these Terms of Service, please contact us at: support@calebdeck.com
+              If you have any questions about these Terms of Service, please contact us on WhatsApp at 0807 255 0635.
             </p>
           </section>
         </div>
