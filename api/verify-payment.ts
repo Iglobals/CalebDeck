@@ -275,12 +275,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             try {
                 const notifyName = isPreSaved ? existingDoc.data()?.fullName : orderDoc.fullName;
                 const notifyHostel = isPreSaved ? existingDoc.data()?.hostelName : orderDoc.hostelName;
+                const notifyIsMart = isPreSaved ? existingDoc.data()?.type === 'mart' : isMartOrder;
                 await db.collection('notifications').add({
                     userId: 'admin',
-                    title: 'New Order Received',
+                    title: notifyIsMart ? 'New Mart Order Received' : 'New Order Received',
                     message: `${notifyName || 'A student'} just ordered from ${notifyHostel || 'campus'}`,
                     type: 'order',
-                    link: '/admin/orders',
+                    link: notifyIsMart ? '/admin/mart/orders' : '/admin/orders',
                     isRead: false,
                     createdAt: FieldValue.serverTimestamp()
                 });
@@ -306,6 +307,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     const host = req.headers.host || 'calebdeck.com';
                     const apiUrl = `${protocol}://${host}/api/send-push`;
                     const adminMsg = `${orderDoc.fullName || 'A student'} just ordered from ${orderDoc.hostelName || orderDoc.hostel}`;
+                    const pushLink = isMartOrder ? '/admin/mart/orders' : '/admin/orders';
 
                     await fetch(apiUrl, {
                         method: 'POST',
@@ -314,10 +316,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             'X-Api-Key': process.env.INTERNAL_API_KEY
                         },
                         body: JSON.stringify({
-                            title: 'New Order',
+                            title: isMartOrder ? 'New Mart Order' : 'New Order',
                             body: adminMsg,
                             tokens: allAdminTokens,
-                            link: '/admin/orders'
+                            link: pushLink
                         })
                     }).catch(err => console.error('[verify-payment] Push error:', err));
                 }

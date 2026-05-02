@@ -87,12 +87,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 // Send admin notification since this is the payment confirmation
                 try {
                     const adminMsg = `${existingData.fullName} just ordered from ${existingData.hostelName || existingData.hostel}`;
+                    const notifyIsMart = existingData.type === 'mart' || isMartOrder;
+                    const notifyLink = notifyIsMart ? '/admin/mart/orders' : '/admin/orders';
                     await db.collection('notifications').add({
                         userId: 'admin',
-                        title: 'New Order',
+                        title: notifyIsMart ? 'New Mart Order' : 'New Order',
                         message: adminMsg,
                         type: 'order',
-                        link: '/admin/orders',
+                        link: notifyLink,
                         isRead: false,
                         createdAt: FieldValue.serverTimestamp()
                     });
@@ -113,7 +115,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         await fetch(apiUrl, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'X-Api-Key': process.env.INTERNAL_API_KEY },
-                            body: JSON.stringify({ title: 'New Order', body: adminMsg, tokens: allAdminTokens, link: '/admin/orders' })
+                            body: JSON.stringify({ title: notifyIsMart ? 'New Mart Order' : 'New Order', body: adminMsg, tokens: allAdminTokens, link: notifyLink })
                         }).catch(err => console.error('[Webhook] Push error:', err));
                     }
                 } catch (err) {
@@ -212,12 +214,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // 5. Admin notification
         try {
             const adminMsg = `${orderDoc.fullName} just ordered from ${orderDoc.hostelName || orderDoc.hostel}`;
+            const notifyLink = isMartOrder ? '/admin/mart/orders' : '/admin/orders';
             await db.collection('notifications').add({
                 userId: 'admin',
-                title: 'New Order',
+                title: isMartOrder ? 'New Mart Order' : 'New Order',
                 message: adminMsg,
                 type: 'order',
-                link: '/admin/orders',
+                link: notifyLink,
                 isRead: false,
                 createdAt: FieldValue.serverTimestamp()
             });
@@ -245,10 +248,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         'X-Api-Key': process.env.INTERNAL_API_KEY
                     },
                     body: JSON.stringify({
-                        title: 'New Order',
+                        title: isMartOrder ? 'New Mart Order' : 'New Order',
                         body: adminMsg,
                         tokens: allAdminTokens,
-                        link: '/admin/orders'
+                        link: notifyLink
                     })
                 }).catch(err => console.error('[Webhook] API Push error:', err));
             }
