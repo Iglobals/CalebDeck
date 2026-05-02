@@ -45,33 +45,6 @@ export default function MartCheckout() {
     }
   }, [items, navigate]);
 
-  const currentHour = new Date().getHours();
-  const openingHour = platformSettings?.systemOpeningHour ?? 10;
-  const closingHour = platformSettings?.systemClosingHour ?? 18;
-  const isOutOfHours = currentHour < openingHour || currentHour >= closingHour; 
-  const isMaintenance = platformSettings?.isMartAcceptingOrders === false;
-  const isClosed = (isOutOfHours || isMaintenance) && !isDev;
-
-  if (isClosed) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <Card className="text-center max-w-md w-full py-12 px-8">
-          <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Clock className="w-10 h-10 text-amber-500" />
-          </div>
-          <h2 className="text-3xl font-bold mb-4">Mart is Closed</h2>
-          <p className="text-muted-foreground mb-10 text-lg">
-            CalebDeck Mart operates between {openingHour}:00 and {closingHour}:00. 
-            {isMaintenance && " We are currently under maintenance."}
-          </p>
-          <Link to="/mart" className="inline-block w-full">
-            <Button variant="primary" className="w-full py-6 text-xl rounded-2xl">Back to Mart</Button>
-          </Link>
-        </Card>
-      </div>
-    );
-  }
-
   useEffect(() => {
     const fetchHostels = async () => {
       try {
@@ -86,6 +59,33 @@ export default function MartCheckout() {
     const unsub = subscribeToPlatformSettings(setPlatformSettings);
     return () => unsub();
   }, []);
+
+  const currentHour = new Date().getHours();
+  const openingHour = platformSettings?.systemOpeningHour ?? 10;
+  const closingHour = platformSettings?.systemClosingHour ?? 18;
+  const isOutOfHours = currentHour < openingHour || currentHour >= closingHour; 
+  const isMaintenance = platformSettings?.isAcceptingOrders === false || platformSettings?.isMartComingSoon === true || platformSettings?.isMartAcceptingOrders === false;
+  const isClosed = (isOutOfHours || isMaintenance) && !isDev;
+
+  if (isClosed) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <Card className="text-center max-w-md w-full py-12 px-8">
+          <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Clock className="w-10 h-10 text-amber-500" />
+          </div>
+          <h2 className="text-3xl font-bold mb-4">Mart is Closed</h2>
+          <p className="text-muted-foreground mb-10 text-lg">
+            CalebDeck Mart follows CalebDeck operating hours: {openingHour}:00 to {closingHour}:00. 
+            {isMaintenance && " We are currently under maintenance."}
+          </p>
+          <Link to="/mart" className="inline-block w-full">
+            <Button variant="primary" className="w-full py-6 text-xl rounded-2xl">Back to Mart</Button>
+          </Link>
+        </Card>
+      </div>
+    );
+  }
 
   const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
 
@@ -228,7 +228,7 @@ export default function MartCheckout() {
       return toast.info('Please accept the female hostel delivery agreement before payment.');
     }
 
-    if (platformSettings && !isDev && (platformSettings.isAcceptingOrders === false || platformSettings.isMartComingSoon === true)) {
+    if (isClosed) {
       toast.error("Ordering is temporarily paused for maintenance. Please try again later.");
       return;
     }

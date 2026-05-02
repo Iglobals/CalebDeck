@@ -103,6 +103,14 @@ export default function MartPage() {
     });
   };
 
+  const isDev = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const currentHour = new Date().getHours();
+  const openingHour = platformSettings?.systemOpeningHour ?? 10;
+  const closingHour = platformSettings?.systemClosingHour ?? 18;
+  const isOutOfHours = currentHour < openingHour || currentHour >= closingHour;
+  const isMaintenance = platformSettings?.isAcceptingOrders === false || platformSettings?.isMartComingSoon === true;
+  const isMartClosed = (isOutOfHours || isMaintenance) && !isDev;
+
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300 pb-24">
       <SEO
@@ -153,15 +161,16 @@ export default function MartPage() {
         </div>
       </header>
 
-      {platformSettings?.isMartComingSoon === true && !(import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
+      {isMartClosed && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
           <div className="max-w-md w-full bg-card border border-border rounded-3xl p-8 text-center shadow-2xl animate-fade-in-up">
             <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
               <Package className="w-10 h-10 text-primary animate-bounce" />
             </div>
-            <h2 className="text-3xl font-black mb-4">We're Stocking the Shelves! 📦</h2>
+            <h2 className="text-3xl font-black mb-4">Mart is Closed</h2>
             <p className="text-muted-foreground mb-8 text-lg font-medium">
-              CalebDeck Mart is temporarily closed while we restock inventory and upload new product images. We'll be back online shortly!
+              CalebDeck Mart follows CalebDeck operating hours: {openingHour}:00 to {closingHour}:00.
+              {isMaintenance && " Ordering is currently paused for maintenance."}
             </p>
             <Link to="/">
               <Button variant="primary" className="w-full py-4 text-base rounded-xl font-bold">

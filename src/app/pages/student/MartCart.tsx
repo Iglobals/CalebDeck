@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { ArrowLeft, Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Trash2, Plus, Minus, ShoppingBag, Clock } from 'lucide-react';
 import { useMartCart } from '../../../context/MartCartContext';
 import { Button } from '../../components/design-system/Button';
 import { useTheme } from '../../../context/ThemeContext';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import SEO from '../../components/SEO';
+import { PlatformSettings, subscribeToPlatformSettings } from '../../../services/db';
 
 const MART_DELIVERY_FEE = 1500; // Flat fee for Mart Delivery
 
@@ -13,6 +14,20 @@ export default function MartCart() {
   const { items, updateQuantity, removeItem, totalItems, subtotal } = useMartCart();
   const navigate = useNavigate();
   const { studentTheme } = useTheme();
+  const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+
+  useEffect(() => {
+    const unsub = subscribeToPlatformSettings(setPlatformSettings);
+    return () => unsub();
+  }, []);
+
+  const isDev = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const currentHour = new Date().getHours();
+  const openingHour = platformSettings?.systemOpeningHour ?? 10;
+  const closingHour = platformSettings?.systemClosingHour ?? 18;
+  const isOutOfHours = currentHour < openingHour || currentHour >= closingHour;
+  const isMaintenance = platformSettings?.isAcceptingOrders === false || platformSettings?.isMartComingSoon === true;
+  const isMartClosed = (isOutOfHours || isMaintenance) && !isDev;
 
   if (items.length === 0) {
     return (
@@ -116,8 +131,21 @@ export default function MartCart() {
         </div>
 
         <div className="mt-8">
-          <Link to="/mart/checkout">
-            <Button variant="primary" className="w-full py-5 text-lg rounded-2xl shadow-xl shadow-[#10B981]/20 bg-[#10B981] hover:bg-[#059669]">
+          {isMartClosed && (
+            <div className="mb-4 p-4 rounded-2xl bg-amber-500/10 border-2 border-amber-500/20 text-amber-700 dark:text-amber-300 flex gap-3">
+              <Clock className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <p className="text-sm font-semibold leading-relaxed">
+                Mart checkout is currently closed. CalebDeck operating hours are {openingHour}:00 to {closingHour}:00.
+                {isMaintenance && " Ordering is paused for maintenance."}
+              </p>
+            </div>
+          )}
+          <Link to={isMartClosed ? "#" : "/mart/checkout"} onClick={(event) => {
+            if (isMartClosed) {
+              event.preventDefault();
+            }
+          }}>
+            <Button variant="primary" disabled={isMartClosed} className="w-full py-5 text-lg rounded-2xl shadow-xl shadow-[#10B981]/20 bg-[#10B981] hover:bg-[#059669] disabled:opacity-60 disabled:cursor-not-allowed">
               Proceed to Checkout
             </Button>
           </Link>
