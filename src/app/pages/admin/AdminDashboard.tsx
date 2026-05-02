@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
 import { Badge } from '../../components/design-system/Badge';
@@ -122,9 +122,9 @@ export default function AdminDashboard() {
     const assistantRider = getRider(hostel.assistantRiderId);
 
     let dispatchRider: Rider | null = null;
-    if (defaultRider?.status === 'available') {
+    if (defaultRider?.status === 'available' && defaultRider.isActive === true) {
       dispatchRider = defaultRider;
-    } else if (assistantRider?.status === 'available') {
+    } else if (assistantRider?.status === 'available' && assistantRider.isActive === true) {
       dispatchRider = assistantRider;
     }
 
@@ -169,7 +169,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const onlineRiders = riders.filter(r => r.status === 'available' && r.isActive !== false);
+  const onlineRiders = riders.filter(r => r.status === 'available' && r.isActive === true);
 
   const kpis = [
     {
@@ -181,29 +181,29 @@ export default function AdminDashboard() {
     },
     {
       label: 'Gross Revenue',
-      value: `â‚¦${totalRevenue.toLocaleString()}`,
+      value: `₦${totalRevenue.toLocaleString()}`,
       change: `${todayPaidOrders.length} orders`,
       icon: <DollarSign className="w-6 h-6" />,
       color: '#FCD34D'
     },
     {
       label: 'Delivery Fees Collected',
-      value: `â‚¦${totalDeliveryFees.toLocaleString()}`,
+      value: `₦${totalDeliveryFees.toLocaleString()}`,
       change: 'reserved for payout/profit',
       icon: <CheckCircle className="w-6 h-6" />,
       color: '#10B981'
     },
     {
       label: 'Service Fees',
-      value: `â‚¦${totalSystemFees.toLocaleString()}`,
+      value: `₦${totalSystemFees.toLocaleString()}`,
       change: 'platform net revenue',
       icon: <Zap className="w-6 h-6" />,
       color: '#3B82F6'
     },
     {
       label: 'Riders Online',
-      value: `${riders.filter(r => r.status === 'available').length}/${riders.filter(r => r.isActive !== false).length}`,
-      change: `${riders.filter(r => r.status === 'available').length} available`,
+      value: `${riders.filter(r => r.status === 'available' && r.isActive === true).length}/${riders.filter(r => r.isActive === true).length}`,
+      change: `${riders.filter(r => r.status === 'available' && r.isActive === true).length} available`,
       icon: <Users className="w-6 h-6" />,
       color: '#7C3AED'
     },
