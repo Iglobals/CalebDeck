@@ -61,6 +61,9 @@ export const subscribeToMartItems = (callback: (items: MartItem[]) => void) => {
       ...doc.data()
     } as MartItem));
     callback(items);
+  }, (error) => {
+    console.error('subscribeToMartItems error:', error);
+    callback([]);
   });
 };
 

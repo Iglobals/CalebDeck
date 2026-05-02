@@ -117,6 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (isMartOrder) {
             const items = orderData?.items || [];
             let martTotal = 0;
+            const martDeliveryFee = orderData?.deliveryFee || 1500;
             if (items.length > 0) {
                 const itemRefs = items.map((i: any) => db!.collection('mart_items').doc(i.id));
                 const itemDocs = await db!.getAll(...itemRefs);
@@ -127,7 +128,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     martTotal += currentPrice * qty;
                 }
             }
-            serverTotal = martTotal + baseDeliveryFee + platformFee + processingFee;
+            serverTotal = martTotal + martDeliveryFee + platformFee + processingFee;
         } else if (isCombo) {
             const comboDoc = await db.collection('combo_packs').doc(orderData.comboId).get();
             if (!comboDoc.exists) {
@@ -211,8 +212,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.type = 'mart';
             orderDoc.items = orderData.items || [];
             orderDoc.totalAmount = paidAmount;
-            orderDoc.subtotal = orderData?.subtotal || (paidAmount - baseDeliveryFee - platformFee - processingFee);
-            orderDoc.deliveryFee = baseDeliveryFee;
+            orderDoc.subtotal = orderData?.subtotal || (paidAmount - (orderData?.deliveryFee || 1500) - platformFee - processingFee);
+            orderDoc.deliveryFee = orderData?.deliveryFee || 1500;
             orderDoc.serviceProcessingFee = platformFee + processingFee;
             delete orderDoc.total;
             delete orderDoc.cafeteria;

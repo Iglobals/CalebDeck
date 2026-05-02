@@ -294,7 +294,7 @@ export const dispatchBatch = async (hostelId: string, hostelName: string, rider:
         riderName: rider.name,
         orderIds: orders.map(o => o.id),
         orderCount: orders.length,
-        plateCount: orders.reduce((sum, o) => sum + (o.type === 'combo' ? (o.quantity || 1) : (o.plates?.length || 0)), 0),
+        plateCount: orders.reduce((sum, o) => sum + (o.type === 'combo' ? (o.quantity || 1) : o.type === 'mart' ? ((o.items || []).reduce((itemSum: number, item: any) => itemSum + (item.quantity || 1), 0)) : (o.plates?.length || 0)), 0),
         status: 'OUT_FOR_DELIVERY',
         isEmergency,
         createdAt: new Date().toISOString(),

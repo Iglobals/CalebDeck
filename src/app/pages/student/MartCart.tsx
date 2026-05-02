@@ -27,7 +27,7 @@ export default function MartCart() {
   const closingHour = platformSettings?.systemClosingHour ?? 18;
   const isOutOfHours = currentHour < openingHour || currentHour >= closingHour;
   const isMaintenance = platformSettings?.isAcceptingOrders === false || platformSettings?.isMartComingSoon === true;
-  const isMartClosed = (isOutOfHours || isMaintenance) && !isDev;
+  const isMartClosed = !!platformSettings && (isOutOfHours || isMaintenance) && !isDev;
 
   if (items.length === 0) {
     return (

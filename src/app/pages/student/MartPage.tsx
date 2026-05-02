@@ -45,14 +45,16 @@ export default function MartPage() {
   const { items: cartItems, addItem, updateQuantity, totalItems } = useMartCart();
 
   useEffect(() => {
+    const loadingTimeout = window.setTimeout(() => setLoading(false), 8000);
     const unsubscribeItems = subscribeToMartItems((fetchedItems) => {
       setItems(fetchedItems);
       setLoading(false);
+      window.clearTimeout(loadingTimeout);
     });
     const unsubscribeSettings = subscribeToPlatformSettings((settings) => {
       setPlatformSettings(settings);
     });
-    return () => { unsubscribeItems(); unsubscribeSettings(); };
+    return () => { window.clearTimeout(loadingTimeout); unsubscribeItems(); unsubscribeSettings(); };
   }, []);
 
   const filteredItems = items.filter(item => {
@@ -109,7 +111,7 @@ export default function MartPage() {
   const closingHour = platformSettings?.systemClosingHour ?? 18;
   const isOutOfHours = currentHour < openingHour || currentHour >= closingHour;
   const isMaintenance = platformSettings?.isAcceptingOrders === false || platformSettings?.isMartComingSoon === true;
-  const isMartClosed = (isOutOfHours || isMaintenance) && !isDev;
+  const isMartClosed = !!platformSettings && (isOutOfHours || isMaintenance) && !isDev;
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300 pb-24">

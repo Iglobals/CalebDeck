@@ -28,7 +28,7 @@ export default function CafeteriaSelection() {
   
   const openingHour = platformSettings?.systemOpeningHour ?? 10;
   const closingHour = platformSettings?.systemClosingHour ?? 18;
-  const isClosed = hour < openingHour || hour >= closingHour;
+  const isClosed = !!platformSettings && (hour < openingHour || hour >= closingHour || platformSettings.isAcceptingOrders === false);
   const statusLabel = isClosed ? 'CalebDeck is Closed' : 'Open now';
   const statusType = isClosed ? 'inactive' : 'active';
 

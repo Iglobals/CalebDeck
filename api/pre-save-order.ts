@@ -62,6 +62,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         }
 
+        const isMartOrder = orderData.orderType === 'mart' || orderData.type === 'mart';
+
         // Strip base64 images from plates (same safety as verify-payment)
         const cleanPlates = (orderData.plates || []).map((plate: any) => {
             const { image, ...rest } = plate;
@@ -87,7 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             hostel: orderData.hostel || '',
             hostelName: orderData.hostelName || '',
             instructions: orderData.instructions || '',
-            total: orderData.total || 0,
+            total: isMartOrder ? undefined : (orderData.total || 0),
             cafeteria: orderData.cafeteria || '',
             cafeteriaId: orderData.cafeteriaId || '',
             sectionId: orderData.sectionId || 'none',
@@ -101,8 +103,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             updatedAt: FieldValue.serverTimestamp()
         };
 
-        // Handle combo vs regular orders
-        if (orderData.type === 'combo') {
+        // Handle mart, combo, and regular food orders
+        if (isMartOrder) {
+            orderDoc.type = 'mart';
+            orderDoc.items = orderData.items || [];
+            orderDoc.totalAmount = orderData.totalAmount || orderData.total || 0;
+            orderDoc.subtotal = orderData.subtotal || 0;
+            orderDoc.deliveryFee = orderData.deliveryFee || 1500;
+            orderDoc.serviceProcessingFee = orderData.serviceProcessingFee || 300;
+            delete orderDoc.total;
+            delete orderDoc.cafeteria;
+            delete orderDoc.cafeteriaId;
+            delete orderDoc.sectionId;
+            delete orderDoc.deliveryMode;
+        } else if (orderData.type === 'combo') {
             orderDoc.type = 'combo';
             orderDoc.comboId = orderData.comboId;
             orderDoc.comboName = orderData.comboName;

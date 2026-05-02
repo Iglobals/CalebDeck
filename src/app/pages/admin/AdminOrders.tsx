@@ -19,7 +19,12 @@ import { subscribeToAllOrders, subscribeToHostels, Hostel, subscribeToRiders, Ri
 import { formatDistanceToNow } from 'date-fns';
 import { useTheme } from '../../../context/ThemeContext';
 
-export default function AdminOrders() {
+type AdminOrdersProps = {
+    orderType?: 'food' | 'mart';
+    title?: string;
+};
+
+export default function AdminOrders({ orderType = 'food', title = "Today's Orders" }: AdminOrdersProps = {}) {
     const [orders, setOrders] = useState<any[]>([]);
     const [hostels, setHostels] = useState<Hostel[]>([]);
     const [loading, setLoading] = useState(true);
@@ -53,10 +58,33 @@ export default function AdminOrders() {
         return formatDistanceToNow(d, { addSuffix: true });
     };
 
+    const getOrderAmount = (order: any) => order.totalAmount ?? order.total ?? 0;
+    const getOrderItemCount = (order: any) => {
+        if (order.type === 'combo') return order.quantity || 1;
+        if (order.type === 'mart') return (order.items || []).reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
+        return order.plates?.length || 0;
+    };
+    const getOrderDeliveryFee = (order: any) => {
+        if (typeof order.deliveryFee === 'number') return order.deliveryFee;
+        if (typeof order.breakdown?.delivery === 'number') return order.breakdown.delivery;
+        if (order.type === 'mart') return 1500;
+
+        const plateCount = order.type === 'combo' ? (order.quantity || 1) : (order.plates?.length || 1);
+        const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
+        const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((order.hostel || order.hostelName || '').toString().toLowerCase());
+        const baseDeliveryRate = isPremiumHostel ? 1250 : (isGroup ? 580 : 750);
+        return baseDeliveryRate * plateCount;
+    };
+    const getOrderServiceFee = (order: any) => {
+        if (typeof order.serviceProcessingFee === 'number') return order.serviceProcessingFee;
+        return (order.breakdown?.processing || 200) + (order.breakdown?.platform || 100);
+    };
+
     const today = new Date().toLocaleDateString();
 
     const todayOrders = orders.filter(o => {
-        if (o.type === 'mart') return false;
+        if (orderType === 'food' && o.type === 'mart') return false;
+        if (orderType === 'mart' && o.type !== 'mart') return false;
         if (o.status === 'TRASHED' || o.status === 'CANCELLED' || o.status === 'FAILED') return false;
         
         // Treat old PENDING_PAYMENT as failed
@@ -89,7 +117,8 @@ export default function AdminOrders() {
     });
 
     const failedOrders = orders.filter(o => {
-        if (o.type === 'mart') return false;
+        if (orderType === 'food' && o.type === 'mart') return false;
+        if (orderType === 'mart' && o.type !== 'mart') return false;
         const d = parseDate(o.createdAt);
         if (!d || d.toLocaleDateString() !== today) return false;
         
@@ -281,7 +310,7 @@ export default function AdminOrders() {
                             `).join('')}
                         ` : ''}
                     </div>
-                    <span class="total">₦${order.total?.toLocaleString()}</span>
+                    <span class="total">₦${getOrderAmount(order).toLocaleString()}</span>
                     <div class="footer">CalebDeck — ${new Date().toLocaleDateString()}</div>
                     <button class="close-btn" onclick="window.close()">Close Receipt</button>
                 </body>
@@ -297,7 +326,7 @@ export default function AdminOrders() {
     };
 
     return (
-        <AdminLayout title="Today's Orders">
+        <AdminLayout title={title}>
             {loading ? (
                 <div className="flex flex-col items-center justify-center py-32 gap-4">
                     <div className={`w-12 h-12 border-4 border-t-transparent rounded-full animate-spin ${isDark ? 'border-[#7C3AED]' : 'border-purple-600'}`}></div>
@@ -436,7 +465,7 @@ export default function AdminOrders() {
                                                             </div>
                                                         </div>
                                                         <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 sm:gap-3 shrink-0 ml-2">
-                                                            <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{order.total?.toLocaleString()}</span>
+                                                            <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{getOrderAmount(order).toLocaleString()}</span>
                                                             {getStatusBadge(order.status)}
                                                         </div>
                                                     </div>
@@ -471,7 +500,7 @@ export default function AdminOrders() {
                                                     )}
                                                 </div>
                                                 <div className="flex items-center gap-3">
-                                                    <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{order.total?.toLocaleString()}</span>
+                                                    <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{getOrderAmount(order).toLocaleString()}</span>
                                                     {getStatusBadge(order.status)}
                                                 </div>
                                             </div>
@@ -501,7 +530,7 @@ export default function AdminOrders() {
                                                 </div>
                                                 <div className="flex justify-between items-end">
                                                     <div className="space-y-1"><p className={`text-[10px] font-bold ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{order.hostelName || order.hostel || 'Unknown'}</p><p className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{formatDate(order.createdAt)}</p></div>
-                                                    <span className={`text-xs font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{order.total?.toLocaleString()}</span>
+                                                    <span className={`text-xs font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{getOrderAmount(order).toLocaleString()}</span>
                                                 </div>
                                             </Card>
                                         ))}
@@ -568,7 +597,7 @@ export default function AdminOrders() {
                                         <div className="flex flex-col gap-6">
                                             <div className="min-w-0">
                                                 <p className={`text-xs font-bold mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Total Paid</p>
-                                                <h3 className="text-3xl font-black text-[#10B981]">₦{selectedOrder.total?.toLocaleString()}</h3>
+                                                <h3 className="text-3xl font-black text-[#10B981]">₦{getOrderAmount(selectedOrder).toLocaleString()}</h3>
                                             </div>
                                             <div className="w-fit">
                                                 {getStatusBadge(selectedOrder.status)}
@@ -585,12 +614,35 @@ export default function AdminOrders() {
                                     </div>
 
                                     {/* Order Items breakdown */}
-                                    {selectedOrder.type === 'combo' ? (
+                                    {selectedOrder.type === 'mart' ? (
+                                        <div className={`p-8 rounded-3xl border transition-all ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white shadow-sm'}`}>
+                                            <div className="flex justify-between items-center mb-6">
+                                                <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#10B981]">Mart Items</h5>
+                                                <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-black'}`}>
+                                                    ₦{(selectedOrder.subtotal || 0).toLocaleString()}
+                                                </span>
+                                            </div>
+                                            <div className="space-y-4">
+                                                {(selectedOrder.items || []).map((item: any, iidx: number) => (
+                                                    <div key={iidx} className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10 last:border-0">
+                                                        <div>
+                                                            <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{item.name}</p>
+                                                            <p className="text-[10px] font-bold text-[#9C8F7F] mt-1">{item.category}</p>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-black px-2 py-1 rounded bg-[#10B981]/10 text-[#10B981]">×{item.quantity || 1}</span>
+                                                            <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>₦{((item.price || 0) * (item.quantity || 1)).toLocaleString()}</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : selectedOrder.type === 'combo' ? (
                                         <div className={`p-8 rounded-3xl border transition-all ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white shadow-sm'}`}>
                                             <div className="flex justify-between items-center mb-6">
                                                 <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#7C3AED]">{selectedOrder.comboName} × {selectedOrder.quantity || 1}</h5>
                                                 <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-black'}`}>
-                                                    ₦{((selectedOrder.basePrice || (selectedOrder.total / (selectedOrder.quantity || 1))) * (selectedOrder.quantity || 1)).toLocaleString()}
+                                                    ₦{((selectedOrder.basePrice || (getOrderAmount(selectedOrder) / (selectedOrder.quantity || 1))) * (selectedOrder.quantity || 1)).toLocaleString()}
                                                 </span>
                                             </div>
                                             <div className="space-y-4">
@@ -669,20 +721,18 @@ export default function AdminOrders() {
                                         <div className="space-y-4">
                                             {(() => {
                                                 const hasBreakdown = !!selectedOrder.breakdown;
-                                                const plateCount = selectedOrder.quantity || selectedOrder.plates?.length || 1;
+                                                const plateCount = getOrderItemCount(selectedOrder) || 1;
                                                 const isGroup = selectedOrder.deliveryMode === 'group' || selectedOrder.deliveryMode === 'GROUP';
-                                                const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((selectedOrder.hostel || selectedOrder.hostelName || '').toString().toLowerCase());
-                                                
-                                                const baseDeliveryRate = isPremiumHostel ? 1250 : 750;
-                                                let calculatedDeliveryAmount = baseDeliveryRate * plateCount;
+                                                let calculatedDeliveryAmount = getOrderDeliveryFee(selectedOrder);
                                                 let calculatedDiscount = 0;
-                                                if (isGroup) {
+                                                if (isGroup && selectedOrder.type !== 'mart') {
+                                                    const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((selectedOrder.hostel || selectedOrder.hostelName || '').toString().toLowerCase());
                                                     const groupDiscount = isPremiumHostel ? (1250 - Math.round(1250 * 0.8)) : (750 - 580);
                                                     calculatedDiscount = groupDiscount * plateCount;
                                                 }
 
                                                 const deliveryFee = hasBreakdown ? selectedOrder.breakdown.delivery : calculatedDeliveryAmount;
-                                                const processingFee = hasBreakdown ? (selectedOrder.breakdown.processing + selectedOrder.breakdown.platform) : 300;
+                                                const processingFee = getOrderServiceFee(selectedOrder);
                                                 const discount = hasBreakdown ? selectedOrder.breakdown.discount : calculatedDiscount;
 
                                                 return (
@@ -704,16 +754,18 @@ export default function AdminOrders() {
                                                             </div>
                                                         )}
                                                         {!hasBreakdown && (() => {
-                                                            const takeawayAmount = selectedOrder.type !== 'combo' ? (selectedOrder.plates?.length || 0) * 200 : 0;
+                                                            const takeawayAmount = selectedOrder.type !== 'combo' && selectedOrder.type !== 'mart' ? (selectedOrder.plates?.length || 0) * 200 : 0;
                                                             let foodAmount = 0;
                                                             if (selectedOrder.type === 'combo') {
-                                                                foodAmount = (selectedOrder.basePrice || (selectedOrder.total / (selectedOrder.quantity || 1))) * (selectedOrder.quantity || 1);
+                                                                foodAmount = (selectedOrder.basePrice || (getOrderAmount(selectedOrder) / (selectedOrder.quantity || 1))) * (selectedOrder.quantity || 1);
+                                                            } else if (selectedOrder.type === 'mart') {
+                                                                foodAmount = selectedOrder.subtotal || selectedOrder.items?.reduce((acc: number, item: any) => acc + ((item.price || 0) * (item.quantity || 1)), 0) || 0;
                                                             } else {
                                                                 foodAmount += selectedOrder.plates?.reduce((acc: number, p: any) => acc + (p.total || 0), 0) || 0;
                                                                 foodAmount += selectedOrder.drinksSnacks?.reduce((acc: number, a: any) => acc + ((a.item?.price || a.price || 0) * (a.quantity || 1)), 0) || 0;
                                                             }
                                                             const predictedBase = foodAmount + deliveryFee + takeawayAmount + processingFee - discount;
-                                                            const difference = (selectedOrder.total || 0) - predictedBase;
+                                                            const difference = getOrderAmount(selectedOrder) - predictedBase;
                                                             if (difference >= 40 && difference <= 60) {
                                                                 return (
                                                                     <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10">
@@ -778,3 +830,4 @@ export default function AdminOrders() {
         </AdminLayout>
     );
 }
+

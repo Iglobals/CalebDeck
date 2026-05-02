@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
 import { Badge } from '../../components/design-system/Badge';
@@ -41,6 +41,39 @@ export default function AdminDashboard() {
   }, []);
 
   const parseDate = (d: any) => d?.seconds ? new Date(d.seconds * 1000) : d ? new Date(d) : null;
+  const getOrderAmount = (order: any) => order.totalAmount ?? order.total ?? 0;
+  const getOrderDeliveryFee = (order: any) => {
+    if (typeof order.deliveryFee === 'number') return order.deliveryFee;
+    if (typeof order.breakdown?.delivery === 'number') return order.breakdown.delivery;
+
+    const itemCount = order.type === 'combo'
+      ? (order.quantity || 1)
+      : order.type === 'mart'
+        ? (order.items || []).reduce((sum: number, item: any) => sum + (item.quantity || 1), 0)
+        : (order.plates?.length || 1);
+    const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
+    const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((order.hostel || order.hostelName || '').toString().toLowerCase());
+    const baseDeliveryFee = isPremiumHostel ? (platformSettings?.premiumDeliveryFee || 1250) : (isGroup ? 580 : 750);
+
+    return baseDeliveryFee * itemCount;
+  };
+  const getOrderServiceFee = (order: any) => {
+    if (typeof order.serviceProcessingFee === 'number') return order.serviceProcessingFee;
+    return (order.breakdown?.platform || 100) + (order.breakdown?.processing || 200);
+  };
+  const getOrderItemCount = (order: any) => {
+    if (order.type === 'combo') return order.quantity || 1;
+    if (order.type === 'mart') return (order.items || []).reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
+    return order.plates?.length || 0;
+  };
+  const getOrderItemLabel = (order: any) => {
+    if (order.type === 'combo') return `${order.quantity || 1} Combos`;
+    if (order.type === 'mart') {
+      const count = getOrderItemCount(order);
+      return `${count} Mart item${count === 1 ? '' : 's'}`;
+    }
+    return `${order.plates?.length || 0} Plates`;
+  };
 
   const recentOrders = orders.filter(o => {
     const d = parseDate(o.createdAt);
@@ -65,25 +98,11 @@ export default function AdminDashboard() {
     return date.toLocaleDateString() === today;
   });
 
-  const totalRevenue = todayPaidOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-  const totalDeliveryFees = todayPaidOrders.reduce((sum, o) => {
-    const platesCount = o.type === 'combo' ? (o.quantity || 1) : (o.plates?.length || 1);
-    const isGroup = o.deliveryMode === 'group' || o.deliveryMode === 'GROUP';
-    const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((o.hostel || o.hostelName || '').toString().toLowerCase());
-
-    // Revenue collected from user (Delivery Fee only)
-    let baseDeliveryFee = isGroup ? 580 : 750;
-    if (isPremiumHostel) {
-        baseDeliveryFee = platformSettings?.premiumDeliveryFee || 1250;
-    }
-
-    const deliveryRevenue = baseDeliveryFee * platesCount;
-
-    return sum + deliveryRevenue;
-  }, 0);
+  const totalRevenue = todayPaidOrders.reduce((sum, o) => sum + getOrderAmount(o), 0);
+  const totalDeliveryFees = todayPaidOrders.reduce((sum, o) => sum + getOrderDeliveryFee(o), 0);
 
   const totalSystemFees = todayPaidOrders.reduce((sum, o) => {
-     return sum + (o.breakdown?.platform || 100) + (o.breakdown?.processing || 200);
+     return sum + getOrderServiceFee(o);
   }, 0);
 
   const getRider = (id?: string) => riders.find(r => r.id === id) || null;
@@ -118,7 +137,7 @@ export default function AdminDashboard() {
       outCount: outOrders.length,
       otwCount: otwOrders.length,
       deliveredCount: deliveredOrders.length,
-      totalPlates: pendingOrders.reduce((sum, o) => sum + (o.type === 'combo' ? (o.quantity || 1) : (o.plates?.length || 0)), 0),
+      totalPlates: pendingOrders.reduce((sum, o) => sum + getOrderItemCount(o), 0),
       defaultRider,
       assistantRider,
       dispatchRider,
@@ -162,21 +181,21 @@ export default function AdminDashboard() {
     },
     {
       label: 'Gross Revenue',
-      value: `₦${totalRevenue.toLocaleString()}`,
+      value: `â‚¦${totalRevenue.toLocaleString()}`,
       change: `${todayPaidOrders.length} orders`,
       icon: <DollarSign className="w-6 h-6" />,
       color: '#FCD34D'
     },
     {
       label: 'Delivery Fees Collected',
-      value: `₦${totalDeliveryFees.toLocaleString()}`,
+      value: `â‚¦${totalDeliveryFees.toLocaleString()}`,
       change: 'reserved for payout/profit',
       icon: <CheckCircle className="w-6 h-6" />,
       color: '#10B981'
     },
     {
       label: 'Service Fees',
-      value: `₦${totalSystemFees.toLocaleString()}`,
+      value: `â‚¦${totalSystemFees.toLocaleString()}`,
       change: 'platform net revenue',
       icon: <Zap className="w-6 h-6" />,
       color: '#3B82F6'
@@ -357,7 +376,7 @@ export default function AdminDashboard() {
                       disabled={dispatchingHostel === card.hostel.id}
                       className="w-full sm:w-auto bg-[#FCD34D] text-black hover:bg-[#FCD34D]/90 px-8 py-3.5 rounded-xl font-bold transition-all shadow-lg shadow-[#FCD34D]/20 active:scale-95"
                     >
-                      {dispatchingHostel === card.hostel.id ? 'Dispatching...' : `Dispatch Batch → ${card.dispatchRider.name}`}
+                      {dispatchingHostel === card.hostel.id ? 'Dispatching...' : `Dispatch Batch â†’ ${card.dispatchRider.name}`}
                     </Button>
                   )}
                 </div>
@@ -399,18 +418,22 @@ export default function AdminDashboard() {
                 ) : recentOrders.map((order) => (
                   <tr key={order.id} className={`transition-colors ${isDark ? 'hover:bg-[#2A2A2A]' : 'hover:bg-gray-50'}`}>
                     <td className="py-4 px-6">
-                      <span className={`font-mono font-bold text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.orderId || '—'}</span>
+                      <span className={`font-mono font-bold text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.orderId || 'â€”'}</span>
                     </td>
-                    <td className={`py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName || '—'}</td>
+                    <td className={`py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName || order.studentName || '—'}</td>
+                    <td className={`hidden sm:table-cell py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.hostelName || order.hostel || '—'}</td>
                     <td className={`py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
                       <div className="flex items-center gap-2">
-                        {order.type === 'combo' ? `${order.quantity || 1} Combos` : (order.plates?.length || 0)}
+                        {getOrderItemLabel(order)}
+                        {order.type === 'mart' && (
+                          <Badge variant="green" className="text-[10px] uppercase font-black px-2 py-0.5">Mart</Badge>
+                        )}
                         {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
                           <Badge variant="purple" className="text-[10px] uppercase font-black px-2 py-0.5">Group</Badge>
                         )}
                       </div>
                     </td>
-                    <td className={`py-4 px-6 font-black text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{order.total?.toLocaleString()}</td>
+                    <td className={`py-4 px-6 font-black text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{'\u20A6'}{getOrderAmount(order).toLocaleString()}</td>
                     <td className="hidden md:table-cell py-4 px-6">
                       <Badge
                         variant={
@@ -447,7 +470,7 @@ export default function AdminDashboard() {
                 <div>
                   <h3 className={`font-bold text-lg leading-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Emergency Dispatch</h3>
                   <p className={`text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
-                    {emergencyCard.hostel.name} · {emergencyCard.pendingCount} Orders
+                    {emergencyCard.hostel.name} Â· {emergencyCard.pendingCount} Orders
                   </p>
                 </div>
               </div>
@@ -508,3 +531,4 @@ export default function AdminDashboard() {
     </AdminLayout>
   );
 }
+

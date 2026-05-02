@@ -65,27 +65,7 @@ export default function MartCheckout() {
   const closingHour = platformSettings?.systemClosingHour ?? 18;
   const isOutOfHours = currentHour < openingHour || currentHour >= closingHour; 
   const isMaintenance = platformSettings?.isAcceptingOrders === false || platformSettings?.isMartComingSoon === true || platformSettings?.isMartAcceptingOrders === false;
-  const isClosed = (isOutOfHours || isMaintenance) && !isDev;
-
-  if (isClosed) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <Card className="text-center max-w-md w-full py-12 px-8">
-          <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Clock className="w-10 h-10 text-amber-500" />
-          </div>
-          <h2 className="text-3xl font-bold mb-4">Mart is Closed</h2>
-          <p className="text-muted-foreground mb-10 text-lg">
-            CalebDeck Mart follows CalebDeck operating hours: {openingHour}:00 to {closingHour}:00. 
-            {isMaintenance && " We are currently under maintenance."}
-          </p>
-          <Link to="/mart" className="inline-block w-full">
-            <Button variant="primary" className="w-full py-6 text-xl rounded-2xl">Back to Mart</Button>
-          </Link>
-        </Card>
-      </div>
-    );
-  }
+  const isClosed = !!platformSettings && (isOutOfHours || isMaintenance) && !isDev;
 
   const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
 
@@ -129,12 +109,12 @@ export default function MartCheckout() {
     toast.loading("Verifying your payment...");
 
     const orderData = {
-      reference: reference.reference || paymentRef.current,
       orderId,
+      fullName: formData.fullName,
       studentName: formData.fullName,
       phone: formData.phone,
-      hostelId: formData.hostel,
-      hostelName: selectedHostel?.name,
+      hostel: formData.hostel,
+      hostelName: selectedHostel?.name || formData.hostel,
       instructions: formData.instructions,
       femaleHostelAgreement,
       orderType: 'mart',
@@ -151,27 +131,31 @@ export default function MartCheckout() {
       totalAmount: total,
     };
 
-    const goToSuccess = (finalOrderId: string) => {
+    const goToSuccess = (finalOrderId: string, firestoreId = reference.reference || paymentRef.current) => {
       toast.dismiss();
       clearCart();
       navigate('/order-success', {
         state: {
+          ...orderData,
+          firestoreOrderId: firestoreId,
           orderId: finalOrderId,
-          reference: reference.reference,
+          paymentReference: reference.reference || paymentRef.current,
           totalAmount: total,
+          total,
           cafeteria: 'CalebDeck Mart',
           hostel: formData.hostel,
-          hostelName: selectedHostel?.name || ''
+          hostelName: selectedHostel?.name || formData.hostel,
+          status: 'PAID'
         },
         replace: true
       });
     };
 
     try {
-      const response = await verifyPayment(orderData);
+      const response = await verifyPayment({ reference: reference.reference || paymentRef.current, orderData });
       const serverData = response.data || response;
       if (serverData && serverData.success) {
-        goToSuccess(serverData.orderId || orderId);
+        goToSuccess(serverData.orderId || orderId, serverData.firestoreOrderId || reference.reference || paymentRef.current);
         return;
       }
     } catch (firstError) {
@@ -179,10 +163,10 @@ export default function MartCheckout() {
       // Wait 3s then retry once
       await new Promise(r => setTimeout(r, 3000));
       try {
-        const response = await verifyPayment(orderData);
+        const response = await verifyPayment({ reference: reference.reference || paymentRef.current, orderData });
         const serverData = response.data || response;
         if (serverData && serverData.success) {
-          goToSuccess(serverData.orderId || orderId);
+          goToSuccess(serverData.orderId || orderId, serverData.firestoreOrderId || reference.reference || paymentRef.current);
           return;
         }
       } catch (secondError) {
@@ -233,8 +217,57 @@ export default function MartCheckout() {
       return;
     }
 
+    const preSaveData = {
+      orderId,
+      fullName: formData.fullName,
+      studentName: formData.fullName,
+      phone: formData.phone,
+      hostel: formData.hostel,
+      hostelName: selectedHostel?.name || formData.hostel,
+      instructions: formData.instructions,
+      femaleHostelAgreement,
+      orderType: 'mart',
+      items: items.map(i => ({
+        id: i.id,
+        name: i.name,
+        price: i.price,
+        quantity: i.quantity,
+        category: i.category
+      })),
+      deliveryFee: MART_DELIVERY_FEE,
+      serviceProcessingFee: SERVICE_PROCESSING_FEE,
+      subtotal,
+      totalAmount: total
+    };
+
+    fetch('/api/pre-save-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reference: paymentRef.current, orderData: preSaveData })
+    }).catch(err => console.warn('[MartCheckout] Pre-save failed (non-blocking):', err));
+
     initializePayment({ onSuccess, onClose } as any);
   };
+
+  if (isClosed) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <Card className="text-center max-w-md w-full py-12 px-8">
+          <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Clock className="w-10 h-10 text-amber-500" />
+          </div>
+          <h2 className="text-3xl font-bold mb-4">Mart is Closed</h2>
+          <p className="text-muted-foreground mb-10 text-lg">
+            CalebDeck Mart follows CalebDeck operating hours: {openingHour}:00 to {closingHour}:00. 
+            {isMaintenance && " We are currently under maintenance."}
+          </p>
+          <Link to="/mart" className="inline-block w-full">
+            <Button variant="primary" className="w-full py-6 text-xl rounded-2xl">Back to Mart</Button>
+          </Link>
+        </Card>
+      </div>
+    );
+  }
 
   if (items.length === 0) return null;
 
