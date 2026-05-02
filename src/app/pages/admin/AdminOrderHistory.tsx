@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
 import { Badge } from '../../components/design-system/Badge';
@@ -131,7 +131,7 @@ export default function AdminOrderHistory() {
                     <div class="logo">CALEB<span>DECK</span></div>
                     <div class="oid">
                         ORD-${order.orderId?.slice(-6) || 'XXXXXX'}
-                        ${(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') ? ' â€¢ GROUP' : ''}
+                        ${(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') ? '  -  GROUP' : ''}
                     </div>
                 </div>
                 <div class="label">Student</div>
@@ -147,15 +147,15 @@ export default function AdminOrderHistory() {
                 <div class="value" style="font-size:14px">${riderName}</div>
                 <div class="label">Items</div>
                 ${order.type === 'combo' ? (
-                    `<div style="font-size:11px;font-weight:900;color:#7C3AED;margin-top:10px">${order.comboName} Ã— ${order.quantity || 1}</div>` +
+                    `<div style="font-size:11px;font-weight:900;color:#7C3AED;margin-top:10px">${order.comboName} x ${order.quantity || 1}</div>` +
                     (order.comboItems || []).map((it: any) =>
-                        `<div class="row"><span>${it.name} Ã— ${it.quantity}</span></div>`
+                        `<div class="row"><span>${it.name} x ${it.quantity}</span></div>`
                     ).join('')
                 ) : (
                     (order.plates || []).map((p: any, i: number) =>
                         `<div style="font-size:11px;font-weight:900;color:#7C3AED;margin-top:10px">PLATE #${i + 1}</div>` +
                         (p.items || []).map((it: any) =>
-                            `<div class="row"><span>${it.item?.name || 'Item'} Ã— ${it.quantity}</span><span>â‚¦${((it.item?.price || 0) * it.quantity).toLocaleString()}</span></div>`
+                            `<div class="row"><span>${it.item?.name || 'Item'} x ${it.quantity}</span><span>₦${((it.item?.price || 0) * it.quantity).toLocaleString()}</span></div>`
                         ).join('')
                     ).join('')
                 )}
@@ -181,22 +181,22 @@ export default function AdminOrderHistory() {
                         <div style="font-size:11px;font-weight:900;color:#999;margin-top:10px;text-transform:uppercase">FEES</div>
                         ${order.type !== 'combo' ? `
                         <div class="row">
-                            <span>Takeaway Pack Ã— ${order.plates?.length || 0}</span>
-                            <span>â‚¦${takeawayAmount.toLocaleString()}</span>
+                            <span>Takeaway Pack x ${order.plates?.length || 0}</span>
+                            <span>₦${takeawayAmount.toLocaleString()}</span>
                         </div>
                         ` : ''}
                         <div class="row">
                             <span>Delivery Fee ${isGroup ? '(Group)' : '(Solo)'}</span>
-                            <span>â‚¦${deliveryFee.toLocaleString()}</span>
+                            <span>₦${deliveryFee.toLocaleString()}</span>
                         </div>
                         <div class="row">
                             <span>Service & Processing</span>
-                            <span>â‚¦${processingFee.toLocaleString()}</span>
+                            <span>₦${processingFee.toLocaleString()}</span>
                         </div>
                         ${discount > 0 ? `
                         <div class="row" style="color: #10B981;">
                             <span>Group Discount</span>
-                            <span>-â‚¦${discount.toLocaleString()}</span>
+                            <span>-₦${discount.toLocaleString()}</span>
                         </div>
                         ` : ''}
                     `;
@@ -204,10 +204,10 @@ export default function AdminOrderHistory() {
                 ${(order.drinksSnacks || []).length > 0 ? `
                     <div style="font-size:11px;font-weight:900;color:#FCD34D;margin-top:10px">EXTRAS</div>
                     ${order.drinksSnacks.map((it: any) =>
-            `<div class="row"><span>${it?.item?.name || it?.name || 'Add-on'} Ã— ${it?.quantity || 1}</span><span>â‚¦${((it?.item?.price || it?.price || 0) * (it?.quantity || 1)).toLocaleString()}</span></div>`
+            `<div class="row"><span>${it?.item?.name || it?.name || 'Add-on'} x ${it?.quantity || 1}</span><span>₦${((it?.item?.price || it?.price || 0) * (it?.quantity || 1)).toLocaleString()}</span></div>`
         ).join('')}
                 ` : ''}
-                <div class="total">Total: â‚¦${getOrderAmount(order).toLocaleString()}</div>
+                <div class="total">Total: ₦${getOrderAmount(order).toLocaleString()}</div>
                 <div class="footer">CalebDeck Order Receipt<br/>${date ? format(date, 'PPpp') : ''}</div>
                 <button class="close-btn" onclick="window.close()">Close Receipt</button>
                 <script>window.print();</script>
@@ -403,7 +403,7 @@ export default function AdminOrderHistory() {
                                                                     {riders.find(r => r.id === order.assignedRiderId)?.name || 'Unknown'}
                                                                 </span>
                                                             ) : (
-                                                                <span className={`text-[10px] font-bold ${isDark ? 'text-[#666666]' : 'text-gray-300'}`}>â€”</span>
+                                                                <span className={`text-[10px] font-bold ${isDark ? 'text-[#666666]' : 'text-gray-300'}`}>-</span>
                                                             )}
                                                         </td>
                                                         <td className="py-4 px-4 lg:px-6">
@@ -467,7 +467,7 @@ export default function AdminOrderHistory() {
                                                             {riders.find(r => r.id === order.assignedRiderId)?.name || 'Unknown'}
                                                         </span>
                                                     ) : (
-                                                        <span className={`text-[10px] font-bold ${isDark ? 'text-[#666666]' : 'text-gray-300'}`}>â€”</span>
+                                                        <span className={`text-[10px] font-bold ${isDark ? 'text-[#666666]' : 'text-gray-300'}`}>-</span>
                                                     )}
                                                 </td>
                                                 <td className="py-4 px-4 lg:px-6">

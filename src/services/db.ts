@@ -99,13 +99,13 @@ export const subscribeToAllOrders = (callback: (orders: any[]) => void) => {
 
 // Orders (Admin - History/Analytics) — scoped to last 30 days with limit
 export const subscribeToOrderHistory = (callback: (orders: any[]) => void) => {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const historyStart = new Date();
+    historyStart.setDate(historyStart.getDate() - 75);
     const q = query(
         collection(db, 'orders'),
-        where('createdAt', '>=', Timestamp.fromDate(thirtyDaysAgo)),
+        where('createdAt', '>=', Timestamp.fromDate(historyStart)),
         orderBy('createdAt', 'desc'),
-        limit(200)
+        limit(500)
     );
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -287,26 +287,44 @@ export const updateBatch = async (batchId: string, updates: Partial<Batch>) => {
 };
 
 export const dispatchBatch = async (hostelId: string, hostelName: string, rider: Rider, orders: any[], isEmergency: boolean = false) => {
-    const batchId = await createBatch({
-        hostelId,
-        hostelName,
-        riderId: rider.id,
-        riderName: rider.name,
-        orderIds: orders.map(o => o.id),
-        orderCount: orders.length,
-        plateCount: orders.reduce((sum, o) => sum + (o.type === 'combo' ? (o.quantity || 1) : o.type === 'mart' ? ((o.items || []).reduce((itemSum: number, item: any) => itemSum + (item.quantity || 1), 0)) : (o.plates?.length || 0)), 0),
-        status: 'OUT_FOR_DELIVERY',
-        isEmergency,
-        createdAt: new Date().toISOString(),
-    });
+    const dispatchOrders = orders.filter(o => o?.id);
+    const orderRefs = dispatchOrders.map(o => doc(db, 'orders', o.id));
 
-    const BATCH_LIMIT = 499;
-    for (let i = 0; i < orders.length; i += BATCH_LIMIT) {
-        const chunk = orders.slice(i, i + BATCH_LIMIT);
-        const batch = writeBatch(db);
-        chunk.forEach(order => {
-            const orderRef = doc(db, 'orders', order.id);
-            batch.update(orderRef, {
+    const result = await runTransaction(db, async (transaction) => {
+        const snapshots: any[] = [];
+        for (const orderRef of orderRefs) {
+            snapshots.push(await transaction.get(orderRef));
+        }
+
+        const eligibleOrders = snapshots
+            .map((snapshot, index) => ({ snapshot, order: dispatchOrders[index], ref: orderRefs[index] }))
+            .filter(({ snapshot }) => {
+                if (!snapshot.exists()) return false;
+                const data = snapshot.data();
+                return data.status === 'PAID' && !data.batchId && !data.assignedRiderId;
+            });
+
+        if (eligibleOrders.length === 0) return null;
+
+        const batchRef = doc(collection(db, 'batches'));
+        const batchOrders = eligibleOrders.map(({ order }) => order);
+        const batchId = batchRef.id;
+
+        transaction.set(batchRef, {
+            hostelId,
+            hostelName,
+            riderId: rider.id,
+            riderName: rider.name,
+            orderIds: batchOrders.map(o => o.id),
+            orderCount: batchOrders.length,
+            plateCount: batchOrders.reduce((sum, o) => sum + (o.type === 'combo' ? (o.quantity || 1) : o.type === 'mart' ? ((o.items || []).reduce((itemSum: number, item: any) => itemSum + (item.quantity || 1), 0)) : (o.plates?.length || 0)), 0),
+            status: 'OUT_FOR_DELIVERY',
+            isEmergency,
+            createdAt: new Date().toISOString(),
+        });
+
+        eligibleOrders.forEach(({ ref }) => {
+            transaction.update(ref, {
                 status: 'OUT_FOR_DELIVERY',
                 assignedRiderId: rider.id,
                 batchId,
@@ -314,8 +332,11 @@ export const dispatchBatch = async (hostelId: string, hostelName: string, rider:
                 updatedAt: serverTimestamp(),
             });
         });
-        await batch.commit();
-    }
+
+        return { batchId, orderCount: batchOrders.length };
+    });
+
+    if (!result) return null;
 
     try {
         await createNotification({
@@ -330,7 +351,7 @@ export const dispatchBatch = async (hostelId: string, hostelName: string, rider:
         console.error('Failed to notify rider of new batch', err);
     }
 
-    return batchId;
+    return result.batchId;
 };
 
 // ─── Riders Management ───

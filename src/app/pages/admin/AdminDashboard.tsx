@@ -145,10 +145,12 @@ export default function AdminDashboard() {
   });
 
   const handleDispatch = async (card: typeof hostelCards[0]) => {
-    if (!card.dispatchRider || card.pendingCount === 0) return;
+    if (dispatchingHostel || !card.dispatchRider || card.pendingCount === 0) return;
+    const dispatchableOrders = card.pendingOrders.filter(o => o.status === 'PAID' && !o.batchId && !o.assignedRiderId);
+    if (dispatchableOrders.length === 0) return;
     setDispatchingHostel(card.hostel.id);
     try {
-      await dispatchBatch(card.hostel.id, card.hostel.name, card.dispatchRider, card.pendingOrders);
+      await dispatchBatch(card.hostel.id, card.hostel.name, card.dispatchRider, dispatchableOrders);
     } catch (err) {
       console.error('Dispatch failed:', err);
     } finally {
@@ -157,11 +159,13 @@ export default function AdminDashboard() {
   };
 
   const handleEmergencyDispatch = async (rider: Rider) => {
-    if (!emergencyCard || emergencyCard.pendingCount === 0) return;
+    if (dispatchingHostel || !emergencyCard || emergencyCard.pendingCount === 0) return;
+    const dispatchableOrders = emergencyCard.pendingOrders.filter(o => o.status === 'PAID' && !o.batchId && !o.assignedRiderId);
+    if (dispatchableOrders.length === 0) return;
     setDispatchingHostel(emergencyCard.hostel.id);
     setEmergencyCard(null);
     try {
-      await dispatchBatch(emergencyCard.hostel.id, emergencyCard.hostel.name, rider, emergencyCard.pendingOrders, true);
+      await dispatchBatch(emergencyCard.hostel.id, emergencyCard.hostel.name, rider, dispatchableOrders, true);
     } catch (err) {
       console.error('Emergency dispatch failed:', err);
     } finally {
@@ -376,7 +380,7 @@ export default function AdminDashboard() {
                       disabled={dispatchingHostel === card.hostel.id}
                       className="w-full sm:w-auto bg-[#FCD34D] text-black hover:bg-[#FCD34D]/90 px-8 py-3.5 rounded-xl font-bold transition-all shadow-lg shadow-[#FCD34D]/20 active:scale-95"
                     >
-                      {dispatchingHostel === card.hostel.id ? 'Dispatching...' : `Dispatch Batch â†’ ${card.dispatchRider.name}`}
+                      {dispatchingHostel === card.hostel.id ? 'Dispatching...' : `Dispatch Batch -> ${card.dispatchRider.name}`}
                     </Button>
                   )}
                 </div>
@@ -418,10 +422,10 @@ export default function AdminDashboard() {
                 ) : recentOrders.map((order) => (
                   <tr key={order.id} className={`transition-colors ${isDark ? 'hover:bg-[#2A2A2A]' : 'hover:bg-gray-50'}`}>
                     <td className="py-4 px-6">
-                      <span className={`font-mono font-bold text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.orderId || 'â€”'}</span>
+                      <span className={`font-mono font-bold text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.orderId || '-'}</span>
                     </td>
-                    <td className={`py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName || order.studentName || '—'}</td>
-                    <td className={`hidden sm:table-cell py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.hostelName || order.hostel || '—'}</td>
+                    <td className={`py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName || order.studentName || '-'}</td>
+                    <td className={`hidden sm:table-cell py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.hostelName || order.hostel || '-'}</td>
                     <td className={`py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
                       <div className="flex items-center gap-2">
                         {getOrderItemLabel(order)}
@@ -470,7 +474,7 @@ export default function AdminDashboard() {
                 <div>
                   <h3 className={`font-bold text-lg leading-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Emergency Dispatch</h3>
                   <p className={`text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
-                    {emergencyCard.hostel.name} Â· {emergencyCard.pendingCount} Orders
+                    {emergencyCard.hostel.name} {' - '} {emergencyCard.pendingCount} Orders
                   </p>
                 </div>
               </div>

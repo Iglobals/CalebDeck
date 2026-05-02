@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
 import { Badge } from '../../components/design-system/Badge';
@@ -143,10 +143,13 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
     };
 
     const handleDispatch = async (hostel: Hostel, paidOrders: any[], isEmergency: boolean) => {
-        if (!paidOrders.length) return;
+        if (dispatching) return;
+
+        const dispatchableOrders = paidOrders.filter(o => o.status === 'PAID' && !o.batchId && !o.assignedRiderId);
+        if (!dispatchableOrders.length) return;
 
         if (isEmergency) {
-            setEmergencyDispatch({ hostel, orders: paidOrders });
+            setEmergencyDispatch({ hostel, orders: dispatchableOrders });
             return;
         }
 
@@ -163,7 +166,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
 
             if (!riderToAssign) return;
 
-            await dispatchBatch(hostel.id, hostel.name, riderToAssign, paidOrders, false);
+            await dispatchBatch(hostel.id, hostel.name, riderToAssign, dispatchableOrders, false);
         } catch (err) {
             console.error(err);
             alert("Failed to dispatch batch");
@@ -173,13 +176,18 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
     };
 
     const handleEmergencyDispatchSubmit = async (rider: Rider) => {
-        if (!emergencyDispatch) return;
+        if (!emergencyDispatch || dispatching) return;
         const { hostel, orders: paidOrders } = emergencyDispatch;
+        const dispatchableOrders = paidOrders.filter(o => o.status === 'PAID' && !o.batchId && !o.assignedRiderId);
+        if (!dispatchableOrders.length) {
+            setEmergencyDispatch(null);
+            return;
+        }
         setDispatching(hostel.id);
         setEmergencyDispatch(null);
 
         try {
-            await dispatchBatch(hostel.id, hostel.name, rider, paidOrders, true);
+            await dispatchBatch(hostel.id, hostel.name, rider, dispatchableOrders, true);
         } catch (err) {
             console.error(err);
             alert("Failed to emergency dispatch batch");
@@ -245,7 +253,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                         <div class="logo">CALEB<span>DECK</span></div>
                         <div class="order-id">
                             ORD-${order.orderId?.slice(-6) || 'XXXXXX'}
-                            ${(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') ? ' â€¢ GROUP' : ''}
+                            ${(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') ? '  -  GROUP' : ''}
                         </div>
                     </div>
                     <div class="section">
@@ -259,19 +267,19 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                     <div class="section">
                         <div class="label">Items</div>
                         ${order.type === 'combo' ? `
-                            <div class="plate-header">${order.comboName} Ã— ${order.quantity || 1}</div>
+                            <div class="plate-header">${order.comboName} x ${order.quantity || 1}</div>
                             ${(order.comboItems || []).map((item: any) => `
                                 <div class="item-row">
                                     <span>${item.name}</span>
-                                    <span>Ã—${item.quantity}</span>
+                                    <span>x${item.quantity}</span>
                                 </div>
                             `).join('')}
                         ` : (order.plates?.map((p: any, i: number) => `
-                            <div class="plate-header">Plate #${i + 1} â€” ${p.type || ''}</div>
+                            <div class="plate-header">Plate #${i + 1} - ${p.type || ''}</div>
                             ${p.items?.map((item: any) => `
                                 <div class="item-row">
                                     <span>${item.item?.name || item.name}</span>
-                                    <span>Ã—${item.quantity}</span>
+                                    <span>x${item.quantity}</span>
                                 </div>
                             `).join('')}
                         `).join('') || '')}
@@ -297,22 +305,22 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                 <div class="plate-header">Fees</div>
                                 ${order.type !== 'combo' ? `
                                 <div class="item-row">
-                                    <span>Takeaway Pack (â‚¦200/plate)</span>
-                                    <span>â‚¦${takeawayAmount.toLocaleString()}</span>
+                                    <span>Takeaway Pack (₦200/plate)</span>
+                                    <span>₦${takeawayAmount.toLocaleString()}</span>
                                 </div>
                                 ` : ''}
                                 <div class="item-row">
                                     <span>Delivery Fee ${isGroup ? '(Group)' : '(Solo)'}</span>
-                                    <span>â‚¦${deliveryFee.toLocaleString()}</span>
+                                    <span>₦${deliveryFee.toLocaleString()}</span>
                                 </div>
                                 <div class="item-row">
                                     <span>Service & Processing</span>
-                                    <span>â‚¦${processingFee.toLocaleString()}</span>
+                                    <span>₦${processingFee.toLocaleString()}</span>
                                 </div>
                                 ${discount > 0 ? `
                                 <div class="item-row" style="color: #10B981;">
                                     <span>Group Discount</span>
-                                    <span>-â‚¦${discount.toLocaleString()}</span>
+                                    <span>-₦${discount.toLocaleString()}</span>
                                 </div>
                                 ` : ''}
                             `;
@@ -322,13 +330,13 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                             ${order.drinksSnacks.map((item: any) => `
                                 <div class="item-row">
                                     <span>${item.item?.name || item.name}</span>
-                                    <span>Ã—${item.quantity}</span>
+                                    <span>x${item.quantity}</span>
                                 </div>
                             `).join('')}
                         ` : ''}
                     </div>
-                    <span class="total">â‚¦${getOrderAmount(order).toLocaleString()}</span>
-                    <div class="footer">CalebDeck â€” ${new Date().toLocaleDateString()}</div>
+                    <span class="total">₦${getOrderAmount(order).toLocaleString()}</span>
+                    <div class="footer">CalebDeck - ${new Date().toLocaleDateString()}</div>
                     <button class="close-btn" onclick="window.close()">Close Receipt</button>
                 </body>
             </html>
@@ -399,7 +407,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
 
                                 return (
                                     <Card key={hostel.id} className={`overflow-hidden border ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100 shadow-sm'}`}>
-                                        {/* Hostel Header â€” always visible, clickable */}
+                                        {/* Hostel Header - always visible, clickable */}
                                         <button
                                             onClick={() => toggleHostel(hostel.id)}
                                             className="w-full flex items-center justify-between p-5 text-left transition-colors hover:bg-[#7C3AED]/5"
@@ -450,7 +458,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                             </div>
                                         </button>
 
-                                        {/* Orders inside hostel â€” collapsible */}
+                                        {/* Orders inside hostel - collapsible */}
                                         {isExpanded && (
                                             <div className={`border-t ${isDark ? 'border-[#333333]' : 'border-gray-100'}`}>
                                                 {hostelOrders.map((order) => (
@@ -476,13 +484,13 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                                         <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5">Group</Badge>
                                                                     )}
                                                                     <span className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
-                                                                        Â· {order.type === 'combo' ? `${order.quantity || 1} combos` : `${order.plates?.length || 0} plates`}
+                                                                        {' - '}{order.type === 'combo' ? `${order.quantity || 1} combos` : `${order.plates?.length || 0} plates`}
                                                                     </span>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                         <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 sm:gap-3 shrink-0 ml-2">
-                                                            <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>â‚¦{getOrderAmount(order).toLocaleString()}</span>
+                                                            <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{getOrderAmount(order).toLocaleString()}</span>
                                                             {getStatusBadge(order.status)}
                                                         </div>
                                                     </div>
@@ -517,7 +525,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                     )}
                                                 </div>
                                                 <div className="flex items-center gap-3">
-                                                    <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>â‚¦{getOrderAmount(order).toLocaleString()}</span>
+                                                    <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{getOrderAmount(order).toLocaleString()}</span>
                                                     {getStatusBadge(order.status)}
                                                 </div>
                                             </div>
@@ -547,7 +555,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                 </div>
                                                 <div className="flex justify-between items-end">
                                                     <div className="space-y-1"><p className={`text-[10px] font-bold ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{order.hostelName || order.hostel || 'Unknown'}</p><p className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{formatDate(order.createdAt)}</p></div>
-                                                    <span className={`text-xs font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>â‚¦{getOrderAmount(order).toLocaleString()}</span>
+                                                    <span className={`text-xs font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{getOrderAmount(order).toLocaleString()}</span>
                                                 </div>
                                             </Card>
                                         ))}
@@ -564,7 +572,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                     )}
                 </div>
 
-                {/* Order Details Modal â€” READ ONLY, no dispatch */}
+                {/* Order Details Modal - READ ONLY, no dispatch */}
                 {selectedOrder && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                         <div className="absolute inset-0 bg-black/80 backdrop-blur-md transition-all" onClick={() => setSelectedOrder(null)}></div>
@@ -614,7 +622,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                         <div className="flex flex-col gap-6">
                                             <div className="min-w-0">
                                                 <p className={`text-xs font-bold mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Total Paid</p>
-                                                <h3 className="text-3xl font-black text-[#10B981]">â‚¦{getOrderAmount(selectedOrder).toLocaleString()}</h3>
+                                                <h3 className="text-3xl font-black text-[#10B981]">₦{getOrderAmount(selectedOrder).toLocaleString()}</h3>
                                             </div>
                                             <div className="w-fit">
                                                 {getStatusBadge(selectedOrder.status)}
@@ -636,7 +644,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                             <div className="flex justify-between items-center mb-6">
                                                 <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#10B981]">Mart Items</h5>
                                                 <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-black'}`}>
-                                                    â‚¦{(selectedOrder.subtotal || 0).toLocaleString()}
+                                                    ₦{(selectedOrder.subtotal || 0).toLocaleString()}
                                                 </span>
                                             </div>
                                             <div className="space-y-4">
@@ -647,8 +655,8 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                             <p className="text-[10px] font-bold text-[#9C8F7F] mt-1">{item.category}</p>
                                                         </div>
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-xs font-black px-2 py-1 rounded bg-[#10B981]/10 text-[#10B981]">Ã—{item.quantity || 1}</span>
-                                                            <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>â‚¦{((item.price || 0) * (item.quantity || 1)).toLocaleString()}</span>
+                                                            <span className="text-xs font-black px-2 py-1 rounded bg-[#10B981]/10 text-[#10B981]">x{item.quantity || 1}</span>
+                                                            <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>₦{((item.price || 0) * (item.quantity || 1)).toLocaleString()}</span>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -657,9 +665,9 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                     ) : selectedOrder.type === 'combo' ? (
                                         <div className={`p-8 rounded-3xl border transition-all ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white shadow-sm'}`}>
                                             <div className="flex justify-between items-center mb-6">
-                                                <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#7C3AED]">{selectedOrder.comboName} Ã— {selectedOrder.quantity || 1}</h5>
+                                                <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#7C3AED]">{selectedOrder.comboName} x {selectedOrder.quantity || 1}</h5>
                                                 <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-black'}`}>
-                                                    â‚¦{((selectedOrder.basePrice || (getOrderAmount(selectedOrder) / (selectedOrder.quantity || 1))) * (selectedOrder.quantity || 1)).toLocaleString()}
+                                                    ₦{((selectedOrder.basePrice || (getOrderAmount(selectedOrder) / (selectedOrder.quantity || 1))) * (selectedOrder.quantity || 1)).toLocaleString()}
                                                 </span>
                                             </div>
                                             <div className="space-y-4">
@@ -668,7 +676,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                         <div>
                                                             <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{item.name}</p>
                                                         </div>
-                                                        <span className="text-xs font-black px-2 py-1 rounded bg-[#7C3AED]/10 text-[#7C3AED]">Ã—{item.quantity}</span>
+                                                        <span className="text-xs font-black px-2 py-1 rounded bg-[#7C3AED]/10 text-[#7C3AED]">x{item.quantity}</span>
                                                     </div>
                                                 ))}
                                             </div>
@@ -678,8 +686,8 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                             {selectedOrder.plates?.map((plate: any, pidx: number) => (
                                                 <div key={pidx} className={`p-8 rounded-3xl border transition-all ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white shadow-sm'}`}>
                                                     <div className="flex justify-between items-center mb-6">
-                                                        <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#7C3AED]">Plate #{pidx + 1} â€” {plate.type}</h5>
-                                                        <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-black'}`}>â‚¦{plate.total?.toLocaleString()}</span>
+                                                        <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#7C3AED]">Plate #{pidx + 1} - {plate.type}</h5>
+                                                        <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-black'}`}>₦{plate.total?.toLocaleString()}</span>
                                                     </div>
                                                     <div className="space-y-4">
                                                         {plate.items?.map((item: any, iidx: number) => (
@@ -690,7 +698,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                                         <p className="text-[10px] font-bold text-[#9C8F7F] mt-1">{item.options.join(', ')}</p>
                                                                     )}
                                                                 </div>
-                                                                <span className="text-xs font-black px-2 py-1 rounded bg-[#7C3AED]/10 text-[#7C3AED]">Ã—{item.quantity}</span>
+                                                                <span className="text-xs font-black px-2 py-1 rounded bg-[#7C3AED]/10 text-[#7C3AED]">x{item.quantity}</span>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -704,11 +712,11 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                         <Package className="w-5 h-5 text-amber-500 shrink-0" />
                                                         <div className="min-w-0">
                                                             <h5 className="text-xs font-black uppercase tracking-[0.2em] text-amber-600 truncate">Takeaway Fee</h5>
-                                                            <p className={`text-[10px] font-bold mt-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>â‚¦200 per plate</p>
+                                                            <p className={`text-[10px] font-bold mt-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>₦200 per plate</p>
                                                         </div>
                                                     </div>
                                                     <span className={`text-sm sm:text-base font-black text-amber-600 sm:ml-auto whitespace-nowrap`}>
-                                                        â‚¦{((selectedOrder.plates?.length || 0) * 200).toLocaleString()}
+                                                        ₦{((selectedOrder.plates?.length || 0) * 200).toLocaleString()}
                                                     </span>
                                                 </div>
                                             </div>
@@ -723,8 +731,8 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                     <div key={idx} className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10 last:border-0">
                                                         <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{item.item?.name || item.name}</p>
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-xs font-black px-2 py-1 rounded bg-[#FCD34D]/10 text-[#FCD34D]">Ã—{item.quantity}</span>
-                                                            <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>â‚¦{((item.item?.price || item.price || 0) * (item.quantity || 1)).toLocaleString()}</span>
+                                                            <span className="text-xs font-black px-2 py-1 rounded bg-[#FCD34D]/10 text-[#FCD34D]">x{item.quantity}</span>
+                                                            <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>₦{((item.item?.price || item.price || 0) * (item.quantity || 1)).toLocaleString()}</span>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -757,17 +765,17 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                         <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10">
                                                             <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Delivery Fee {isGroup ? '(Group)' : '(Solo)'}</p>
                                                             <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>
-                                                                â‚¦{deliveryFee.toLocaleString()}
+                                                                ₦{deliveryFee.toLocaleString()}
                                                             </span>
                                                         </div>
                                                         <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10">
                                                             <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Service & Processing Fee</p>
-                                                            <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>â‚¦{processingFee.toLocaleString()}</span>
+                                                            <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>₦{processingFee.toLocaleString()}</span>
                                                         </div>
                                                         {discount > 0 && (
                                                             <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10 text-green-500">
                                                                 <p className={`text-sm font-bold`}>Group Discount</p>
-                                                                <span className={`text-xs font-bold`}>-â‚¦{discount.toLocaleString()}</span>
+                                                                <span className={`text-xs font-bold`}>-₦{discount.toLocaleString()}</span>
                                                             </div>
                                                         )}
                                                         {!hasBreakdown && (() => {
@@ -787,7 +795,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                                 return (
                                                                     <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10">
                                                                         <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Cafe Charge</p>
-                                                                        <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>â‚¦50</span>
+                                                                        <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>₦50</span>
                                                                     </div>
                                                                 );
                                                             }
@@ -808,7 +816,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                 </div>
                             </div>
 
-                            {/* Footer â€” Print only, no dispatch */}
+                            {/* Footer - Print only, no dispatch */}
                             <div className={`p-8 flex items-center justify-between border-t ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-gray-50 border-gray-100'}`}>
                                 <div className="flex flex-col gap-2">
                                     <div className="flex items-center gap-3">
@@ -857,7 +865,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                 <div>
                                     <h3 className={`font-bold text-lg leading-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Emergency Dispatch</h3>
                                     <p className={`text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
-                                        {emergencyDispatch.hostel.name} Â· {emergencyDispatch.orders.length} Orders
+                                        {emergencyDispatch.hostel.name} · {emergencyDispatch.orders.length} Orders
                                     </p>
                                 </div>
                             </div>

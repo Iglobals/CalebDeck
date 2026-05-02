@@ -8,9 +8,9 @@ import {
 import { subscribeToOrderHistory, subscribeToPlatformSettings } from '../../../services/db';
 import { TrendingUp, ShoppingBag, Users, DollarSign, CalendarDays, ChevronDown, Shield, Truck, CheckCircle } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, isWithinInterval } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, isWithinInterval } from 'date-fns';
 
-type TimeRange = 'today' | 'week' | 'month';
+type TimeRange = 'today' | 'week' | 'month' | 'lastMonth';
 
 export default function AdminAnalytics() {
     const [orders, setOrders] = useState<any[]>([]);
@@ -30,38 +30,89 @@ export default function AdminAnalytics() {
     const isDark = adminTheme === 'dark';
 
     const parseDate = (d: any) => d?.seconds ? new Date(d.seconds * 1000) : d ? new Date(d) : null;
+    const now = new Date();
+    const shouldShowLastMonth = now.getDate() <= 7;
+    const monthRange: TimeRange = shouldShowLastMonth ? 'lastMonth' : 'month';
+    const rangeOptions: TimeRange[] = ['today', 'week', monthRange];
+    const excludedStatuses = ['REFUNDED', 'PENDING_PAYMENT', 'FAILED', 'CANCELLED', 'TRASHED'];
+    const isCalebDeckOrder = (order: any) => (
+        order.type === 'mart' ||
+        order.type === 'combo' ||
+        Array.isArray(order.plates) ||
+        Array.isArray(order.drinksSnacks)
+    );
+    const getOrderAmount = (order: any) => order.totalAmount ?? order.total ?? order.amount ?? 0;
+    const getOrderItemCount = (order: any) => {
+        if (order.type === 'combo') return order.quantity || 1;
+        if (order.type === 'mart') return (order.items || []).reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
+        return order.plates?.length || 0;
+    };
+    const getRangeBounds = (range: TimeRange) => {
+        if (range === 'today') {
+            return {
+                start: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0),
+                end: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+            };
+        }
+        if (range === 'week') {
+            return { start: startOfWeek(now, { weekStartsOn: 0 }), end: endOfWeek(now, { weekStartsOn: 0 }) };
+        }
+        if (range === 'lastMonth') {
+            const previousMonth = subMonths(now, 1);
+            return { start: startOfMonth(previousMonth), end: endOfMonth(previousMonth) };
+        }
+        return { start: startOfMonth(now), end: endOfMonth(now) };
+    };
+    const getDeliveryFee = (order: any) => {
+        if (typeof order.deliveryFee === 'number') return order.deliveryFee;
+        if (typeof order.breakdown?.delivery === 'number') return order.breakdown.delivery;
+        if (order.type === 'mart') return 1500;
+
+        const count = order.type === 'combo' ? (order.quantity || 1) : (order.plates?.length || 1);
+        const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
+        const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((order.hostel || order.hostelName || '').toString().toLowerCase());
+        const baseDeliveryFee = isPremiumHostel ? (platformSettings?.premiumDeliveryFee || 1250) : isGroup ? 580 : 750;
+        return baseDeliveryFee * count;
+    };
+    const getServiceFee = (order: any) => {
+        if (typeof order.serviceProcessingFee === 'number') return order.serviceProcessingFee;
+        const orderDate = parseDate(order.createdAt || order.date);
+        const serviceFeeStartDate = new Date('2026-04-22T12:00:00+01:00');
+        let platform = order.breakdown?.platform || 0;
+        let processing = order.breakdown?.processing || 0;
+        if (orderDate && orderDate >= serviceFeeStartDate) {
+            platform = platform || 100;
+            processing = processing || 200;
+        }
+        return platform + processing;
+    };
 
     const filteredOrders = useMemo(() => {
-        const now = new Date();
+        const rangeBounds = getRangeBounds(timeRange);
         return orders.filter(o => {
-            if (['REFUNDED', 'PENDING_PAYMENT', 'FAILED', 'CANCELLED'].includes(o.status)) return false;
+            if (!isCalebDeckOrder(o)) return false;
+            if (excludedStatuses.includes(o.status)) return false;
             const d = parseDate(o.createdAt);
             if (!d) return false;
-            if (timeRange === 'today') {
-                return d.toLocaleDateString() === now.toLocaleDateString();
-            }
-            if (timeRange === 'week') {
-                return isWithinInterval(d, { start: startOfWeek(now, { weekStartsOn: 0 }), end: endOfWeek(now, { weekStartsOn: 0 }) });
-            }
-            if (timeRange === 'month') {
-                return isWithinInterval(d, { start: startOfMonth(now), end: endOfMonth(now) });
-            }
-            return true;
+            return isWithinInterval(d, rangeBounds);
         });
-    }, [orders, timeRange]);
+    }, [orders, timeRange, platformSettings]);
 
     const isGroupOrder = (o: any) => o.deliveryMode === 'group' || o.deliveryMode === 'GROUP';
     const isComboOrder = (o: any) => o.type === 'combo';
+    const isMartOrder = (o: any) => o.type === 'mart';
 
     const orderTypeBreakdown = useMemo(() => {
         const combo = filteredOrders.filter(o => isComboOrder(o)).length;
-        const solo = filteredOrders.filter(o => !isComboOrder(o) && !isGroupOrder(o)).length;
-        const group = filteredOrders.filter(o => !isComboOrder(o) && isGroupOrder(o)).length;
+        const mart = filteredOrders.filter(o => isMartOrder(o)).length;
+        const solo = filteredOrders.filter(o => !isComboOrder(o) && !isMartOrder(o) && !isGroupOrder(o)).length;
+        const group = filteredOrders.filter(o => !isComboOrder(o) && !isMartOrder(o) && isGroupOrder(o)).length;
 
         return [
             { name: 'Solo', value: solo },
             { name: 'Group', value: group },
             { name: 'Combo Pack', value: combo },
+            { name: 'Mart', value: mart },
         ].filter(d => d.value > 0);
     }, [filteredOrders]);
 
@@ -70,7 +121,13 @@ export default function AdminAnalytics() {
         const itemCounts: Record<string, number> = {};
 
         filteredOrders.forEach(o => {
-            if (isComboOrder(o)) {
+            if (isMartOrder(o)) {
+                const martItems = o.items || [];
+                martItems.forEach((item: any) => {
+                    const name = (item.name || '').trim();
+                    if (name) itemCounts[name] = (itemCounts[name] || 0) + (item.quantity || 1);
+                });
+            } else if (isComboOrder(o)) {
                 // Count combo items
                 const comboItems = o.comboItems || o.items || [];
                 const qty = o.quantity || 1;
@@ -100,81 +157,49 @@ export default function AdminAnalytics() {
     const COLORS = ['#7C3AED', '#FCD34D', '#10B981', '#F87171', '#3B82F6', '#F97316'];
 
     const revenueData = useMemo(() => {
-        const now = new Date();
         let chartDays: Date[] = [];
         
         if (timeRange === 'today') {
             chartDays = [now];
         } else if (timeRange === 'week') {
-            const start = startOfWeek(now, { weekStartsOn: 0 });
-            chartDays = Array.from({ length: 7 }).map((_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
+            const { start, end } = getRangeBounds('week');
+            const dayCount = Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
+            chartDays = Array.from({ length: dayCount }).map((_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
         } else {
-            const start = startOfMonth(now);
-            const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+            const targetMonth = timeRange === 'lastMonth' ? subMonths(now, 1) : now;
+            const start = startOfMonth(targetMonth);
+            const daysInMonth = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0).getDate();
             chartDays = Array.from({ length: daysInMonth }).map((_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
         }
 
         return chartDays.map(d => {
             const dateStr = format(d, 'yyyy-MM-dd');
             const dayOrders = orders.filter(o => {
+                if (!isCalebDeckOrder(o)) return false;
                 const od = parseDate(o.createdAt || o.date);
                 if (!od) return false;
-                return format(od, 'yyyy-MM-dd') === dateStr && 
-                       o.status !== 'CANCELLED' && 
-                       o.status !== 'FAILED' && 
-                       o.status !== 'PENDING_PAYMENT';
+                return format(od, 'yyyy-MM-dd') === dateStr && !excludedStatuses.includes(o.status);
             });
             return {
-                name: format(d, timeRange === 'week' ? 'EEE' : timeRange === 'month' ? 'MMM d' : 'HH:mm'),
-                revenue: dayOrders.reduce((sum, o) => sum + (o.total || o.amount || 0), 0),
+                name: format(d, timeRange === 'week' ? 'EEE' : (timeRange === 'month' || timeRange === 'lastMonth') ? 'MMM d' : 'HH:mm'),
+                revenue: dayOrders.reduce((sum, o) => sum + getOrderAmount(o), 0),
                 orders: dayOrders.length,
             };
         });
-    }, [orders, timeRange]);
+    }, [orders, timeRange, platformSettings]);
 
     const totalOrders = filteredOrders.length;
-    const totalTotal = filteredOrders.reduce((sum, o) => sum + (o.total || o.amount || 0), 0);
-    const totalDeliveryFees = filteredOrders.reduce((sum, o) => {
-        const platesCount = o.type === 'combo' ? (o.quantity || 1) : (o.plates?.length || 1);
-        const isGroup = o.deliveryMode === 'group' || o.deliveryMode === 'GROUP';
-        const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((o.hostel || o.hostelName || '').toString().toLowerCase());
-
-        let baseDeliveryFee = isGroup ? 580 : 750;
-        
-        // Premium delivery fee was implemented on April 23, 2026
-        const premiumFeeStartDate = new Date('2026-04-23T00:00:00+01:00');
-        const orderDate = parseDate(o.createdAt || o.date);
-        
-        if (isPremiumHostel && orderDate && orderDate >= premiumFeeStartDate) {
-            baseDeliveryFee = platformSettings?.premiumDeliveryFee || 1250;
-        }
-
-        const deliveryRevenue = baseDeliveryFee * platesCount;
-        return sum + deliveryRevenue;
-    }, 0);
-    const totalSystemFees = filteredOrders.reduce((sum, o) => {
-        // Service fee was implemented on April 22, 2026 around 12pm WAT
-        const serviceFeeStartDate = new Date('2026-04-22T12:00:00+01:00');
-        const orderDate = parseDate(o.createdAt || o.date);
-
-        let platform = o.breakdown?.platform || 0;
-        let processing = o.breakdown?.processing || 0;
-
-        // Only apply the default 100 + 200 if the order is from after the feature launch
-        if (orderDate && orderDate >= serviceFeeStartDate) {
-            platform = platform || 100;
-            processing = processing || 200;
-        }
-
-        return sum + platform + processing;
-    }, 0);
+    const totalTotal = filteredOrders.reduce((sum, o) => sum + getOrderAmount(o), 0);
+    const totalDeliveryFees = filteredOrders.reduce((sum, o) => sum + getDeliveryFee(o), 0);
+    const totalSystemFees = filteredOrders.reduce((sum, o) => sum + getServiceFee(o), 0);
     const totalRevenue = totalTotal;
+    const totalItems = filteredOrders.reduce((sum, o) => sum + getOrderItemCount(o), 0);
     const deliveredOrders = filteredOrders.filter(o => o.status === 'DELIVERED').length;
     const fulfillmentRate = totalOrders > 0 ? ((deliveredOrders / totalOrders) * 100).toFixed(0) : '0';
     const uniqueCustomers = new Set(filteredOrders.map(o => o.phone).filter(Boolean)).size;
     const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
 
-    const timeRangeLabel = timeRange === 'today' ? 'Today' : timeRange === 'week' ? 'This Week' : 'This Month';
+    const timeRangeLabel = timeRange === 'today' ? 'Today' : timeRange === 'week' ? 'This Week' : timeRange === 'lastMonth' ? 'Last Month' : 'This Month';
 
     const cardBg = isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100 shadow-sm';
     const mutedText = isDark ? 'text-[#9C8F7F]' : 'text-gray-500';
@@ -184,7 +209,7 @@ export default function AdminAnalytics() {
         <AdminLayout title="Analytics">
             {/* Time Range Selector */}
             <div className="flex items-center gap-2 mb-8">
-                {(['today', 'week', 'month'] as TimeRange[]).map(range => (
+                {rangeOptions.map(range => (
                     <button
                         key={range}
                         onClick={() => setTimeRange(range)}
@@ -195,7 +220,7 @@ export default function AdminAnalytics() {
                                 : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                             }`}
                     >
-                        {range === 'today' ? 'Today' : range === 'week' ? 'This Week' : 'This Month'}
+                        {range === 'today' ? 'Today' : range === 'week' ? 'This Week' : range === 'lastMonth' ? 'Last Month' : 'This Month'}
                     </button>
                 ))}
             </div>
@@ -204,9 +229,9 @@ export default function AdminAnalytics() {
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
                 {[
                     { label: 'Total Orders', value: totalOrders.toString(), icon: <ShoppingBag className="w-5 h-5" />, color: '#7C3AED' },
-                    { label: 'Gross Revenue', value: `₦${totalRevenue.toLocaleString()}`, icon: <DollarSign className="w-5 h-5" />, color: '#10B981' },
-                    { label: 'Delivery Revenue', value: `₦${totalDeliveryFees.toLocaleString()}`, icon: <Truck className="w-5 h-5" />, color: '#F97316' },
-                    { label: 'Service Fees', value: `₦${totalSystemFees.toLocaleString()}`, icon: <Shield className="w-5 h-5" />, color: '#F43F5E' },
+                    { label: 'Gross Revenue', value: `₦${totalRevenue.toLocaleString()}` , icon: <DollarSign className="w-5 h-5" />, color: '#10B981' },
+                    { label: 'Delivery Revenue', value: `₦${totalDeliveryFees.toLocaleString()}` , icon: <Truck className="w-5 h-5" />, color: '#F97316' },
+                    { label: 'Service Fees', value: `₦${totalSystemFees.toLocaleString()}` , icon: <Shield className="w-5 h-5" />, color: '#F43F5E' },
                     { label: 'Orders Delivered', value: `${deliveredOrders} (${fulfillmentRate}%)`, icon: <CheckCircle className="w-5 h-5" />, color: '#3B82F6' },
                 ].map((kpi, i) => (
                     <Card key={i} className={`${cardBg} border`}>
@@ -343,7 +368,7 @@ export default function AdminAnalytics() {
                         </div>
                         <div>
                             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${mutedText}`}>Avg. Order Value</p>
-                            <p className={`text-2xl font-black tracking-tight ${headingText}`}>₦{avgOrderValue.toLocaleString()}</p>
+                            <p className={`text-2xl font-black tracking-tight ${headingText}`}> ₦{avgOrderValue.toLocaleString()}</p>
                         </div>
                     </div>
                 </Card>
@@ -366,16 +391,16 @@ export default function AdminAnalytics() {
                     </div>
                 </Card>
 
-                {/* Combo Orders */}
+                {/* Mart Orders */}
                 <Card className={`p-6 border ${cardBg}`}>
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-[#F97316]/10 flex items-center justify-center">
                             <ShoppingBag className="w-6 h-6 text-[#F97316]" />
                         </div>
                         <div>
-                            <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${mutedText}`}>Combo Orders</p>
+                            <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${mutedText}`}>Mart Orders</p>
                             <p className={`text-2xl font-black tracking-tight ${headingText}`}>
-                                {filteredOrders.filter(o => isComboOrder(o)).length}
+                                {filteredOrders.filter(o => isMartOrder(o)).length}
                             </p>
                         </div>
                     </div>
@@ -390,17 +415,17 @@ export default function AdminAnalytics() {
                         <div>
                             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${mutedText}`}>Period</p>
                             <p className={`text-lg font-black tracking-tight ${headingText}`}>{timeRangeLabel}</p>
-                            <p className={`text-[10px] font-bold ${mutedText}`}>{filteredOrders.length} orders processed</p>
+                            <p className={`text-[10px] font-bold ${mutedText}`}>{filteredOrders.length} orders, {totalItems} items</p>
                         </div>
                     </div>
                 </Card>
             </div>
 
-            {/* Top Menu Items — helps admin craft better combos */}
+            {/* Top ordered items */}
             <Card className={`p-6 lg:p-8 border ${cardBg}`}>
                 <div className="mb-6">
-                    <h3 className={`text-lg font-black ${headingText}`}>🔥 Top Menu Items</h3>
-                    <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${mutedText}`}>Most ordered items {timeRangeLabel.toLowerCase()} — use this data to build better combo packs</p>
+                    <h3 className={`text-lg font-black ${headingText}`}>Top Ordered Items</h3>
+                    <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${mutedText}`}>Most ordered items {timeRangeLabel.toLowerCase()} - use this data to stock and package smarter</p>
                 </div>
                 {topMenuItems.length > 0 ? (
                     <div className="space-y-3">
@@ -415,7 +440,7 @@ export default function AdminAnalytics() {
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between mb-1">
                                             <span className={`text-sm font-bold truncate ${headingText}`}>{item.name}</span>
-                                            <span className={`text-xs font-black ml-3 flex-shrink-0 ${mutedText}`}>{item.count}×</span>
+                                            <span className={`text-xs font-black ml-3 flex-shrink-0 ${mutedText}`}>{item.count}x</span>
                                         </div>
                                         <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-[#333333]' : 'bg-gray-100'}`}>
                                             <div
