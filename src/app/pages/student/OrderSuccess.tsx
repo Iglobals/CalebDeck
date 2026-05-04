@@ -64,6 +64,8 @@ export default function OrderSuccess() {
     sectionId = '',
     reference = '',
     firestoreOrderId = null,
+    status = 'PAID',
+    paymentMessage = '',
   } = orderData;
 
   useEffect(() => {
@@ -77,7 +79,7 @@ export default function OrderSuccess() {
   const [currentStep, setCurrentStep] = useState(0);
   const [showTracking, setShowTracking] = useState(false);
   const [rider, setRider] = useState<Rider | null>(null);
-  const [orderStatus, setOrderStatus] = useState<string>('PAID');
+  const [orderStatus, setOrderStatus] = useState<string>(status || 'PAID');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
@@ -186,6 +188,73 @@ export default function OrderSuccess() {
   };
 
   const estimatedTime = 25 - (currentStep * 6);
+  const isPaymentIssue = ['PENDING_PAYMENT', 'FAILED', 'PENDING_CONFIRMATION'].includes(orderStatus);
+  const retryPath = orderData.orderType === 'mart' || orderData.type === 'mart' || cafeteria === 'CalebDeck Mart' ? '/mart' : '/cafeteria';
+
+  if (isPaymentIssue) {
+    const isFailed = orderStatus === 'FAILED';
+    const title = isFailed ? 'Payment Did Not Go Through' : 'Payment Not Confirmed Yet';
+    const message = isFailed
+      ? 'Your bank or Paystack did not confirm payment to CalebDeck, so this order will not be processed yet.'
+      : 'We saved your order details, but Paystack has not confirmed payment to CalebDeck yet.';
+    const guidance = isFailed
+      ? 'If money was deducted, your bank or Paystack should reverse it. You can try again with a stronger network or a different connection.'
+      : 'This usually happens when the school network is weak. Try again with a stronger network or switch data/WiFi before paying.';
+
+    return (
+      <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+        <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border transition-colors duration-300">
+          <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-center">
+            <Logo size="md" />
+          </div>
+        </header>
+
+        <main className="max-w-2xl mx-auto px-6 py-16">
+          <Card className="text-center p-8 sm:p-10 border-2 border-amber-500/20 bg-amber-500/5 rounded-[2rem]">
+            <div className="w-20 h-20 rounded-[2rem] bg-amber-500/10 flex items-center justify-center mx-auto mb-6">
+              {isFailed ? <AlertCircle className="w-11 h-11 text-amber-600" /> : <Clock className="w-11 h-11 text-amber-600" />}
+            </div>
+            <Badge variant={isFailed ? 'gray' : 'amber'} className="mb-5 font-black uppercase tracking-widest">
+              {isFailed ? 'Payment Failed' : 'Awaiting Payment'}
+            </Badge>
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-4">
+              {title}
+            </h1>
+            <p className="text-base sm:text-lg text-muted-foreground font-medium leading-relaxed mb-4">
+              {message}
+            </p>
+            <p className="text-base sm:text-lg text-muted-foreground font-medium leading-relaxed">
+              {guidance}
+            </p>
+
+            <div className="mt-8 rounded-2xl bg-background/80 border border-border p-5 text-left">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest font-black mb-2">Saved Attempt</p>
+              <p className="text-lg font-black">{orderId}</p>
+              {paymentMessage && (
+                <p className="text-sm text-muted-foreground font-medium mt-2">{paymentMessage}</p>
+              )}
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-3 mt-8">
+              <Link to={retryPath}>
+                <Button variant="primary" size="lg" className="w-full">
+                  Try Again
+                </Button>
+              </Link>
+              <Link to="/support">
+                <Button variant="secondary" size="lg" className="w-full">
+                  Contact Support
+                </Button>
+              </Link>
+            </div>
+            <p className="text-xs text-muted-foreground font-bold mt-5 leading-relaxed">
+              CalebDeck only processes orders after Paystack confirms that payment reached us.
+            </p>
+          </Card>
+        </main>
+      </div>
+    );
+  }
 
   if (!showTracking) {
     return (

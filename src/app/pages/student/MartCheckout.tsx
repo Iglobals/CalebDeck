@@ -151,6 +151,26 @@ export default function MartCheckout() {
       });
     };
 
+    const goToPaymentStatus = (status: string, firestoreId: string, message?: string) => {
+      toast.dismiss();
+      navigate('/order-success', {
+        state: {
+          ...orderData,
+          firestoreOrderId: firestoreId,
+          orderId,
+          paymentReference: reference.reference || paymentRef.current,
+          totalAmount: total,
+          total,
+          cafeteria: 'CalebDeck Mart',
+          hostel: formData.hostel,
+          hostelName: selectedHostel?.name || formData.hostel,
+          status,
+          paymentMessage: message
+        },
+        replace: true
+      });
+    };
+
     try {
       const response = await verifyPayment({ reference: reference.reference || paymentRef.current, orderData });
       const serverData = response.data || response;
@@ -181,8 +201,19 @@ export default function MartCheckout() {
       const orderSnap = await getDoc(doc(db, 'orders', reference.reference));
       if (orderSnap.exists()) {
         const existingOrder = orderSnap.data();
-        toast.success('Your payment was successful and your order is confirmed!', { autoClose: 5000 });
-        goToSuccess(existingOrder.orderId || orderId);
+        if (existingOrder.status === 'PAID' || existingOrder.source === 'verified' || existingOrder.source === 'webhook_confirmed') {
+          toast.success('Your payment was successful and your order is confirmed!', { autoClose: 5000 });
+          goToSuccess(existingOrder.orderId || orderId);
+          return;
+        }
+
+        toast.warning(
+          existingOrder.status === 'FAILED'
+            ? 'Payment did not go through. If your bank deducted money, it should be reversed by your bank or Paystack.'
+            : 'Your order details are saved, but payment is not confirmed yet. Try again with a stronger network.',
+          { autoClose: 9000 }
+        );
+        goToPaymentStatus(existingOrder.status || 'PENDING_PAYMENT', orderSnap.id, existingOrder.paymentMessage);
         return;
       }
     } catch (firestoreErr) {
@@ -192,15 +223,14 @@ export default function MartCheckout() {
     // Absolute last resort
     toast.dismiss();
     toast.warning(
-      'Your payment was successful! Your order may take a moment to appear. If it doesn\'t show up, please contact support.',
+      'We could not confirm your payment yet. Please do not pay again immediately. Check your bank alert, then contact support if you were debited.',
       { autoClose: 10000 }
     );
-    goToSuccess(orderId);
     paymentProcessingRef.current = false;
   };
 
   const onClose = () => {
-    toast.info("Payment cancelled. If this was a network issue, please try again.");
+    toast.info("Your order details were saved, but payment was not completed. Try again with a stronger network or switch data/WiFi.");
   };
 
   const handlePay = () => {

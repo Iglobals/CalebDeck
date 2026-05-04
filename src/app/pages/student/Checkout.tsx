@@ -312,6 +312,19 @@ if (isPremiumHostel) {
       });
     };
 
+    const goToPaymentStatus = (status: string, firestoreId: string, message?: string) => {
+      navigate('/order-success', {
+        state: {
+          ...orderData,
+          firestoreOrderId: firestoreId,
+          orderId,
+          paymentReference: reference.reference,
+          status,
+          paymentMessage: message
+        }
+      });
+    };
+
     // Try verify-payment — if it fails, retry once
     try {
       const result = await verifyPayment({ reference: reference.reference, orderData });
@@ -338,8 +351,19 @@ if (isPremiumHostel) {
       const orderSnap = await getDoc(doc(db, 'orders', reference.reference));
       if (orderSnap.exists()) {
         const existingOrder = orderSnap.data();
-        toast.success('Your payment was successful and your order is confirmed!', { autoClose: 5000 });
-        goToSuccess(orderSnap.id, existingOrder.orderId || orderId);
+        if (existingOrder.status === 'PAID' || existingOrder.source === 'verified' || existingOrder.source === 'webhook_confirmed') {
+          toast.success('Your payment was successful and your order is confirmed!', { autoClose: 5000 });
+          goToSuccess(orderSnap.id, existingOrder.orderId || orderId);
+          return;
+        }
+
+        toast.warning(
+          existingOrder.status === 'FAILED'
+            ? 'Payment did not go through. If your bank deducted money, it should be reversed by your bank or Paystack.'
+            : 'Your order details are saved, but payment is not confirmed yet. Try again with a stronger network.',
+          { autoClose: 9000 }
+        );
+        goToPaymentStatus(existingOrder.status || 'PENDING_PAYMENT', orderSnap.id, existingOrder.paymentMessage);
         return;
       }
     } catch (firestoreErr) {
@@ -348,16 +372,16 @@ if (isPremiumHostel) {
 
     // Absolute last resort — payment succeeded on Paystack but we can't confirm the order
     toast.warning(
-      'Your payment was successful! Your order may take a moment to appear. If it doesn\'t show up, please contact support.',
+      'We could not confirm your payment yet. Please do not pay again immediately. Check your bank alert, then contact support if you were debited.',
       { autoClose: 10000 }
     );
-    goToSuccess(reference.reference, orderId);
     paymentProcessingRef.current = false;
     setCalculating(false);
+    setIsSubmitting(false);
   };
 
   const onClose = () => {
-    toast.info('Payment cancelled. If this was a network issue, please try again.');
+    toast.info('Your order details were saved, but payment was not completed. Try again with a stronger network or switch data/WiFi.');
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {

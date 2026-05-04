@@ -83,6 +83,15 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
         return (order.breakdown?.processing || 200) + (order.breakdown?.platform || 100);
     };
 
+    const getStudentNumber = (order: any) => (
+        order.studentNumber ||
+        order.studentNo ||
+        order.matricNumber ||
+        order.matricNo ||
+        order.phone ||
+        ''
+    );
+
     const today = new Date().toLocaleDateString();
 
     const todayOrders = orders.filter(o => {
@@ -225,6 +234,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
             return;
         }
         const studentNote = (order.notes || order.instructions || '').trim();
+        const studentNumber = getStudentNumber(order);
 
         const html = `
             <html>
@@ -262,6 +272,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                     <div class="section">
                         <div class="label">Student</div>
                         <div class="value">${order.fullName}</div>
+                        ${studentNumber ? `<div style="font-size:13px;font-weight:700;margin-top:6px;color:#555;">Student No: ${studentNumber}</div>` : ''}
                     </div>
                     <div class="section">
                         <div class="label">Delivery</div>

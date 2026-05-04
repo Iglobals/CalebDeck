@@ -67,8 +67,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 });
             }
 
-            // Pre-saved order (items already in DB) — verify payment then just flip status
-            if (existingData.source === 'pre_saved' && existingData.status === 'PENDING_PAYMENT') {
+            // Pre-saved order (items already in DB) - verify payment then flip status.
+            // Allow FAILED too because a failed Paystack event can arrive before a later
+            // successful confirmation for the same saved reference.
+            if (existingData.source === 'pre_saved' && ['PENDING_PAYMENT', 'FAILED'].includes(existingData.status)) {
                 console.log(`[verify-payment] Found pre-saved order for ref: ${reference}, verifying payment...`);
                 // Don't return yet — fall through to verify with Paystack, then update status
             }
@@ -93,7 +95,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { data } = paystackResponse.data;
 
         if (data.status !== 'success') {
-            return res.status(400).json({ error: 'Payment was not successful', status: data.status });
+            if (existingDoc.exists) {
+                await orderRef.set({
+                    status: 'FAILED',
+                    paymentStatus: data.status || 'failed',
+                    paymentMessage: data.gateway_response || 'Payment was not successful',
+                    updatedAt: FieldValue.serverTimestamp()
+                }, { merge: true });
+            }
+
+            return res.status(400).json({
+                error: 'Payment was not successful',
+                status: data.status,
+                message: data.gateway_response || 'Your bank or network did not complete the payment.'
+            });
         }
 
         // 3. Recalculate total from Firestore prices (server-side validation)
@@ -264,6 +279,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 status: 'PAID',
                 source: 'verified',
                 total: paidAmount, // Use Paystack-verified amount
+                paymentStatus: data.status,
+                paymentMessage: data.gateway_response || 'Payment confirmed',
+                paidAt: data.paid_at || null,
                 updatedAt: FieldValue.serverTimestamp()
             }, { merge: true });
             console.log(`[verify-payment] Updated pre-saved order to PAID: ${reference}`);

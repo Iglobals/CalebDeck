@@ -68,6 +68,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 if (existingData.status === 'PENDING_PAYMENT') {
                     await orderRef.update({
                         status: 'FAILED',
+                        paymentStatus: paymentData.status || 'failed',
+                        paymentMessage: paymentData.gateway_response || 'Payment failed',
                         updatedAt: FieldValue.serverTimestamp()
                     });
                     console.log(`[Webhook] Marked pre-saved order as FAILED: ${reference}`);
@@ -76,10 +78,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
             // Pre-saved order (items already complete) — just flip status to PAID
-            if (existingData.source === 'pre_saved' && existingData.status === 'PENDING_PAYMENT') {
+            if (existingData.source === 'pre_saved' && ['PENDING_PAYMENT', 'FAILED'].includes(existingData.status)) {
                 await orderRef.update({
                     status: 'PAID',
                     source: 'webhook_confirmed',
+                    paymentStatus: paymentData.status || 'success',
+                    paymentMessage: paymentData.gateway_response || 'Payment confirmed',
+                    paidAt: paymentData.paid_at || null,
                     updatedAt: FieldValue.serverTimestamp()
                 });
                 console.log(`[Webhook] Confirmed pre-saved order: ${reference}`);

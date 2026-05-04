@@ -161,9 +161,6 @@ export default function LandingPage() {
             <a href="#how-it-works" className="text-foreground/80 hover:text-secondary transition-colors font-medium">
               How it works
             </a>
-            <Link to="/rider/signup" className="text-foreground/80 hover:text-[#10B981] transition-colors font-medium">
-              Earn as a Rider
-            </Link>
             <a href="#faq" className="text-foreground/80 hover:text-secondary transition-colors font-medium">
               FAQ
             </a>
@@ -187,6 +184,9 @@ export default function LandingPage() {
               </Link>
               <Link to="/calebnet">
                 <Button variant="secondary" className="border-blue-500 text-blue-500 hover:bg-blue-500/10">CalebNet</Button>
+              </Link>
+              <Link to="/rider/signup">
+                <Button variant="secondary" className="border-[#10B981] text-[#10B981] hover:bg-[#10B981]/10">Earn as Rider</Button>
               </Link>
             </div>
           </div>
@@ -313,50 +313,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Rider Opportunity */}
-      <section className={`py-16 md:py-24 ${studentTheme === 'dark' ? 'bg-[#101A17]' : 'bg-emerald-50/70'}`}>
-        <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-8 lg:gap-12 items-center max-w-7xl mx-auto px-4 sm:px-6">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#10B981]/10 border border-[#10B981]/20 text-[#10B981] text-sm font-bold mb-5">
-              <Bike className="w-4 h-4" />
-              Rider Opportunity
-            </div>
-            <h2 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight">
-              Earn on campus with CalebDeck.
-            </h2>
-            <p className="text-lg text-muted-foreground leading-relaxed mt-5 max-w-2xl">
-              Become a CalebDeck rider agent and earn up to ₦60k monthly helping students receive meals, mart items, and campus orders on time.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 mt-8">
-              <Link to="/rider/signup">
-                <Button variant="primary" size="lg" className="w-full sm:w-auto bg-[#10B981] text-white hover:bg-[#059669]">
-                  Apply as a Rider <ArrowRight className="w-5 h-5 ml-2" />
-                </Button>
-              </Link>
-            </div>
-          </div>
-          <div className="h-full">
-            <div className="grid gap-4">
-              <div className={`rounded-2xl border p-5 ${studentTheme === 'dark' ? 'bg-black/20 border-white/10' : 'bg-white border-emerald-100'}`}>
-                <Banknote className="w-7 h-7 text-[#10B981] mb-4" />
-                <p className="text-2xl font-black">Up to ₦60k monthly</p>
-                <p className="text-sm text-muted-foreground mt-2">A clear earning path for consistent campus riders.</p>
-              </div>
-              <div className={`rounded-2xl border p-5 ${studentTheme === 'dark' ? 'bg-black/20 border-white/10' : 'bg-white border-emerald-100'}`}>
-                <GraduationCap className="w-7 h-7 text-[#7C3AED] mb-4" />
-                <p className="text-2xl font-black">For Caleb students</p>
-                <p className="text-sm text-muted-foreground mt-2">Best for students who know campus routes and pickup points.</p>
-              </div>
-              <div className={`rounded-2xl border p-5 ${studentTheme === 'dark' ? 'bg-black/20 border-white/10' : 'bg-white border-emerald-100'}`}>
-                <CheckCircle className="w-7 h-7 text-[#FCD34D] mb-4" />
-                <p className="text-2xl font-black">Responsibility matters</p>
-                <p className="text-sm text-muted-foreground mt-2">Be available, careful with orders, and respectful with every customer.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Social Proof */}
       <section className="py-16 md:py-24 max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-10">
@@ -412,6 +368,50 @@ export default function LandingPage() {
                 </div>
               </Card>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Rider Opportunity */}
+      <section className={`py-16 md:py-24 ${studentTheme === 'dark' ? 'bg-[#101A17]' : 'bg-emerald-50/70'}`}>
+        <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-8 lg:gap-12 items-center max-w-7xl mx-auto px-4 sm:px-6">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#10B981]/10 border border-[#10B981]/20 text-[#10B981] text-sm font-bold mb-5">
+              <Bike className="w-4 h-4" />
+              Rider Opportunity
+            </div>
+            <h2 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight">
+              Earn on campus with CalebDeck.
+            </h2>
+            <p className="text-lg text-muted-foreground leading-relaxed mt-5 max-w-2xl">
+              Become a CalebDeck rider agent and earn up to ₦60k monthly helping students receive meals, mart items, and campus orders on time.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 mt-8">
+              <Link to="/rider/signup">
+                <Button variant="primary" size="lg" className="w-full sm:w-auto bg-[#10B981] text-white hover:bg-[#059669]">
+                  Apply as a Rider <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+          <div className="h-full">
+            <div className="grid gap-4">
+              <div className={`rounded-2xl border p-5 ${studentTheme === 'dark' ? 'bg-black/20 border-white/10' : 'bg-white border-emerald-100'}`}>
+                <Banknote className="w-7 h-7 text-[#10B981] mb-4" />
+                <p className="text-2xl font-black">Up to ₦60k monthly</p>
+                <p className="text-sm text-muted-foreground mt-2">A clear earning path for consistent campus riders.</p>
+              </div>
+              <div className={`rounded-2xl border p-5 ${studentTheme === 'dark' ? 'bg-black/20 border-white/10' : 'bg-white border-emerald-100'}`}>
+                <GraduationCap className="w-7 h-7 text-[#7C3AED] mb-4" />
+                <p className="text-2xl font-black">For Caleb students</p>
+                <p className="text-sm text-muted-foreground mt-2">Best for students who know campus routes and pickup points.</p>
+              </div>
+              <div className={`rounded-2xl border p-5 ${studentTheme === 'dark' ? 'bg-black/20 border-white/10' : 'bg-white border-emerald-100'}`}>
+                <CheckCircle className="w-7 h-7 text-[#FCD34D] mb-4" />
+                <p className="text-2xl font-black">Responsibility matters</p>
+                <p className="text-sm text-muted-foreground mt-2">Be available, careful with orders, and respectful with every customer.</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -536,7 +536,7 @@ export default function LandingPage() {
               Still need clarity?
             </h2>
             <p className="text-lg text-muted-foreground leading-relaxed mt-4">
-              Reach CalebDeck support with your name, order ID, hostel, and what happened so the team can trace it quickly.
+              Contact CalebDeck support with your name, order ID, hostel, and complaint details for quick assistance.
             </p>
           </div>
           <div>
