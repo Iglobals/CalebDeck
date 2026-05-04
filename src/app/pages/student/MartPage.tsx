@@ -260,7 +260,7 @@ export default function MartPage() {
                     />
                     {!item.inStock && (
                       <div className="absolute inset-0 bg-background/60 backdrop-blur-[3px] flex items-center justify-center p-4">
-                        <Badge variant="outline" className="bg-background/80 font-black px-3 py-1.5 border-2 text-foreground text-[10px] uppercase tracking-tighter">Out of Stock</Badge>
+                        <Badge variant="gray" className="bg-background/80 font-black px-3 py-1.5 border-2 text-foreground text-[10px] uppercase tracking-tighter">Out of Stock</Badge>
                       </div>
                     )}
                     {qty > 0 && (

@@ -79,6 +79,7 @@ export const router = createBrowserRouter([
           { path: "mart", Component: MartPage },
           { path: "mart/cart", Component: MartCart },
           { path: "mart/checkout", Component: MartCheckout },
+          { path: "calebnet", lazy: () => import("./pages/student/CalebNet").then(m => ({ Component: m.default })) },
         ]
       },
 
@@ -100,6 +101,7 @@ export const router = createBrowserRouter([
           { path: "seed", Component: SeedData },
           { path: "mart/inventory", Component: AdminMartInventory },
           { path: "mart/orders", Component: AdminMartOrders },
+          { path: "calebnet", lazy: () => import('./pages/admin/AdminCalebNet').then(m => ({ Component: m.default })) },
         ]
       },
 

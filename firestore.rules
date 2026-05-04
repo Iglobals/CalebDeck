@@ -145,6 +145,16 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ─── CalebNet Orders ───
+    // Backend (Firebase Admin SDK) creates & updates these — bypasses rules entirely.
+    // Frontend only reads from the admin dashboard.
+    match /calebnet_orders/{orderId} {
+      allow read: if isAdmin();
+      allow create: if false; // Only backend (Admin SDK) creates
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
     // ─── Settings ───
     match /settings/{settingId} {
       allow read: if true;

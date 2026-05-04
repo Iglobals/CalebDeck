@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { Logo } from '../../components/design-system/Logo';
 import { Button } from '../../components/design-system/Button';
 import { Card } from '../../components/design-system/Card';
-import { Clock, CheckCircle, Truck, Star, ArrowRight, Smartphone, Share, PlusSquare, MoreVertical, HelpCircle, MessageCircle, Utensils, ShoppingBag, X, Bike, Banknote, GraduationCap } from 'lucide-react';
+import { Clock, CheckCircle, Truck, Star, ArrowRight, Smartphone, Share, PlusSquare, MoreVertical, HelpCircle, MessageCircle, Utensils, ShoppingBag, X, Bike, Banknote, GraduationCap, Wifi } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -185,6 +185,9 @@ export default function LandingPage() {
               <Link to="/mart">
                 <Button variant="secondary" className="border-[#10B981] text-[#10B981] hover:bg-[#10B981]/10">Shop Mart</Button>
               </Link>
+              <Link to="/calebnet">
+                <Button variant="secondary" className="border-blue-500 text-blue-500 hover:bg-blue-500/10">CalebNet</Button>
+              </Link>
             </div>
           </div>
           <div className="md:hidden flex items-center justify-end z-[999]">
@@ -212,7 +215,7 @@ export default function LandingPage() {
             <p className="text-base sm:text-xl text-muted-foreground leading-relaxed max-w-lg">
               Order meals, snacks, essentials, and other campus needs through CalebDeck, then meet your rider at your hostel area or assigned pickup point.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
               <Link to="/cafeteria">
                 <Button variant="primary" size="lg" className="w-full sm:w-auto px-10">
                   Order Food <ArrowRight className="w-5 h-5 ml-2" />
@@ -221,6 +224,11 @@ export default function LandingPage() {
               <Link to="/mart">
                 <Button variant="secondary" size="lg" className="w-full sm:w-auto border-[#10B981] text-[#10B981] hover:bg-[#10B981]/10">
                   Shop Mart <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              </Link>
+              <Link to="/calebnet">
+                <Button variant="secondary" size="lg" className="w-full sm:w-auto border-blue-500 text-blue-500 hover:bg-blue-500/10">
+                  CalebNet Top-Up <Wifi className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
             </div>
@@ -269,9 +277,9 @@ export default function LandingPage() {
 
       {/* Services Section */}
       <section className="py-16 md:py-24 max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="grid md:grid-cols-2 gap-8">
+        <div className="grid md:grid-cols-3 gap-8">
           <Link to="/cafeteria" className="group">
-            <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl ${studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#FCD34D]/20' : 'bg-amber-50/50 border-amber-200'}`}>
+            <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl h-full ${studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#FCD34D]/20' : 'bg-amber-50/50 border-amber-200'}`}>
               <div className="w-16 h-16 rounded-2xl bg-[#FCD34D]/20 flex items-center justify-center mb-6">
                 <Utensils className="w-8 h-8 text-[#FCD34D]" />
               </div>
@@ -282,13 +290,24 @@ export default function LandingPage() {
           </Link>
           
           <Link to="/mart" className="group">
-            <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl ${studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#10B981]/20' : 'bg-emerald-50/50 border-emerald-200'}`}>
+            <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl h-full ${studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#10B981]/20' : 'bg-emerald-50/50 border-emerald-200'}`}>
               <div className="w-16 h-16 rounded-2xl bg-[#10B981]/20 flex items-center justify-center mb-6">
                 <ShoppingBag className="w-8 h-8 text-[#10B981]" />
               </div>
               <h3 className={`text-2xl font-bold mb-3 ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>CalebDeck Mart</h3>
               <p className={`text-lg mb-6 ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Groceries, snacks, drinks, and essentials delivered around campus when you need them.</p>
               <span className="text-[#10B981] font-bold flex items-center gap-2 group-hover:gap-4 transition-all">Shop Mart <ArrowRight className="w-5 h-5" /></span>
+            </div>
+          </Link>
+
+          <Link to="/calebnet" className="group">
+            <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl h-full ${studentTheme === 'dark' ? 'bg-[#1A1A1A] border-blue-500/20' : 'bg-blue-50/50 border-blue-200'}`}>
+              <div className="w-16 h-16 rounded-2xl bg-blue-500/20 flex items-center justify-center mb-6">
+                <Wifi className="w-8 h-8 text-blue-500" />
+              </div>
+              <h3 className={`text-2xl font-bold mb-3 ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>CalebNet</h3>
+              <p className={`text-lg mb-6 ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Instant data and airtime top-up for MTN, Airtel, Glo, and 9Mobile directly from CalebDeck.</p>
+              <span className="text-blue-500 font-bold flex items-center gap-2 group-hover:gap-4 transition-all">Top Up <ArrowRight className="w-5 h-5" /></span>
             </div>
           </Link>
         </div>

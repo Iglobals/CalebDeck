@@ -299,7 +299,6 @@ export default function MartCheckout() {
                   placeholder="John Doe"
                   value={formData.fullName}
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                  icon={<User className="w-5 h-5" />}
                   required
                 />
                 <Input
@@ -308,7 +307,6 @@ export default function MartCheckout() {
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  icon={<Phone className="w-5 h-5" />}
                   required
                 />
                 <Select

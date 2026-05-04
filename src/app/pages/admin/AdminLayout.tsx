@@ -37,6 +37,7 @@ const SEARCHABLE_ITEMS = [
     { label: 'Analytics', keywords: ['analytics', 'revenue', 'chart', 'report', 'trend', 'profit', 'sales'], path: '/admin/analytics', icon: '📈' },
     { label: 'Reviews', keywords: ['reviews', 'star', 'feedback', 'student', 'rating', 'comment'], path: '/admin/reviews', icon: '⭐' },
     { label: 'Order History', keywords: ['history', 'past', 'old', 'receipt', 'date', 'archive', 'delete', 'trash', 'recover'], path: '/admin/history', icon: '📋' },
+    { label: 'CalebNet', keywords: ['calebnet', 'vtpass', 'airtime', 'data', 'recharge', 'topup'], path: '/admin/calebnet', icon: '📶' },
 ];
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
@@ -63,6 +64,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
         { id: 'orders', path: '/admin/orders', icon: <ShoppingBag className="w-5 h-5" />, label: 'Food Orders' },
         { id: 'mart-orders', path: '/admin/mart/orders', icon: <Store className="w-5 h-5" />, label: 'Mart Orders' },
         { id: 'mart-inventory', path: '/admin/mart/inventory', icon: <Package className="w-5 h-5" />, label: 'Mart Inventory' },
+        { id: 'calebnet', path: '/admin/calebnet', icon: <Bell className="w-5 h-5" />, label: 'CalebNet' },
         { id: 'menu', path: '/admin/menu', icon: <UtensilsCrossed className="w-5 h-5" />, label: 'Menu Management' },
         { id: 'riders', path: '/admin/riders', icon: <Users className="w-5 h-5" />, label: 'Riders' },
         { id: 'analytics', path: '/admin/analytics', icon: <BarChart3 className="w-5 h-5" />, label: 'Analytics' },
