@@ -52,6 +52,18 @@ interface Plate {
 const TAKEAWAY_FEE = 200;
 const DELIVERY_FEE_SOLO = 750;
 const DELIVERY_FEE_GROUP = 580;
+const LEGACY_STORAGE_KEYS = ['cd_plates', 'cd_drinksSnacks', 'cd_deliveryMode', 'cd_groupSize'];
+
+const clearLegacyPlateStorage = () => {
+  LEGACY_STORAGE_KEYS.forEach(key => sessionStorage.removeItem(key));
+};
+
+const clearAllPlateBuilderStorage = () => {
+  clearLegacyPlateStorage();
+  Object.keys(sessionStorage)
+    .filter(key => key.startsWith('cd_plate_builder_'))
+    .forEach(key => sessionStorage.removeItem(key));
+};
 
 export default function PlateBuilder() {
   const navigate = useNavigate();
@@ -63,6 +75,7 @@ export default function PlateBuilder() {
   const cafeteriaId = params.cafeteriaId || location.state?.cafeteriaId || 'old';
   const sectionId = location.state?.sectionId || (cafeteriaId === 'old' ? 'none' : 'front');
   const isOldCafe = cafeteriaId === 'old';
+  const storagePrefix = `cd_plate_builder_${cafeteriaId}_${sectionId}`;
 
   const [foodItems, setFoodItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,13 +103,13 @@ export default function PlateBuilder() {
   const [selectedSoup, setSelectedSoup] = useState<string | null>(null);
 
   const [plates, setPlates] = useState<Plate[]>(() => {
-    const saved = sessionStorage.getItem('cd_plates');
+    const saved = sessionStorage.getItem(`${storagePrefix}_plates`);
     if (!saved) return [];
     try { return JSON.parse(saved); } catch { return []; }
   });
 
   const [drinksSnacks, setDrinksSnacks] = useState<{ [key: string]: number }>(() => {
-    const saved = sessionStorage.getItem('cd_drinksSnacks');
+    const saved = sessionStorage.getItem(`${storagePrefix}_drinksSnacks`);
     if (!saved) return {};
     try { return JSON.parse(saved); } catch { return {}; }
   });
@@ -105,15 +118,44 @@ export default function PlateBuilder() {
   const [currentSnacks, setCurrentSnacks] = useState<{ [key: string]: number }>({});
 
   const [deliveryMode, setDeliveryMode] = useState<'solo' | 'group'>(() => {
-    const saved = sessionStorage.getItem('cd_deliveryMode');
+    const saved = sessionStorage.getItem(`${storagePrefix}_deliveryMode`);
     return (saved === 'solo' || saved === 'group') ? saved : 'solo';
   });
 
   const [groupSize, setGroupSize] = useState(() => {
-    const saved = sessionStorage.getItem('cd_groupSize');
+    const saved = sessionStorage.getItem(`${storagePrefix}_groupSize`);
     const parsed = parseInt(saved || '');
     return isNaN(parsed) ? 2 : parsed;
   });
+
+  useEffect(() => {
+    clearLegacyPlateStorage();
+  }, []);
+
+  useEffect(() => {
+    try {
+      setPlates(JSON.parse(sessionStorage.getItem(`${storagePrefix}_plates`) || '[]'));
+    } catch {
+      setPlates([]);
+    }
+
+    try {
+      setDrinksSnacks(JSON.parse(sessionStorage.getItem(`${storagePrefix}_drinksSnacks`) || '{}'));
+    } catch {
+      setDrinksSnacks({});
+    }
+
+    const savedDeliveryMode = sessionStorage.getItem(`${storagePrefix}_deliveryMode`);
+    setDeliveryMode(savedDeliveryMode === 'group' ? 'group' : 'solo');
+
+    const savedGroupSize = parseInt(sessionStorage.getItem(`${storagePrefix}_groupSize`) || '');
+    setGroupSize(isNaN(savedGroupSize) ? 2 : savedGroupSize);
+    setCurrentBuild({});
+    setCurrentDrinks({});
+    setCurrentSnacks({});
+    setSelectedSwallow(null);
+    setSelectedSoup(null);
+  }, [storagePrefix]);
 
   const [openPlates, setOpenPlates] = useState<{ [key: string]: boolean }>({});
 
@@ -255,10 +297,7 @@ export default function PlateBuilder() {
     };
 
     // CRITICAL: Clear any stale plate data before navigating with combo
-    sessionStorage.removeItem('cd_plates');
-    sessionStorage.removeItem('cd_drinksSnacks');
-    sessionStorage.removeItem('cd_deliveryMode');
-    sessionStorage.removeItem('cd_groupSize');
+    clearAllPlateBuilderStorage();
 
     sessionStorage.setItem('cd_comboOrder', JSON.stringify(orderData));
     navigate('/checkout', { state: { comboOrder: orderData } });
@@ -292,15 +331,15 @@ export default function PlateBuilder() {
     trackPlateBuilderView(cafeteriaId, cafeteria);
   }, [cafeteriaId, cafeteria]);
 
-  useEffect(() => sessionStorage.setItem('cd_plates', JSON.stringify(plates)), [plates]);
-  useEffect(() => sessionStorage.setItem('cd_drinksSnacks', JSON.stringify(drinksSnacks)), [drinksSnacks]);
-  useEffect(() => sessionStorage.setItem('cd_deliveryMode', deliveryMode), [deliveryMode]);
+  useEffect(() => sessionStorage.setItem(`${storagePrefix}_plates`, JSON.stringify(plates)), [plates, storagePrefix]);
+  useEffect(() => sessionStorage.setItem(`${storagePrefix}_drinksSnacks`, JSON.stringify(drinksSnacks)), [drinksSnacks, storagePrefix]);
+  useEffect(() => sessionStorage.setItem(`${storagePrefix}_deliveryMode`, deliveryMode), [deliveryMode, storagePrefix]);
   
   // Track delivery mode changes
   useEffect(() => {
     trackDeliveryModeSelected(deliveryMode, deliveryMode === 'group' ? groupSize : 1);
   }, [deliveryMode, groupSize]);
-  useEffect(() => sessionStorage.setItem('cd_groupSize', groupSize.toString()), [groupSize]);
+  useEffect(() => sessionStorage.setItem(`${storagePrefix}_groupSize`, groupSize.toString()), [groupSize, storagePrefix]);
 
   if (loading) {
     return (

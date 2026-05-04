@@ -55,6 +55,20 @@ export default function Checkout() {
     sectionId = isCombo ? comboOrder.sectionId : 'none'
   } = locationState;
 
+  const hasMixedCafeteriaItems = React.useMemo(() => {
+    if (isCombo || !Array.isArray(plates)) return false;
+    return plates.some((plate: any) => (
+      (plate.items || []).some((plateItem: any) => {
+        const item = plateItem.item || plateItem;
+        if (!item?.cafeteriaId) return false;
+        if (item.cafeteriaId !== cafeteriaId) return true;
+        if (cafeteriaId !== 'old' && item.sectionId && item.sectionId !== sectionId) return true;
+        if (cafeteriaId === 'old' && item.sectionId && item.sectionId !== 'none') return true;
+        return false;
+      })
+    ));
+  }, [isCombo, plates, cafeteriaId, sectionId]);
+
   const currentDeliveryMode = sessionStorage.getItem('cd_deliveryMode') || initialDeliveryMode;
 
   const [hostels, setHostels] = useState<Hostel[]>([]);
@@ -285,6 +299,9 @@ if (isPremiumHostel) {
       sessionStorage.removeItem('cd_deliveryMode');
       sessionStorage.removeItem('cd_groupSize');
       sessionStorage.removeItem('cd_comboOrder');
+      Object.keys(sessionStorage)
+        .filter(key => key.startsWith('cd_plate_builder_'))
+        .forEach(key => sessionStorage.removeItem(key));
     };
 
     const goToSuccess = (firestoreId: string, finalOrderId: string) => {
@@ -487,6 +504,27 @@ if (isPremiumHostel) {
           <p className="text-muted-foreground mb-10 text-lg">Your cart is currently empty. Head back to build your perfect meal.</p>
           <Link to="/cafeteria" className="inline-block w-full">
             <Button variant="primary" className="w-full py-6 text-xl rounded-2xl">Start Ordering</Button>
+          </Link>
+        </Card>
+      </div>
+    );
+  }
+
+  if (hasMixedCafeteriaItems) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+        <Card className="max-w-md w-full text-center p-8">
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 flex items-center justify-center mx-auto mb-5">
+            <AlertTriangle className="w-9 h-9 text-amber-500" />
+          </div>
+          <h1 className="text-2xl font-black mb-3">Please rebuild this order</h1>
+          <p className="text-muted-foreground font-medium leading-relaxed mb-8">
+            This order contains items from more than one cafeteria or section. To avoid wrong preparation, start again from one cafeteria.
+          </p>
+          <Link to="/cafeteria">
+            <Button variant="primary" className="w-full py-4">
+              Choose Cafeteria
+            </Button>
           </Link>
         </Card>
       </div>
