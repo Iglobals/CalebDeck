@@ -3,7 +3,7 @@ import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
-import { Settings, ShieldAlert, Store, Pizza, Clock } from 'lucide-react';
+import { Settings, ShieldAlert, Store, Pizza, Clock, Wifi } from 'lucide-react';
 import { subscribeToPlatformSettings, updatePlatformSettings, PlatformSettings } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 
@@ -25,6 +25,7 @@ export default function AdminSettings() {
   const isDark = adminTheme === 'dark';
   const isAcceptingOrders = platformSettings?.isAcceptingOrders !== false; // defaults to true
   const isMartComingSoon = platformSettings?.isMartComingSoon === true;
+  const isCalebNetComingSoon = platformSettings?.isCalebNetComingSoon !== false; // defaults to true
   const isIPizzaComingSoon = platformSettings?.isIPizzaComingSoon !== false; // defaults to true
 
   const handleToggleOrdering = async () => {
@@ -42,6 +43,15 @@ export default function AdminSettings() {
       await updatePlatformSettings({ isMartComingSoon: !isMartComingSoon });
     } catch (err) {
       console.error('Failed to update mart maintenance mode:', err);
+    }
+  };
+
+  const handleToggleCalebNet = async () => {
+    if (!confirm(`Are you sure you want to ${isCalebNetComingSoon ? 'OPEN' : 'CLOSE'} CalebNet?`)) return;
+    try {
+      await updatePlatformSettings({ isCalebNetComingSoon: !isCalebNetComingSoon });
+    } catch (err) {
+      console.error('Failed to update CalebNet maintenance mode:', err);
     }
   };
 
@@ -145,6 +155,40 @@ export default function AdminSettings() {
               onClick={handleToggleMart}
             >
               {!isMartComingSoon ? 'Close Mart (Stocking)' : 'Open Mart'}
+            </Button>
+          </Card>
+
+          {/* CalebNet Toggle */}
+          <Card className={`p-6 border-l-4 ${!isCalebNetComingSoon ? 'border-l-green-500' : 'border-l-blue-500'}`}>
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className={`p-3 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                  <Wifi className={`w-6 h-6 ${!isCalebNetComingSoon ? 'text-green-500' : 'text-blue-500'}`} />
+                </div>
+                <div>
+                  <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>CalebNet</h3>
+                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Data & Airtime Availability</p>
+                </div>
+              </div>
+            </div>
+            <div className="mb-6">
+              {!isCalebNetComingSoon ? (
+                <Badge className="bg-green-100 text-green-700 mb-2">CalebNet Open</Badge>
+              ) : (
+                <Badge className="bg-blue-100 text-blue-700 mb-2">Coming Soon (Closed)</Badge>
+              )}
+              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                {!isCalebNetComingSoon
+                  ? 'Students can currently buy data and airtime.'
+                  : 'Students will see the CalebNet coming soon teaser.'}
+              </p>
+            </div>
+            <Button
+              variant={!isCalebNetComingSoon ? "danger" : "primary"}
+              className="w-full"
+              onClick={handleToggleCalebNet}
+            >
+              {!isCalebNetComingSoon ? 'Close CalebNet' : 'Open CalebNet'}
             </Button>
           </Card>
 

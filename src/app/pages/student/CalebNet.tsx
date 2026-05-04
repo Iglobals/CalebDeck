@@ -8,6 +8,7 @@ import { Button } from '../../components/design-system/Button';
 import { Card } from '../../components/design-system/Card';
 import { Logo } from '../../components/design-system/Logo';
 import SEO from '../../components/SEO';
+import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 
 const NETWORKS = [
   { id: 'MTN', name: 'MTN', color: '#FCD34D', textDark: 'text-yellow-900', prefixes: ['0803','0806','0810','0813','0814','0816','0903','0906','0913','0916','0704'] },
@@ -44,8 +45,14 @@ export default function CalebNet() {
   const [planFetchError, setPlanFetchError] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [phoneError, setPhoneError] = useState('');
+  const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
 
   const paymentRef = useRef(`calebnet_${Date.now()}_${Math.floor(Math.random() * 100000)}`);
+
+  useEffect(() => {
+    const unsub = subscribeToPlatformSettings(setPlatformSettings);
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     if (type === 'data' && network) {
@@ -197,6 +204,8 @@ export default function CalebNet() {
     initializePayment({ onSuccess: onSuccess as any, onClose });
   };
 
+  const isComingSoon = platformSettings?.isCalebNetComingSoon !== false;
+
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       <SEO
@@ -216,6 +225,31 @@ export default function CalebNet() {
           <Logo size="sm" />
         </div>
       </header>
+
+      {isComingSoon && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/85 backdrop-blur-md">
+          <div className="max-w-md w-full bg-card border border-border rounded-3xl p-8 text-center shadow-2xl animate-fade-in-up">
+            <div className="w-20 h-20 bg-[#7C3AED]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Wifi className="w-10 h-10 text-[#7C3AED]" />
+            </div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-500 text-xs font-black uppercase tracking-widest mb-5">
+              Coming Soon
+            </div>
+            <h2 className="text-3xl font-black mb-4">CalebNet is almost here.</h2>
+            <p className="text-muted-foreground mb-4 text-lg font-medium leading-relaxed">
+              Cheaper data and airtime top-up is coming to CalebDeck for Caleb University students.
+            </p>
+            <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
+              CalebNet will make it easier to stay connected for classes, calls, and campus life without overpaying.
+            </p>
+            <Link to="/">
+              <Button variant="primary" className="w-full py-4 text-base rounded-xl font-bold">
+                Return to Home
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-6 py-8 lg:py-12">
