@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router";
-import { Utensils, ShoppingBag, Headset } from "lucide-react";
+import { Utensils, ShoppingBag, Headset, Bike } from "lucide-react";
 
 const PaperBagSVG = () => (
   <svg viewBox="0 0 100 132" width="44" height="58" xmlns="http://www.w3.org/2000/svg" style={{ overflow: 'visible' }}>
@@ -113,6 +113,7 @@ export function PaperBagHamburger() {
   const navLinks = [
     { label: "Order Food", icon: <Utensils className="w-5 h-5 text-[#FCD34D]" />, to: "/cafeteria" },
     { label: "CalebDeck Mart", icon: <ShoppingBag className="w-5 h-5 text-[#10B981]" />, to: "/mart" },
+    { label: "Become a Rider", icon: <Bike className="w-5 h-5 text-[#10B981]" />, to: "/rider/signup" },
     { label: "Support", icon: <Headset className="w-5 h-5 text-[#7C3AED]" />, to: "/support" }
   ];
 
