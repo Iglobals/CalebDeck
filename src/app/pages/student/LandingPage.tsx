@@ -156,41 +156,51 @@ export default function LandingPage() {
       {/* Navigation */}
       <nav className="sticky top-0 bg-background/95 backdrop-blur-md z-50 border-b border-border transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <Logo size="md" />
-          <div className="hidden md:flex items-center gap-8">
-            <a href="#how-it-works" className="text-foreground/80 hover:text-secondary transition-colors font-medium">
+          <div className="flex-shrink-0">
+            <Logo size="md" />
+          </div>
+          <div className="hidden xl:flex items-center gap-3 xl:gap-4">
+            <a href="#how-it-works" className="text-foreground/80 hover:text-secondary transition-colors font-medium text-sm whitespace-nowrap">
               How it works
             </a>
-            <a href="#faq" className="text-foreground/80 hover:text-secondary transition-colors font-medium">
+            <a href="#faq" className="text-foreground/80 hover:text-secondary transition-colors font-medium text-sm whitespace-nowrap">
               FAQ
             </a>
 
-            <div className="flex items-center gap-4">
+            <div className="h-5 w-px bg-border" />
+
+            <div className="flex items-center gap-1 xl:gap-2">
               {user?.role === 'ADMIN' && (
                 <Link to="/admin">
-                  <Button variant="secondary" className="border-[#7C3AED] text-[#7C3AED]">Admin Portal</Button>
+                  <Button variant="secondary" className="border-[#7C3AED] text-[#7C3AED] text-xs px-2 xl:px-3 py-2 whitespace-nowrap">Admin</Button>
                 </Link>
               )}
               {user?.role === 'RIDER' && (
                 <Link to="/rider">
-                  <Button variant="secondary" className="border-[#FCD34D] text-[#FCD34D]">Rider Portal</Button>
+                  <Button variant="secondary" className="border-[#FCD34D] text-[#FCD34D] text-xs px-2 xl:px-3 py-2 whitespace-nowrap">Rider</Button>
                 </Link>
               )}
               <Link to="/cafeteria">
-                <Button variant="primary">Order Food</Button>
+                <Button variant="primary" className="text-xs px-2 xl:px-3 py-2 whitespace-nowrap">Order Food</Button>
               </Link>
-              <Link to="/mart">
-                <Button variant="secondary" className="border-[#10B981] text-[#10B981] hover:bg-[#10B981]/10">Shop Mart</Button>
+              <Link to="/mart" className="text-sm font-bold text-[#10B981] hover:text-[#059669] transition-colors px-1 xl:px-2 py-1 whitespace-nowrap">
+                Mart
               </Link>
-              <Link to="/calebnet">
-                <Button variant="secondary" className="border-blue-500 text-blue-500 hover:bg-blue-500/10">CalebNet</Button>
+              <Link to="/calebnet" className="text-sm font-bold text-blue-500 hover:text-blue-600 transition-colors px-1 xl:px-2 py-1 whitespace-nowrap">
+                CalebNet
               </Link>
-              <Link to="/rider/signup">
-                <Button variant="secondary" className="border-[#10B981] text-[#10B981] hover:bg-[#10B981]/10">Earn as Rider</Button>
+              <Link to="/my-orders" className="text-sm font-bold text-[#A78BFA] hover:text-[#8B5CF6] transition-colors px-1 xl:px-2 py-1 whitespace-nowrap">
+                My Orders
+              </Link>
+
+              <div className="h-5 w-px bg-border mx-1" />
+
+              <Link to="/rider/signup" className="text-xs font-bold text-[#10B981] border border-[#10B981]/30 rounded-lg px-2 xl:px-3 py-1.5 hover:bg-[#10B981]/10 transition-colors whitespace-nowrap">
+                Earn as Rider
               </Link>
             </div>
           </div>
-          <div className="md:hidden flex items-center justify-end z-[999]">
+          <div className="xl:hidden flex items-center justify-end z-[999]">
             <PaperBagHamburger />
           </div>
         </div>
@@ -560,6 +570,7 @@ export default function LandingPage() {
               <Link to="/privacy" className="text-muted-foreground hover:text-secondary transition-colors">Privacy</Link>
               <Link to="/terms" className="text-muted-foreground hover:text-secondary transition-colors">Terms</Link>
               <Link to="/support" className="text-muted-foreground hover:text-secondary transition-colors">Support</Link>
+              <Link to="/my-orders" className="text-muted-foreground hover:text-[#A78BFA] transition-colors">My Orders</Link>
               <Link to="/rider/signup" className="text-muted-foreground hover:text-[#10B981] transition-colors">Become a Rider</Link>
             </div>
             <div onDoubleClick={() => navigate('/rider/login')} className="text-sm text-muted-foreground font-medium cursor-pointer">

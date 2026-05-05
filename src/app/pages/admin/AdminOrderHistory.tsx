@@ -3,7 +3,7 @@ import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
 import { Badge } from '../../components/design-system/Badge';
 import { Button } from '../../components/design-system/Button';
-import { Download, Search, Filter, ChevronDown, Trash2, RotateCcw, AlertTriangle, CheckCircle, Package, Clock, Users } from 'lucide-react';
+import { Download, Search, Filter, ChevronDown, Trash2, RotateCcw, AlertTriangle, CheckCircle, Package, Clock, Users, Loader2 } from 'lucide-react';
 import { subscribeToOrderHistory, subscribeToRiders, trashOrder, recoverOrder, permanentlyDeleteOrder, Rider } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 import { format } from 'date-fns';
@@ -18,11 +18,14 @@ export default function AdminOrderHistory() {
     const [viewMode, setViewMode] = useState<ViewMode>('active');
     const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; status: string } | null>(null);
     const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false });
+    const [loading, setLoading] = useState(true);
     const { adminTheme } = useTheme();
 
     useEffect(() => {
-        const unsub = subscribeToOrderHistory(setOrders);
-        const unsubRiders = subscribeToRiders(setRiders);
+        let ordersLoaded = false, ridersLoaded = false;
+        const checkDone = () => { if (ordersLoaded && ridersLoaded) setLoading(false); };
+        const unsub = subscribeToOrderHistory((data) => { setOrders(data); ordersLoaded = true; checkDone(); });
+        const unsubRiders = subscribeToRiders((data) => { setRiders(data); ridersLoaded = true; checkDone(); });
         return () => { unsub(); unsubRiders(); };
     }, []);
 
@@ -244,6 +247,14 @@ export default function AdminOrderHistory() {
                     <span className="font-bold text-sm">{toast.message}</span>
                 </div>
             )}
+
+            {loading ? (
+                <div className="flex flex-col items-center justify-center py-32">
+                    <Loader2 className="w-8 h-8 animate-spin text-[#7C3AED] mb-3" />
+                    <p className={`text-xs font-bold uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Loading order history...</p>
+                </div>
+            ) : (
+            <>
 
             {/* Active / Trash Tab Toggle */}
             <div className={`flex gap-2 mb-8 p-1.5 rounded-2xl w-fit ${isDark ? 'bg-[#2A2A2A]' : 'bg-gray-100'}`}>
@@ -537,6 +548,8 @@ export default function AdminOrderHistory() {
                     to { opacity: 1; transform: translateY(0); }
                 }
             `}</style>
+            </>
+            )}
         </AdminLayout>
     );
 }

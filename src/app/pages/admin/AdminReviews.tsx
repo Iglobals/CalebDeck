@@ -1,24 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
-import { Star, MessageSquare, User, Package, UtensilsCrossed } from 'lucide-react';
+import { Star, MessageSquare, User, Package, UtensilsCrossed, Loader2 } from 'lucide-react';
 import { subscribeToReviews, Review } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 import { format } from 'date-fns';
 
 export default function AdminReviews() {
     const [reviews, setReviews] = useState<Review[]>([]);
+    const [loading, setLoading] = useState(true);
     const { adminTheme } = useTheme();
     const isDark = adminTheme === 'dark';
 
     useEffect(() => {
-        const unsub = subscribeToReviews(setReviews);
+        const unsub = subscribeToReviews((data) => {
+            setReviews(data);
+            setLoading(false);
+        });
         return () => unsub();
     }, []);
 
     const averageRating = reviews.length > 0 
         ? reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length 
         : 0;
+
+    if (loading) {
+        return (
+            <AdminLayout title="Student Reviews">
+                <div className="flex flex-col items-center justify-center py-32">
+                    <Loader2 className="w-8 h-8 animate-spin text-amber-500 mb-3" />
+                    <p className={`text-xs font-bold uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Loading reviews...</p>
+                </div>
+            </AdminLayout>
+        );
+    }
 
     return (
         <AdminLayout title="Student Reviews">

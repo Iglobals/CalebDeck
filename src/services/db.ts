@@ -623,6 +623,7 @@ export const markAllNotificationsAsRead = async (userId: string) => {
 export interface ComboItem {
     name: string;
     quantity: number;
+    price?: number;
 }
 
 export interface ComboDefinition {

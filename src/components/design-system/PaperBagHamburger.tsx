@@ -124,8 +124,10 @@ export function PaperBagHamburger() {
 
   const navLinks = [
     { label: "Order Food", emoji: "🍔", to: "/cafeteria" },
-    { label: "CalebDeck Mart", emoji: "🛒", to: "/mart" },
-    { label: "Support", emoji: "📞", to: "/support" }
+    { label: "CalebDeck Mart", emoji: "🛍️", to: "/mart" },
+    { label: "CalebNet", emoji: "🌐", to: "/calebnet" },
+    { label: "My Orders", emoji: "🧾", to: "/my-orders" },
+    { label: "Support", emoji: "💬", to: "/support" }
   ];
 
   const handleToggle = () => {

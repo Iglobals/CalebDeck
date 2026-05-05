@@ -9,6 +9,7 @@ import { CheckCircle, MapPin, Clock, Phone, Sparkles, RefreshCw, AlertCircle } f
 import { useTheme } from '../../../context/ThemeContext';
 import { subscribeToOrderStatus, getRiderById, getHostelById, Rider, getOrderById, submitReview } from '../../../services/db';
 import { trackOrderTracked } from '../../../services/analytics';
+import { saveOrderToHistory, buildFoodOrderEntry, buildMartOrderEntry, buildCalebNetEntry } from '../../../services/orderHistory';
 
 const TRACKING_STEPS = ['Received', 'Out for Delivery', 'On The Way', 'Delivered'];
 const MASS_COMM_PICKUP_HOSTELS = ['mary', 'mary hall', 'rebecca', 'rebecca hall', 'esme', 'esme hall', 'mercy', 'mercy hall', 'deborah', 'deborah hall'];
@@ -71,6 +72,27 @@ export default function OrderSuccess() {
   useEffect(() => {
     if (location.state) {
       localStorage.setItem('calebdeck_last_order', JSON.stringify(location.state));
+
+      // Save to persistent order history
+      try {
+        const s = location.state as any;
+        if (s.calebnet) {
+          saveOrderToHistory(buildCalebNetEntry({
+            network: s.network || '',
+            type: s.type || 'data',
+            amount: Number(s.amount) || 0,
+            phoneNumber: s.phoneNumber || '',
+            planName: s.planName,
+            reference: s.firestoreOrderId || s.paymentReference || s.orderId || `cn_${Date.now()}`
+          }));
+        } else if (s.orderType === 'mart' || s.type === 'mart' || s.cafeteria === 'CalebDeck Mart') {
+          saveOrderToHistory(buildMartOrderEntry(s));
+        } else {
+          saveOrderToHistory(buildFoodOrderEntry(s));
+        }
+      } catch (e) {
+        console.warn('Could not save to order history:', e);
+      }
     }
   }, [location.state]);
 

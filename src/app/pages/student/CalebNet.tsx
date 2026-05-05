@@ -9,6 +9,7 @@ import { Card } from '../../components/design-system/Card';
 import { Logo } from '../../components/design-system/Logo';
 import SEO from '../../components/SEO';
 import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
+import { saveOrderToHistory, buildCalebNetEntry } from '../../../services/orderHistory';
 
 const NETWORKS = [
   { id: 'MTN', name: 'MTN', color: '#FCD34D', textDark: 'text-yellow-900', prefixes: ['0803','0806','0810','0813','0814','0816','0903','0906','0913','0916','0704'] },
@@ -164,9 +165,21 @@ export default function CalebNet() {
       clearTimeout(timeout);
       const data = await res.json();
       if (data.data?.success) {
+        // Save to local order history regardless of fulfillment status
+        try {
+          saveOrderToHistory(buildCalebNetEntry({
+            network,
+            type,
+            amount: Number(amount),
+            phoneNumber,
+            planName: type === 'data' ? selectedPlan?.name : 'Airtime',
+            reference: reference.reference || paymentRef.current
+          }));
+        } catch (_) {}
+
         if (data.data.fulfillmentStatus === 'SUCCESSFUL') {
           toast.success('Recharge successful! 🎉');
-          navigate('/order-success', { state: { calebnet: true, amount, type, network, phoneNumber } });
+          navigate('/order-success', { state: { calebnet: true, amount, type, network, phoneNumber, planName: type === 'data' ? selectedPlan?.name : 'Airtime', paymentReference: reference.reference || paymentRef.current } });
         } else if (data.data.fulfillmentStatus === 'PENDING_PROVIDER') {
           toast.info('Payment received! Your recharge is being processed by the network. This usually takes a few seconds.');
           navigate('/');

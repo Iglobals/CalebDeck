@@ -16,7 +16,8 @@ import {
     Pencil,
     Wrench,
     Package,
-    Database
+    Database,
+    Loader2
 } from 'lucide-react';
 import { updateMenuItem, addMenuItem, deleteMenuItem, migrateMainToBase, MenuItem, ComboDefinition, ComboItem, subscribeToCombos, addCombo, updateCombo, deleteCombo } from '../../../services/db';
 import { seedInitialCombos } from '../../../services/combo-data';
@@ -79,9 +80,15 @@ export default function MenuManagement() {
     const comboFileInputRef = useRef<HTMLInputElement>(null);
     const editComboFileInputRef = useRef<HTMLInputElement>(null);
 
+    const [combosLoading, setCombosLoading] = useState(true);
+
     // Combo subscriptions
     useEffect(() => {
-        const unsub = subscribeToCombos((data) => setCombos(data));
+        setCombosLoading(true);
+        const unsub = subscribeToCombos((data) => {
+            setCombos(data);
+            setCombosLoading(false);
+        });
         return () => unsub();
     }, []);
 
@@ -783,13 +790,18 @@ export default function MenuManagement() {
 
                     {/* Combo Cards Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                        {filteredCombos.length === 0 && (
+                        {combosLoading ? (
+                            <div className="col-span-full flex flex-col items-center justify-center py-20">
+                                <Loader2 className="w-8 h-8 animate-spin text-[#7C3AED] mb-3" />
+                                <p className={`text-xs font-bold uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Loading combo packs...</p>
+                            </div>
+                        ) : filteredCombos.length === 0 ? (
                             <div className={`col-span-full p-12 text-center rounded-2xl border-2 border-dashed ${isDark ? 'border-[#333333] text-[#9C8F7F]' : 'border-gray-100 text-gray-400'}`}>
                                 <Package className="w-10 h-10 mx-auto mb-3 opacity-20" />
                                 <p className="font-bold text-sm">No combo packs found</p>
                                 <p className="text-xs mt-1 opacity-60">Add combo packs with the button above</p>
                             </div>
-                        )}
+                        ) : null}
                         {filteredCombos.map(combo => (
                             <Card key={combo.id} className={`group relative p-0 overflow-hidden border transition-all hover:shadow-xl ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'}`}>
                                 <div className="h-44 relative overflow-hidden bg-[#2A2A2A]">
@@ -859,18 +871,19 @@ export default function MenuManagement() {
                                 <div className="overflow-y-auto flex-1 p-7 space-y-5">
                                     <div className="space-y-1.5">
                                         <label className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Combo Name</label>
-                                        <input type="text" className={inputClass} placeholder="e.g. Royal Deck Bistro"
+                                        <input type="text" className={inputClass} placeholder="e.g. Caleb Prime Bistro"
                                             value={newCombo.name} onChange={e => setNewCombo({ ...newCombo, name: e.target.value })} />
                                     </div>
                                     <div className="space-y-1.5">
-                                        <label className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Tagline</label>
-                                        <input type="text" className={inputClass} placeholder="e.g. Eat like royalty"
+                                        <label className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Short Description / Tagline</label>
+                                        <input type="text" className={inputClass} placeholder="e.g. The full student meal experience"
                                             value={newCombo.tagline} onChange={e => setNewCombo({ ...newCombo, tagline: e.target.value })} />
                                     </div>
                                     <div className="space-y-1.5">
-                                        <label className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Price (₦)</label>
-                                        <input type="number" className={inputClass} placeholder="e.g. 3000"
+                                        <label className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Total Combo Price (₦)</label>
+                                        <input type="number" className={inputClass} placeholder="e.g. 3600"
                                             value={newCombo.basePrice} onChange={e => setNewCombo({ ...newCombo, basePrice: e.target.value })} />
+                                        <p className={`text-[10px] ${isDark ? 'text-[#666]' : 'text-gray-400'}`}>This is the total price students pay for the entire combo</p>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1.5">
@@ -908,41 +921,82 @@ export default function MenuManagement() {
                                         </div>
                                         <input ref={comboFileInputRef} type="file" accept="image/*" className="hidden" onChange={e => handleComboImageUpload(e, 'add')} />
                                     </div>
-                                    {/* Items */}
+
+                                    {/* Items — Self-explanatory redesign */}
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between">
-                                            <label className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Items Included</label>
+                                            <label className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>What's in this combo?</label>
                                             <button onClick={() => setNewCombo(prev => ({ ...prev, items: [...prev.items, { name: '', quantity: 1 }] }))}
                                                 className="text-[10px] font-black text-[#7C3AED] uppercase tracking-widest hover:underline flex items-center gap-1">
-                                                <Plus className="w-3 h-3" /> Add Item
+                                                <Plus className="w-3 h-3" /> Add Another Item
                                             </button>
                                         </div>
+
+                                        <div className={`rounded-xl p-3 text-[11px] font-medium leading-relaxed ${isDark ? 'bg-[#1A1A1A] text-[#9C8F7F] border border-[#333333]' : 'bg-blue-50 text-blue-700 border border-blue-100'}`}>
+                                            <strong>💡 How to add items:</strong> Type each item in the combo, e.g. <em>"Rice & Beans (2 portions)"</em>, <em>"Meat (2x)"</em>, or <em>"Fanta/Coke/Sprite/Limca"</em>. Set the quantity for each.
+                                        </div>
+
                                         {newCombo.items.map((item, idx) => (
-                                            <div key={idx} className="flex gap-2 items-center">
-                                                <input type="text" className={`${inputClass} flex-1`} placeholder="e.g. Rice (Jollof/Fried/Mixed) - 2 Portions"
-                                                    value={item.name} onChange={e => {
-                                                        const items = [...newCombo.items];
-                                                        items[idx] = { ...items[idx], name: e.target.value };
-                                                        setNewCombo({ ...newCombo, items });
-                                                    }} />
-                                                <input type="number" className={`${inputClass} w-16 text-center`} placeholder="Qty" min={1}
-                                                    value={item.quantity} onChange={e => {
-                                                        const items = [...newCombo.items];
-                                                        items[idx] = { ...items[idx], quantity: Math.max(1, Number(e.target.value)) };
-                                                        setNewCombo({ ...newCombo, items });
-                                                    }} />
-                                                {newCombo.items.length > 1 && (
-                                                    <button onClick={() => setNewCombo(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== idx) }))}
-                                                        className="p-2 hover:bg-red-500/10 rounded-lg transition-colors">
-                                                        <Trash2 className="w-4 h-4 text-red-500" />
-                                                    </button>
-                                                )}
+                                            <div key={idx} className={`rounded-xl border p-3 space-y-2 ${isDark ? 'border-[#333333] bg-[#1A1A1A]' : 'border-gray-100 bg-gray-50/50'}`}>
+                                                <div className="flex items-center justify-between">
+                                                    <span className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#7C3AED]' : 'text-purple-600'}`}>Item {idx + 1}</span>
+                                                    {newCombo.items.length > 1 && (
+                                                        <button onClick={() => setNewCombo(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== idx) }))}
+                                                            className="text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-widest flex items-center gap-1">
+                                                            <Trash2 className="w-3 h-3" /> Remove
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <div className="flex gap-2 items-end">
+                                                    <div className="flex-1 space-y-1">
+                                                        <label className={`text-[9px] font-bold ${isDark ? 'text-[#666]' : 'text-gray-400'}`}>What is this item?</label>
+                                                        <input type="text" className={`${inputClass} !py-3`}
+                                                            placeholder={idx === 0 ? "e.g. Rice & Beans (2 portions)" : idx === 1 ? "e.g. Meat (2x)" : idx === 2 ? "e.g. Plastic Moi Moi" : idx === 3 ? "e.g. Fanta/Coke/Sprite/Limca" : "e.g. Takeaway pack"}
+                                                            value={item.name} onChange={e => {
+                                                                const items = [...newCombo.items];
+                                                                items[idx] = { ...items[idx], name: e.target.value };
+                                                                setNewCombo({ ...newCombo, items });
+                                                            }} />
+                                                    </div>
+                                                    <div className="w-20 space-y-1">
+                                                        <label className={`text-[9px] font-bold ${isDark ? 'text-[#666]' : 'text-gray-400'}`}>QTY</label>
+                                                        <input type="number" className={`${inputClass} !py-3 text-center`} min={1}
+                                                            value={item.quantity} onChange={e => {
+                                                                const items = [...newCombo.items];
+                                                                items[idx] = { ...items[idx], quantity: Math.max(1, Number(e.target.value)) };
+                                                                const newBasePrice = items.reduce((acc, i) => acc + ((i.price || 0) * i.quantity), 0);
+                                                                setNewCombo(prev => ({ ...prev, items, ...(newBasePrice > 0 ? { basePrice: newBasePrice.toString() } : {}) }));
+                                                            }} />
+                                                    </div>
+                                                    <div className="w-24 space-y-1">
+                                                        <label className={`text-[9px] font-bold ${isDark ? 'text-[#666]' : 'text-gray-400'}`}>PRICE (₦)</label>
+                                                        <input type="number" className={`${inputClass} !py-3 text-center`} min={0}
+                                                            placeholder="0"
+                                                            value={item.price || ''} onChange={e => {
+                                                                const items = [...newCombo.items];
+                                                                items[idx] = { ...items[idx], price: Number(e.target.value) };
+                                                                const newBasePrice = items.reduce((acc, i) => acc + ((i.price || 0) * i.quantity), 0);
+                                                                setNewCombo(prev => ({ ...prev, items, basePrice: newBasePrice.toString() }));
+                                                            }} />
+                                                    </div>
+                                                </div>
                                             </div>
                                         ))}
-                                        <p className={`text-[10px] ${isDark ? 'text-[#666]' : 'text-gray-400'}`}>
-                                            Use / for options: "Rice (Jollof/Fried/Mixed) - 2 Portions"
-                                        </p>
                                     </div>
+
+                                    {/* Live Preview */}
+                                    {newCombo.name && newCombo.items.some(i => i.name.trim()) && (
+                                        <div className={`rounded-xl border-2 border-dashed p-4 ${isDark ? 'border-[#333333]' : 'border-gray-200'}`}>
+                                            <p className={`text-[9px] font-black uppercase tracking-widest mb-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Preview</p>
+                                            <p className="font-black text-base">{newCombo.name} {newCombo.basePrice && <span className="text-[#10B981]">— ₦{Number(newCombo.basePrice).toLocaleString()}</span>}</p>
+                                            {newCombo.tagline && <p className={`text-xs mt-0.5 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{newCombo.tagline}</p>}
+                                            <ul className={`mt-2 space-y-0.5 text-xs ${isDark ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>
+                                                {newCombo.items.filter(i => i.name.trim()).map((item, i) => (
+                                                    <li key={i}>• {item.name}{item.quantity > 1 ? ` (x${item.quantity})` : ''}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className={`flex-shrink-0 p-7 flex gap-3 border-t ${isDark ? 'border-[#333333]' : 'border-gray-100'}`}>
                                     <Button variant="ghost" className={`flex-1 py-4 font-bold text-[10px] uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}
@@ -978,14 +1032,15 @@ export default function MenuManagement() {
                                             onChange={e => setEditComboForm({ ...editComboForm, name: e.target.value })} />
                                     </div>
                                     <div className="space-y-1.5">
-                                        <label className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Tagline</label>
+                                        <label className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Short Description / Tagline</label>
                                         <input type="text" className={inputClass} value={editComboForm.tagline}
                                             onChange={e => setEditComboForm({ ...editComboForm, tagline: e.target.value })} />
                                     </div>
                                     <div className="space-y-1.5">
-                                        <label className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Price (₦)</label>
+                                        <label className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Total Combo Price (₦)</label>
                                         <input type="number" className={inputClass} value={editComboForm.basePrice}
                                             onChange={e => setEditComboForm({ ...editComboForm, basePrice: e.target.value })} />
+                                        <p className={`text-[10px] ${isDark ? 'text-[#666]' : 'text-gray-400'}`}>This is the total price students pay for the entire combo</p>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1.5">
@@ -1023,41 +1078,81 @@ export default function MenuManagement() {
                                         </div>
                                         <input ref={editComboFileInputRef} type="file" accept="image/*" className="hidden" onChange={e => handleComboImageUpload(e, 'edit')} />
                                     </div>
-                                    {/* Items */}
+                                    {/* Items — Self-explanatory redesign */}
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between">
-                                            <label className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Items Included</label>
+                                            <label className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>What's in this combo?</label>
                                             <button onClick={() => setEditComboForm(prev => ({ ...prev, items: [...prev.items, { name: '', quantity: 1 }] }))}
                                                 className="text-[10px] font-black text-[#7C3AED] uppercase tracking-widest hover:underline flex items-center gap-1">
-                                                <Plus className="w-3 h-3" /> Add Item
+                                                <Plus className="w-3 h-3" /> Add Another Item
                                             </button>
                                         </div>
+
+                                        <div className={`rounded-xl p-3 text-[11px] font-medium leading-relaxed ${isDark ? 'bg-[#1A1A1A] text-[#9C8F7F] border border-[#333333]' : 'bg-blue-50 text-blue-700 border border-blue-100'}`}>
+                                            <strong>💡 How to edit items:</strong> Update names and quantities. Use descriptions like <em>"Rice & Beans (2 portions)"</em>, <em>"Meat (2x)"</em>, or <em>"Fanta/Coke/Sprite/Limca"</em>.
+                                        </div>
+
                                         {editComboForm.items.map((item, idx) => (
-                                            <div key={idx} className="flex gap-2 items-center">
-                                                <input type="text" className={`${inputClass} flex-1`} placeholder="Item name"
-                                                    value={item.name} onChange={e => {
-                                                        const items = [...editComboForm.items];
-                                                        items[idx] = { ...items[idx], name: e.target.value };
-                                                        setEditComboForm({ ...editComboForm, items });
-                                                    }} />
-                                                <input type="number" className={`${inputClass} w-16 text-center`} min={1}
-                                                    value={item.quantity} onChange={e => {
-                                                        const items = [...editComboForm.items];
-                                                        items[idx] = { ...items[idx], quantity: Math.max(1, Number(e.target.value)) };
-                                                        setEditComboForm({ ...editComboForm, items });
-                                                    }} />
-                                                {editComboForm.items.length > 1 && (
-                                                    <button onClick={() => setEditComboForm(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== idx) }))}
-                                                        className="p-2 hover:bg-red-500/10 rounded-lg transition-colors">
-                                                        <Trash2 className="w-4 h-4 text-red-500" />
-                                                    </button>
-                                                )}
+                                            <div key={idx} className={`rounded-xl border p-3 space-y-2 ${isDark ? 'border-[#333333] bg-[#1A1A1A]' : 'border-gray-100 bg-gray-50/50'}`}>
+                                                <div className="flex items-center justify-between">
+                                                    <span className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#10B981]' : 'text-emerald-600'}`}>Item {idx + 1}</span>
+                                                    {editComboForm.items.length > 1 && (
+                                                        <button onClick={() => setEditComboForm(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== idx) }))}
+                                                            className="text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-widest flex items-center gap-1">
+                                                            <Trash2 className="w-3 h-3" /> Remove
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <div className="flex gap-2 items-end">
+                                                    <div className="flex-1 space-y-1">
+                                                        <label className={`text-[9px] font-bold ${isDark ? 'text-[#666]' : 'text-gray-400'}`}>What is this item?</label>
+                                                        <input type="text" className={`${inputClass} !py-3`}
+                                                            placeholder={idx === 0 ? "e.g. Rice & Beans (2 portions)" : idx === 1 ? "e.g. Meat (2x)" : idx === 2 ? "e.g. Plastic Moi Moi" : "e.g. Fanta/Coke/Sprite/Limca"}
+                                                            value={item.name} onChange={e => {
+                                                                const items = [...editComboForm.items];
+                                                                items[idx] = { ...items[idx], name: e.target.value };
+                                                                setEditComboForm({ ...editComboForm, items });
+                                                            }} />
+                                                    </div>
+                                                    <div className="w-20 space-y-1">
+                                                        <label className={`text-[9px] font-bold ${isDark ? 'text-[#666]' : 'text-gray-400'}`}>QTY</label>
+                                                        <input type="number" className={`${inputClass} !py-3 text-center`} min={1}
+                                                            value={item.quantity} onChange={e => {
+                                                                const items = [...editComboForm.items];
+                                                                items[idx] = { ...items[idx], quantity: Math.max(1, Number(e.target.value)) };
+                                                                const newBasePrice = items.reduce((acc, i) => acc + ((i.price || 0) * i.quantity), 0);
+                                                                setEditComboForm(prev => ({ ...prev, items, ...(newBasePrice > 0 ? { basePrice: newBasePrice.toString() } : {}) }));
+                                                            }} />
+                                                    </div>
+                                                    <div className="w-24 space-y-1">
+                                                        <label className={`text-[9px] font-bold ${isDark ? 'text-[#666]' : 'text-gray-400'}`}>PRICE (₦)</label>
+                                                        <input type="number" className={`${inputClass} !py-3 text-center`} min={0}
+                                                            placeholder="0"
+                                                            value={item.price || ''} onChange={e => {
+                                                                const items = [...editComboForm.items];
+                                                                items[idx] = { ...items[idx], price: Number(e.target.value) };
+                                                                const newBasePrice = items.reduce((acc, i) => acc + ((i.price || 0) * i.quantity), 0);
+                                                                setEditComboForm(prev => ({ ...prev, items, basePrice: newBasePrice.toString() }));
+                                                            }} />
+                                                    </div>
+                                                </div>
                                             </div>
                                         ))}
-                                        <p className={`text-[10px] ${isDark ? 'text-[#666]' : 'text-gray-400'}`}>
-                                            Use / for options: "Rice (Jollof/Fried/Mixed) - 2 Portions"
-                                        </p>
                                     </div>
+
+                                    {/* Live Preview */}
+                                    {editComboForm.name && editComboForm.items.some(i => i.name.trim()) && (
+                                        <div className={`rounded-xl border-2 border-dashed p-4 ${isDark ? 'border-[#333333]' : 'border-gray-200'}`}>
+                                            <p className={`text-[9px] font-black uppercase tracking-widest mb-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>Preview</p>
+                                            <p className="font-black text-base">{editComboForm.name} {editComboForm.basePrice && <span className="text-[#10B981]">— ₦{Number(editComboForm.basePrice).toLocaleString()}</span>}</p>
+                                            {editComboForm.tagline && <p className={`text-xs mt-0.5 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{editComboForm.tagline}</p>}
+                                            <ul className={`mt-2 space-y-0.5 text-xs ${isDark ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>
+                                                {editComboForm.items.filter(i => i.name.trim()).map((item, i) => (
+                                                    <li key={i}>• {item.name}{item.quantity > 1 ? ` (x${item.quantity})` : ''}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className={`flex-shrink-0 p-7 flex gap-3 border-t ${isDark ? 'border-[#333333]' : 'border-gray-100'}`}>
                                     <Button variant="ghost" className={`flex-1 py-4 font-bold text-[10px] uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}
