@@ -55,7 +55,10 @@ export interface MartOrder {
 
 export const subscribeToMartItems = (callback: (items: MartItem[]) => void) => {
   const q = query(collection(db, MART_ITEMS), orderBy('createdAt', 'desc'));
-  return onSnapshot(q, (snapshot) => {
+  return onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
+    if (snapshot.metadata.fromCache && snapshot.empty) {
+      return; // Ignore empty initial cache read to prevent "No items" flicker
+    }
     const items = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()

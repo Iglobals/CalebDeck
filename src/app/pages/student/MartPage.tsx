@@ -45,9 +45,18 @@ export default function MartPage() {
   const { items: cartItems, addItem, updateQuantity, totalItems } = useMartCart();
 
   useEffect(() => {
+    const cachedItems = sessionStorage.getItem('mart_items_cache');
+    if (cachedItems) {
+      try {
+        setItems(JSON.parse(cachedItems));
+        setLoading(false);
+      } catch (e) {}
+    }
+
     const loadingTimeout = window.setTimeout(() => setLoading(false), 8000);
     const unsubscribeItems = subscribeToMartItems((fetchedItems) => {
       setItems(fetchedItems);
+      sessionStorage.setItem('mart_items_cache', JSON.stringify(fetchedItems));
       setLoading(false);
       window.clearTimeout(loadingTimeout);
     });
