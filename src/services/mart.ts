@@ -53,20 +53,19 @@ export interface MartOrder {
 // STUDENT FACING
 // ==========================================
 
-export const subscribeToMartItems = (callback: (items: MartItem[]) => void) => {
+export const subscribeToMartItems = (
+  callback: (items: MartItem[], isFromCache: boolean, error?: Error) => void
+) => {
   const q = query(collection(db, MART_ITEMS), orderBy('createdAt', 'desc'));
   return onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
-    if (snapshot.metadata.fromCache && snapshot.empty) {
-      return; // Ignore empty initial cache read to prevent "No items" flicker
-    }
     const items = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     } as MartItem));
-    callback(items);
+    callback(items, snapshot.metadata.fromCache);
   }, (error) => {
     console.error('subscribeToMartItems error:', error);
-    callback([]);
+    callback([], false, error);
   });
 };
 

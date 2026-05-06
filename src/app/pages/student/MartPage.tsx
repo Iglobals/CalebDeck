@@ -23,6 +23,13 @@ const CATEGORIES = [
   'Home & Living'
 ];
 
+const MART_ITEMS_CACHE_KEY = 'mart_items_cache_v1';
+const MART_ITEMS_CACHE_TIME_KEY = 'mart_items_cache_time_v1';
+const LEGACY_MART_ITEMS_CACHE_KEY = 'mart_items_cache';
+const MART_CACHE_MAX_AGE_MS = 1000 * 60 * 45;
+const SLOW_LOAD_MS = 4500;
+const VERY_SLOW_LOAD_MS = 12000;
+
 export default function MartPage() {
   const { studentTheme } = useTheme();
   const navigate = useNavigate();
@@ -31,6 +38,10 @@ export default function MartPage() {
   const [items, setItems] = useState<MartItem[]>([]);
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasServerResponse, setHasServerResponse] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [isSlowLoading, setIsSlowLoading] = useState(false);
+  const [isVerySlowLoading, setIsVerySlowLoading] = useState(false);
   const cartIconRef = useRef<HTMLAnchorElement>(null);
   const [flyingItem, setFlyingItem] = useState<{
     imageUrl: string;
@@ -45,25 +56,69 @@ export default function MartPage() {
   const { items: cartItems, addItem, updateQuantity, totalItems } = useMartCart();
 
   useEffect(() => {
-    const cachedItems = sessionStorage.getItem('mart_items_cache');
-    if (cachedItems) {
-      try {
-        setItems(JSON.parse(cachedItems));
-        setLoading(false);
-      } catch (e) {}
-    }
+    const readCachedItems = () => {
+      const localCache = localStorage.getItem(MART_ITEMS_CACHE_KEY);
+      const cacheTime = Number(localStorage.getItem(MART_ITEMS_CACHE_TIME_KEY) || 0);
+      const legacySessionCache = sessionStorage.getItem(LEGACY_MART_ITEMS_CACHE_KEY);
+      const cachedItems = localCache || legacySessionCache;
+      const isFresh = localCache ? Date.now() - cacheTime < MART_CACHE_MAX_AGE_MS : true;
 
-    const loadingTimeout = window.setTimeout(() => setLoading(false), 8000);
-    const unsubscribeItems = subscribeToMartItems((fetchedItems) => {
-      setItems(fetchedItems);
-      sessionStorage.setItem('mart_items_cache', JSON.stringify(fetchedItems));
-      setLoading(false);
-      window.clearTimeout(loadingTimeout);
+      if (!cachedItems || !isFresh) return;
+
+      try {
+        const parsed = JSON.parse(cachedItems);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setItems(parsed);
+          setLoading(false);
+        }
+      } catch (e) {}
+    };
+
+    readCachedItems();
+
+    const slowLoadingTimeout = window.setTimeout(() => setIsSlowLoading(true), SLOW_LOAD_MS);
+    const verySlowLoadingTimeout = window.setTimeout(() => setIsVerySlowLoading(true), VERY_SLOW_LOAD_MS);
+
+    const unsubscribeItems = subscribeToMartItems((fetchedItems, isFromCache, error) => {
+      if (error) {
+        setLoadError(true);
+        setHasServerResponse(true);
+        setLoading(false);
+        window.clearTimeout(slowLoadingTimeout);
+        window.clearTimeout(verySlowLoadingTimeout);
+        return;
+      }
+
+      setLoadError(false);
+      if (fetchedItems.length > 0) {
+        setItems(fetchedItems);
+        localStorage.setItem(MART_ITEMS_CACHE_KEY, JSON.stringify(fetchedItems));
+        localStorage.setItem(MART_ITEMS_CACHE_TIME_KEY, String(Date.now()));
+        sessionStorage.setItem(LEGACY_MART_ITEMS_CACHE_KEY, JSON.stringify(fetchedItems));
+        setHasServerResponse(!isFromCache);
+        setLoading(false);
+        window.clearTimeout(slowLoadingTimeout);
+        window.clearTimeout(verySlowLoadingTimeout);
+        return;
+      }
+
+      if (!isFromCache) {
+        setItems([]);
+        setHasServerResponse(true);
+        setLoading(false);
+        window.clearTimeout(slowLoadingTimeout);
+        window.clearTimeout(verySlowLoadingTimeout);
+      }
     });
     const unsubscribeSettings = subscribeToPlatformSettings((settings) => {
       setPlatformSettings(settings);
     });
-    return () => { window.clearTimeout(loadingTimeout); unsubscribeItems(); unsubscribeSettings(); };
+    return () => {
+      window.clearTimeout(slowLoadingTimeout);
+      window.clearTimeout(verySlowLoadingTimeout);
+      unsubscribeItems();
+      unsubscribeSettings();
+    };
   }, []);
 
   const filteredItems = items.filter(item => {
@@ -71,6 +126,10 @@ export default function MartPage() {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
+  const isInitialLoading = loading && items.length === 0;
+  const isSearchOrFilterEmpty = !loading && items.length > 0 && filteredItems.length === 0;
+  const isConfirmedEmpty = !loading && hasServerResponse && items.length === 0 && !loadError;
+  const isLoadFailure = !loading && loadError && items.length === 0;
 
   const getCartQuantity = (itemId: string) => {
     return cartItems.find(i => i.id === itemId)?.quantity || 0;
@@ -227,20 +286,64 @@ export default function MartPage() {
         </div>
 
         {/* Product Grid */}
-        {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 animate-pulse">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-              <div key={i} className="bg-muted/50 rounded-3xl aspect-[3/4] p-4"></div>
-            ))}
+        {isInitialLoading ? (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 animate-pulse">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                <div key={i} className="bg-muted/50 rounded-3xl aspect-[3/4] p-4"></div>
+              ))}
+            </div>
+            {isSlowLoading && (
+              <div className="mx-auto max-w-md text-center rounded-2xl border border-border bg-card/70 p-5 shadow-sm">
+                <Package className="w-8 h-8 mx-auto mb-3 text-[#10B981]" />
+                <h3 className="text-lg font-black text-foreground mb-1">
+                  {isVerySlowLoading ? 'Still connecting to Mart' : 'Loading Mart items'}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {isVerySlowLoading
+                    ? 'The campus network may be slow right now. Your page is still trying to fetch the latest products.'
+                    : 'Please hold on while CalebDeck fetches the latest products and prices.'}
+                </p>
+                {isVerySlowLoading && (
+                  <Button variant="secondary" onClick={() => window.location.reload()} className="mt-4">
+                    Retry Loading
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
-        ) : filteredItems.length === 0 ? (
-          <div className="text-center py-20">
+        ) : isLoadFailure ? (
+          <div className="text-center py-20 max-w-md mx-auto">
+            <Package className="w-14 h-14 mx-auto mb-4 text-muted-foreground opacity-70" />
+            <h3 className="text-2xl font-bold text-foreground mb-2">Could not load Mart items</h3>
+            <p className="text-muted-foreground">
+              Your connection may be unstable. Please try again with a better network.
+            </p>
+            <Button variant="secondary" onClick={() => window.location.reload()} className="mt-6">
+              Retry Loading
+            </Button>
+          </div>
+        ) : isConfirmedEmpty ? (
+          <div className="text-center py-20 max-w-md mx-auto">
+            <Package className="w-14 h-14 mx-auto mb-4 text-muted-foreground opacity-70" />
+            <h3 className="text-2xl font-bold text-foreground mb-2">Mart items are not available right now</h3>
+            <p className="text-muted-foreground">Please check back soon.</p>
+          </div>
+        ) : isSearchOrFilterEmpty ? (
+          <div className="text-center py-20 max-w-md mx-auto">
             <div className="text-6xl mb-4 opacity-50">🏪</div>
-            <h3 className="text-2xl font-bold text-foreground mb-2">No items found</h3>
-            <p className="text-muted-foreground">Try adjusting your search or category filter.</p>
-            {searchQuery && (
-              <Button variant="secondary" onClick={() => setSearchQuery('')} className="mt-6">
-                Clear Search
+            <h3 className="text-2xl font-bold text-foreground mb-2">No matching items</h3>
+            <p className="text-muted-foreground">Try another search or category.</p>
+            {(searchQuery || activeCategory !== 'All') && (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setSearchQuery('');
+                  setActiveCategory('All');
+                }}
+                className="mt-6"
+              >
+                Clear Filters
               </Button>
             )}
           </div>
