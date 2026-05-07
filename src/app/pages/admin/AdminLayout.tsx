@@ -37,7 +37,7 @@ const SEARCHABLE_ITEMS = [
     { label: 'Analytics', keywords: ['analytics', 'revenue', 'chart', 'report', 'trend', 'profit', 'sales'], path: '/admin/analytics', icon: '📈' },
     { label: 'Reviews', keywords: ['reviews', 'star', 'feedback', 'student', 'rating', 'comment'], path: '/admin/reviews', icon: '⭐' },
     { label: 'Order History', keywords: ['history', 'past', 'old', 'receipt', 'date', 'archive', 'delete', 'trash', 'recover'], path: '/admin/history', icon: '📋' },
-    { label: 'CalebNet', keywords: ['calebnet', 'vtpass', 'airtime', 'data', 'recharge', 'topup'], path: '/admin/calebnet', icon: '📶' },
+    { label: 'CalebNet', keywords: ['calebnet', 'clubkonnect', 'nellobyte', 'airtime', 'data', 'recharge', 'topup'], path: '/admin/calebnet', icon: '📶' },
 ];
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {

@@ -1,294 +1,242 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { getMessaging } from 'firebase-admin/messaging';
+import { FieldValue } from 'firebase-admin/firestore';
 import axios from 'axios';
+import { adminDb } from './_lib/firebase-admin';
+import {
+    CalebNetNetwork,
+    CalebNetType,
+    NETWORK_CODES,
+    clubkonnectGet,
+    getClubkonnectConfig,
+    isValidNigerianPhone,
+    makeRequestId,
+    mapProviderStatus,
+    normalizeNetwork,
+    normalizeType,
+    safePayload,
+    setCors,
+    updateProviderHealth,
+} from './_lib/calebnet';
 
-// Init Firebase Admin
-if (getApps().length === 0) {
-    const projectId = process.env.FB_SA_PROJECT_ID;
-    const clientEmail = process.env.FB_SA_CLIENT_EMAIL;
-    let privateKey = process.env.FB_SA_PRIVATE_KEY || '';
-    if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
-        privateKey = privateKey.substring(1, privateKey.length - 1);
-    }
-    if (privateKey.startsWith("'") && privateKey.endsWith("'")) {
-        privateKey = privateKey.substring(1, privateKey.length - 1);
-    }
-    privateKey = privateKey.replace(/\\n/g, '\n');
+async function verifyPaystack(reference: string) {
+    const secretKey = process.env.PAYSTACK_SECRET_KEY;
+    if (!secretKey) throw new Error('Payment verification is not configured');
 
-    if (projectId && clientEmail && privateKey) {
-        initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
-    }
+    const response = await axios.get(
+        `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
+        { headers: { Authorization: `Bearer ${secretKey}` }, timeout: 15000 }
+    );
+    return response.data?.data;
 }
 
-const db = getApps().length > 0 ? getFirestore() : null;
+async function vendWithClubkonnect(params: {
+    type: CalebNetType;
+    network: CalebNetNetwork;
+    phoneNumber: string;
+    providerPlanCode: string | null;
+    amount: number;
+    requestId: string;
+    host: string;
+}) {
+    const { userId, apiKey } = getClubkonnectConfig();
+    const protocol = process.env.CLUBKONNECT_CALLBACK_PROTOCOL || 'https';
+    const callbackHost = process.env.CLUBKONNECT_CALLBACK_HOST || params.host || 'calebdeck.com';
+    const callbackUrl = `${protocol}://${callbackHost}/api/clubkonnect-callback`;
+    const base = {
+        UserID: userId,
+        APIKey: apiKey,
+        MobileNetwork: NETWORK_CODES[params.network],
+        MobileNumber: params.phoneNumber,
+        RequestID: params.requestId,
+        CallBackURL: callbackUrl,
+    };
 
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
-const VALID_NETWORKS = ['mtn', 'airtel', 'glo', '9mobile'];
-const VTPASS_TIMEOUT = 15000; // 15 seconds
-
-function generateRequestId(reference: string) {
-    const now = new Date();
-    const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-    const cleanRef = reference.replace(/[^a-zA-Z0-9]/g, '').substring(0, 8);
-    return `${ts}${cleanRef}`;
-}
-
-function isValidNigerianPhone(phone: string): boolean {
-    return /^0[789][01]\d{8}$/.test(phone);
-}
-
-function mapVTpassError(code: string, responseDescription?: string): string {
-    switch (code) {
-        case '000': return 'Success';
-        case '099': return 'Transaction pending with provider';
-        case '016': return 'Transaction failed — insufficient provider balance';
-        case '009': return 'Duplicate transaction';
-        case '010': return 'Invalid variation code or plan';
-        case '014': return 'Invalid phone number';
-        case '015': return 'Phone number and network mismatch';
-        case '030': return 'Service temporarily unavailable';
-        case '040': return 'Temporarily suspended — try again later';
-        default: return responseDescription || `Provider error (${code})`;
+    if (params.type === 'DATA') {
+        return clubkonnectGet('/APIDatabundleV1.asp', {
+            ...base,
+            DataPlan: params.providerPlanCode,
+        }, 25000);
     }
-}
 
-// Fire-and-forget: Send push notification to admin
-async function notifyAdmin(order: any, status: string) {
-    try {
-        if (!db) return;
-        // Get admin FCM tokens from users collection (matching existing pattern)
-        const adminsSnapshot = await db.collection('users').where('role', '==', 'ADMIN').get();
-        const tokens: string[] = [];
-        adminsSnapshot.forEach(doc => {
-            const data = doc.data();
-            if (data.fcmTokens && Array.isArray(data.fcmTokens)) {
-                tokens.push(...data.fcmTokens);
-            }
-        });
-
-        if (tokens.length === 0) return;
-
-        const statusEmoji = status === 'SUCCESSFUL' ? '✅' : status === 'PENDING_PROVIDER' ? '⏳' : '❌';
-        const message = {
-            notification: {
-                title: `${statusEmoji} CalebNet: ₦${(order.amountPaid || 0).toLocaleString()} ${order.network} ${order.type}`,
-                body: `Phone: ${order.phoneNumber} | ${order.planName || 'Airtime'} | Status: ${status}`,
-            },
-            data: { link: '/admin/calebnet' },
-            tokens,
-        };
-
-        await getMessaging().sendEachForMulticast(message);
-    } catch (err) {
-        // Fire-and-forget — don't let push failures break the flow
-        console.warn('[CalebNet] Push notification failed (non-blocking):', err);
-    }
+    return clubkonnectGet('/APIAirtimeV1.asp', {
+        ...base,
+        Amount: params.amount,
+    }, 25000);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
+    setCors(res, 'POST, OPTIONS');
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     try {
-        if (!db) {
-            return res.status(500).json({ error: 'Server configuration error. Contact support.' });
-        }
+        const db = adminDb();
+        const { reference, orderData } = req.body || {};
+        if (!reference || typeof reference !== 'string') return res.status(400).json({ error: 'Payment reference is required' });
 
-        const { reference, orderData } = req.body;
-
-        // ─── Validation ───────────────────────────────────────────────
-        if (!reference || typeof reference !== 'string') {
-            return res.status(400).json({ error: 'Payment reference is required' });
-        }
-        if (!orderData || typeof orderData !== 'object') {
-            return res.status(400).json({ error: 'Order data is required' });
-        }
-
-        const { network, type, phoneNumber, planId, planName, amountPaid } = orderData;
-
-        if (!network || !VALID_NETWORKS.includes(network.toLowerCase())) {
-            return res.status(400).json({ error: 'Invalid network. Must be MTN, Airtel, Glo, or 9Mobile.' });
-        }
-        if (!type || !['data', 'airtime'].includes(type)) {
-            return res.status(400).json({ error: 'Type must be "data" or "airtime".' });
-        }
-        if (!phoneNumber || !isValidNigerianPhone(phoneNumber)) {
-            return res.status(400).json({ error: 'Invalid Nigerian phone number. Must be 11 digits starting with 07/08/09.' });
-        }
-        if (type === 'data' && !planId) {
-            return res.status(400).json({ error: 'Data plan ID is required for data purchases.' });
-        }
-        if (type === 'airtime' && (!amountPaid || amountPaid < 50 || amountPaid > 50000)) {
-            return res.status(400).json({ error: 'Airtime amount must be between ₦50 and ₦50,000.' });
-        }
-
-        // ─── Idempotency Check ────────────────────────────────────────
-        const orderRef = db.collection('calebnet_orders').doc(reference);
-        const existingDoc = await orderRef.get();
-
-        if (existingDoc.exists) {
-            const existingData = existingDoc.data()!;
-            if (existingData.paymentStatus === 'PAID') {
-                return res.status(200).json({
-                    data: {
-                        success: true,
-                        message: 'Order already processed',
-                        firestoreOrderId: existingDoc.id,
-                        fulfillmentStatus: existingData.fulfillmentStatus
-                    }
-                });
-            }
-        }
-
-        // ─── Verify Payment with Paystack ─────────────────────────────
-        const secretKey = process.env.PAYSTACK_SECRET_KEY;
-        if (!secretKey) {
-            return res.status(500).json({ error: 'Payment verification not configured. Contact support.' });
-        }
-
-        let paystackData;
-        try {
-            const paystackResponse = await axios.get(
-                `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
-                {
-                    headers: { Authorization: `Bearer ${secretKey}`, 'Content-Type': 'application/json' },
-                    timeout: 10000,
-                }
-            );
-            paystackData = paystackResponse.data.data;
-        } catch (paystackErr: any) {
-            console.error('[CalebNet] Paystack verification failed:', paystackErr.response?.data || paystackErr.message);
-            return res.status(502).json({ error: 'Unable to verify payment with Paystack. Please try again or contact support.' });
-        }
-
-        if (paystackData.status !== 'success') {
-            return res.status(400).json({ error: `Payment was not successful. Status: ${paystackData.status}` });
-        }
-
-        // ─── Amount Verification ──────────────────────────────────────
-        const verifiedAmount = paystackData.amount / 100; // Paystack returns kobo
-
-        // ─── Save Order BEFORE VTpass Call ─────────────────────────────
-        const requestId = generateRequestId(reference);
-
-        const orderRecord = {
-            network: orderData.network,
-            type: orderData.type,
-            phoneNumber: orderData.phoneNumber,
-            planId: orderData.planId || null,
-            planName: orderData.planName || 'Airtime',
-            amountPaid: verifiedAmount,
-            provider: 'vtpass',
-            providerReference: requestId,
-            paymentReference: reference,
-            paymentStatus: 'PAID',
-            fulfillmentStatus: 'PROCESSING',
-            createdAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp()
-        };
-
-        await orderRef.set(orderRecord);
-
-        // ─── Call VTpass API ───────────────────────────────────────────
-        const VTPASS_BASE_URL = process.env.VTPASS_BASE_URL || 'https://sandbox.vtpass.com/api';
-        const apiKey = process.env.VTPASS_API_KEY || '';
-        const vtpassSecret = process.env.VTPASS_SECRET || '';
-
-        const serviceID = type === 'data'
-            ? `${network.toLowerCase()}-data`
-            : network.toLowerCase();
-
-        const payload: any = {
-            request_id: requestId,
-            serviceID,
-            billersCode: phoneNumber,
-            amount: verifiedAmount,
-            phone: phoneNumber
-        };
-
-        if (type === 'data' && planId) {
-            payload.variation_code = planId;
-        }
-
-        let vtpassRes;
-        try {
-            vtpassRes = await axios.post(`${VTPASS_BASE_URL}/pay`, payload, {
-                headers: {
-                    'api-key': apiKey,
-                    'secret-key': vtpassSecret,
-                },
-                timeout: VTPASS_TIMEOUT,
-            });
-        } catch (e: any) {
-            const errData = e.response?.data || e.message;
-            const isTimeout = e.code === 'ECONNABORTED';
-            console.error('[CalebNet] VTpass call failed:', isTimeout ? 'TIMEOUT' : errData);
-
-            // Payment was collected but VTpass is unreachable
-            const failStatus = isTimeout ? 'PENDING_PROVIDER' : 'REFUND_REQUIRED';
-            await orderRef.update({
-                fulfillmentStatus: failStatus,
-                providerResponse: { error: isTimeout ? 'VTpass timeout' : errData, timestamp: new Date().toISOString() },
-                updatedAt: FieldValue.serverTimestamp()
-            });
-
-            // Notify admin of the issue
-            notifyAdmin({ ...orderRecord, amountPaid: verifiedAmount }, failStatus);
-
+        const existing = await db.collection('calebnet_orders').doc(reference).get();
+        if (existing.exists) {
+            const data = existing.data()!;
             return res.status(200).json({
                 data: {
                     success: true,
-                    message: isTimeout
-                        ? 'Payment received. Provider is taking long — your recharge may still go through. Admin has been notified.'
-                        : 'Payment received but provider is unreachable. Admin has been notified and will resolve this.',
+                    message: 'Order already exists',
                     firestoreOrderId: reference,
-                    fulfillmentStatus: failStatus
-                }
+                    fulfillmentStatus: data.fulfillmentStatus,
+                },
             });
         }
 
-        // ─── Process VTpass Response ──────────────────────────────────
-        const vtData = vtpassRes.data;
-        let finalStatus = 'REFUND_REQUIRED';
-        let userMessage = '';
-
-        if (vtData.code === '000') {
-            finalStatus = 'SUCCESSFUL';
-            userMessage = 'Recharge delivered successfully!';
-        } else if (vtData.code === '099') {
-            finalStatus = 'PENDING_PROVIDER';
-            userMessage = 'Recharge is processing with the network. This usually completes in a few seconds.';
-        } else {
-            finalStatus = 'REFUND_REQUIRED';
-            userMessage = `Recharge failed: ${mapVTpassError(vtData.code, vtData.response_description)}. Admin has been notified.`;
+        const type = normalizeType(orderData?.type);
+        const network = normalizeNetwork(orderData?.network);
+        const phoneNumber = String(orderData?.phoneNumber || '').trim();
+        if (!type || !network) return res.status(400).json({ error: 'Valid CalebNet type and network are required' });
+        if (!isValidNigerianPhone(phoneNumber)) return res.status(400).json({ error: 'Enter a valid Nigerian phone number' });
+        if (type === 'AIRTIME' && (Number(orderData?.amountPaid) < 50 || Number(orderData?.amountPaid) > 200000)) {
+            return res.status(400).json({ error: 'Airtime amount must be between ₦50 and ₦200,000' });
         }
 
+        const health = await db.collection('calebnet_provider_status').doc(`clubkonnect_${type}_${network}`).get();
+        if (health.exists && health.data()?.status === 'DOWN') {
+            return res.status(409).json({ error: 'This network is temporarily unavailable. Please try again later.' });
+        }
+
+        const payment = await verifyPaystack(reference);
+        if (payment?.status !== 'success') {
+            return res.status(400).json({ error: 'Payment was not successful' });
+        }
+        const verifiedAmount = Number(payment.amount || 0) / 100;
+
+        let catalogDoc: FirebaseFirestore.DocumentSnapshot | null = null;
+        if (type === 'DATA') {
+            const planId = String(orderData?.planId || '');
+            if (!planId) return res.status(400).json({ error: 'Data plan is required' });
+            catalogDoc = await db.collection('calebnet_catalog').doc(planId).get();
+        } else {
+            const airtimeSnap = await db.collection('calebnet_catalog')
+                .where('type', '==', 'AIRTIME')
+                .where('network', '==', network)
+                .where('isActive', '==', true)
+                .limit(1)
+                .get();
+            catalogDoc = airtimeSnap.empty ? null : airtimeSnap.docs[0];
+        }
+
+        if (!catalogDoc?.exists) return res.status(400).json({ error: 'Selected CalebNet product is not available' });
+        const catalog = catalogDoc.data()!;
+        if (!catalog.isActive || catalog.type !== type || catalog.network !== network) {
+            return res.status(400).json({ error: 'Selected CalebNet product is not active' });
+        }
+
+        const expectedAmount = type === 'DATA' ? Number(catalog.sellingPrice || 0) : Number(orderData.amountPaid || 0);
+        if (Math.abs(verifiedAmount - expectedAmount) > 1) {
+            return res.status(400).json({ error: 'Payment amount does not match CalebNet price' });
+        }
+
+        const providerCost = type === 'DATA'
+            ? Number(catalog.providerCost || 0)
+            : Number((verifiedAmount * (1 - Number(catalog.airtimeDiscountPercent || 0) / 100)).toFixed(2));
+        const profit = Number((verifiedAmount - providerCost).toFixed(2));
+        const requestId = makeRequestId(reference);
+        const providerPlanCode = type === 'DATA' ? String(catalog.providerPlanCode || '') : null;
+        const requestPayload = {
+            UserID: 'configured',
+            APIKey: 'configured',
+            MobileNetwork: NETWORK_CODES[network],
+            MobileNumber: phoneNumber,
+            DataPlan: providerPlanCode,
+            Amount: type === 'AIRTIME' ? verifiedAmount : undefined,
+            RequestID: requestId,
+        };
+
+        const orderRef = db.collection('calebnet_orders').doc(reference);
+        const baseOrder = {
+            id: reference,
+            type,
+            userId: orderData?.userId || null,
+            customerName: orderData?.customerName || payment.customer?.email || 'Caleb student',
+            customerPhone: orderData?.customerPhone || phoneNumber,
+            network,
+            phoneNumber,
+            planId: type === 'DATA' ? catalogDoc.id : null,
+            planName: type === 'DATA' ? (catalog.name || catalog.displayName) : 'Airtime',
+            providerPlanCode,
+            amountPaid: verifiedAmount,
+            providerCost,
+            profit,
+            paymentReference: reference,
+            paymentProvider: 'paystack',
+            paymentStatus: 'PAID',
+            fulfillmentStatus: 'PROCESSING',
+            provider: 'clubkonnect',
+            providerOrderId: null,
+            providerRequestId: requestId,
+            providerStatusCode: null,
+            providerStatus: null,
+            providerRemark: null,
+            requestPayloadSafe: safePayload(requestPayload),
+            providerResponse: {},
+            retryCount: 0,
+            lastRequeryAt: null,
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+        };
+
+        await orderRef.create(baseOrder);
+
+        let providerResponse: any;
+        try {
+            providerResponse = await vendWithClubkonnect({
+                type,
+                network,
+                phoneNumber,
+                providerPlanCode,
+                amount: verifiedAmount,
+                requestId,
+                host: String(req.headers.host || 'calebdeck.com'),
+            });
+        } catch (error: any) {
+            const isTimeout = error.code === 'ECONNABORTED';
+            await orderRef.update({
+                fulfillmentStatus: isTimeout ? 'PENDING_PROVIDER' : 'REFUND_REQUIRED',
+                providerResponse: { error: isTimeout ? 'Clubkonnect timeout' : (error.response?.data || error.message), timestamp: new Date().toISOString() },
+                updatedAt: FieldValue.serverTimestamp(),
+            });
+            await updateProviderHealth(network, type, isTimeout ? 'timeout' : 'failure', error.message || 'Provider request failed');
+            return res.status(200).json({
+                data: {
+                    success: true,
+                    firestoreOrderId: reference,
+                    fulfillmentStatus: isTimeout ? 'PENDING_PROVIDER' : 'REFUND_REQUIRED',
+                },
+            });
+        }
+
+        const fulfillmentStatus = mapProviderStatus(providerResponse);
         await orderRef.update({
-            fulfillmentStatus: finalStatus,
-            providerResponse: vtData,
-            updatedAt: FieldValue.serverTimestamp()
+            fulfillmentStatus,
+            providerOrderId: providerResponse?.orderid || providerResponse?.OrderID || null,
+            providerStatusCode: providerResponse?.statuscode || providerResponse?.statusCode || null,
+            providerStatus: providerResponse?.status || providerResponse?.orderstatus || null,
+            providerRemark: providerResponse?.orderremark || providerResponse?.remark || providerResponse?.message || null,
+            providerResponse,
+            updatedAt: FieldValue.serverTimestamp(),
         });
 
-        // Send push notification to admin
-        notifyAdmin({ ...orderRecord, amountPaid: verifiedAmount }, finalStatus);
+        await updateProviderHealth(network, type, fulfillmentStatus === 'REFUND_REQUIRED' || fulfillmentStatus === 'FAILED' ? 'failure' : 'success', null);
 
         return res.status(200).json({
             data: {
                 success: true,
-                message: userMessage,
                 firestoreOrderId: reference,
-                fulfillmentStatus: finalStatus
-            }
+                fulfillmentStatus,
+            },
         });
-
-    } catch (err: any) {
-        console.error('[CalebNet] Unhandled error:', err.message, err.stack);
-        return res.status(500).json({ error: 'An unexpected error occurred. If you were charged, contact support.' });
+    } catch (error: any) {
+        console.error('[CalebNet Verify Payment]', error);
+        if (error?.code === 6) {
+            return res.status(200).json({ data: { success: true, message: 'Order already exists' } });
+        }
+        return res.status(500).json({ error: error.message || 'CalebNet payment verification failed' });
     }
 }
