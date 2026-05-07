@@ -74,7 +74,123 @@ function rowsFromKeyedPlanObject(groupNetwork: string, value: Record<string, any
     });
 }
 
+function pushProductRows(products: any, groupNetwork: string, rows: any[]) {
+    if (!products) return;
+
+    if (Array.isArray(products)) {
+        products.forEach((product) => pushProductRows(product, groupNetwork, rows));
+        return;
+    }
+
+    if (typeof products === 'string' || typeof products === 'number') {
+        rows.push({
+            rawName: String(products),
+            name: String(products),
+            __groupNetwork: groupNetwork,
+        });
+        return;
+    }
+
+    if (typeof products !== 'object') return;
+
+    const nestedProducts = pick(products, [
+        'PRODUCT', 'Product', 'product', 'PRODUCTS', 'Products', 'products',
+        'PLAN', 'Plan', 'plan', 'PLANS', 'Plans', 'plans',
+    ]);
+
+    const explicitPlanCode = stringify(pick(products, [
+        'providerPlanCode', 'DataPlan', 'dataplan', 'dataPlan', 'planid',
+        'planId', 'PlanID', 'code', 'variation_code', 'DATAPLANID',
+        'DataPlanID', 'PRODUCT_ID', 'ProductID', 'productId', 'ID',
+    ]));
+
+    const productName = stringify(pick(products, [
+        'rawName', 'name', 'Name', 'PlanName', 'plan_name', 'DataPlanName',
+        'dataplan_name', 'description', 'Description', 'PRODUCT_NAME',
+        'ProductName', 'productName', 'PRODUCT', 'product', 'Product',
+    ]));
+
+    if (explicitPlanCode && (productName || !nestedProducts || typeof nestedProducts !== 'object')) {
+        rows.push({ ...products, providerPlanCode: explicitPlanCode, rawName: productName, __groupNetwork: groupNetwork });
+        return;
+    }
+
+    if (nestedProducts && typeof nestedProducts === 'object') {
+        pushProductRows(nestedProducts, groupNetwork, rows);
+        return;
+    }
+
+    Object.entries(products).forEach(([key, value]) => {
+        if (looksLikePlanCode(key)) {
+            if (value && typeof value === 'object') {
+                rows.push({ providerPlanCode: key, DataPlan: key, ...value, __groupNetwork: groupNetwork });
+            } else {
+                rows.push({ providerPlanCode: key, DataPlan: key, rawName: String(value || ''), name: String(value || ''), __groupNetwork: groupNetwork });
+            }
+            return;
+        }
+
+        pushProductRows(value, groupNetwork, rows);
+    });
+}
+
+function rowsFromMobileNetwork(raw: any) {
+    const mobileNetwork = raw?.MOBILE_NETWORK || raw?.mobile_network || raw?.MobileNetwork || raw?.networks;
+    if (!mobileNetwork) return [];
+
+    const rows: any[] = [];
+
+    const visitNetworkNode = (node: any, fallbackNetwork = '') => {
+        if (!node) return;
+        if (Array.isArray(node)) {
+            node.forEach((item) => visitNetworkNode(item, fallbackNetwork));
+            return;
+        }
+        if (typeof node !== 'object') return;
+
+        const network = networkFromProviderCode(node.ID || node.id || node.CODE || node.code) ||
+            normalizeNetwork(node.NETWORK || node.Network || node.NAME || node.Name || node.name || fallbackNetwork);
+        const products = node.PRODUCT || node.Product || node.product ||
+            node.PRODUCTS || node.Products || node.products ||
+            node.PLANS || node.Plans || node.plans ||
+            node.DATA || node.Data || node.data;
+
+        if (products && network) {
+            pushProductRows(products, network, rows);
+            return;
+        }
+
+        Object.entries(node).forEach(([key, value]) => {
+            const keyedNetwork = normalizeNetwork(key) || networkFromProviderCode(key) || network;
+            if (keyedNetwork) {
+                if (Array.isArray(value)) {
+                    pushProductRows(value, keyedNetwork, rows);
+                    return;
+                }
+                if (value && typeof value === 'object') {
+                    const keyedProducts = (value as any).PRODUCT || (value as any).Product || (value as any).product ||
+                        (value as any).PRODUCTS || (value as any).Products || (value as any).products ||
+                        (value as any).PLANS || (value as any).Plans || (value as any).plans ||
+                        (value as any).DATA || (value as any).Data || (value as any).data;
+                    if (keyedProducts) {
+                        pushProductRows(keyedProducts, keyedNetwork, rows);
+                        return;
+                    }
+                }
+            }
+            visitNetworkNode(value, keyedNetwork || fallbackNetwork);
+        });
+    };
+
+    visitNetworkNode(mobileNetwork);
+
+    return rows;
+}
+
 function normalizeRows(raw: any): any[] {
+    const mobileNetworkRows = rowsFromMobileNetwork(raw);
+    if (mobileNetworkRows.length > 0) return mobileNetworkRows;
+
     const rows: any[] = [];
     const visit = (value: any, groupNetwork = '') => {
         if (!value) return;

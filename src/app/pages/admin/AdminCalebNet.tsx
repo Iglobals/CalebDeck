@@ -178,7 +178,8 @@ export default function AdminCalebNet() {
     setBusy('sync-airtime');
     try {
       const data = await adminFetch('/api/calebnet/sync-airtime-discounts', { method: 'POST', body: '{}' });
-      toast.success(`Synced ${data.count} airtime discount entries`);
+      console.info('[CalebNet Airtime Discount Sync]', data);
+      toast.success(`Synced ${data.count} airtime discount entries (${data.rawCount ?? 0} raw)`);
     } catch (error: any) {
       toast.error(error.message);
     } finally {

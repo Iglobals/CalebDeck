@@ -235,6 +235,8 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
         }
         const studentNote = (order.notes || order.instructions || '').trim();
         const studentNumber = getStudentNumber(order);
+        const cafeName = order.type === 'mart' ? '' : (order.cafeteria || (order.cafeteriaId === 'old' ? 'Old Cafeteria' : order.cafeteriaId === 'new' ? 'New Cafeteria' : ''));
+        const cafeId = order.type === 'mart' ? '' : (order.cafeteriaId || '');
 
         const html = `
             <html>
@@ -278,6 +280,13 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                         <div class="label">Delivery</div>
                         <div class="value">${order.hostelName || order.hostel}</div>
                     </div>
+                    ${cafeName || cafeId ? `
+                    <div class="section">
+                        <div class="label">Cafe Source</div>
+                        ${cafeName ? `<div class="value">${cafeName}</div>` : ''}
+                        ${cafeId ? `<div style="font-size:13px;font-weight:700;margin-top:6px;color:#555;">Cafe ID: ${cafeId}</div>` : ''}
+                    </div>
+                    ` : ''}
                     ${studentNote ? `
                     <div class="section note-box">
                         <div class="label">Student Note</div>

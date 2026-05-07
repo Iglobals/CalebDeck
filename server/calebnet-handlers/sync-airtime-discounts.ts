@@ -3,18 +3,62 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '../firebase-admin.js';
 import { clubkonnectGet, getClubkonnectConfig, NETWORK_CODES, normalizeNetwork, requireAdmin, setCors } from '../calebnet.js';
 
+function networkFromProviderCode(value: any) {
+    const code = String(value || '').trim();
+    if (code === '01') return 'MTN';
+    if (code === '02') return 'GLO';
+    if (code === '03') return '9MOBILE';
+    if (code === '04') return 'AIRTEL';
+    return null;
+}
+
 function collectRows(raw: any): any[] {
     if (Array.isArray(raw)) return raw;
     if (Array.isArray(raw?.discounts)) return raw.discounts;
     if (Array.isArray(raw?.data)) return raw.data;
+    const mobileNetwork = raw?.MOBILE_NETWORK || raw?.mobile_network || raw?.MobileNetwork || raw?.networks;
+    if (mobileNetwork) {
+        const rows: any[] = [];
+        const visit = (node: any, fallbackNetwork = '') => {
+            if (!node) return;
+            if (Array.isArray(node)) {
+                node.forEach((item) => visit(item, fallbackNetwork));
+                return;
+            }
+            if (typeof node === 'string' || typeof node === 'number') {
+                if (fallbackNetwork) rows.push({ network: fallbackNetwork, value: node });
+                return;
+            }
+            if (typeof node !== 'object') return;
+
+            const network = networkFromProviderCode(node.ID || node.id || node.CODE || node.code) ||
+                normalizeNetwork(node.NETWORK || node.Network || node.NAME || node.Name || node.name || fallbackNetwork);
+            if (network && (
+                node.discount !== undefined || node.Discount !== undefined ||
+                node.percentage !== undefined || node.value !== undefined ||
+                node.PRODUCT !== undefined || node.Product !== undefined || node.product !== undefined
+            )) {
+                rows.push({ ...node, network });
+                return;
+            }
+
+            Object.entries(node).forEach(([key, value]) => {
+                const keyedNetwork = normalizeNetwork(key) || networkFromProviderCode(key) || network;
+                visit(value, keyedNetwork || fallbackNetwork);
+            });
+        };
+        visit(mobileNetwork);
+        return rows;
+    }
     if (raw && typeof raw === 'object') return Object.entries(raw).map(([network, value]) => ({ network, value }));
     return [];
 }
 
 function extractDiscount(row: any) {
-    const candidate = row?.discount ?? row?.Discount ?? row?.discountPercent ?? row?.percentage ?? row?.value;
+    const candidate = row?.discount ?? row?.Discount ?? row?.discountPercent ?? row?.percentage ??
+        row?.value ?? row?.PRODUCT ?? row?.Product ?? row?.product ?? row;
     const value = typeof candidate === 'string' ? candidate.replace('%', '') : candidate;
-    const parsed = Number(value);
+    const parsed = Number(typeof value === 'string' ? value.match(/\d+(\.\d+)?/)?.[0] : value);
     return Number.isFinite(parsed) ? parsed : 0;
 }
 
@@ -66,7 +110,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         if (count > 0) await batch.commit();
-        return res.status(200).json({ success: true, count });
+        return res.status(200).json({
+            success: true,
+            count,
+            rawCount: rows.length,
+            rawShape: Array.isArray(raw) ? 'array' : typeof raw,
+            topLevelKeys: raw && typeof raw === 'object' && !Array.isArray(raw) ? Object.keys(raw).slice(0, 12) : [],
+            sampleKeys: rows[0] && typeof rows[0] === 'object' ? Object.keys(rows[0]).slice(0, 20) : [],
+        });
     } catch (error: any) {
         console.error('[CalebNet Sync Airtime Discounts]', error);
         return res.status(500).json({ error: error.message || 'Airtime discount sync failed' });

@@ -233,6 +233,14 @@ export default function RiderBatchDetails() {
                             <div class="value" style="margin-bottom: 5px;">${order.fullName}</div>
                             <div style="font-weight: 700; color: #666; font-size: 14px; margin-bottom: 15px;">📞 ${order.phone || 'N/A'}</div>
 
+                            ${order.type !== 'mart' && (order.cafeteria || order.cafeteriaId) ? `
+                                <div style="margin-bottom: 15px; padding: 10px; background: #f8fafc; border-left: 3px solid #FCD34D; border-radius: 4px;">
+                                    <div class="label">Cafe Source</div>
+                                    <div style="font-size: 14px; font-weight: 900;">${order.cafeteria || (order.cafeteriaId === 'old' ? 'Old Cafeteria' : order.cafeteriaId === 'new' ? 'New Cafeteria' : 'Food Cafe')}</div>
+                                    ${order.cafeteriaId ? `<div style="font-size: 12px; font-weight: 700; color: #666; margin-top: 4px;">Cafe ID: ${order.cafeteriaId}</div>` : ''}
+                                </div>
+                            ` : ''}
+
                             <div class="label">Order Items</div>
                             ${order.type === 'combo' ? (
                                 `<div class="plate-header">${order.comboName} × ${order.quantity || 1}</div>` +
@@ -673,6 +681,12 @@ export default function RiderBatchDetails() {
                                     <div className="font-black text-base">{order.fullName || 'Student'}</div>
                                     <div className="text-xs font-bold text-gray-800 mt-1">{order.hostelName || order.hostel}</div>
                                     <div className="text-xs text-gray-500 mt-0.5">{order.phone || 'No Phone'}</div>
+                                    {order.type !== 'mart' && (order.cafeteria || order.cafeteriaId) && (
+                                        <div className="text-xs font-bold text-gray-700 mt-2">
+                                            {order.cafeteria || (order.cafeteriaId === 'old' ? 'Old Cafeteria' : order.cafeteriaId === 'new' ? 'New Cafeteria' : 'Food Cafe')}
+                                            {order.cafeteriaId ? ` · Cafe ID: ${order.cafeteriaId}` : ''}
+                                        </div>
+                                    )}
                                 </td>
                                 <td>
                                     {order.type === 'combo' ? (
