@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { auth, db } from '../../../services/firebase';
 import { AdminLayout } from './AdminLayout';
@@ -84,6 +84,7 @@ export default function AdminCalebNet() {
   const [featured, setFeatured] = useState(false);
   const [responseView, setResponseView] = useState<any | null>(null);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const catalogDraftRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const unsubOrders = onSnapshot(query(collection(db, 'calebnet_orders'), orderBy('createdAt', 'desc')), (snap) => {
@@ -138,7 +139,6 @@ export default function AdminCalebNet() {
     setBusy('sync-plans');
     try {
       const data = await adminFetch('/api/calebnet/sync-provider-plans', { method: 'POST', body: '{}' });
-      console.info('[CalebNet Provider Plan Sync]', data);
       toast.success(`Synced ${data.count} provider plans (${data.rawCount ?? 0} raw, ${data.skipped ?? 0} skipped)`);
     } catch (error: any) {
       toast.error(error.message);
@@ -160,25 +160,10 @@ export default function AdminCalebNet() {
     }
   };
 
-  const runDiagnostics = async () => {
-    setBusy('diagnostics');
-    try {
-      const data = await adminFetch('/api/calebnet/diagnostics');
-      console.info('[CalebNet Diagnostics]', data);
-      toast.success(`Diagnostics OK: ${data.clubkonnect?.baseUrl || 'Clubkonnect configured'}`);
-    } catch (error: any) {
-      console.error('[CalebNet Diagnostics failed]', error);
-      toast.error(error.message);
-    } finally {
-      setBusy('');
-    }
-  };
-
   const syncAirtime = async () => {
     setBusy('sync-airtime');
     try {
       const data = await adminFetch('/api/calebnet/sync-airtime-discounts', { method: 'POST', body: '{}' });
-      console.info('[CalebNet Airtime Discount Sync]', data);
       toast.success(`Synced ${data.count} airtime discount entries (${data.rawCount ?? 0} raw)`);
     } catch (error: any) {
       toast.error(error.message);
@@ -220,6 +205,16 @@ export default function AdminCalebNet() {
     } finally {
       setBusy('');
     }
+  };
+
+  const startCatalogDraft = (plan: any) => {
+    setSelectedProviderPlan(plan);
+    setSellingPrice(String(Math.ceil(Number(plan.rawPrice || 0) * 1.15 / 10) * 10));
+    setFeatured(false);
+    toast.info('Catalog draft opened. Set the selling price and publish when ready.');
+    window.setTimeout(() => {
+      catalogDraftRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
   };
 
   const patchCatalog = async (id: string, updates: any) => {
@@ -471,19 +466,16 @@ export default function AdminCalebNet() {
               <p className="text-sm text-muted-foreground">These are never shown to students until curated into the catalog.</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={runDiagnostics} disabled={busy === 'diagnostics'}>
-                <ShieldAlert className="h-4 w-4" />
-                Diagnostics
-              </Button>
               <Button onClick={syncProviderPlans} disabled={busy === 'sync-plans'}><RefreshCcw className={`h-4 w-4 ${busy === 'sync-plans' ? 'animate-spin' : ''}`} />Sync Data Plans</Button>
               <Button variant="outline" onClick={syncAirtime} disabled={busy === 'sync-airtime'}><Phone className="h-4 w-4" />Sync Airtime Discounts</Button>
             </div>
           </Card>
           {selectedProviderPlan && (
-            <Card className="p-5">
+            <div ref={catalogDraftRef} className="scroll-mt-24">
+            <Card className="border-[#7C3AED]/40 p-5 shadow-sm">
               <div className="grid gap-4 md:grid-cols-[1fr_160px_130px_auto] md:items-end">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Creating catalog plan from</p>
+                  <p className="text-xs font-black uppercase tracking-widest text-[#7C3AED]">Catalog draft opened</p>
                   <p className="font-black">{selectedProviderPlan.rawName}</p>
                   <p className="text-sm text-muted-foreground">Cost ₦{Number(selectedProviderPlan.rawPrice || 0).toLocaleString()} | {selectedProviderPlan.providerPlanCode}</p>
                 </div>
@@ -491,13 +483,14 @@ export default function AdminCalebNet() {
                   <span className="mb-1 block text-xs font-black uppercase tracking-widest text-muted-foreground">Selling Price</span>
                   <input value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} type="number" className="w-full rounded-xl border-2 border-border bg-muted/40 px-3 py-2 outline-none focus:border-[#7C3AED]" />
                 </label>
-                <label className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 font-bold">
+                <label className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 font-bold" title="Shows a Best value badge on the student plan card. It does not change price or fulfillment.">
                   <input type="checkbox" checked={featured} onChange={(e) => setFeatured(e.target.checked)} />
-                  Featured
+                  Best value
                 </label>
                 <Button onClick={createCatalogPlan} disabled={busy === 'create-catalog'}><Plus className="h-4 w-4" />Publish</Button>
               </div>
             </Card>
+            </div>
           )}
           <Card className="overflow-hidden p-0">
             <div className="overflow-x-auto">
@@ -520,7 +513,7 @@ export default function AdminCalebNet() {
                       <td className="px-4 py-3 font-mono">{plan.providerPlanCode}</td>
                       <td className="px-4 py-3 font-black">₦{Number(plan.rawPrice || 0).toLocaleString()}</td>
                       <td className="px-4 py-3">{plan.category}</td>
-                      <td className="px-4 py-3 text-right"><Button size="sm" variant="outline" onClick={() => { setSelectedProviderPlan(plan); setSellingPrice(String(Math.ceil(Number(plan.rawPrice || 0) * 1.15 / 10) * 10)); }}>Create Plan</Button></td>
+                      <td className="px-4 py-3 text-right"><Button size="sm" variant="outline" onClick={() => startCatalogDraft(plan)}>Create Plan</Button></td>
                     </tr>
                   ))}
                 </tbody>
