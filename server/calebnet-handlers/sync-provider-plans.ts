@@ -19,11 +19,70 @@ function pick(row: any, keys: string[]) {
     return null;
 }
 
+function isPlanLike(row: any) {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) return false;
+    return !!pick(row, [
+        'DataPlan', 'dataplan', 'dataPlan', 'planid', 'planId', 'PlanID',
+        'code', 'variation_code', 'id', 'ID',
+    ]) || !!pick(row, [
+        'name', 'Name', 'PlanName', 'plan_name', 'DataPlanName', 'dataplan_name',
+        'dataplan', 'plan', 'PRODUCT', 'product', 'Product',
+    ]);
+}
+
+function rowsFromKeyedPlanObject(groupNetwork: string, value: Record<string, any>) {
+    return Object.entries(value).flatMap(([providerPlanCode, planValue]) => {
+        if (Array.isArray(planValue)) {
+            return planValue.map((row) => ({ ...row, __groupNetwork: groupNetwork }));
+        }
+        if (planValue && typeof planValue === 'object') {
+            return [{ providerPlanCode, DataPlan: providerPlanCode, ...planValue, __groupNetwork: groupNetwork }];
+        }
+        return [{
+            providerPlanCode,
+            DataPlan: providerPlanCode,
+            rawName: String(planValue || ''),
+            name: String(planValue || ''),
+            __groupNetwork: groupNetwork,
+        }];
+    });
+}
+
 function normalizeRows(raw: any): any[] {
     if (Array.isArray(raw)) return raw;
     if (Array.isArray(raw?.plans)) return raw.plans;
     if (Array.isArray(raw?.data)) return raw.data;
     if (Array.isArray(raw?.content)) return raw.content;
+
+    const rows: any[] = [];
+    const visit = (value: any, groupNetwork = '') => {
+        if (!value) return;
+        if (Array.isArray(value)) {
+            value.forEach((row) => {
+                if (row && typeof row === 'object') {
+                    rows.push({ ...row, __groupNetwork: groupNetwork });
+                }
+            });
+            return;
+        }
+        if (typeof value !== 'object') return;
+        if (isPlanLike(value)) {
+            rows.push({ ...value, __groupNetwork: groupNetwork });
+            return;
+        }
+        Object.entries(value).forEach(([key, nested]) => {
+            const normalizedNetwork = normalizeNetwork(key);
+            if (normalizedNetwork && nested && typeof nested === 'object' && !Array.isArray(nested)) {
+                rows.push(...rowsFromKeyedPlanObject(normalizedNetwork, nested as Record<string, any>));
+                return;
+            }
+            visit(nested, normalizedNetwork || groupNetwork || key);
+        });
+    };
+
+    visit(raw);
+    if (rows.length > 0) return rows;
+
     if (raw && typeof raw === 'object') {
         return Object.entries(raw).flatMap(([groupNetwork, value]: [string, any]) => {
             if (!Array.isArray(value)) return [];
@@ -48,14 +107,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const rows = normalizeRows(raw);
         const batch = db.batch();
         let count = 0;
+        let skipped = 0;
 
         rows.forEach((row) => {
-            const rawName = String(pick(row, ['name', 'PlanName', 'plan_name', 'DataPlanName', 'dataplan', 'plan']) || '');
-            const providerPlanCode = String(pick(row, ['DataPlan', 'dataplan', 'planid', 'planId', 'code', 'variation_code', 'id']) || '').trim();
+            const rawName = String(pick(row, ['rawName', 'name', 'Name', 'PlanName', 'plan_name', 'DataPlanName', 'dataplan_name', 'dataplan', 'plan', 'PRODUCT', 'product', 'Product']) || '');
+            const providerPlanCode = String(pick(row, ['providerPlanCode', 'DataPlan', 'dataplan', 'dataPlan', 'planid', 'planId', 'PlanID', 'code', 'variation_code', 'id', 'ID']) || '').trim();
             const network = normalizeNetwork(pick(row, ['network', 'Network', 'MobileNetwork', 'network_name', '__groupNetwork']) || rawName);
-            if (!network || !providerPlanCode) return;
+            if (!network || !providerPlanCode) {
+                skipped += 1;
+                return;
+            }
 
-            const rawPrice = Number(pick(row, ['price', 'Price', 'amount', 'Amount', 'cost', 'Cost', 'plan_amount']) || 0);
+            const rawPrice = Number(String(pick(row, ['price', 'Price', 'amount', 'Amount', 'cost', 'Cost', 'plan_amount', 'rawPrice', 'PRICE']) || 0).replace(/[^\d.]/g, ''));
             const dataSize = String(pick(row, ['dataSize', 'DataSize', 'size', 'Size']) || rawName.match(/\d+(\.\d+)?\s*(MB|GB|TB)/i)?.[0] || '');
             const validity = String(pick(row, ['validity', 'Validity', 'duration', 'Duration']) || rawName.match(/\d+\s*(day|days|week|weeks|month|months)/i)?.[0] || '');
             const category = inferCategory(String(pick(row, ['category', 'Category']) || rawName));
@@ -79,7 +142,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         if (count > 0) await batch.commit();
-        return res.status(200).json({ success: true, count, rawCount: rows.length });
+        return res.status(200).json({
+            success: true,
+            count,
+            rawCount: rows.length,
+            skipped,
+            rawShape: Array.isArray(raw) ? 'array' : typeof raw,
+            topLevelKeys: raw && typeof raw === 'object' && !Array.isArray(raw) ? Object.keys(raw).slice(0, 12) : [],
+            sampleKeys: rows[0] && typeof rows[0] === 'object' ? Object.keys(rows[0]).slice(0, 20) : [],
+        });
     } catch (error: any) {
         console.error('[CalebNet Sync Provider Plans]', error);
         return res.status(500).json({ error: error.message || 'Provider plan sync failed' });

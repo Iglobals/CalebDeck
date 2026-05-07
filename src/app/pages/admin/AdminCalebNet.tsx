@@ -88,15 +88,27 @@ export default function AdminCalebNet() {
   useEffect(() => {
     const unsubOrders = onSnapshot(query(collection(db, 'calebnet_orders'), orderBy('createdAt', 'desc')), (snap) => {
       setOrders(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.error('[CalebNet Orders listener failed]', error);
+      toast.error(`Orders read failed: ${error.message}`);
     });
     const unsubCatalog = onSnapshot(query(collection(db, 'calebnet_catalog'), orderBy('network', 'asc')), (snap) => {
       setCatalog(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.error('[CalebNet Catalog listener failed]', error);
+      toast.error(`Catalog read failed: ${error.message}`);
     });
     const unsubProvider = onSnapshot(query(collection(db, 'calebnet_provider_plans'), orderBy('lastSyncedAt', 'desc')), (snap) => {
       setProviderPlans(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.error('[CalebNet Provider Plans listener failed]', error);
+      toast.error(`Provider plans read failed: ${error.message}`);
     });
     const unsubHealth = onSnapshot(collection(db, 'calebnet_provider_status'), (snap) => {
       setHealth(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.error('[CalebNet Health listener failed]', error);
+      toast.error(`Provider health read failed: ${error.message}`);
     });
     return () => {
       unsubOrders();
@@ -126,7 +138,8 @@ export default function AdminCalebNet() {
     setBusy('sync-plans');
     try {
       const data = await adminFetch('/api/calebnet/sync-provider-plans', { method: 'POST', body: '{}' });
-      toast.success(`Synced ${data.count} provider plans`);
+      console.info('[CalebNet Provider Plan Sync]', data);
+      toast.success(`Synced ${data.count} provider plans (${data.rawCount ?? 0} raw, ${data.skipped ?? 0} skipped)`);
     } catch (error: any) {
       toast.error(error.message);
     } finally {
