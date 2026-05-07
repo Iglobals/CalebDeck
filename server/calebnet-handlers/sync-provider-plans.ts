@@ -29,8 +29,15 @@ function looksLikePlanCode(value: string) {
     return /^[0-9]+(\.[0-9]+)?$/.test(value.trim());
 }
 
+const PLAN_COLLECTION_KEYS = [
+    'PRODUCT', 'Product', 'product', 'PRODUCTS', 'Products', 'products',
+    'PLAN', 'Plan', 'plan', 'PLANS', 'Plans', 'plans',
+    'DATA', 'Data', 'data', 'CONTENT', 'Content', 'content',
+];
+
 function isPlanLike(row: any) {
     if (!row || typeof row !== 'object' || Array.isArray(row)) return false;
+    if (PLAN_COLLECTION_KEYS.some((key) => Array.isArray(row[key]))) return false;
     return !!pick(row, [
         'DataPlan', 'dataplan', 'dataPlan', 'planid', 'planId', 'PlanID',
         'code', 'variation_code', 'id', 'ID',
@@ -73,14 +80,21 @@ function normalizeRows(raw: any): any[] {
             return;
         }
         if (typeof value !== 'object') return;
+
+        const ownNetwork = normalizeNetwork(
+            pick(value, ['network', 'Network', 'network_name', 'NetworkName', 'MobileNetwork', 'name', 'Name', 'MOBILENETWORK', 'MobileNetworkName']) || groupNetwork
+        ) || groupNetwork;
+
+        const nestedPlanCollectionKey = PLAN_COLLECTION_KEYS.find((key) => Array.isArray(value[key]));
+        if (nestedPlanCollectionKey) {
+            visit(value[nestedPlanCollectionKey], ownNetwork);
+            return;
+        }
+
         if (isPlanLike(value)) {
             rows.push({ ...value, __groupNetwork: groupNetwork });
             return;
         }
-
-        const ownNetwork = normalizeNetwork(
-            pick(value, ['network', 'Network', 'network_name', 'NetworkName', 'MobileNetwork', 'name', 'Name']) || groupNetwork
-        ) || groupNetwork;
 
         Object.entries(value).forEach(([key, nested]) => {
             const normalizedNetwork = normalizeNetwork(key);
@@ -150,17 +164,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let skipped = 0;
 
         rows.forEach((row) => {
-            const rawName = stringify(pick(row, ['rawName', 'name', 'Name', 'PlanName', 'plan_name', 'DataPlanName', 'dataplan_name', 'plan', 'PRODUCT', 'product', 'Product', 'description', 'Description']));
-            const providerPlanCode = stringify(pick(row, ['providerPlanCode', 'DataPlan', 'dataplan', 'dataPlan', 'planid', 'planId', 'PlanID', 'code', 'variation_code', 'id', 'ID'])).trim();
-            const network = normalizeNetwork(pick(row, ['network', 'Network', 'MobileNetwork', 'network_name', '__groupNetwork']) || rawName);
+            const rawName = stringify(pick(row, [
+                'rawName', 'name', 'Name', 'PlanName', 'plan_name', 'DataPlanName',
+                'dataplan_name', 'plan', 'description', 'Description', 'PRODUCT_NAME',
+                'ProductName', 'productName',
+            ]));
+            const providerPlanCode = stringify(pick(row, [
+                'providerPlanCode', 'DataPlan', 'dataplan', 'dataPlan', 'planid',
+                'planId', 'PlanID', 'code', 'variation_code', 'DATAPLANID',
+                'DataPlanID', 'PRODUCT_ID', 'ProductID', 'productId',
+            ]) || (looksLikePlanCode(stringify(row.ID)) && !rawName.toUpperCase().includes('MTN') && !rawName.toUpperCase().includes('GLO') && !rawName.toUpperCase().includes('AIRTEL') ? row.ID : '')).trim();
+            const network = normalizeNetwork(pick(row, ['network', 'Network', 'MobileNetwork', 'network_name', '__groupNetwork', 'MOBILENETWORK']) || rawName);
             if (!network || !providerPlanCode) {
                 skipped += 1;
                 return;
             }
 
-            const rawPrice = Number(stringify(pick(row, ['price', 'Price', 'amount', 'Amount', 'cost', 'Cost', 'plan_amount', 'rawPrice', 'PRICE', 'selling_price'])).replace(/[^\d.]/g, ''));
-            const dataSize = String(pick(row, ['dataSize', 'DataSize', 'size', 'Size']) || rawName.match(/\d+(\.\d+)?\s*(MB|GB|TB)/i)?.[0] || '');
-            const validity = String(pick(row, ['validity', 'Validity', 'duration', 'Duration']) || rawName.match(/\d+\s*(day|days|week|weeks|month|months)/i)?.[0] || '');
+            const rawPrice = Number(stringify(pick(row, ['price', 'Price', 'amount', 'Amount', 'cost', 'Cost', 'plan_amount', 'rawPrice', 'PRICE', 'selling_price', 'PRODUCT_AMOUNT', 'ProductAmount'])).replace(/[^\d.]/g, ''));
+            const dataSize = String(pick(row, ['dataSize', 'DataSize', 'size', 'Size', 'DATA_SIZE', 'DataSize']) || rawName.match(/\d+(\.\d+)?\s*(MB|GB|TB)/i)?.[0] || '');
+            const validity = String(pick(row, ['validity', 'Validity', 'duration', 'Duration', 'VALIDITY']) || rawName.match(/\d+\s*(day|days|week|weeks|month|months)/i)?.[0] || '');
             const category = inferCategory(String(pick(row, ['category', 'Category']) || rawName));
             const id = `clubkonnect_${network}_${providerPlanCode.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
 
