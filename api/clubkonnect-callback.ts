@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
-import { adminDb } from '../server/firebase-admin';
-import { mapProviderStatus, setCors, shouldPreserveSuccessful, updateProviderHealth } from '../server/calebnet';
+import { adminDb } from '../server/firebase-admin.js';
+import { mapProviderStatus, setCors, shouldPreserveSuccessful, updateProviderHealth } from '../server/calebnet.js';
 
 function callbackBody(req: VercelRequest) {
     return { ...(req.query || {}), ...(typeof req.body === 'object' ? req.body : {}) };

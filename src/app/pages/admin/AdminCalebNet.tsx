@@ -39,8 +39,22 @@ async function adminFetch(path: string, init: RequestInit = {}) {
       ...(init.headers || {}),
     },
   });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || 'Request failed');
+  const text = await response.text();
+  let data: any = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = { raw: text };
+  }
+  if (!response.ok) {
+    console.error('[Admin CalebNet API failed]', {
+      path,
+      status: response.status,
+      data,
+      body: text,
+    });
+    throw new Error(data.error || data.message || text || `Request failed (${response.status})`);
+  }
   return data;
 }
 

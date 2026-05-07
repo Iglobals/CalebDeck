@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import axios from 'axios';
-import { adminDb } from '../server/firebase-admin';
+import { adminDb } from '../server/firebase-admin.js';
 import {
     CalebNetNetwork,
     CalebNetType,
@@ -16,7 +16,7 @@ import {
     safePayload,
     setCors,
     updateProviderHealth,
-} from '../server/calebnet';
+} from '../server/calebnet.js';
 
 async function verifyPaystack(reference: string) {
     const secretKey = process.env.PAYSTACK_SECRET_KEY;

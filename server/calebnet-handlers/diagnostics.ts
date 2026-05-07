@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { adminDb } from '../firebase-admin';
-import { getClubkonnectConfig, requireAdmin, setCors } from '../calebnet';
+import { adminDb, getFirebaseAdminEnvDiagnostics } from '../firebase-admin.js';
+import { getClubkonnectConfig, requireAdmin, setCors } from '../calebnet.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     setCors(res, 'GET, OPTIONS');
@@ -8,6 +8,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
     try {
+        const firebaseEnv = getFirebaseAdminEnvDiagnostics();
+        const clubkonnectEnv = {
+            userIdConfigured: !!process.env.CLUBKONNECT_USER_ID,
+            apiKeyConfigured: !!process.env.CLUBKONNECT_API_KEY,
+            baseUrl: (process.env.CLUBKONNECT_BASE_URL || 'https://www.nellobytesystems.com').replace(/\/$/, ''),
+        };
+
+        if (!firebaseEnv.ok) {
+            return res.status(500).json({
+                error: firebaseEnv.error || 'Firebase Admin environment variables are not configured correctly',
+                firebaseEnv,
+                clubkonnectEnv,
+            });
+        }
+
         const admin = await requireAdmin(req);
         if (!admin) return res.status(401).json({ error: 'Admin access required' });
 

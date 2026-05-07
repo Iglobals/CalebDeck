@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
-import { adminDb } from '../../firebase-admin';
-import { normalizeNetwork, normalizeType, requireAdmin, setCors } from '../../calebnet';
+import { adminDb } from '../../firebase-admin.js';
+import { normalizeNetwork, normalizeType, requireAdmin, setCors } from '../../calebnet.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     setCors(res, 'POST, OPTIONS');

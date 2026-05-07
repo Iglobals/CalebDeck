@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import axios from 'axios';
-import { adminDb } from './firebase-admin';
+import { adminDb } from './firebase-admin.js';
 
 export type CalebNetType = 'DATA' | 'AIRTIME';
 export type CalebNetNetwork = 'MTN' | 'GLO' | 'AIRTEL' | '9MOBILE';

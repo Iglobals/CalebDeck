@@ -1,13 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import catalogHandler from '../server/calebnet-handlers/catalog';
-import diagnosticsHandler from '../server/calebnet-handlers/diagnostics';
-import markRefundedHandler from '../server/calebnet-handlers/orders/mark-refunded';
-import resetProviderStatusHandler from '../server/calebnet-handlers/provider-status/reset';
-import requeryHandler from '../server/calebnet-handlers/requery';
-import statusHandler from '../server/calebnet-handlers/status';
-import syncAirtimeDiscountsHandler from '../server/calebnet-handlers/sync-airtime-discounts';
-import syncProviderPlansHandler from '../server/calebnet-handlers/sync-provider-plans';
-import walletBalanceHandler from '../server/calebnet-handlers/wallet-balance';
+import catalogHandler from '../server/calebnet-handlers/catalog.js';
+import diagnosticsHandler from '../server/calebnet-handlers/diagnostics.js';
+import markRefundedHandler from '../server/calebnet-handlers/orders/mark-refunded.js';
+import resetProviderStatusHandler from '../server/calebnet-handlers/provider-status/reset.js';
+import requeryHandler from '../server/calebnet-handlers/requery.js';
+import statusHandler from '../server/calebnet-handlers/status.js';
+import syncAirtimeDiscountsHandler from '../server/calebnet-handlers/sync-airtime-discounts.js';
+import syncProviderPlansHandler from '../server/calebnet-handlers/sync-provider-plans.js';
+import walletBalanceHandler from '../server/calebnet-handlers/wallet-balance.js';
 
 function getPath(req: VercelRequest) {
     const queryPath = req.query.path;
@@ -21,15 +21,24 @@ function getPath(req: VercelRequest) {
 export default function handler(req: VercelRequest, res: VercelResponse) {
     const path = getPath(req);
 
-    if (path === 'catalog') return catalogHandler(req, res);
-    if (path === 'diagnostics') return diagnosticsHandler(req, res);
-    if (path === 'requery') return requeryHandler(req, res);
-    if (path === 'status') return statusHandler(req, res);
-    if (path === 'sync-airtime-discounts') return syncAirtimeDiscountsHandler(req, res);
-    if (path === 'sync-provider-plans') return syncProviderPlansHandler(req, res);
-    if (path === 'wallet-balance') return walletBalanceHandler(req, res);
-    if (path === 'orders/mark-refunded') return markRefundedHandler(req, res);
-    if (path === 'provider-status/reset') return resetProviderStatusHandler(req, res);
+    const run = (promise: any) => {
+        Promise.resolve(promise).catch((error) => {
+            console.error('[CalebNet API]', { path, error });
+            if (!res.headersSent) {
+                res.status(500).json({ error: error?.message || 'CalebNet API failed' });
+            }
+        });
+    };
+
+    if (path === 'catalog') return run(catalogHandler(req, res));
+    if (path === 'diagnostics') return run(diagnosticsHandler(req, res));
+    if (path === 'requery') return run(requeryHandler(req, res));
+    if (path === 'status') return run(statusHandler(req, res));
+    if (path === 'sync-airtime-discounts') return run(syncAirtimeDiscountsHandler(req, res));
+    if (path === 'sync-provider-plans') return run(syncProviderPlansHandler(req, res));
+    if (path === 'wallet-balance') return run(walletBalanceHandler(req, res));
+    if (path === 'orders/mark-refunded') return run(markRefundedHandler(req, res));
+    if (path === 'provider-status/reset') return run(resetProviderStatusHandler(req, res));
 
     return res.status(404).json({ error: 'CalebNet endpoint not found', path });
 }

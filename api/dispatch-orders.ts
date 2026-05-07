@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { verifyAdmin } from '../server/verify-admin';
+import { verifyAdmin } from '../server/verify-admin.js';
 
 // Init Firebase Admin
 if (getApps().length === 0) {
