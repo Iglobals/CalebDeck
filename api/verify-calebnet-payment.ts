@@ -64,6 +64,63 @@ async function vendWithClubkonnect(params: {
     }, 25000);
 }
 
+async function notifyAdminOfCalebNetOrder(req: VercelRequest, order: {
+    reference: string;
+    type: CalebNetType;
+    network: CalebNetNetwork;
+    phoneNumber: string;
+    amountPaid: number;
+    planName: string | null;
+}) {
+    const db = adminDb();
+    const service = order.type === 'DATA' ? (order.planName || 'Data') : 'Airtime';
+    const title = `New CalebNet ${order.type === 'DATA' ? 'Data' : 'Airtime'} Order`;
+    const message = `${order.network} ${service} for ${order.phoneNumber} - ₦${Number(order.amountPaid || 0).toLocaleString()}`;
+
+    try {
+        await db.collection('notifications').add({
+            userId: 'admin',
+            title,
+            message,
+            type: 'calebnet',
+            link: '/admin/calebnet',
+            isRead: false,
+            createdAt: FieldValue.serverTimestamp(),
+        });
+    } catch (notifErr) {
+        console.error('[CalebNet Verify Payment] Failed to create admin notification:', notifErr);
+    }
+
+    try {
+        const adminsSnap = await db.collection('users').where('role', '==', 'ADMIN').get();
+        let tokens: string[] = [];
+        adminsSnap.docs.forEach((doc) => {
+            const data = doc.data();
+            if (Array.isArray(data.fcmTokens)) tokens = [...tokens, ...data.fcmTokens];
+        });
+
+        if (tokens.length > 0 && process.env.INTERNAL_API_KEY) {
+            const protocol = req.headers['x-forwarded-proto'] || 'https';
+            const host = req.headers.host || 'calebdeck.com';
+            await fetch(`${protocol}://${host}/api/send-push`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Api-Key': process.env.INTERNAL_API_KEY,
+                },
+                body: JSON.stringify({
+                    title,
+                    body: message,
+                    tokens,
+                    link: '/admin/calebnet',
+                }),
+            }).catch((error) => console.error('[CalebNet Verify Payment] Push error:', error));
+        }
+    } catch (pushErr) {
+        console.error('[CalebNet Verify Payment] Push notification error:', pushErr);
+    }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     setCors(res, 'POST, OPTIONS');
     if (req.method === 'OPTIONS') return res.status(200).end();
@@ -183,6 +240,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         };
 
         await orderRef.create(baseOrder);
+        await notifyAdminOfCalebNetOrder(req, {
+            reference,
+            type,
+            network,
+            phoneNumber,
+            amountPaid: verifiedAmount,
+            planName: baseOrder.planName,
+        });
 
         let providerResponse: any;
         try {

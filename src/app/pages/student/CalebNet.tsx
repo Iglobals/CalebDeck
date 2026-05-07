@@ -111,6 +111,13 @@ export default function CalebNet() {
   );
   const providerStatus = statuses[`${type}_${network}`] || 'HEALTHY';
   const currentAmount = type === 'DATA' ? Number(selectedPlan?.sellingPrice || 0) : Number(amount || 0);
+  const airtimeAmountError = type === 'AIRTIME' && amount !== ''
+    ? currentAmount < 50
+      ? 'Minimum airtime purchase is ₦50.'
+      : currentAmount > 200000
+        ? 'Maximum airtime purchase is ₦200,000.'
+        : ''
+    : '';
   const phoneMismatch = phoneNumber.length >= 4 && detectNetwork(phoneNumber) && detectNetwork(phoneNumber) !== network;
   const valid = providerStatus !== 'DOWN'
     && isValidNigerianPhone(phoneNumber)
@@ -312,8 +319,9 @@ export default function CalebNet() {
                 value={amount}
                 onChange={(event) => setAmount(Number(event.target.value) || '')}
                 placeholder="₦50 - ₦200,000"
-                className="w-full rounded-xl border-2 border-border bg-card px-4 py-4 text-lg font-bold outline-none focus:border-[#7C3AED]"
+                className={`w-full rounded-xl border-2 bg-card px-4 py-4 text-lg font-bold outline-none ${airtimeAmountError ? 'border-red-500 focus:border-red-500' : 'border-border focus:border-[#7C3AED]'}`}
               />
+              {airtimeAmountError && <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-red-500"><AlertCircle className="h-4 w-4" />{airtimeAmountError}</p>}
             </div>
           )}
 
@@ -352,6 +360,7 @@ export default function CalebNet() {
                 {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Shield className="h-5 w-5" />}
                 Pay Securely
               </Button>
+              {airtimeAmountError && <p className="mt-3 text-center text-xs font-bold text-red-500">{airtimeAmountError}</p>}
             </div>
             <p className="flex items-start gap-2 rounded-xl bg-muted/40 p-3 text-xs text-muted-foreground">
               <Clock className="mt-0.5 h-4 w-4 shrink-0" />
