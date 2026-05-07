@@ -40,14 +40,25 @@ export function readFirebaseAdminEnv() {
     let clientEmail = process.env.FB_SA_CLIENT_EMAIL;
     let privateKey = process.env.FB_SA_PRIVATE_KEY || '';
 
+    const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
     const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
-    if ((!projectId || !clientEmail || !privateKey) && serviceAccountJson) {
+
+    if (serviceAccountBase64) {
+        try {
+            const serviceAccount = JSON.parse(Buffer.from(serviceAccountBase64, 'base64').toString('utf8'));
+            projectId = serviceAccount.project_id || projectId;
+            clientEmail = serviceAccount.client_email || clientEmail;
+            privateKey = serviceAccount.private_key || privateKey;
+        } catch {
+            throw new Error('FIREBASE_SERVICE_ACCOUNT_BASE64 is not valid base64 service account JSON');
+        }
+    } else if (serviceAccountJson) {
         try {
             const parsed = JSON.parse(serviceAccountJson);
             const serviceAccount = typeof parsed === 'string' ? JSON.parse(parsed) : parsed;
-            projectId = projectId || serviceAccount.project_id;
-            clientEmail = clientEmail || serviceAccount.client_email;
-            privateKey = privateKey || serviceAccount.private_key || '';
+            projectId = serviceAccount.project_id || projectId;
+            clientEmail = serviceAccount.client_email || clientEmail;
+            privateKey = serviceAccount.private_key || privateKey;
         } catch (error) {
             throw new Error('FIREBASE_SERVICE_ACCOUNT is not valid JSON');
         }
@@ -67,7 +78,13 @@ export function readFirebaseAdminEnv() {
 
     privateKey = normalizePrivateKey(privateKey);
 
-    return { projectId, clientEmail, privateKey, serviceAccountJsonConfigured: !!serviceAccountJson };
+    return {
+        projectId,
+        clientEmail,
+        privateKey,
+        serviceAccountJsonConfigured: !!serviceAccountJson,
+        serviceAccountBase64Configured: !!serviceAccountBase64,
+    };
 }
 
 export function validateFirebasePrivateKey(privateKey: string) {
@@ -99,6 +116,7 @@ export function getFirebaseAdminEnvDiagnostics() {
             privateKeyLooksValid: env.privateKey.includes('BEGIN PRIVATE KEY') && env.privateKey.includes('END PRIVATE KEY'),
             privateKeyDecodes: keyValidation.ok,
             serviceAccountJsonConfigured: env.serviceAccountJsonConfigured,
+            serviceAccountBase64Configured: env.serviceAccountBase64Configured,
             error: keyValidation.error,
         };
     } catch (error: any) {
@@ -110,6 +128,7 @@ export function getFirebaseAdminEnvDiagnostics() {
             privateKeyLooksValid: false,
             privateKeyDecodes: false,
             serviceAccountJsonConfigured: !!process.env.FIREBASE_SERVICE_ACCOUNT,
+            serviceAccountBase64Configured: !!process.env.FIREBASE_SERVICE_ACCOUNT_BASE64,
             error: error.message || 'Firebase Admin environment check failed',
         };
     }
