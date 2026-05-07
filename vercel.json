@@ -1,6 +1,10 @@
 {
     "rewrites": [
         {
+            "source": "/api/calebnet/(.*)",
+            "destination": "/api/calebnet?path=$1"
+        },
+        {
             "source": "/(.*)",
             "destination": "/index.html"
         }
