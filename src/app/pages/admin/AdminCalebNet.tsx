@@ -133,6 +133,20 @@ export default function AdminCalebNet() {
     }
   };
 
+  const runDiagnostics = async () => {
+    setBusy('diagnostics');
+    try {
+      const data = await adminFetch('/api/calebnet/diagnostics');
+      console.info('[CalebNet Diagnostics]', data);
+      toast.success(`Diagnostics OK: ${data.clubkonnect?.baseUrl || 'Clubkonnect configured'}`);
+    } catch (error: any) {
+      console.error('[CalebNet Diagnostics failed]', error);
+      toast.error(error.message);
+    } finally {
+      setBusy('');
+    }
+  };
+
   const syncAirtime = async () => {
     setBusy('sync-airtime');
     try {
@@ -429,6 +443,10 @@ export default function AdminCalebNet() {
               <p className="text-sm text-muted-foreground">These are never shown to students until curated into the catalog.</p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={runDiagnostics} disabled={busy === 'diagnostics'}>
+                <ShieldAlert className="h-4 w-4" />
+                Diagnostics
+              </Button>
               <Button onClick={syncProviderPlans} disabled={busy === 'sync-plans'}><RefreshCcw className={`h-4 w-4 ${busy === 'sync-plans' ? 'animate-spin' : ''}`} />Sync Data Plans</Button>
               <Button variant="outline" onClick={syncAirtime} disabled={busy === 'sync-airtime'}><Phone className="h-4 w-4" />Sync Airtime Discounts</Button>
             </div>

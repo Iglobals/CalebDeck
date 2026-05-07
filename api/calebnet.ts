@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import catalogHandler from '../server/calebnet-handlers/catalog';
+import diagnosticsHandler from '../server/calebnet-handlers/diagnostics';
 import markRefundedHandler from '../server/calebnet-handlers/orders/mark-refunded';
 import resetProviderStatusHandler from '../server/calebnet-handlers/provider-status/reset';
 import requeryHandler from '../server/calebnet-handlers/requery';
@@ -21,6 +22,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     const path = getPath(req);
 
     if (path === 'catalog') return catalogHandler(req, res);
+    if (path === 'diagnostics') return diagnosticsHandler(req, res);
     if (path === 'requery') return requeryHandler(req, res);
     if (path === 'status') return statusHandler(req, res);
     if (path === 'sync-airtime-discounts') return syncAirtimeDiscountsHandler(req, res);
