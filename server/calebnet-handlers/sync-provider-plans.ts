@@ -29,6 +29,15 @@ function looksLikePlanCode(value: string) {
     return /^[0-9]+(\.[0-9]+)?$/.test(value.trim());
 }
 
+function networkFromProviderCode(value: any) {
+    const code = String(value || '').trim();
+    if (code === '01') return 'MTN';
+    if (code === '02') return 'GLO';
+    if (code === '03') return '9MOBILE';
+    if (code === '04') return 'AIRTEL';
+    return null;
+}
+
 const PLAN_COLLECTION_KEYS = [
     'PRODUCT', 'Product', 'product', 'PRODUCTS', 'Products', 'products',
     'PLAN', 'Plan', 'plan', 'PLANS', 'Plans', 'plans',
@@ -37,7 +46,7 @@ const PLAN_COLLECTION_KEYS = [
 
 function isPlanLike(row: any) {
     if (!row || typeof row !== 'object' || Array.isArray(row)) return false;
-    if (PLAN_COLLECTION_KEYS.some((key) => Array.isArray(row[key]))) return false;
+    if (PLAN_COLLECTION_KEYS.some((key) => row[key] && typeof row[key] === 'object')) return false;
     return !!pick(row, [
         'DataPlan', 'dataplan', 'dataPlan', 'planid', 'planId', 'PlanID',
         'code', 'variation_code', 'id', 'ID',
@@ -81,11 +90,11 @@ function normalizeRows(raw: any): any[] {
         }
         if (typeof value !== 'object') return;
 
-        const ownNetwork = normalizeNetwork(
+        const ownNetwork = networkFromProviderCode(pick(value, ['ID', 'id', 'MobileNetwork', 'MOBILE_NETWORK_ID', 'networkCode', 'NetworkCode'])) || normalizeNetwork(
             pick(value, ['network', 'Network', 'network_name', 'NetworkName', 'MobileNetwork', 'name', 'Name', 'MOBILENETWORK', 'MobileNetworkName']) || groupNetwork
         ) || groupNetwork;
 
-        const nestedPlanCollectionKey = PLAN_COLLECTION_KEYS.find((key) => Array.isArray(value[key]));
+        const nestedPlanCollectionKey = PLAN_COLLECTION_KEYS.find((key) => value[key] && typeof value[key] === 'object');
         if (nestedPlanCollectionKey) {
             visit(value[nestedPlanCollectionKey], ownNetwork);
             return;
@@ -167,14 +176,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const rawName = stringify(pick(row, [
                 'rawName', 'name', 'Name', 'PlanName', 'plan_name', 'DataPlanName',
                 'dataplan_name', 'plan', 'description', 'Description', 'PRODUCT_NAME',
-                'ProductName', 'productName',
+                'ProductName', 'productName', 'PRODUCT', 'product',
             ]));
             const providerPlanCode = stringify(pick(row, [
                 'providerPlanCode', 'DataPlan', 'dataplan', 'dataPlan', 'planid',
                 'planId', 'PlanID', 'code', 'variation_code', 'DATAPLANID',
-                'DataPlanID', 'PRODUCT_ID', 'ProductID', 'productId',
+                'DataPlanID', 'PRODUCT_ID', 'ProductID', 'productId', 'ID',
             ]) || (looksLikePlanCode(stringify(row.ID)) && !rawName.toUpperCase().includes('MTN') && !rawName.toUpperCase().includes('GLO') && !rawName.toUpperCase().includes('AIRTEL') ? row.ID : '')).trim();
-            const network = normalizeNetwork(pick(row, ['network', 'Network', 'MobileNetwork', 'network_name', '__groupNetwork', 'MOBILENETWORK']) || rawName);
+            const network = networkFromProviderCode(pick(row, ['MobileNetwork', 'MOBILE_NETWORK_ID', 'networkCode', 'NetworkCode'])) ||
+                normalizeNetwork(pick(row, ['network', 'Network', 'network_name', '__groupNetwork', 'MOBILENETWORK']) || rawName);
             if (!network || !providerPlanCode) {
                 skipped += 1;
                 return;
