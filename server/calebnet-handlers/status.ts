@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { adminDb } from '../_lib/firebase-admin';
-import { setCors } from '../_lib/calebnet';
+import { adminDb } from '../firebase-admin';
+import { setCors } from '../calebnet';
 
 function studentOrder(data: any, id: string) {
     return {

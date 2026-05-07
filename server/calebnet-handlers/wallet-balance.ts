@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { clubkonnectGet, getClubkonnectConfig, requireAdmin, setCors } from '../_lib/calebnet';
+import { clubkonnectGet, getClubkonnectConfig, requireAdmin, setCors } from '../calebnet';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     setCors(res, 'GET, OPTIONS');

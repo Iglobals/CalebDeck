@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
-import { adminDb } from '../_lib/firebase-admin';
-import { clubkonnectGet, getClubkonnectConfig, mapProviderStatus, requireAdmin, setCors, shouldPreserveSuccessful, updateProviderHealth } from '../_lib/calebnet';
+import { adminDb } from '../firebase-admin';
+import { clubkonnectGet, getClubkonnectConfig, mapProviderStatus, requireAdmin, setCors, shouldPreserveSuccessful, updateProviderHealth } from '../calebnet';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     setCors(res, 'POST, OPTIONS');

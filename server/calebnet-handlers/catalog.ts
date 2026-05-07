@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
-import { adminDb } from '../_lib/firebase-admin';
-import { normalizeNetwork, normalizeType, requireAdmin, setCors } from '../_lib/calebnet';
+import { adminDb } from '../firebase-admin';
+import { normalizeNetwork, normalizeType, requireAdmin, setCors } from '../calebnet';
 
 const VALID_CATEGORIES = ['SME', 'DIRECT', 'AWOOF', 'NIGHT', 'WEEKEND', 'AIRTIME'];
 
