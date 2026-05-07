@@ -436,14 +436,27 @@ export default function AdminCalebNet() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {catalog.map((plan) => (
+                {catalog.map((plan) => {
+                  const isAirtime = plan.type === 'AIRTIME';
+                  const discount = Number(plan.airtimeDiscountPercent || 0);
+                  return (
                   <tr key={plan.id}>
-                    <td className="px-4 py-3"><span className="font-black">{plan.name || plan.displayName}</span><span className="block text-xs text-muted-foreground">{plan.dataSize || plan.type} {plan.validity || ''}</span></td>
+                    <td className="px-4 py-3"><span className="font-black">{plan.name || plan.displayName}</span><span className="block text-xs text-muted-foreground">{isAirtime ? 'Custom amount top-up' : `${plan.dataSize || plan.type} ${plan.validity || ''}`}</span></td>
                     <td className="px-4 py-3">{plan.network}</td>
                     <td className="px-4 py-3">{plan.category}</td>
+                    {isAirtime ? (
+                      <>
+                        <td className="px-4 py-3 font-black">Custom amount</td>
+                        <td className="px-4 py-3">After {discount}% discount</td>
+                        <td className="px-4 py-3 text-emerald-600">Calculated per order</td>
+                      </>
+                    ) : (
+                      <>
                     <td className="px-4 py-3 font-black">₦{Number(plan.sellingPrice || 0).toLocaleString()}</td>
                     <td className="px-4 py-3">₦{Number(plan.providerCost || 0).toLocaleString()}</td>
                     <td className="px-4 py-3 text-emerald-600">₦{Number(plan.profit || 0).toLocaleString()}</td>
+                      </>
+                    )}
                     <td className="px-4 py-3">{plan.isActive ? <Badge variant="green">Active</Badge> : <Badge variant="gray">Hidden</Badge>}</td>
                     <td className="px-4 py-3 text-right">
                       <Button size="sm" variant="outline" onClick={() => patchCatalog(plan.id, { isActive: !plan.isActive })} disabled={busy === plan.id}>
@@ -451,7 +464,8 @@ export default function AdminCalebNet() {
                       </Button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
