@@ -2,6 +2,39 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { createPrivateKey } from 'crypto';
 
+function normalizePrivateKey(value: string) {
+    let privateKey = String(value || '').trim();
+
+    if (privateKey.startsWith('FB_SA_PRIVATE_KEY=')) {
+        privateKey = privateKey.slice('FB_SA_PRIVATE_KEY='.length).trim();
+    }
+
+    if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+        try {
+            privateKey = JSON.parse(privateKey);
+        } catch {
+            privateKey = privateKey.slice(1, -1);
+        }
+    }
+    if (privateKey.startsWith("'") && privateKey.endsWith("'")) {
+        privateKey = privateKey.slice(1, -1);
+    }
+
+    privateKey = privateKey
+        .replace(/\\r\\n/g, '\n')
+        .replace(/\\n/g, '\n')
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .trim();
+
+    const match = privateKey.match(/-----BEGIN PRIVATE KEY-----([\s\S]*?)-----END PRIVATE KEY-----/);
+    if (!match) return privateKey;
+
+    const compactBody = match[1].replace(/\s+/g, '');
+    const wrappedBody = compactBody.match(/.{1,64}/g)?.join('\n') || compactBody;
+    return `-----BEGIN PRIVATE KEY-----\n${wrappedBody}\n-----END PRIVATE KEY-----\n`;
+}
+
 export function readFirebaseAdminEnv() {
     let projectId = process.env.FB_SA_PROJECT_ID;
     let clientEmail = process.env.FB_SA_CLIENT_EMAIL;
@@ -32,17 +65,7 @@ export function readFirebaseAdminEnv() {
         }
     }
 
-    if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
-        try {
-            privateKey = JSON.parse(privateKey);
-        } catch {
-            privateKey = privateKey.slice(1, -1);
-        }
-    }
-    if (privateKey.startsWith("'") && privateKey.endsWith("'")) {
-        privateKey = privateKey.slice(1, -1);
-    }
-    privateKey = privateKey.replace(/\\n/g, '\n');
+    privateKey = normalizePrivateKey(privateKey);
 
     return { projectId, clientEmail, privateKey, serviceAccountJsonConfigured: !!serviceAccountJson };
 }
