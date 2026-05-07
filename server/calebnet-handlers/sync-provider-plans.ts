@@ -19,6 +19,16 @@ function pick(row: any, keys: string[]) {
     return null;
 }
 
+function stringify(value: any) {
+    if (value === undefined || value === null) return '';
+    if (typeof value === 'string' || typeof value === 'number') return String(value);
+    return '';
+}
+
+function looksLikePlanCode(value: string) {
+    return /^[0-9]+(\.[0-9]+)?$/.test(value.trim());
+}
+
 function isPlanLike(row: any) {
     if (!row || typeof row !== 'object' || Array.isArray(row)) return false;
     return !!pick(row, [
@@ -49,19 +59,16 @@ function rowsFromKeyedPlanObject(groupNetwork: string, value: Record<string, any
 }
 
 function normalizeRows(raw: any): any[] {
-    if (Array.isArray(raw)) return raw;
-    if (Array.isArray(raw?.plans)) return raw.plans;
-    if (Array.isArray(raw?.data)) return raw.data;
-    if (Array.isArray(raw?.content)) return raw.content;
-
     const rows: any[] = [];
     const visit = (value: any, groupNetwork = '') => {
         if (!value) return;
         if (Array.isArray(value)) {
             value.forEach((row) => {
-                if (row && typeof row === 'object') {
+                if (isPlanLike(row)) {
                     rows.push({ ...row, __groupNetwork: groupNetwork });
+                    return;
                 }
+                visit(row, groupNetwork);
             });
             return;
         }
@@ -70,13 +77,46 @@ function normalizeRows(raw: any): any[] {
             rows.push({ ...value, __groupNetwork: groupNetwork });
             return;
         }
+
+        const ownNetwork = normalizeNetwork(
+            pick(value, ['network', 'Network', 'network_name', 'NetworkName', 'MobileNetwork', 'name', 'Name']) || groupNetwork
+        ) || groupNetwork;
+
         Object.entries(value).forEach(([key, nested]) => {
             const normalizedNetwork = normalizeNetwork(key);
-            if (normalizedNetwork && nested && typeof nested === 'object' && !Array.isArray(nested)) {
-                rows.push(...rowsFromKeyedPlanObject(normalizedNetwork, nested as Record<string, any>));
+
+            if (Array.isArray(nested)) {
+                visit(nested, normalizedNetwork || ownNetwork || key);
                 return;
             }
-            visit(nested, normalizedNetwork || groupNetwork || key);
+
+            if (nested && typeof nested === 'object') {
+                if (looksLikePlanCode(key) && (ownNetwork || normalizedNetwork)) {
+                    rows.push({
+                        providerPlanCode: key,
+                        DataPlan: key,
+                        ...nested,
+                        __groupNetwork: normalizedNetwork || ownNetwork,
+                    });
+                    return;
+                }
+                if (normalizedNetwork) {
+                    rows.push(...rowsFromKeyedPlanObject(normalizedNetwork, nested as Record<string, any>));
+                    return;
+                }
+                visit(nested, ownNetwork || groupNetwork || key);
+                return;
+            }
+
+            if (looksLikePlanCode(key) && (ownNetwork || normalizedNetwork)) {
+                rows.push({
+                    providerPlanCode: key,
+                    DataPlan: key,
+                    rawName: String(nested || ''),
+                    name: String(nested || ''),
+                    __groupNetwork: normalizedNetwork || ownNetwork,
+                });
+            }
         });
     };
 
@@ -110,15 +150,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let skipped = 0;
 
         rows.forEach((row) => {
-            const rawName = String(pick(row, ['rawName', 'name', 'Name', 'PlanName', 'plan_name', 'DataPlanName', 'dataplan_name', 'dataplan', 'plan', 'PRODUCT', 'product', 'Product']) || '');
-            const providerPlanCode = String(pick(row, ['providerPlanCode', 'DataPlan', 'dataplan', 'dataPlan', 'planid', 'planId', 'PlanID', 'code', 'variation_code', 'id', 'ID']) || '').trim();
+            const rawName = stringify(pick(row, ['rawName', 'name', 'Name', 'PlanName', 'plan_name', 'DataPlanName', 'dataplan_name', 'plan', 'PRODUCT', 'product', 'Product', 'description', 'Description']));
+            const providerPlanCode = stringify(pick(row, ['providerPlanCode', 'DataPlan', 'dataplan', 'dataPlan', 'planid', 'planId', 'PlanID', 'code', 'variation_code', 'id', 'ID'])).trim();
             const network = normalizeNetwork(pick(row, ['network', 'Network', 'MobileNetwork', 'network_name', '__groupNetwork']) || rawName);
             if (!network || !providerPlanCode) {
                 skipped += 1;
                 return;
             }
 
-            const rawPrice = Number(String(pick(row, ['price', 'Price', 'amount', 'Amount', 'cost', 'Cost', 'plan_amount', 'rawPrice', 'PRICE']) || 0).replace(/[^\d.]/g, ''));
+            const rawPrice = Number(stringify(pick(row, ['price', 'Price', 'amount', 'Amount', 'cost', 'Cost', 'plan_amount', 'rawPrice', 'PRICE', 'selling_price'])).replace(/[^\d.]/g, ''));
             const dataSize = String(pick(row, ['dataSize', 'DataSize', 'size', 'Size']) || rawName.match(/\d+(\.\d+)?\s*(MB|GB|TB)/i)?.[0] || '');
             const validity = String(pick(row, ['validity', 'Validity', 'duration', 'Duration']) || rawName.match(/\d+\s*(day|days|week|weeks|month|months)/i)?.[0] || '');
             const category = inferCategory(String(pick(row, ['category', 'Category']) || rawName));
@@ -139,6 +179,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 lastSyncedAt: FieldValue.serverTimestamp(),
             }, { merge: true });
             count += 1;
+        });
+
+        ['MTN', 'GLO', 'AIRTEL', '9MOBILE'].forEach((network) => {
+            batch.delete(db.collection('calebnet_provider_plans').doc(`clubkonnect_${network}_${NETWORK_CODES[network as keyof typeof NETWORK_CODES]}`));
         });
 
         if (count > 0) await batch.commit();

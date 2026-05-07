@@ -1,20 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-
-// Init Firebase Admin
-if (getApps().length === 0) {
-    const projectId = process.env.FB_SA_PROJECT_ID;
-    const clientEmail = process.env.FB_SA_CLIENT_EMAIL;
-    let privateKey = process.env.FB_SA_PRIVATE_KEY || '';
-    privateKey = privateKey.replace(/\\n/g, '\n');
-
-    if (projectId && clientEmail && privateKey) {
-        initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
-    }
-}
-
-const db = getApps().length > 0 ? getFirestore() : null;
+import { FieldValue } from 'firebase-admin/firestore';
+import { adminDb } from '../server/firebase-admin.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
 
@@ -40,9 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     try {
-        if (!db) {
-            return res.status(500).json({ error: 'Firebase not configured' });
-        }
+        const db = adminDb();
 
         const { reference, orderData } = req.body;
 

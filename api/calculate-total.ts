@@ -1,20 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-
-// Init Firebase Admin
-if (getApps().length === 0) {
-    const projectId = process.env.FB_SA_PROJECT_ID;
-    const clientEmail = process.env.FB_SA_CLIENT_EMAIL;
-    let privateKey = process.env.FB_SA_PRIVATE_KEY || '';
-    privateKey = privateKey.replace(/\\n/g, '\n');
-
-    if (projectId && clientEmail && privateKey) {
-        initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
-    }
-}
-
-const db = getApps().length > 0 ? getFirestore() : null;
+import { adminDb } from '../server/firebase-admin.js';
 
 const DELIVERY_FEE_SOLO = 750;
 const DELIVERY_FEE_GROUP = 580;
@@ -31,7 +16,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     try {
-        if (!db) {
+        const db = adminDb();
+        if (false) {
             return res.status(500).json({ error: 'Firebase not configured — check FB_SA env vars on Vercel' });
         }
 

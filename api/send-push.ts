@@ -1,32 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { getApps, initializeApp, cert } from 'firebase-admin/app';
 import { getMessaging } from 'firebase-admin/messaging';
-
-// Initialize Firebase Admin lazily
-if (!getApps().length) {
-    try {
-        let privateKey = process.env.FB_SA_PRIVATE_KEY || '';
-        if (privateKey) {
-            if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
-                privateKey = privateKey.substring(1, privateKey.length - 1);
-            }
-            if (privateKey.startsWith("'") && privateKey.endsWith("'")) {
-                privateKey = privateKey.substring(1, privateKey.length - 1);
-            }
-            privateKey = privateKey.replace(/\\n/g, '\n');
-        }
-
-        initializeApp({
-            credential: cert({
-                projectId: process.env.FB_SA_PROJECT_ID,
-                clientEmail: process.env.FB_SA_CLIENT_EMAIL,
-                privateKey: privateKey,
-            }),
-        });
-    } catch (error) {
-        console.error('Firebase admin initialization error', error);
-    }
-}
+import { ensureFirebaseAdmin } from '../server/firebase-admin.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
 
@@ -48,6 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
+        ensureFirebaseAdmin();
         const { tokens, title, body, link } = req.body;
 
         if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
