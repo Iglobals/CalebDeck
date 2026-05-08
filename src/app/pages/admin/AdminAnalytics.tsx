@@ -260,10 +260,13 @@ export default function AdminAnalytics() {
                   th, td { border-bottom: 1px solid #ececec; padding: 8px; text-align: left; vertical-align: top; }
                   th { background: #f7f5fb; text-transform: uppercase; font-size: 9px; letter-spacing: .08em; color: #6b5b7e; }
                   .empty { text-align: center; color: #777; padding: 18px; }
-                  .print-btn { margin-top: 18px; padding: 12px 16px; border: 0; border-radius: 8px; background: #7C3AED; color: #fff; font-weight: 900; }
+                  .actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+                  .print-btn, .close-btn { margin-top: 18px; padding: 12px 16px; border: 0; border-radius: 8px; color: #fff; font-weight: 900; cursor: pointer; }
+                  .print-btn { background: #7C3AED; }
+                  .close-btn { background: #171717; }
                   @media print {
                     body { padding: 0; }
-                    .print-btn { display: none; }
+                    .actions { display: none; }
                     .card { break-inside: avoid; }
                     h2 { break-after: avoid; }
                   }
@@ -279,7 +282,10 @@ export default function AdminAnalytics() {
                     <h1>${title}</h1>
                     <div class="meta">${format(rangeBounds.start, 'MMM d, yyyy')} - ${format(rangeBounds.end, 'MMM d, yyyy')}<br/>Generated ${format(new Date(), 'MMM d, yyyy h:mm a')}</div>
                   </div>
-                  <button class="print-btn" onclick="window.print()">Print / Save PDF</button>
+                  <div class="actions">
+                    <button class="print-btn" onclick="window.print()">Print / Save PDF</button>
+                    <button class="close-btn" onclick="closeReport()">Close Report</button>
+                  </div>
                 </div>
                 <div class="grid">
                   <div class="card"><div class="label">Total Orders</div><div class="value">${totalOrders}</div></div>
@@ -308,6 +314,20 @@ export default function AdminAnalytics() {
                   <thead><tr><th>Date</th><th>Order</th><th>Student</th><th>Phone</th><th>Hostel</th><th>Type</th><th>Status</th><th>Amount</th></tr></thead>
                   <tbody>${detailRows || emptyRow}</tbody>
                 </table>
+                <script>
+                  function closeReport() {
+                    try { window.close(); } catch (error) {}
+                    setTimeout(function () {
+                      if (!window.closed) {
+                        if (window.history.length > 1) {
+                          window.history.back();
+                        } else {
+                          window.location.replace('/admin/analytics');
+                        }
+                      }
+                    }, 150);
+                  }
+                </script>
               </body>
             </html>
         `);

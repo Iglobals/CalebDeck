@@ -368,7 +368,21 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                     </div>
                     <span class="total">₦${getOrderAmount(order).toLocaleString()}</span>
                     <div class="footer">CalebDeck - ${new Date().toLocaleDateString()}</div>
-                    <button class="close-btn" onclick="window.close()">Close Receipt</button>
+                    <button class="close-btn" onclick="closeReceipt()">Close Receipt</button>
+                    <script>
+                        function closeReceipt() {
+                            try { window.close(); } catch (error) {}
+                            setTimeout(function () {
+                                if (!window.closed) {
+                                    if (window.history.length > 1) {
+                                        window.history.back();
+                                    } else {
+                                        window.location.replace('/admin/orders');
+                                    }
+                                }
+                            }, 150);
+                        }
+                    </script>
                 </body>
             </html>
         `;

@@ -98,7 +98,7 @@ export default function AdminDashboard() {
     const d = parseDate(o.createdAt);
     if (!d || d.toLocaleDateString() !== today) return false;
     return revenueStatuses.includes(o.status);
-  }).slice(0, 8);
+  });
 
   const totalRevenue = todayPaidOrders.reduce((sum, o) => sum + getOrderAmount(o), 0);
   const totalDeliveryFees = todayPaidOrders.reduce((sum, o) => sum + getOrderDeliveryFee(o), 0);
@@ -449,7 +449,7 @@ export default function AdminDashboard() {
       <div>
         <h2 className={`text-xl lg:text-2xl font-bold mb-4 lg:mb-6 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Recent Orders <span className={`text-sm font-medium ml-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>(today)</span></h2>
         <Card className={`p-0 overflow-hidden ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'}`}>
-          <div className="overflow-x-auto">
+          <div className="max-h-[560px] overflow-auto">
             <table className="w-full">
               <thead>
                 <tr className={`border-b ${isDark ? 'border-[#333333]' : 'border-gray-50'}`}>

@@ -298,7 +298,21 @@ export default function RiderBatchDetails() {
                     `).join('')}
 
                     <div class="footer">CalebDeck Rider Operations — ${new Date().toLocaleDateString()}</div>
-                    <button class="close-btn" onclick="window.close()">Close Receipt</button>
+                    <button class="close-btn" onclick="closeReceipt()">Close Receipt</button>
+                    <script>
+                        function closeReceipt() {
+                            try { window.close(); } catch (error) {}
+                            setTimeout(function () {
+                                if (!window.closed) {
+                                    if (window.history.length > 1) {
+                                        window.history.back();
+                                    } else {
+                                        window.location.replace('/rider/batches');
+                                    }
+                                }
+                            }, 150);
+                        }
+                    </script>
                 </body>
             </html>
         `;
