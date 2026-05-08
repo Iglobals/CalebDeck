@@ -8,9 +8,9 @@ import { Logo } from '../../components/design-system/Logo';
 import SEO from '../../components/SEO';
 
 const MESSAGES: Record<string, { title: string; detail: string; icon: any; badge: 'green' | 'amber' | 'purple' | 'gray' }> = {
-  SUCCESSFUL: { title: 'Data sent successfully', detail: 'Your CalebNet top-up has been confirmed.', icon: CheckCircle2, badge: 'green' },
-  ORDER_RECEIVED: { title: 'Processing your data purchase', detail: 'The network has received your transaction and is processing it.', icon: Clock, badge: 'amber' },
-  PROCESSING: { title: 'Processing your data purchase', detail: 'We are confirming your transaction with the network.', icon: Clock, badge: 'amber' },
+  SUCCESSFUL: { title: 'Top-up sent successfully', detail: 'Your CalebNet transaction has been confirmed.', icon: CheckCircle2, badge: 'green' },
+  ORDER_RECEIVED: { title: 'Processing your top-up', detail: 'The network has received your transaction and is processing it.', icon: Clock, badge: 'amber' },
+  PROCESSING: { title: 'Processing your top-up', detail: 'We are confirming your transaction with the network.', icon: Clock, badge: 'amber' },
   PENDING_PROVIDER: { title: 'Network delay, we are confirming your transaction', detail: 'Please do not pay again. Admin can requery this order if needed.', icon: RefreshCcw, badge: 'amber' },
   REFUND_REQUIRED: { title: 'Refund/manual review required', detail: 'Payment was received, but delivery needs admin review.', icon: AlertTriangle, badge: 'purple' },
   FAILED: { title: 'Refund/manual review required', detail: 'Payment was received, but delivery was not confirmed.', icon: AlertTriangle, badge: 'purple' },
@@ -46,7 +46,13 @@ export default function CalebNetStatus() {
   }, [paymentReference]);
 
   const status = order?.fulfillmentStatus || 'PROCESSING';
-  const message = MESSAGES[status] || MESSAGES.PROCESSING;
+  const baseMessage = MESSAGES[status] || MESSAGES.PROCESSING;
+  const serviceName = order?.type === 'AIRTIME' ? 'Airtime' : 'Data';
+  const message = status === 'SUCCESSFUL'
+    ? { ...baseMessage, title: `${serviceName} sent successfully`, detail: `Your CalebNet ${serviceName.toLowerCase()} top-up has been confirmed.` }
+    : ['ORDER_RECEIVED', 'PROCESSING'].includes(status)
+      ? { ...baseMessage, title: `Processing your ${serviceName.toLowerCase()} purchase` }
+      : baseMessage;
   const Icon = message.icon;
 
   return (
@@ -86,7 +92,7 @@ export default function CalebNetStatus() {
               <p className="mb-8 text-muted-foreground">{message.detail}</p>
 
               <div className="rounded-xl border border-border bg-muted/30 p-4 text-left text-sm">
-                <div className="mb-2 flex justify-between"><span className="text-muted-foreground">Reference</span><span className="font-mono font-bold">{paymentReference}</span></div>
+                <div className="mb-2 grid grid-cols-[92px_1fr] gap-3"><span className="text-muted-foreground">Reference</span><span className="min-w-0 break-all text-right font-mono font-bold">{paymentReference}</span></div>
                 <div className="mb-2 flex justify-between"><span className="text-muted-foreground">Network</span><span className="font-bold">{order.network}</span></div>
                 <div className="mb-2 flex justify-between"><span className="text-muted-foreground">Phone</span><span className="font-mono font-bold">{order.phoneNumber}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Amount</span><span className="font-bold">₦{Number(order.amountPaid || 0).toLocaleString()}</span></div>

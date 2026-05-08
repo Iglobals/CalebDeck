@@ -59,7 +59,21 @@ function extractDiscount(row: any) {
         row?.value ?? row?.PRODUCT ?? row?.Product ?? row?.product ?? row;
     const value = typeof candidate === 'string' ? candidate.replace('%', '') : candidate;
     const parsed = Number(typeof value === 'string' ? value.match(/\d+(\.\d+)?/)?.[0] : value);
-    return Number.isFinite(parsed) ? parsed : 0;
+    if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 30) return 0;
+    return parsed;
+}
+
+function bestDiscountsByNetwork(rows: any[]) {
+    const best = new Map<string, any>();
+    rows.forEach((row) => {
+        const network = normalizeNetwork(row.network || row.Network || row.name || row.NetworkName);
+        if (!network) return;
+        const discount = extractDiscount(row);
+        if (discount <= 0) return;
+        const current = best.get(network);
+        if (!current || discount > current.discount) best.set(network, { row, discount });
+    });
+    return best;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -75,14 +89,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { userId } = getClubkonnectConfig();
         const raw = await clubkonnectGet('/APIAirtimeDiscountV2.asp', { UserID: userId }, 20000);
         const rows = collectRows(raw);
+        const discounts = bestDiscountsByNetwork(rows);
         const batch = db.batch();
         let count = 0;
+        const refs = Array.from(discounts.keys()).map((network) => db.collection('calebnet_catalog').doc(`clubkonnect_AIRTIME_${network}`));
+        const existingDocs = refs.length > 0 ? await db.getAll(...refs) : [];
+        const existingByNetwork = new Map(existingDocs.map((doc) => [doc.id.replace('clubkonnect_AIRTIME_', ''), doc.exists ? doc.data() : null]));
 
-        rows.forEach((row) => {
-            const network = normalizeNetwork(row.network || row.Network || row.name || row.NetworkName);
-            if (!network) return;
-            const discount = extractDiscount(row);
+        discounts.forEach(({ row, discount }, network) => {
             const id = `clubkonnect_AIRTIME_${network}`;
+            const existing = existingByNetwork.get(network);
             batch.set(db.collection('calebnet_catalog').doc(id), {
                 id,
                 type: 'AIRTIME',
@@ -100,8 +116,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 providerNetworkCode: NETWORK_CODES[network],
                 category: 'AIRTIME',
                 airtimeDiscountPercent: discount,
-                isActive: false,
-                isFeatured: false,
+                isActive: existing?.isActive === undefined ? false : !!existing.isActive,
+                isFeatured: existing?.isFeatured === undefined ? false : !!existing.isFeatured,
                 rawDiscount: row,
                 updatedAt: FieldValue.serverTimestamp(),
                 createdAt: FieldValue.serverTimestamp(),

@@ -77,13 +77,17 @@ export default function AdminCalebNet() {
   const [health, setHealth] = useState<any[]>([]);
   const [tab, setTab] = useState<Tab>('dashboard');
   const [search, setSearch] = useState('');
+  const [catalogSearch, setCatalogSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [busy, setBusy] = useState('');
   const [selectedProviderPlan, setSelectedProviderPlan] = useState<any | null>(null);
   const [sellingPrice, setSellingPrice] = useState('');
   const [featured, setFeatured] = useState(false);
   const [responseView, setResponseView] = useState<any | null>(null);
-  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [walletBalance, setWalletBalance] = useState<number | null>(() => {
+    const saved = window.localStorage.getItem('calebnetWalletBalance');
+    return saved ? Number(saved) : null;
+  });
   const catalogDraftRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -124,6 +128,11 @@ export default function AdminCalebNet() {
     return haystack.includes(search.toLowerCase()) && (statusFilter === 'ALL' || order.fulfillmentStatus === statusFilter);
   }), [orders, search, statusFilter]);
 
+  const filteredCatalog = useMemo(() => catalog.filter((plan) => {
+    const haystack = `${plan.name} ${plan.displayName} ${plan.network} ${plan.type} ${plan.category} ${plan.providerPlanCode}`.toLowerCase();
+    return haystack.includes(catalogSearch.toLowerCase());
+  }), [catalog, catalogSearch]);
+
   const stats = useMemo(() => {
     const successful = orders.filter((order) => order.fulfillmentStatus === 'SUCCESSFUL');
     return {
@@ -151,7 +160,9 @@ export default function AdminCalebNet() {
     setBusy('wallet');
     try {
       const data = await adminFetch('/api/calebnet/wallet-balance');
-      setWalletBalance(Number(data.balance || 0));
+      const nextBalance = Number(data.balance || 0);
+      setWalletBalance(nextBalance);
+      window.localStorage.setItem('calebnetWalletBalance', String(nextBalance));
       toast.success('Wallet balance refreshed');
     } catch (error: any) {
       toast.error(error.message);
@@ -387,20 +398,23 @@ export default function AdminCalebNet() {
                         <td className="px-4 py-3">{statusBadge(order.paymentStatus)}</td>
                         <td className="px-4 py-3">{statusBadge(order.fulfillmentStatus)}</td>
                         <td className="px-4 py-3">
-                          <span className="block max-w-[160px] truncate font-mono text-xs">{order.providerOrderId || 'No order ID'}</span>
-                          <span className="block max-w-[160px] truncate font-mono text-xs text-muted-foreground">{order.providerRequestId}</span>
+                          <span className="block min-w-[190px] break-all font-mono text-xs">{order.providerOrderId || 'No order ID'}</span>
+                          <span className="block min-w-[190px] break-all font-mono text-xs text-muted-foreground">{order.providerRequestId}</span>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex justify-end gap-2">
-                            <button onClick={() => setResponseView(order.providerResponse || {})} className="rounded-lg p-2 hover:bg-muted" title="View provider response"><Eye className="h-4 w-4" /></button>
+                          <div className="flex flex-col items-end gap-2 sm:flex-row sm:justify-end">
+                            <button onClick={() => setResponseView(order)} className="rounded-lg border border-border px-3 py-2 text-xs font-black hover:bg-muted" title="View readable order details">
+                              Details
+                            </button>
                             {['PROCESSING', 'ORDER_RECEIVED', 'PENDING_PROVIDER'].includes(order.fulfillmentStatus) && (
-                              <button onClick={() => requery(order.id)} className="rounded-lg p-2 text-[#7C3AED] hover:bg-[#7C3AED]/10" title="Requery">
+                              <button onClick={() => requery(order.id)} className="rounded-lg border border-[#7C3AED]/30 px-3 py-2 text-xs font-black text-[#7C3AED] hover:bg-[#7C3AED]/10" title="Ask provider for latest status">
                                 <RefreshCcw className={`h-4 w-4 ${busy === order.id ? 'animate-spin' : ''}`} />
+                                Requery
                               </button>
                             )}
                             {['REFUND_REQUIRED', 'FAILED'].includes(order.fulfillmentStatus) && (
-                              <button onClick={() => markRefunded(order.id)} className="rounded-lg p-2 text-amber-600 hover:bg-amber-500/10" title="Mark refunded">
-                                <CheckCircle2 className="h-4 w-4" />
+                              <button onClick={() => markRefunded(order.id)} className="rounded-lg border border-amber-500/30 px-3 py-2 text-xs font-black text-amber-600 hover:bg-amber-500/10" title="Mark this order as refunded/manual resolved">
+                                Mark refunded
                               </button>
                             )}
                           </div>
@@ -420,6 +434,15 @@ export default function AdminCalebNet() {
           <div className="border-b border-border p-5">
             <h3 className="text-lg font-black">Student Catalog</h3>
             <p className="text-sm text-muted-foreground">Only active plans here can appear to students.</p>
+            <div className="relative mt-4">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={catalogSearch}
+                onChange={(e) => setCatalogSearch(e.target.value)}
+                placeholder="Search catalog by network, plan, category..."
+                className="w-full rounded-xl border-2 border-border bg-muted/40 py-3 pl-10 pr-4 outline-none focus:border-[#7C3AED]"
+              />
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
@@ -436,7 +459,7 @@ export default function AdminCalebNet() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {catalog.map((plan) => {
+                {filteredCatalog.map((plan) => {
                   const isAirtime = plan.type === 'AIRTIME';
                   const discount = Number(plan.airtimeDiscountPercent || 0);
                   return (
@@ -563,10 +586,36 @@ export default function AdminCalebNet() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setResponseView(null)}>
           <Card className="max-h-[80vh] w-full max-w-3xl overflow-auto" onClick={(event: any) => event.stopPropagation()}>
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-black">Provider Response</h3>
+              <h3 className="text-lg font-black">CalebNet Order Details</h3>
               <Button size="sm" variant="ghost" onClick={() => setResponseView(null)}>Close</Button>
             </div>
-            <pre className="whitespace-pre-wrap rounded-xl bg-muted p-4 text-xs">{JSON.stringify(responseView, null, 2)}</pre>
+            <div className="grid gap-3 text-sm sm:grid-cols-2">
+              {[
+                ['Reference', responseView.paymentReference || responseView.id],
+                ['Type', responseView.type],
+                ['Network', responseView.network],
+                ['Phone', responseView.phoneNumber],
+                ['Plan/Amount', responseView.planName || 'Airtime'],
+                ['Amount paid', `₦${Number(responseView.amountPaid || 0).toLocaleString()}`],
+                ['Provider cost', `₦${Number(responseView.providerCost || 0).toLocaleString()}`],
+                ['Profit', `₦${Number(responseView.profit || 0).toLocaleString()}`],
+                ['Payment status', responseView.paymentStatus],
+                ['Fulfillment', responseView.fulfillmentStatus],
+                ['Provider order ID', responseView.providerOrderId || 'Not assigned'],
+                ['Request ID', responseView.providerRequestId],
+                ['Provider status', responseView.providerStatus || 'Not available'],
+                ['Remark', responseView.providerRemark || 'No remark'],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-xl border border-border p-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</p>
+                  <p className="mt-1 break-all font-bold">{value || 'N/A'}</p>
+                </div>
+              ))}
+            </div>
+            <details className="mt-4">
+              <summary className="cursor-pointer text-sm font-black text-[#7C3AED]">Developer raw provider response</summary>
+              <pre className="mt-3 whitespace-pre-wrap rounded-xl bg-muted p-4 text-xs">{JSON.stringify(responseView.providerResponse || responseView, null, 2)}</pre>
+            </details>
           </Card>
         </div>
       )}

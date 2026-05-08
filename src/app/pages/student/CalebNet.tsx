@@ -37,6 +37,7 @@ const NETWORKS: Array<{ id: Network; label: string; color: string; text: string;
   { id: 'AIRTEL', label: 'Airtel', color: '#EF4444', text: '#FFFFFF', prefixes: ['0802','0808','0812','0701','0708','0902','0907','0912','0901'] },
   { id: '9MOBILE', label: '9mobile', color: '#065F46', text: '#FFFFFF', prefixes: ['0809','0817','0818','0908','0909'] },
 ];
+const AIRTIME_PRESETS = [50, 100, 200, 500, 1000, 2000];
 
 function isValidNigerianPhone(phone: string) {
   return /^0[789][01]\d{8}$/.test(phone);
@@ -60,6 +61,7 @@ export default function CalebNet() {
   const [network, setNetwork] = useState<Network>('MTN');
   const [plans, setPlans] = useState<CatalogPlan[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [planCategory, setPlanCategory] = useState('ALL');
   const [amount, setAmount] = useState<number | ''>('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [statuses, setStatuses] = useState<Record<string, ProviderStatus>>({});
@@ -85,6 +87,7 @@ export default function CalebNet() {
     setIsLoadingPlans(true);
     setPlans([]);
     setSelectedPlanId('');
+    setPlanCategory('ALL');
     fetch(`/api/calebnet/catalog?type=${type}&network=${network}`)
       .then((res) => res.json())
       .then((data) => {
@@ -109,7 +112,10 @@ export default function CalebNet() {
     () => plans.find((plan) => plan.id === selectedPlanId) || null,
     [plans, selectedPlanId]
   );
+  const planCategories = useMemo(() => ['ALL', ...Array.from(new Set(plans.map((plan) => plan.category).filter(Boolean)))], [plans]);
+  const displayPlans = useMemo(() => plans.filter((plan) => planCategory === 'ALL' || plan.category === planCategory), [plans, planCategory]);
   const providerStatus = statuses[`${type}_${network}`] || 'HEALTHY';
+  const airtimeAvailable = type !== 'AIRTIME' || plans.length > 0;
   const currentAmount = type === 'DATA' ? Number(selectedPlan?.sellingPrice || 0) : Number(amount || 0);
   const airtimeAmountError = type === 'AIRTIME' && amount !== ''
     ? currentAmount < 50
@@ -120,6 +126,7 @@ export default function CalebNet() {
     : '';
   const phoneMismatch = phoneNumber.length >= 4 && detectNetwork(phoneNumber) && detectNetwork(phoneNumber) !== network;
   const valid = providerStatus !== 'DOWN'
+    && airtimeAvailable
     && isValidNigerianPhone(phoneNumber)
     && (type === 'DATA' ? !!selectedPlan : currentAmount >= 50 && currentAmount <= 200000);
 
@@ -288,7 +295,21 @@ export default function CalebNet() {
                 <div className="rounded-xl border border-border bg-card p-5 text-muted-foreground">No active CalebNet plans for this network yet.</div>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {plans.map((plan) => (
+                  {planCategories.length > 2 && (
+                    <div className="col-span-full mb-1 flex gap-2 overflow-x-auto pb-1">
+                      {planCategories.map((category) => (
+                        <button
+                          key={category}
+                          type="button"
+                          onClick={() => setPlanCategory(category)}
+                          className={`shrink-0 rounded-full border px-3 py-2 text-xs font-black ${planCategory === category ? 'border-[#7C3AED] bg-[#7C3AED]/10 text-[#7C3AED]' : 'border-border bg-card text-muted-foreground'}`}
+                        >
+                          {category === 'ALL' ? 'All plans' : category}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {displayPlans.map((plan) => (
                     <button
                       key={plan.id}
                       onClick={() => setSelectedPlanId(plan.id)}
@@ -313,15 +334,31 @@ export default function CalebNet() {
           ) : (
             <div>
               <label className="mb-2 block text-xs font-black uppercase tracking-widest text-muted-foreground">Amount</label>
+              <div className="mb-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+                {AIRTIME_PRESETS.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setAmount(preset)}
+                    className={`rounded-xl border-2 px-3 py-3 text-sm font-black transition ${Number(amount) === preset ? 'border-[#7C3AED] bg-[#7C3AED]/10 text-[#7C3AED]' : 'border-border bg-card hover:border-[#7C3AED]/50'}`}
+                  >
+                    ₦{preset.toLocaleString()}
+                  </button>
+                ))}
+              </div>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg font-black text-muted-foreground">₦</span>
               <input
                 type="number"
                 inputMode="numeric"
                 value={amount}
                 onChange={(event) => setAmount(Number(event.target.value) || '')}
                 placeholder="₦50 - ₦200,000"
-                className={`w-full rounded-xl border-2 bg-card px-4 py-4 text-lg font-bold outline-none ${airtimeAmountError ? 'border-red-500 focus:border-red-500' : 'border-border focus:border-[#7C3AED]'}`}
+                className={`w-full rounded-xl border-2 bg-card py-4 pl-10 pr-4 text-lg font-bold outline-none ${airtimeAmountError ? 'border-red-500 focus:border-red-500' : 'border-border focus:border-[#7C3AED]'}`}
               />
+              </div>
               {airtimeAmountError && <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-red-500"><AlertCircle className="h-4 w-4" />{airtimeAmountError}</p>}
+              {!airtimeAvailable && <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-red-500"><AlertCircle className="h-4 w-4" />{network} airtime is not available right now.</p>}
             </div>
           )}
 
@@ -360,6 +397,7 @@ export default function CalebNet() {
                 {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Shield className="h-5 w-5" />}
                 Pay Securely
               </Button>
+              {!airtimeAvailable && <p className="mt-3 text-center text-xs font-bold text-red-500">{network} airtime is currently unavailable.</p>}
               {airtimeAmountError && <p className="mt-3 text-center text-xs font-bold text-red-500">{airtimeAmountError}</p>}
             </div>
             <p className="flex items-start gap-2 rounded-xl bg-muted/40 p-3 text-xs text-muted-foreground">

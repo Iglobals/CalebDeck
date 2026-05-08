@@ -121,6 +121,61 @@ async function notifyAdminOfCalebNetOrder(req: VercelRequest, order: {
     }
 }
 
+async function createRefundReviewOrder(req: VercelRequest, params: {
+    reference: string;
+    type: CalebNetType;
+    network: CalebNetNetwork;
+    phoneNumber: string;
+    amountPaid: number;
+    orderData: any;
+    reason: string;
+    paymentCustomer?: any;
+}) {
+    const db = adminDb();
+    const requestId = makeRequestId(params.reference);
+    const order = {
+        id: params.reference,
+        type: params.type,
+        userId: params.orderData?.userId || null,
+        customerName: params.orderData?.customerName || params.paymentCustomer?.email || 'Caleb student',
+        customerPhone: params.orderData?.customerPhone || params.phoneNumber,
+        network: params.network,
+        phoneNumber: params.phoneNumber,
+        planId: params.type === 'DATA' ? String(params.orderData?.planId || '') || null : null,
+        planName: params.orderData?.planName || (params.type === 'DATA' ? 'Unavailable data plan' : 'Airtime'),
+        providerPlanCode: null,
+        amountPaid: params.amountPaid,
+        providerCost: 0,
+        profit: 0,
+        paymentReference: params.reference,
+        paymentProvider: 'paystack',
+        paymentStatus: 'PAID',
+        fulfillmentStatus: 'REFUND_REQUIRED',
+        provider: 'clubkonnect',
+        providerOrderId: null,
+        providerRequestId: requestId,
+        providerStatusCode: null,
+        providerStatus: 'NOT_SENT_TO_PROVIDER',
+        providerRemark: params.reason,
+        requestPayloadSafe: {},
+        providerResponse: { error: params.reason, stage: 'before_provider_vend' },
+        retryCount: 0,
+        lastRequeryAt: null,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+    };
+
+    await db.collection('calebnet_orders').doc(params.reference).create(order);
+    await notifyAdminOfCalebNetOrder(req, {
+        reference: params.reference,
+        type: params.type,
+        network: params.network,
+        phoneNumber: params.phoneNumber,
+        amountPaid: params.amountPaid,
+        planName: order.planName,
+    });
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     setCors(res, 'POST, OPTIONS');
     if (req.method === 'OPTIONS') return res.status(200).end();
@@ -179,10 +234,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             catalogDoc = airtimeSnap.empty ? null : airtimeSnap.docs[0];
         }
 
-        if (!catalogDoc?.exists) return res.status(400).json({ error: 'Selected CalebNet product is not available' });
+        if (!catalogDoc?.exists) {
+            await createRefundReviewOrder(req, {
+                reference,
+                type,
+                network,
+                phoneNumber,
+                amountPaid: verifiedAmount,
+                orderData,
+                reason: 'Selected CalebNet product was not active after payment.',
+                paymentCustomer: payment.customer,
+            });
+            return res.status(200).json({
+                data: {
+                    success: true,
+                    firestoreOrderId: reference,
+                    fulfillmentStatus: 'REFUND_REQUIRED',
+                    message: 'Payment received, but this CalebNet product needs admin review.',
+                },
+            });
+        }
         const catalog = catalogDoc.data()!;
         if (!catalog.isActive || catalog.type !== type || catalog.network !== network) {
-            return res.status(400).json({ error: 'Selected CalebNet product is not active' });
+            await createRefundReviewOrder(req, {
+                reference,
+                type,
+                network,
+                phoneNumber,
+                amountPaid: verifiedAmount,
+                orderData,
+                reason: 'Selected CalebNet product was inactive or mismatched after payment.',
+                paymentCustomer: payment.customer,
+            });
+            return res.status(200).json({
+                data: {
+                    success: true,
+                    firestoreOrderId: reference,
+                    fulfillmentStatus: 'REFUND_REQUIRED',
+                    message: 'Payment received, but this CalebNet product needs admin review.',
+                },
+            });
         }
 
         const expectedAmount = type === 'DATA' ? Number(catalog.sellingPrice || 0) : Number(orderData.amountPaid || 0);
