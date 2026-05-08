@@ -23,6 +23,14 @@ export interface Hostel {
     isActive: boolean;
 }
 
+export const normalizeHostelKey = (value: any) => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+export const orderMatchesHostel = (order: any, hostel: Pick<Hostel, 'id' | 'name'>) => {
+    const orderKeys = [order.hostel, order.hostelId, order.hostelName].map(normalizeHostelKey).filter(Boolean);
+    const hostelKeys = [hostel.id, hostel.name, String(hostel.name || '').replace(/\s+hall$/i, '')].map(normalizeHostelKey).filter(Boolean);
+    return hostelKeys.some(key => orderKeys.includes(key));
+};
+
 export interface Review {
     id?: string;
     orderId: string;
@@ -84,11 +92,13 @@ export const getAllMenuItems = async (): Promise<MenuItem[]> => {
 
 // Orders (Admin - All) — filter to active statuses only (not TRASHED/DELIVERED/CANCELLED)
 export const subscribeToAllOrders = (callback: (orders: any[]) => void) => {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
     const q = query(
         collection(db, 'orders'),
-        where('status', 'in', ['PAID', 'OUT_FOR_DELIVERY', 'ON_THE_WAY', 'PREPARING']),
+        where('createdAt', '>=', Timestamp.fromDate(todayStart)),
         orderBy('createdAt', 'desc'),
-        limit(150)
+        limit(250)
     );
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -122,6 +132,18 @@ export const getRecentOrderHistory = async (days = 30, max = 200): Promise<any[]
     const q = query(
         collection(db, 'orders'),
         where('createdAt', '>=', Timestamp.fromDate(historyStart)),
+        orderBy('createdAt', 'desc'),
+        limit(max)
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+export const getOrdersBetween = async (start: Date, end: Date, max = 500): Promise<any[]> => {
+    const q = query(
+        collection(db, 'orders'),
+        where('createdAt', '>=', Timestamp.fromDate(start)),
+        where('createdAt', '<=', Timestamp.fromDate(end)),
         orderBy('createdAt', 'desc'),
         limit(max)
     );
@@ -497,6 +519,8 @@ export interface PlatformSettings {
     isMartComingSoon?: boolean;
     isCalebNetComingSoon?: boolean;
     isIPizzaComingSoon?: boolean;
+    autoDispatchEnabled?: boolean;
+    autoDispatchDelaySeconds?: number;
     systemOpeningHour?: number;
     systemClosingHour?: number;
     [key: string]: any;
@@ -509,7 +533,7 @@ export const getPlatformSettings = async (): Promise<PlatformSettings> => {
         return snapshot.data() as PlatformSettings;
     }
     // Default settings
-    return { riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, systemOpeningHour: 10, systemClosingHour: 18 };
+    return { riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18 };
 };
 
 export const subscribeToPlatformSettings = (callback: (settings: PlatformSettings) => void) => {
@@ -521,15 +545,17 @@ export const subscribeToPlatformSettings = (callback: (settings: PlatformSetting
             if (!data.premiumRiderRate) data.premiumRiderRate = 750;
             if (data.isAcceptingOrders === undefined) data.isAcceptingOrders = true;
             if (data.isCalebNetComingSoon === undefined) data.isCalebNetComingSoon = true;
+            if (data.autoDispatchEnabled === undefined) data.autoDispatchEnabled = false;
+            if (data.autoDispatchDelaySeconds === undefined) data.autoDispatchDelaySeconds = 60;
             if (data.systemOpeningHour === undefined) data.systemOpeningHour = 10;
             if (data.systemClosingHour === undefined) data.systemClosingHour = 18;
             callback(data);
         } else {
-            callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, systemOpeningHour: 10, systemClosingHour: 18 });
+            callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18 });
         }
     }, (error) => {
         console.error('subscribeToPlatformSettings error:', error);
-        callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, systemOpeningHour: 10, systemClosingHour: 18 });
+        callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18 });
     });
 };
 
@@ -579,7 +605,14 @@ export const createNotification = async (data: Omit<Notification, 'id' | 'create
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-Api-Key': import.meta.env.VITE_INTERNAL_API_KEY || '' },
                     body: JSON.stringify({ tokens, title: data.title, body: data.message, link: data.link || '/' })
-                }).catch(err => console.warn('Push API failed (likely missing Vercel environment local)', err));
+                })
+                    .then(async response => {
+                        if (!response.ok) {
+                            const detail = await response.text().catch(() => '');
+                            console.warn('Push API rejected notification, but in-app notification was saved:', response.status, detail);
+                        }
+                    })
+                    .catch(err => console.warn('Push API failed, but in-app notification was saved:', err));
             }
         } catch (pushErr) {
             console.error('Error fetching FCM tokens for push:', pushErr);

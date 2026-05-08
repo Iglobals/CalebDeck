@@ -17,7 +17,7 @@ import {
     Zap,
     AlertTriangle
 } from 'lucide-react';
-import { subscribeToAllOrders, subscribeToHostels, Hostel, subscribeToRiders, Rider, dispatchBatch, markOrderRefunded } from '../../../services/db';
+import { subscribeToAllOrders, subscribeToHostels, Hostel, subscribeToRiders, Rider, dispatchBatch, markOrderRefunded, orderMatchesHostel } from '../../../services/db';
 import { formatDistanceToNow } from 'date-fns';
 import { useTheme } from '../../../context/ThemeContext';
 
@@ -93,11 +93,12 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
     );
 
     const today = new Date().toLocaleDateString();
+    const visibleStatuses = ['PENDING_PAYMENT', 'PAID', 'OUT_FOR_DELIVERY', 'ON_THE_WAY', 'PREPARING', 'DELIVERED', 'FAILED', 'CANCELLED', 'REFUNDED'];
 
     const todayOrders = orders.filter(o => {
         if (orderType === 'food' && o.type === 'mart') return false;
         if (orderType === 'mart' && o.type !== 'mart') return false;
-        if (o.status === 'TRASHED' || o.status === 'CANCELLED' || o.status === 'FAILED') return false;
+        if (o.status === 'TRASHED' || !visibleStatuses.includes(o.status)) return false;
         
         // Treat old PENDING_PAYMENT as failed
         const d = parseDate(o.createdAt);
@@ -120,12 +121,12 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
     });
 
     const hostelGroups = hostels.map(hostel => {
-        const hostelOrders = todayOrders.filter(o => o.hostel === hostel.id || o.hostel === hostel.name);
+        const hostelOrders = todayOrders.filter(o => orderMatchesHostel(o, hostel));
         return { hostel, orders: hostelOrders };
     }).filter(g => g.orders.length > 0);
 
     const unmatchedOrders = todayOrders.filter(o => {
-        return !hostels.some(h => o.hostel === h.id || o.hostel === h.name);
+        return !hostels.some(h => orderMatchesHostel(o, h));
     });
 
     const failedOrders = orders.filter(o => {
@@ -210,6 +211,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
             PENDING_PAYMENT: { variant: 'amber', label: 'Payment Pending' },
             FAILED: { variant: 'gray', label: 'Failed' },
             PAID: { variant: 'gold', label: 'Paid' },
+            PREPARING: { variant: 'purple', label: 'Preparing' },
             OUT_FOR_DELIVERY: { variant: 'purple', label: 'Out for Delivery' },
             ON_THE_WAY: { variant: 'amber', label: 'On The Way' },
             DELIVERED: { variant: 'green', label: 'Delivered' },
@@ -422,6 +424,9 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                         <Badge variant="green" className="text-xs font-black px-3 py-1.5 shrink-0">
                             {todayOrders.filter(o => o.status === 'DELIVERED').length} delivered
                         </Badge>
+                        <Badge variant="red" className="text-xs font-black px-3 py-1.5 shrink-0">
+                            {todayOrders.filter(o => ['FAILED', 'CANCELLED', 'REFUNDED'].includes(o.status)).length} review
+                        </Badge>
                     </div>
 
                     {/* Hostel Groups */}
@@ -433,6 +438,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                 const outCount = hostelOrders.filter(o => o.status === 'OUT_FOR_DELIVERY').length;
                                 const otwCount = hostelOrders.filter(o => o.status === 'ON_THE_WAY').length;
                                 const deliveredCount = hostelOrders.filter(o => o.status === 'DELIVERED').length;
+                                const reviewCount = hostelOrders.filter(o => ['FAILED', 'CANCELLED', 'REFUNDED'].includes(o.status)).length;
 
                                 return (
                                     <Card key={hostel.id} className={`overflow-hidden border ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100 shadow-sm'}`}>
@@ -453,6 +459,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                         {outCount > 0 && <span className="text-xs font-black text-[#7C3AED] shrink-0">{outCount} out</span>}
                                                         {otwCount > 0 && <span className="text-xs font-black text-amber-500 shrink-0">{otwCount} otw</span>}
                                                         {deliveredCount > 0 && <span className="text-xs font-black text-[#10B981] shrink-0">{deliveredCount} done</span>}
+                                                        {reviewCount > 0 && <span className="text-xs font-black text-red-500 shrink-0">{reviewCount} review</span>}
                                                     </div>
                                                 </div>
                                             </div>

@@ -6,16 +6,17 @@ import {
     PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer
 } from 'recharts';
 import { getRecentOrderHistory, subscribeToPlatformSettings } from '../../../services/db';
-import { TrendingUp, ShoppingBag, Users, DollarSign, CalendarDays, ChevronDown, Shield, Truck, CheckCircle } from 'lucide-react';
+import { TrendingUp, ShoppingBag, Users, DollarSign, CalendarDays, Shield, Truck, CheckCircle, Printer } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, isWithinInterval } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 
-type TimeRange = 'today' | 'week' | 'month' | 'lastMonth';
+type TimeRange = 'today' | 'week' | 'month';
 
 export default function AdminAnalytics() {
     const [orders, setOrders] = useState<any[]>([]);
     const [platformSettings, setPlatformSettings] = useState<any>(null);
     const [timeRange, setTimeRange] = useState<TimeRange>('week');
+    const [loading, setLoading] = useState(true);
     const { adminTheme } = useTheme();
 
     useEffect(() => {
@@ -25,6 +26,8 @@ export default function AdminAnalytics() {
         }).catch((error) => {
             console.error('AdminAnalytics order history read failed:', error);
             if (mounted) setOrders([]);
+        }).finally(() => {
+            if (mounted) setLoading(false);
         });
         const unsubSettings = subscribeToPlatformSettings(setPlatformSettings);
         return () => {
@@ -37,10 +40,7 @@ export default function AdminAnalytics() {
 
     const parseDate = (d: any) => d?.seconds ? new Date(d.seconds * 1000) : d ? new Date(d) : null;
     const now = new Date();
-    const shouldShowLastMonth = now.getDate() <= 7;
-    const rangeOptions: TimeRange[] = shouldShowLastMonth
-        ? ['today', 'week', 'month', 'lastMonth']
-        : ['today', 'week', 'month'];
+    const rangeOptions: TimeRange[] = ['today', 'week', 'month'];
     const excludedStatuses = ['REFUNDED', 'PENDING_PAYMENT', 'FAILED', 'CANCELLED', 'TRASHED'];
     const isCalebDeckOrder = (order: any) => (
         order.type === 'mart' ||
@@ -63,10 +63,6 @@ export default function AdminAnalytics() {
         }
         if (range === 'week') {
             return { start: startOfWeek(now, { weekStartsOn: 0 }), end: endOfWeek(now, { weekStartsOn: 0 }) };
-        }
-        if (range === 'lastMonth') {
-            const previousMonth = subMonths(now, 1);
-            return { start: startOfMonth(previousMonth), end: endOfMonth(previousMonth) };
         }
         return { start: startOfMonth(now), end: endOfMonth(now) };
     };
@@ -173,9 +169,8 @@ export default function AdminAnalytics() {
             const dayCount = Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
             chartDays = Array.from({ length: dayCount }).map((_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
         } else {
-            const targetMonth = timeRange === 'lastMonth' ? subMonths(now, 1) : now;
-            const start = startOfMonth(targetMonth);
-            const daysInMonth = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0).getDate();
+            const start = startOfMonth(now);
+            const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
             chartDays = Array.from({ length: daysInMonth }).map((_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
         }
 
@@ -188,7 +183,7 @@ export default function AdminAnalytics() {
                 return format(od, 'yyyy-MM-dd') === dateStr && !excludedStatuses.includes(o.status);
             });
             return {
-                name: format(d, timeRange === 'week' ? 'EEE' : (timeRange === 'month' || timeRange === 'lastMonth') ? 'MMM d' : 'HH:mm'),
+                name: format(d, timeRange === 'week' ? 'EEE' : timeRange === 'month' ? 'MMM d' : 'HH:mm'),
                 revenue: dayOrders.reduce((sum, o) => sum + getOrderAmount(o), 0),
                 orders: dayOrders.length,
             };
@@ -206,16 +201,132 @@ export default function AdminAnalytics() {
     const uniqueCustomers = new Set(filteredOrders.map(o => o.phone).filter(Boolean)).size;
     const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
 
-    const timeRangeLabel = timeRange === 'today' ? 'Today' : timeRange === 'week' ? 'This Week' : timeRange === 'lastMonth' ? 'Last Month' : 'This Month';
+    const timeRangeLabel = timeRange === 'today' ? 'Today' : timeRange === 'week' ? 'This Week' : 'This Month';
 
     const cardBg = isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100 shadow-sm';
     const mutedText = isDark ? 'text-[#9C8F7F]' : 'text-gray-500';
     const headingText = isDark ? 'text-[#FAF9F6]' : 'text-gray-900';
 
+    const escapeHtml = (value: any) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
+    const openAnalyticsPrint = () => {
+        const title = `CalebDeck Analytics: ${timeRangeLabel}`;
+        const rangeBounds = getRangeBounds(timeRange);
+        const trendRows = revenueData.map(day => `<tr><td>${escapeHtml(day.name)}</td><td>${day.orders}</td><td>NGN ${day.revenue.toLocaleString()}</td></tr>`).join('');
+        const typeRows = orderTypeBreakdown.map(type => {
+            const pct = totalOrders > 0 ? Math.round((type.value / totalOrders) * 100) : 0;
+            return `<tr><td>${escapeHtml(type.name)}</td><td>${type.value}</td><td>${pct}%</td></tr>`;
+        }).join('');
+        const topRows = topMenuItems.map((item, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(item.name)}</td><td>${item.count}x</td></tr>`).join('');
+        const detailRows = filteredOrders.map(o => {
+            const date = parseDate(o.createdAt);
+            return `<tr>
+                <td>${date ? format(date, 'MMM d, h:mm a') : 'N/A'}</td>
+                <td>${escapeHtml(o.orderId || o.id)}</td>
+                <td>${escapeHtml(o.fullName || o.studentName || '')}</td>
+                <td>${escapeHtml(o.phone || '')}</td>
+                <td>${escapeHtml(o.hostelName || o.hostel || '')}</td>
+                <td>${escapeHtml(o.type || 'food')}</td>
+                <td>${escapeHtml(o.status)}</td>
+                <td>NGN ${getOrderAmount(o).toLocaleString()}</td>
+            </tr>`;
+        }).join('');
+        const emptyRow = '<tr><td colspan="8" class="empty">No data for this period</td></tr>';
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+        printWindow.document.write(`
+            <html>
+              <head>
+                <title>${title}</title>
+                <style>
+                  * { box-sizing: border-box; }
+                  body { font-family: Inter, Arial, sans-serif; padding: 28px; color: #141414; background: #fff; }
+                  .topbar { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; border-bottom: 3px solid #7C3AED; padding-bottom: 18px; }
+                  .brand { font-size: 11px; text-transform: uppercase; letter-spacing: .18em; font-weight: 900; color: #7C3AED; }
+                  h1 { margin: 6px 0 4px; font-size: 28px; letter-spacing: 0; }
+                  h2 { font-size: 15px; margin: 26px 0 10px; }
+                  .meta { color: #666; font-size: 12px; line-height: 1.55; }
+                  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 22px 0; }
+                  .card { border: 1px solid #e7e2f4; border-radius: 8px; padding: 12px; background: #fbfaff; min-height: 82px; }
+                  .label { font-size: 9px; text-transform: uppercase; letter-spacing: .12em; color: #665a77; font-weight: 900; }
+                  .value { font-size: 20px; font-weight: 900; margin-top: 6px; color: #171021; }
+                  .section-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+                  table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 10px; }
+                  th, td { border-bottom: 1px solid #ececec; padding: 8px; text-align: left; vertical-align: top; }
+                  th { background: #f7f5fb; text-transform: uppercase; font-size: 9px; letter-spacing: .08em; color: #6b5b7e; }
+                  .empty { text-align: center; color: #777; padding: 18px; }
+                  .print-btn { margin-top: 18px; padding: 12px 16px; border: 0; border-radius: 8px; background: #7C3AED; color: #fff; font-weight: 900; }
+                  @media print {
+                    body { padding: 0; }
+                    .print-btn { display: none; }
+                    .card { break-inside: avoid; }
+                    h2 { break-after: avoid; }
+                  }
+                  @media (max-width: 720px) {
+                    .grid, .section-grid { grid-template-columns: 1fr; }
+                  }
+                </style>
+              </head>
+              <body>
+                <div class="topbar">
+                  <div>
+                    <div class="brand">CalebDeck Admin Report</div>
+                    <h1>${title}</h1>
+                    <div class="meta">${format(rangeBounds.start, 'MMM d, yyyy')} - ${format(rangeBounds.end, 'MMM d, yyyy')}<br/>Generated ${format(new Date(), 'MMM d, yyyy h:mm a')}</div>
+                  </div>
+                  <button class="print-btn" onclick="window.print()">Print / Save PDF</button>
+                </div>
+                <div class="grid">
+                  <div class="card"><div class="label">Total Orders</div><div class="value">${totalOrders}</div></div>
+                  <div class="card"><div class="label">Gross Revenue</div><div class="value">NGN ${totalRevenue.toLocaleString()}</div></div>
+                  <div class="card"><div class="label">Delivery Fees</div><div class="value">NGN ${totalDeliveryFees.toLocaleString()}</div></div>
+                  <div class="card"><div class="label">Service Fees</div><div class="value">NGN ${totalSystemFees.toLocaleString()}</div></div>
+                  <div class="card"><div class="label">Delivered</div><div class="value">${deliveredOrders} (${fulfillmentRate}%)</div></div>
+                  <div class="card"><div class="label">Average Order Value</div><div class="value">NGN ${avgOrderValue.toLocaleString()}</div></div>
+                  <div class="card"><div class="label">Mart Orders</div><div class="value">${filteredOrders.filter(o => isMartOrder(o)).length}</div></div>
+                  <div class="card"><div class="label">Customers / Items</div><div class="value">${uniqueCustomers} / ${totalItems}</div></div>
+                </div>
+                <div class="section-grid">
+                  <section>
+                    <h2>Revenue Trend</h2>
+                    <table><thead><tr><th>Period</th><th>Orders</th><th>Revenue</th></tr></thead><tbody>${trendRows || '<tr><td colspan="3" class="empty">No trend data</td></tr>'}</tbody></table>
+                  </section>
+                  <section>
+                    <h2>Order Types</h2>
+                    <table><thead><tr><th>Type</th><th>Orders</th><th>Share</th></tr></thead><tbody>${typeRows || '<tr><td colspan="3" class="empty">No order type data</td></tr>'}</tbody></table>
+                  </section>
+                </div>
+                <h2>Top Ordered Items</h2>
+                <table><thead><tr><th>#</th><th>Item</th><th>Quantity</th></tr></thead><tbody>${topRows || '<tr><td colspan="3" class="empty">No item data</td></tr>'}</tbody></table>
+                <h2>Detailed Orders</h2>
+                <table>
+                  <thead><tr><th>Date</th><th>Order</th><th>Student</th><th>Phone</th><th>Hostel</th><th>Type</th><th>Status</th><th>Amount</th></tr></thead>
+                  <tbody>${detailRows || emptyRow}</tbody>
+                </table>
+              </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
+    const SkeletonCard = () => (
+        <Card className={`${cardBg} border`}>
+            <div className={`h-10 w-10 rounded-xl animate-pulse ${isDark ? 'bg-[#333333]' : 'bg-gray-100'}`} />
+            <div className={`mt-4 h-3 w-24 rounded animate-pulse ${isDark ? 'bg-[#333333]' : 'bg-gray-100'}`} />
+            <div className={`mt-3 h-7 w-20 rounded animate-pulse ${isDark ? 'bg-[#333333]' : 'bg-gray-100'}`} />
+        </Card>
+    );
+
     return (
         <AdminLayout title="Analytics">
             {/* Time Range Selector */}
-            <div className="flex items-center gap-2 mb-8">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
+              <div className="flex flex-wrap items-center gap-2">
                 {rangeOptions.map(range => (
                     <button
                         key={range}
@@ -227,14 +338,23 @@ export default function AdminAnalytics() {
                                 : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                             }`}
                     >
-                        {range === 'today' ? 'Today' : range === 'week' ? 'This Week' : range === 'lastMonth' ? 'Last Month' : 'This Month'}
+                        {range === 'today' ? 'Today' : range === 'week' ? 'This Week' : 'This Month'}
                     </button>
                 ))}
+              </div>
+              <button
+                onClick={openAnalyticsPrint}
+                disabled={loading}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest ${isDark ? 'bg-[#2A2A2A] text-[#FAF9F6] hover:bg-[#333333]' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'} disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                <Printer className="h-4 w-4" />
+                Print Analytics
+              </button>
             </div>
 
             {/* KPI Row */}
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-                {[
+                {loading ? Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />) : [
                     { label: 'Total Orders', value: totalOrders.toString(), icon: <ShoppingBag className="w-5 h-5" />, color: '#7C3AED' },
                     { label: 'Gross Revenue', value: `₦${totalRevenue.toLocaleString()}` , icon: <DollarSign className="w-5 h-5" />, color: '#10B981' },
                     { label: 'Delivery Revenue', value: `₦${totalDeliveryFees.toLocaleString()}` , icon: <Truck className="w-5 h-5" />, color: '#F97316' },

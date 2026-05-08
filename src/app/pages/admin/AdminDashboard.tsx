@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
 import { Badge } from '../../components/design-system/Badge';
@@ -16,7 +16,7 @@ import {
   Zap,
   X
 } from 'lucide-react';
-import { subscribeToAllOrders, subscribeToRiders, subscribeToHostels, dispatchBatch, Rider, Hostel, subscribeToPlatformSettings, updatePlatformSettings, PlatformSettings } from '../../../services/db';
+import { subscribeToAllOrders, subscribeToRiders, subscribeToHostels, dispatchBatch, Rider, Hostel, subscribeToPlatformSettings, updatePlatformSettings, PlatformSettings, orderMatchesHostel } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 import { isToday, isYesterday, format } from 'date-fns';
 
@@ -29,6 +29,7 @@ export default function AdminDashboard() {
   const [dispatchingHostel, setDispatchingHostel] = useState<string | null>(null);
   const [emergencyCard, setEmergencyCard] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const autoDispatchingRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     let loaded = 0;
@@ -75,12 +76,6 @@ export default function AdminDashboard() {
     return `${order.plates?.length || 0} Plates`;
   };
 
-  const recentOrders = orders.filter(o => {
-    const d = parseDate(o.createdAt);
-    if (!d) return false;
-    return Date.now() - d.getTime() < 24 * 60 * 60 * 1000;
-  }).slice(0, 8);
-
   const formatOrderTime = (d: any) => {
     const date = parseDate(d);
     if (!date) return 'N/A';
@@ -91,12 +86,19 @@ export default function AdminDashboard() {
 
   const isDark = adminTheme === 'dark';
   const today = new Date().toLocaleDateString();
+  const revenueStatuses = ['PAID', 'OUT_FOR_DELIVERY', 'ON_THE_WAY', 'PREPARING', 'DELIVERED'];
 
   const todayPaidOrders = orders.filter(o => {
-    if (!o.createdAt || o.status === 'CANCELLED') return false;
+    if (!o.createdAt || !revenueStatuses.includes(o.status)) return false;
     const date = o.createdAt.seconds ? new Date(o.createdAt.seconds * 1000) : new Date(o.createdAt);
     return date.toLocaleDateString() === today;
   });
+
+  const recentOrders = orders.filter(o => {
+    const d = parseDate(o.createdAt);
+    if (!d || d.toLocaleDateString() !== today) return false;
+    return revenueStatuses.includes(o.status);
+  }).slice(0, 8);
 
   const totalRevenue = todayPaidOrders.reduce((sum, o) => sum + getOrderAmount(o), 0);
   const totalDeliveryFees = todayPaidOrders.reduce((sum, o) => sum + getOrderDeliveryFee(o), 0);
@@ -109,8 +111,9 @@ export default function AdminDashboard() {
 
   const hostelCards = hostels.map(hostel => {
     const hostelOrders = orders.filter(o => {
-      const matchesHostel = o.hostel === hostel.id || o.hostel === hostel.name;
+      const matchesHostel = orderMatchesHostel(o, hostel);
       if (!matchesHostel) return false;
+      if (!revenueStatuses.includes(o.status)) return false;
       const d = parseDate(o.createdAt);
       return d ? d.toLocaleDateString() === today : false;
     });
@@ -174,6 +177,33 @@ export default function AdminDashboard() {
   };
 
   const onlineRiders = riders.filter(r => r.status === 'available' && r.isActive === true);
+  const autoDispatchEnabled = !!platformSettings?.autoDispatchEnabled;
+  const autoDispatchDelaySeconds = Number(platformSettings?.autoDispatchDelaySeconds || 60);
+
+  useEffect(() => {
+    if (!autoDispatchEnabled || loading || dispatchingHostel) return;
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      hostelCards.forEach((card) => {
+        if (!card.dispatchRider || card.pendingCount === 0 || autoDispatchingRef.current.has(card.hostel.id)) return;
+        const eligible = card.pendingOrders.filter((order) => {
+          if (order.status !== 'PAID' || order.batchId || order.assignedRiderId) return false;
+          const createdAt = parseDate(order.createdAt);
+          return createdAt ? (now - createdAt.getTime()) / 1000 >= autoDispatchDelaySeconds : false;
+        });
+        if (eligible.length === 0) return;
+        autoDispatchingRef.current.add(card.hostel.id);
+        dispatchBatch(card.hostel.id, card.hostel.name, card.dispatchRider, eligible, false)
+          .catch((error) => console.error('Auto-dispatch failed:', error))
+          .finally(() => autoDispatchingRef.current.delete(card.hostel.id));
+      });
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, [autoDispatchEnabled, autoDispatchDelaySeconds, loading, dispatchingHostel, orders, riders, hostels]);
+
+  const toggleAutoDispatch = async () => {
+    await updatePlatformSettings({ autoDispatchEnabled: !autoDispatchEnabled });
+  };
 
   const kpis = [
     {
@@ -251,6 +281,26 @@ export default function AdminDashboard() {
           </Card>
         ))}
       </div>
+
+      <Card className={`mb-6 lg:mb-8 border ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100 shadow-sm'}`}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className={`text-lg font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Auto Dispatch</h2>
+            <p className={`mt-1 text-sm ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+              {autoDispatchEnabled
+                ? `Enabled: paid orders wait ${autoDispatchDelaySeconds}s, then go to the available default/assistant rider.`
+                : 'Off: admin remains in full manual control of dispatch.'}
+            </p>
+          </div>
+          <Button
+            variant={autoDispatchEnabled ? 'primary' : 'outline'}
+            onClick={toggleAutoDispatch}
+            className={autoDispatchEnabled ? 'bg-[#7C3AED] text-white' : ''}
+          >
+            {autoDispatchEnabled ? 'Auto Dispatch On' : 'Enable Auto Dispatch'}
+          </Button>
+        </div>
+      </Card>
 
       {/* Hostel Dispatch Cards */}
       <div className="mb-6 lg:mb-8">
@@ -397,7 +447,7 @@ export default function AdminDashboard() {
 
       {/* Recent Orders Table */}
       <div>
-        <h2 className={`text-xl lg:text-2xl font-bold mb-4 lg:mb-6 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Recent Orders <span className={`text-sm font-medium ml-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>(last 24h)</span></h2>
+        <h2 className={`text-xl lg:text-2xl font-bold mb-4 lg:mb-6 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Recent Orders <span className={`text-sm font-medium ml-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>(today)</span></h2>
         <Card className={`p-0 overflow-hidden ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'}`}>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -416,7 +466,7 @@ export default function AdminDashboard() {
                 {recentOrders.length === 0 ? (
                   <tr>
                     <td colSpan={7} className={`py-12 text-center text-sm font-medium ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`}>
-                      No orders in the last 24 hours
+                      No paid orders today
                     </td>
                   </tr>
                 ) : recentOrders.map((order) => (
@@ -443,6 +493,7 @@ export default function AdminDashboard() {
                         variant={
                           order.status === 'DELIVERED' ? 'green' :
                             order.status === 'OUT_FOR_DELIVERY' ? 'purple' :
+                              order.status === 'ON_THE_WAY' ? 'amber' :
                               order.status === 'PAID' ? 'gold' :
                                 'gray'
                         }
