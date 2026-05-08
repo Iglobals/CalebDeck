@@ -3,6 +3,13 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '../firebase-admin.js';
 import { clubkonnectGet, getClubkonnectConfig, NETWORK_CODES, normalizeNetwork, requireAdmin, setCors } from '../calebnet.js';
 
+const FALLBACK_AIRTIME_DISCOUNTS: Record<string, number> = {
+    MTN: 3,
+    GLO: 8,
+    AIRTEL: 3,
+    '9MOBILE': 7,
+};
+
 function networkFromProviderCode(value: any) {
     const code = String(value || '').trim();
     if (code === '01') return 'MTN';
@@ -90,6 +97,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const raw = await clubkonnectGet('/APIAirtimeDiscountV2.asp', { UserID: userId }, 20000);
         const rows = collectRows(raw);
         const discounts = bestDiscountsByNetwork(rows);
+        Object.entries(FALLBACK_AIRTIME_DISCOUNTS).forEach(([network, discount]) => {
+            if (!discounts.has(network)) discounts.set(network, { row: { network, value: discount, fallback: true }, discount });
+        });
         const batch = db.batch();
         let count = 0;
         const refs = Array.from(discounts.keys()).map((network) => db.collection('calebnet_catalog').doc(`clubkonnect_AIRTIME_${network}`));

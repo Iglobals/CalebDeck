@@ -28,6 +28,13 @@ type Tab = 'dashboard' | 'orders' | 'catalog' | 'provider' | 'health';
 type CalebNetType = 'DATA' | 'AIRTIME';
 
 const NETWORK_CODES: Record<string, string> = { MTN: '01', GLO: '02', '9MOBILE': '03', AIRTEL: '04' };
+const AIRTIME_DISCOUNT_FALLBACKS: Record<string, number> = { MTN: 3, GLO: 8, AIRTEL: 3, '9MOBILE': 7 };
+
+function safeAirtimeDiscount(network: string, value: any) {
+  const parsed = Number(value);
+  if (Number.isFinite(parsed) && parsed > 0 && parsed <= 30) return parsed;
+  return AIRTIME_DISCOUNT_FALLBACKS[network] || 0;
+}
 
 async function adminFetch(path: string, init: RequestInit = {}) {
   const token = await auth.currentUser?.getIdToken();
@@ -461,7 +468,7 @@ export default function AdminCalebNet() {
               <tbody className="divide-y divide-border">
                 {filteredCatalog.map((plan) => {
                   const isAirtime = plan.type === 'AIRTIME';
-                  const discount = Number(plan.airtimeDiscountPercent || 0);
+                  const discount = safeAirtimeDiscount(plan.network, plan.airtimeDiscountPercent);
                   return (
                   <tr key={plan.id}>
                     <td className="px-4 py-3"><span className="font-black">{plan.name || plan.displayName}</span><span className="block text-xs text-muted-foreground">{isAirtime ? 'Custom amount top-up' : `${plan.dataSize || plan.type} ${plan.validity || ''}`}</span></td>

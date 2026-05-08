@@ -18,6 +18,19 @@ import {
     updateProviderHealth,
 } from '../server/calebnet.js';
 
+const FALLBACK_AIRTIME_DISCOUNTS: Record<CalebNetNetwork, number> = {
+    MTN: 3,
+    GLO: 8,
+    AIRTEL: 3,
+    '9MOBILE': 7,
+};
+
+function safeAirtimeDiscount(network: CalebNetNetwork, value: any) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed > 0 && parsed <= 30) return parsed;
+    return FALLBACK_AIRTIME_DISCOUNTS[network] || 0;
+}
+
 async function verifyPaystack(reference: string) {
     const secretKey = process.env.PAYSTACK_SECRET_KEY;
     if (!secretKey) throw new Error('Payment verification is not configured');
@@ -281,9 +294,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: 'Payment amount does not match CalebNet price' });
         }
 
+        const airtimeDiscount = safeAirtimeDiscount(network, catalog.airtimeDiscountPercent);
         const providerCost = type === 'DATA'
             ? Number(catalog.providerCost || 0)
-            : Number((verifiedAmount * (1 - Number(catalog.airtimeDiscountPercent || 0) / 100)).toFixed(2));
+            : Number((verifiedAmount * (1 - airtimeDiscount / 100)).toFixed(2));
         const profit = Number((verifiedAmount - providerCost).toFixed(2));
         const requestId = makeRequestId(reference);
         const providerPlanCode = type === 'DATA' ? String(catalog.providerPlanCode || '') : null;
