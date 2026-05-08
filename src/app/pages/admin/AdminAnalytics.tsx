@@ -5,7 +5,7 @@ import { Badge } from '../../components/design-system/Badge';
 import {
     PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { subscribeToOrderHistory, subscribeToPlatformSettings } from '../../../services/db';
+import { getRecentOrderHistory, subscribeToPlatformSettings } from '../../../services/db';
 import { TrendingUp, ShoppingBag, Users, DollarSign, CalendarDays, ChevronDown, Shield, Truck, CheckCircle } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, isWithinInterval } from 'date-fns';
@@ -19,10 +19,16 @@ export default function AdminAnalytics() {
     const { adminTheme } = useTheme();
 
     useEffect(() => {
-        const unsubOrders = subscribeToOrderHistory(setOrders);
+        let mounted = true;
+        getRecentOrderHistory(30, 200).then((data) => {
+            if (mounted) setOrders(data);
+        }).catch((error) => {
+            console.error('AdminAnalytics order history read failed:', error);
+            if (mounted) setOrders([]);
+        });
         const unsubSettings = subscribeToPlatformSettings(setPlatformSettings);
         return () => {
-            unsubOrders();
+            mounted = false;
             unsubSettings();
         };
     }, []);

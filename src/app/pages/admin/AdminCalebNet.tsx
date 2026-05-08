@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { auth, db } from '../../../services/firebase';
 import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
@@ -97,38 +97,42 @@ export default function AdminCalebNet() {
   });
   const catalogDraftRef = useRef<HTMLDivElement | null>(null);
 
+  const loadCatalog = async () => {
+    const snap = await getDocs(query(collection(db, 'calebnet_catalog'), orderBy('network', 'asc'), limit(120)));
+    setCatalog(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+  };
+
+  const loadProviderPlans = async () => {
+    const snap = await getDocs(query(collection(db, 'calebnet_provider_plans'), orderBy('lastSyncedAt', 'desc'), limit(250)));
+    setProviderPlans(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+  };
+
+  const loadHealth = async () => {
+    const snap = await getDocs(collection(db, 'calebnet_provider_status'));
+    setHealth(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+  };
+
   useEffect(() => {
-    const unsubOrders = onSnapshot(query(collection(db, 'calebnet_orders'), orderBy('createdAt', 'desc')), (snap) => {
+    const unsubOrders = onSnapshot(query(collection(db, 'calebnet_orders'), orderBy('createdAt', 'desc'), limit(50)), (snap) => {
       setOrders(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
       console.error('[CalebNet Orders listener failed]', error);
       toast.error(`Orders read failed: ${error.message}`);
     });
-    const unsubCatalog = onSnapshot(query(collection(db, 'calebnet_catalog'), orderBy('network', 'asc')), (snap) => {
-      setCatalog(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-    }, (error) => {
-      console.error('[CalebNet Catalog listener failed]', error);
-      toast.error(`Catalog read failed: ${error.message}`);
-    });
-    const unsubProvider = onSnapshot(query(collection(db, 'calebnet_provider_plans'), orderBy('lastSyncedAt', 'desc')), (snap) => {
-      setProviderPlans(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-    }, (error) => {
-      console.error('[CalebNet Provider Plans listener failed]', error);
-      toast.error(`Provider plans read failed: ${error.message}`);
-    });
-    const unsubHealth = onSnapshot(collection(db, 'calebnet_provider_status'), (snap) => {
-      setHealth(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-    }, (error) => {
-      console.error('[CalebNet Health listener failed]', error);
-      toast.error(`Provider health read failed: ${error.message}`);
-    });
-    return () => {
-      unsubOrders();
-      unsubCatalog();
-      unsubProvider();
-      unsubHealth();
-    };
+    return () => unsubOrders();
   }, []);
+
+  useEffect(() => {
+    if (tab === 'dashboard' || tab === 'health') {
+      loadHealth().catch((error) => toast.error(`Provider health read failed: ${error.message}`));
+    }
+    if (tab === 'catalog') {
+      loadCatalog().catch((error) => toast.error(`Catalog read failed: ${error.message}`));
+    }
+    if (tab === 'provider') {
+      loadProviderPlans().catch((error) => toast.error(`Provider plans read failed: ${error.message}`));
+    }
+  }, [tab]);
 
   const filteredOrders = useMemo(() => orders.filter((order) => {
     const haystack = `${order.id} ${order.network} ${order.phoneNumber} ${order.providerOrderId} ${order.providerRequestId}`.toLowerCase();
@@ -156,6 +160,7 @@ export default function AdminCalebNet() {
     try {
       const data = await adminFetch('/api/calebnet/sync-provider-plans', { method: 'POST', body: '{}' });
       toast.success(`Synced ${data.count} provider plans (${data.rawCount ?? 0} raw, ${data.skipped ?? 0} skipped)`);
+      await loadProviderPlans();
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -183,6 +188,7 @@ export default function AdminCalebNet() {
     try {
       const data = await adminFetch('/api/calebnet/sync-airtime-discounts', { method: 'POST', body: '{}' });
       toast.success(`Synced ${data.count} airtime discount entries (${data.rawCount ?? 0} raw)`);
+      await loadCatalog();
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -214,6 +220,7 @@ export default function AdminCalebNet() {
         }),
       });
       toast.success('CalebNet catalog plan created');
+      await loadCatalog();
       setSelectedProviderPlan(null);
       setSellingPrice('');
       setFeatured(false);
@@ -240,6 +247,7 @@ export default function AdminCalebNet() {
     try {
       await adminFetch('/api/calebnet/catalog', { method: 'PATCH', body: JSON.stringify({ id, updates }) });
       toast.success('Catalog updated');
+      await loadCatalog();
     } catch (error: any) {
       toast.error(error.message);
     } finally {

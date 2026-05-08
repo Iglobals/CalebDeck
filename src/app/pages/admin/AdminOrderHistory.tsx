@@ -4,7 +4,7 @@ import { Card } from '../../components/design-system/Card';
 import { Badge } from '../../components/design-system/Badge';
 import { Button } from '../../components/design-system/Button';
 import { Download, Search, Filter, ChevronDown, Trash2, RotateCcw, AlertTriangle, CheckCircle, Package, Clock, Users, Loader2 } from 'lucide-react';
-import { subscribeToOrderHistory, subscribeToRiders, trashOrder, recoverOrder, permanentlyDeleteOrder, Rider } from '../../../services/db';
+import { getRecentOrderHistory, subscribeToRiders, trashOrder, recoverOrder, permanentlyDeleteOrder, Rider } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 import { format } from 'date-fns';
 
@@ -23,10 +23,22 @@ export default function AdminOrderHistory() {
 
     useEffect(() => {
         let ordersLoaded = false, ridersLoaded = false;
+        let mounted = true;
         const checkDone = () => { if (ordersLoaded && ridersLoaded) setLoading(false); };
-        const unsub = subscribeToOrderHistory((data) => { setOrders(data); ordersLoaded = true; checkDone(); });
+        getRecentOrderHistory(30, 200).then((data) => {
+            if (!mounted) return;
+            setOrders(data);
+            ordersLoaded = true;
+            checkDone();
+        }).catch((error) => {
+            console.error('AdminOrderHistory read failed:', error);
+            if (!mounted) return;
+            setOrders([]);
+            ordersLoaded = true;
+            checkDone();
+        });
         const unsubRiders = subscribeToRiders((data) => { setRiders(data); ridersLoaded = true; checkDone(); });
-        return () => { unsub(); unsubRiders(); };
+        return () => { mounted = false; unsubRiders(); };
     }, []);
 
     const isDark = adminTheme === 'dark';

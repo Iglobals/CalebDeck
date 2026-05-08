@@ -36,7 +36,7 @@ export interface Review {
 
 // Hostels
 export const getActiveHostels = async (): Promise<Hostel[]> => {
-    const q = query(collection(db, 'hostels'), where('isActive', '==', true));
+    const q = query(collection(db, 'hostels'), where('isActive', '==', true), limit(50));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Hostel));
 };
@@ -49,7 +49,7 @@ export const getHostelById = async (hostelId: string): Promise<Hostel | null> =>
 
 // Live hostel subscription (for admin dashboard real-time updates)
 export const subscribeToHostels = (callback: (hostels: Hostel[]) => void) => {
-    const q = query(collection(db, 'hostels'), where('isActive', '==', true));
+    const q = query(collection(db, 'hostels'), where('isActive', '==', true), limit(50));
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Hostel)));
     }, (error) => {
@@ -71,13 +71,13 @@ export const assignHostelRiders = async (hostelId: string, defaultRiderId: strin
 
 // Menu
 export const getMenu = async (): Promise<MenuItem[]> => {
-    const q = query(collection(db, 'menu_items'), where('isAvailable', '==', true));
+    const q = query(collection(db, 'menu_items'), where('isAvailable', '==', true), limit(150));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem));
 };
 
 export const getAllMenuItems = async (): Promise<MenuItem[]> => {
-    const q = query(collection(db, 'menu_items'), orderBy('category', 'asc'));
+    const q = query(collection(db, 'menu_items'), orderBy('category', 'asc'), limit(250));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem));
 };
@@ -86,8 +86,9 @@ export const getAllMenuItems = async (): Promise<MenuItem[]> => {
 export const subscribeToAllOrders = (callback: (orders: any[]) => void) => {
     const q = query(
         collection(db, 'orders'),
-        where('status', 'in', ['PAID', 'OUT_FOR_DELIVERY', 'ON_THE_WAY', 'PREPARING', 'DELIVERED']),
-        orderBy('createdAt', 'desc')
+        where('status', 'in', ['PAID', 'OUT_FOR_DELIVERY', 'ON_THE_WAY', 'PREPARING']),
+        orderBy('createdAt', 'desc'),
+        limit(150)
     );
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -100,12 +101,12 @@ export const subscribeToAllOrders = (callback: (orders: any[]) => void) => {
 // Orders (Admin - History/Analytics) — scoped to last 30 days with limit
 export const subscribeToOrderHistory = (callback: (orders: any[]) => void) => {
     const historyStart = new Date();
-    historyStart.setDate(historyStart.getDate() - 75);
+    historyStart.setDate(historyStart.getDate() - 30);
     const q = query(
         collection(db, 'orders'),
         where('createdAt', '>=', Timestamp.fromDate(historyStart)),
         orderBy('createdAt', 'desc'),
-        limit(500)
+        limit(200)
     );
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -113,6 +114,19 @@ export const subscribeToOrderHistory = (callback: (orders: any[]) => void) => {
         console.error('subscribeToOrderHistory error:', error);
         callback([]);
     });
+};
+
+export const getRecentOrderHistory = async (days = 30, max = 200): Promise<any[]> => {
+    const historyStart = new Date();
+    historyStart.setDate(historyStart.getDate() - days);
+    const q = query(
+        collection(db, 'orders'),
+        where('createdAt', '>=', Timestamp.fromDate(historyStart)),
+        orderBy('createdAt', 'desc'),
+        limit(max)
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
 export const updateOrder = async (orderId: string, updates: any) => {
@@ -126,7 +140,8 @@ export const subscribeToHostelOrders = (hostelId: string, callback: (orders: any
         collection(db, 'orders'),
         where('hostelId', '==', hostelId),
         where('status', 'in', ['PAID', 'ASSIGNED']),
-        orderBy('createdAt', 'desc')
+        orderBy('createdAt', 'desc'),
+        limit(100)
     );
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -146,7 +161,8 @@ export const subscribeToRiderOrdersByHostels = (hostelIds: string[], callback: (
         collection(db, 'orders'),
         where('hostelId', 'in', hostelIds.slice(0, 10)),
         where('status', 'in', ['PAID', 'OUT_FOR_DELIVERY', 'DELIVERED']),
-        orderBy('createdAt', 'desc')
+        orderBy('createdAt', 'desc'),
+        limit(100)
     );
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -200,7 +216,8 @@ export const subscribeToRiderOrders = (riderId: string, callback: (orders: any[]
     const q = query(
         collection(db, 'orders'),
         where('assignedRiderId', '==', riderId),
-        where('status', 'in', ['OUT_FOR_DELIVERY', 'ON_THE_WAY', 'DELIVERED'])
+        where('status', 'in', ['OUT_FOR_DELIVERY', 'ON_THE_WAY', 'DELIVERED']),
+        limit(100)
     );
     return onSnapshot(q, (snapshot) => {
         const sortedDocs = snapshot.docs
@@ -271,7 +288,8 @@ export const subscribeToBatches = (riderId: string, callback: (batches: Batch[])
     const q = query(
         collection(db, 'batches'),
         where('riderId', '==', riderId),
-        orderBy('createdAt', 'desc')
+        orderBy('createdAt', 'desc'),
+        limit(50)
     );
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Batch)));
@@ -377,7 +395,7 @@ export const getRiderById = async (riderId: string): Promise<Rider | null> => {
 
 // Riders
 export const subscribeToRiders = (callback: (riders: Rider[]) => void) => {
-    const q = query(collection(db, 'riders'), orderBy('name', 'asc'));
+    const q = query(collection(db, 'riders'), orderBy('name', 'asc'), limit(100));
     return onSnapshot(q, (snapshot) => {
         const riders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Rider));
         callback(riders);
@@ -544,7 +562,7 @@ export const createNotification = async (data: Omit<Notification, 'id' | 'create
         try {
             let tokens: string[] = [];
             if (data.userId === 'admin') {
-                const adminsSnap = await getDocs(query(collection(db, 'users'), where('role', '==', 'ADMIN')));
+                const adminsSnap = await getDocs(query(collection(db, 'users'), where('role', '==', 'ADMIN'), limit(10)));
                 adminsSnap.forEach(doc => {
                     const adminData = doc.data();
                     if (adminData.fcmTokens) tokens.push(...adminData.fcmTokens);
@@ -578,7 +596,8 @@ export const subscribeToUserNotifications = (userId: string, callback: (notifs: 
     const q = query(
         collection(db, 'notifications'),
         where('userId', '==', userId),
-        orderBy('createdAt', 'desc')
+        orderBy('createdAt', 'desc'),
+        limit(25)
     );
     return onSnapshot(q, (snapshot) => {
         const notifs = snapshot.docs.map(doc => ({
@@ -639,7 +658,7 @@ export interface ComboDefinition {
 }
 
 export const subscribeToCombos = (callback: (combos: ComboDefinition[]) => void) => {
-    const q = query(collection(db, 'combo_packs'), orderBy('name', 'asc'));
+    const q = query(collection(db, 'combo_packs'), orderBy('name', 'asc'), limit(100));
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ComboDefinition)));
     }, (error) => {
@@ -649,7 +668,7 @@ export const subscribeToCombos = (callback: (combos: ComboDefinition[]) => void)
 };
 
 export const getCombosForCafeteria = async (cafeteriaId: string, sectionId: string): Promise<ComboDefinition[]> => {
-    const snapshot = await getDocs(collection(db, 'combo_packs'));
+    const snapshot = await getDocs(query(collection(db, 'combo_packs'), orderBy('name', 'asc'), limit(100)));
     const all = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ComboDefinition));
     return all.filter(c => {
         if (cafeteriaId === 'new_cafe' && c.cafeteria === 'new') {
@@ -681,7 +700,7 @@ export const deleteCombo = async (id: string) => {
 };
 
 export const seedCombos = async (combos: Omit<ComboDefinition, 'id'>[]) => {
-    const snapshot = await getDocs(collection(db, 'combo_packs'));
+    const snapshot = await getDocs(query(collection(db, 'combo_packs'), limit(1)));
     if (!snapshot.empty) return 0; // Already seeded
     let count = 0;
     for (const combo of combos) {
@@ -939,7 +958,7 @@ export const claimRiderBonus = async (riderId: string, riderName: string, reward
 };
 
 export const subscribeToPendingBonusClaims = (callback: (claims: BonusClaim[]) => void) => {
-    const q = query(collection(db, 'bonus_claims'), where('status', '==', 'PENDING'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'bonus_claims'), where('status', '==', 'PENDING'), orderBy('createdAt', 'desc'), limit(50));
     return onSnapshot(q, (snapshot) => {
          callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BonusClaim)));
     }, (error) => {
@@ -955,7 +974,7 @@ export const getRiderBonusClaims = async (riderId: string, weekId: string): Prom
 };
 
 export const subscribeToRiderBonusClaims = (riderId: string, callback: (claims: BonusClaim[]) => void) => {
-    const q = query(collection(db, 'bonus_claims'), where('riderId', '==', riderId), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'bonus_claims'), where('riderId', '==', riderId), orderBy('createdAt', 'desc'), limit(50));
     return onSnapshot(q, (snapshot) => {
          callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BonusClaim)));
     }, (error) => {

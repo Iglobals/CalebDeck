@@ -10,7 +10,8 @@ import {
   query, 
   where, 
   orderBy, 
-  onSnapshot 
+  onSnapshot,
+  limit
 } from 'firebase/firestore';
 
 const MART_ITEMS = 'mart_items';
@@ -56,7 +57,7 @@ export interface MartOrder {
 export const subscribeToMartItems = (
   callback: (items: MartItem[], isFromCache: boolean, error?: Error) => void
 ) => {
-  const q = query(collection(db, MART_ITEMS), orderBy('createdAt', 'desc'));
+  const q = query(collection(db, MART_ITEMS), orderBy('createdAt', 'desc'), limit(150));
   return onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
     const items = snapshot.docs.map(doc => ({
       id: doc.id,
@@ -70,7 +71,7 @@ export const subscribeToMartItems = (
 };
 
 export const getMartItemsByCategory = async (category: string) => {
-  const q = query(collection(db, MART_ITEMS), where('category', '==', category));
+  const q = query(collection(db, MART_ITEMS), where('category', '==', category), limit(75));
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => ({
     id: doc.id,
@@ -91,7 +92,7 @@ export const createMartOrder = async (orderData: Omit<MartOrder, 'createdAt'>) =
 // ==========================================
 
 export const subscribeToMartOrders = (callback: (orders: MartOrder[]) => void) => {
-  const q = query(collection(db, MART_ORDERS), orderBy('createdAt', 'desc'));
+  const q = query(collection(db, MART_ORDERS), orderBy('createdAt', 'desc'), limit(100));
   return onSnapshot(q, (snapshot) => {
     const orders = snapshot.docs.map(doc => ({
       orderId: doc.id,

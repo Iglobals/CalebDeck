@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import {
     subscribeToRiders,
-    subscribeToOrderHistory,
+    getRecentOrderHistory,
     subscribeToHostels,
     updateRider,
     deleteRider,
@@ -59,17 +59,29 @@ export default function RiderManagement() {
 
     useEffect(() => {
         let loaded = { riders: false, orders: false, hostels: false, claims: false };
+        let mounted = true;
         const checkDone = () => {
             if (Object.values(loaded).every(v => v)) setIsLoading(false);
         };
 
         const unsubRiders = subscribeToRiders(data => { setRiders(data); loaded.riders = true; checkDone(); });
-        const unsubOrders = subscribeToOrderHistory(data => { setOrders(data); loaded.orders = true; checkDone(); });
+        getRecentOrderHistory(30, 250).then(data => {
+            if (!mounted) return;
+            setOrders(data);
+            loaded.orders = true;
+            checkDone();
+        }).catch(error => {
+            console.error('RiderManagement order history read failed:', error);
+            if (!mounted) return;
+            setOrders([]);
+            loaded.orders = true;
+            checkDone();
+        });
         const unsubHostels = subscribeToHostels(data => { setHostels(data); loaded.hostels = true; checkDone(); });
         const unsubSettings = subscribeToPlatformSettings(setPlatformSettings);
         const unsubClaims = subscribeToPendingBonusClaims(data => { setClaims(data); loaded.claims = true; checkDone(); });
         
-        return () => { unsubRiders(); unsubOrders(); unsubHostels(); unsubSettings(); unsubClaims(); };
+        return () => { mounted = false; unsubRiders(); unsubHostels(); unsubSettings(); unsubClaims(); };
     }, []);
 
     const isDark = adminTheme === 'dark';

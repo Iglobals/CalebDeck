@@ -15,7 +15,7 @@ import {
 } from '../../components/ui/collapsible';
 
 import { MenuItem, ComboDefinition, subscribeToCombos, seedCombos } from '../../../services/db';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, limit, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 import { useTheme } from '../../../context/ThemeContext';
 import { trackPlateBuilderView, trackItemAdded, trackPlateAdded, trackDeliveryModeSelected } from '../../../services/analytics';
@@ -89,7 +89,7 @@ export default function PlateBuilder() {
       where('cafeteriaId', '==', cafeteriaId),
       where('sectionId', '==', sectionId)
     ];
-    const q = query(collection(db, 'menu_items'), ...constraints);
+    const q = query(collection(db, 'menu_items'), ...constraints, limit(150));
     const unsub = onSnapshot(q, (snapshot) => {
       setFoodItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem)));
       setLoading(false);

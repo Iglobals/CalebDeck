@@ -38,6 +38,7 @@ const NETWORKS: Array<{ id: Network; label: string; color: string; text: string;
   { id: '9MOBILE', label: '9mobile', color: '#065F46', text: '#FFFFFF', prefixes: ['0809','0817','0818','0908','0909'] },
 ];
 const AIRTIME_PRESETS = [50, 100, 200, 500, 1000, 2000];
+const CATALOG_CACHE_TTL_MS = 10 * 60 * 1000;
 
 function isValidNigerianPhone(phone: string) {
   return /^0[789][01]\d{8}$/.test(phone);
@@ -84,6 +85,23 @@ export default function CalebNet() {
   }, []);
 
   useEffect(() => {
+    const cacheKey = `calebnet_catalog_${type}_${network}`;
+    const cached = window.sessionStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Date.now() - Number(parsed.cachedAt || 0) < CATALOG_CACHE_TTL_MS) {
+          const cachedPlans = parsed.plans || [];
+          setPlans(cachedPlans);
+          setSelectedPlanId(type === 'DATA' && cachedPlans.length > 0 ? cachedPlans[0].id : '');
+          setPlanCategory('ALL');
+          setIsLoadingPlans(false);
+          return;
+        }
+      } catch {
+        window.sessionStorage.removeItem(cacheKey);
+      }
+    }
     setIsLoadingPlans(true);
     setPlans([]);
     setSelectedPlanId('');
@@ -93,6 +111,7 @@ export default function CalebNet() {
       .then((data) => {
         const nextPlans = data.plans || [];
         setPlans(nextPlans);
+        window.sessionStorage.setItem(cacheKey, JSON.stringify({ cachedAt: Date.now(), plans: nextPlans }));
         if (type === 'DATA' && nextPlans.length > 0) {
           setSelectedPlanId(nextPlans[0].id);
         }

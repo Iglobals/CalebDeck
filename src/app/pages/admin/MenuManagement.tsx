@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { updateMenuItem, addMenuItem, deleteMenuItem, migrateMainToBase, MenuItem, ComboDefinition, ComboItem, subscribeToCombos, addCombo, updateCombo, deleteCombo } from '../../../services/db';
 import { seedInitialCombos } from '../../../services/combo-data';
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { collection, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 import { useTheme } from '../../../context/ThemeContext';
 
@@ -189,7 +189,7 @@ export default function MenuManagement() {
 
     useEffect(() => {
         setLoading(true);
-        const q = query(collection(db, 'menu_items'), orderBy('category', 'asc'));
+        const q = query(collection(db, 'menu_items'), orderBy('category', 'asc'), limit(250));
         const unsub = onSnapshot(q, (snapshot) => {
             setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem)));
             setLoading(false);
