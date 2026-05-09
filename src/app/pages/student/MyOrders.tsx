@@ -7,6 +7,7 @@ import { Button } from '../../components/design-system/Button';
 import { Card } from '../../components/design-system/Card';
 import SEO from '../../components/SEO';
 import { getOrderHistory, clearOrderHistory, OrderHistoryEntry } from '../../../services/orderHistory';
+import { getOrderById } from '../../../services/db';
 
 const typeConfig: Record<string, { icon: React.ReactNode; color: string; bgColor: string; borderColor: string; label: string }> = {
   food: {
@@ -66,6 +67,7 @@ export default function MyOrders() {
   const [orders, setOrders] = useState<OrderHistoryEntry[]>([]);
   const [filter, setFilter] = useState<FilterType>('all');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [trackingOrderId, setTrackingOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     setOrders(getOrderHistory());
@@ -77,6 +79,45 @@ export default function MyOrders() {
     clearOrderHistory();
     setOrders([]);
     setShowClearConfirm(false);
+  };
+
+  const handleTrackOrder = async (order: OrderHistoryEntry) => {
+    if (order.type === 'calebnet') {
+      navigate(`/calebnet/status/${order.id}`);
+      return;
+    }
+
+    setTrackingOrderId(order.id);
+    try {
+      const liveOrder = await getOrderById(order.id);
+      navigate('/order-success', {
+        state: {
+          ...(liveOrder || {}),
+          firestoreOrderId: order.id,
+          orderId: liveOrder?.orderId || order.orderId,
+          total: liveOrder?.total || liveOrder?.totalAmount || order.total,
+          status: liveOrder?.status || order.status,
+          hostelName: liveOrder?.hostelName || order.hostelName,
+          type: liveOrder?.type || order.type,
+          showTracking: true,
+        },
+      });
+    } catch (error) {
+      console.error('Could not open live tracker:', error);
+      navigate('/order-success', {
+        state: {
+          firestoreOrderId: order.id,
+          orderId: order.orderId,
+          total: order.total,
+          status: order.status,
+          hostelName: order.hostelName,
+          type: order.type,
+          showTracking: true,
+        },
+      });
+    } finally {
+      setTrackingOrderId(null);
+    }
   };
 
   const filterButtons: { key: FilterType; label: string; color: string }[] = [
@@ -239,7 +280,7 @@ export default function MyOrders() {
                       </div>
 
                       {/* Bottom row */}
-                      <div className="flex items-center justify-between mt-3">
+                      <div className="flex items-center justify-between gap-3 mt-3">
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                           <Clock className="w-3.5 h-3.5" />
                           {formatDate(order.createdAt)}
@@ -254,6 +295,28 @@ export default function MyOrders() {
                           {order.status}
                         </span>
                       </div>
+
+                      <button
+                        onClick={() => handleTrackOrder(order)}
+                        disabled={trackingOrderId === order.id}
+                        className={`mt-4 w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
+                          studentTheme === 'dark'
+                            ? 'bg-[#222222] text-[#FAF9F6] hover:bg-[#2A2A2A] border border-[#333333]'
+                            : 'bg-gray-50 text-gray-800 hover:bg-gray-100 border border-gray-100'
+                        }`}
+                      >
+                        {trackingOrderId === order.id ? (
+                          <>
+                            <RotateCcw className="w-4 h-4 animate-spin" />
+                            Opening Tracker
+                          </>
+                        ) : (
+                          <>
+                            Track Order
+                            <ChevronRight className="w-4 h-4" />
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
                 </div>

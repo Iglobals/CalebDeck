@@ -99,7 +99,7 @@ export default function OrderSuccess() {
   const displayHostel = hostelName || hostel || 'Your Hostel';
   const pickupPoint = getPickupPoint(hostel, hostelName);
   const [currentStep, setCurrentStep] = useState(0);
-  const [showTracking, setShowTracking] = useState(false);
+  const [showTracking, setShowTracking] = useState(orderData.showTracking === true);
   const [rider, setRider] = useState<Rider | null>(null);
   const [orderStatus, setOrderStatus] = useState<string>(status || 'PAID');
   const [isRefreshing, setIsRefreshing] = useState(false);
