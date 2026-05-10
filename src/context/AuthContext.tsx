@@ -4,11 +4,13 @@ import { auth, db } from '../services/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
 interface AppUser extends User {
-    role?: 'ADMIN' | 'RIDER';
+    role?: 'ADMIN' | 'RIDER' | 'STUDENT';
     assignedHostelIds?: string[];
     fullName?: string;
     phone?: string;
     department?: string;
+    walletBalance?: number;
+    displayNameFromProfile?: string;
 }
 
 interface AuthContextType {
@@ -44,6 +46,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             fullName: userData.fullName,
                             phone: userData.phone,
                             department: userData.department,
+                            walletBalance: userData.walletBalance,
+                            displayNameFromProfile: userData.displayName,
                         });
                     } else {
                         // User authenticated but not in database (should not happen for pure admin/rider app, but safe fallback)

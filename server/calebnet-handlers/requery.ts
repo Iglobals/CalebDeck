@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '../firebase-admin.js';
 import { clubkonnectGet, getClubkonnectConfig, mapProviderStatus, requireAdmin, setCors, shouldPreserveSuccessful, updateProviderHealth } from '../calebnet.js';
+import { refundWalletForCalebNetOrder } from '../wallet.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     setCors(res, 'POST, OPTIONS');
@@ -47,13 +48,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             updatedAt: FieldValue.serverTimestamp(),
         };
 
-        if (!shouldPreserveSuccessful(order.fulfillmentStatus, nextStatus)) {
+        if (order.walletRefundTransactionId && nextStatus === 'SUCCESSFUL') {
+            patch.providerRemark = `${patch.providerRemark || 'Provider later reported success'} (wallet had already been refunded)`;
+        } else if (!shouldPreserveSuccessful(order.fulfillmentStatus, nextStatus)) {
             patch.fulfillmentStatus = nextStatus;
         }
         if (response?.orderid || response?.OrderID) patch.providerOrderId = response.orderid || response.OrderID;
 
         await orderRef.update(patch);
         await updateProviderHealth(order.network, order.type, nextStatus === 'REFUND_REQUIRED' || nextStatus === 'FAILED' ? 'failure' : 'success');
+
+        if (
+            order.paymentProvider === 'wallet' &&
+            !order.walletRefundTransactionId &&
+            !shouldPreserveSuccessful(order.fulfillmentStatus, nextStatus) &&
+            (nextStatus === 'REFUND_REQUIRED' || nextStatus === 'FAILED')
+        ) {
+            await refundWalletForCalebNetOrder({
+                orderId: orderRef.id,
+                reason: 'Provider requery confirmed failure. Wallet refunded.',
+            });
+        }
 
         return res.status(200).json({ success: true, status: patch.fulfillmentStatus || order.fulfillmentStatus, data: response });
     } catch (error: any) {

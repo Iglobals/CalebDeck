@@ -92,9 +92,11 @@ service cloud.firestore {
     // ─── Users (Auth profiles) ───
     match /users/{userId} {
       allow read: if isAuthenticated() && request.auth.uid == userId;
-      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if isAuthenticated() && request.auth.uid == userId &&
+        (!('walletBalance' in request.resource.data) || request.resource.data.walletBalance == 0);
       allow update: if isAdmin() ||
-        (isAuthenticated() && request.auth.uid == userId);
+        (isAuthenticated() && request.auth.uid == userId &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['walletBalance']));
 
       // Admin reads all users (for FCM tokens, etc.)
       allow read: if isAdmin();
@@ -156,7 +158,8 @@ service cloud.firestore {
     }
 
     match /calebnet_orders/{orderId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() ||
+        (isAuthenticated() && resource.data.userId == request.auth.uid);
       allow create: if false; // Only backend (Admin SDK) creates
       allow update: if isAdmin();
       allow delete: if isAdmin();
@@ -165,6 +168,12 @@ service cloud.firestore {
     match /calebnet_provider_status/{statusId} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    match /wallet_transactions/{transactionId} {
+      allow read: if isAdmin() ||
+        (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create, update, delete: if isAdmin();
     }
 
     // ─── Settings ───

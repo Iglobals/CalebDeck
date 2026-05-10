@@ -410,7 +410,10 @@ export default function AdminCalebNet() {
                         <td className="px-4 py-3 font-black">₦{Number(order.amountPaid || 0).toLocaleString()}</td>
                         <td className="px-4 py-3">₦{Number(order.providerCost || 0).toLocaleString()}</td>
                         <td className="px-4 py-3 text-emerald-600">₦{Number(order.profit || 0).toLocaleString()}</td>
-                        <td className="px-4 py-3">{statusBadge(order.paymentStatus)}</td>
+                        <td className="px-4 py-3">
+                          {statusBadge(order.paymentStatus)}
+                          <span className="mt-1 block text-xs font-black uppercase text-muted-foreground">{order.paymentProvider || 'paystack'}</span>
+                        </td>
                         <td className="px-4 py-3">{statusBadge(order.fulfillmentStatus)}</td>
                         <td className="px-4 py-3">
                           <span className="block min-w-[190px] break-all font-mono text-xs">{order.providerOrderId || 'No order ID'}</span>
@@ -599,7 +602,8 @@ export default function AdminCalebNet() {
 
       {responseView && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setResponseView(null)}>
-          <Card className="max-h-[80vh] w-full max-w-3xl overflow-auto" onClick={(event: any) => event.stopPropagation()}>
+          <div className="max-h-[80vh] w-full max-w-3xl overflow-auto" onClick={(event) => event.stopPropagation()}>
+          <Card>
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-black">CalebNet Order Details</h3>
               <Button size="sm" variant="ghost" onClick={() => setResponseView(null)}>Close</Button>
@@ -618,6 +622,8 @@ export default function AdminCalebNet() {
                 ['Fulfillment', responseView.fulfillmentStatus],
                 ['Provider order ID', responseView.providerOrderId || 'Not assigned'],
                 ['Request ID', responseView.providerRequestId],
+                ['Wallet debit', responseView.walletDebitTransactionId || 'N/A'],
+                ['Wallet refund', responseView.walletRefundTransactionId || 'N/A'],
                 ['Provider status', responseView.providerStatus || 'Not available'],
                 ['Remark', responseView.providerRemark || 'No remark'],
               ].map(([label, value]) => (
@@ -632,6 +638,7 @@ export default function AdminCalebNet() {
               <pre className="mt-3 whitespace-pre-wrap rounded-xl bg-muted p-4 text-xs">{JSON.stringify(responseView.providerResponse || responseView, null, 2)}</pre>
             </details>
           </Card>
+          </div>
         </div>
       )}
     </AdminLayout>

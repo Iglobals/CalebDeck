@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '../../firebase-admin.js';
 import { requireAdmin, setCors } from '../../calebnet.js';
+import { refundWalletForCalebNetOrder } from '../../wallet.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     setCors(res, 'POST, OPTIONS');
@@ -14,7 +15,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const paymentReference = String(req.body?.paymentReference || '').trim();
         if (!paymentReference) return res.status(400).json({ error: 'paymentReference is required' });
 
-        await adminDb().collection('calebnet_orders').doc(paymentReference).set({
+        const orderSnap = await adminDb().collection('calebnet_orders').doc(paymentReference).get();
+        if (!orderSnap.exists) return res.status(404).json({ error: 'Order not found' });
+
+        if (orderSnap.data()?.paymentProvider === 'wallet') {
+            await refundWalletForCalebNetOrder({
+                orderId: paymentReference,
+                reason: req.body?.remark || 'Marked refunded by admin',
+                fulfillmentStatus: 'CANCELLED',
+            });
+            return res.status(200).json({ success: true });
+        }
+
+        await orderSnap.ref.set({
             fulfillmentStatus: 'CANCELLED',
             providerRemark: req.body?.remark || 'Marked refunded by admin',
             refundedAt: FieldValue.serverTimestamp(),

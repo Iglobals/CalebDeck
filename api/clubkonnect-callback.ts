@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '../server/firebase-admin.js';
 import { mapProviderStatus, setCors, shouldPreserveSuccessful, updateProviderHealth } from '../server/calebnet.js';
+import { refundWalletForCalebNetOrder } from '../server/wallet.js';
 
 function callbackBody(req: VercelRequest) {
     return { ...(req.query || {}), ...(typeof req.body === 'object' ? req.body : {}) };
@@ -44,10 +45,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             providerResponse: { ...(order.providerResponse || {}), callback: body },
             updatedAt: FieldValue.serverTimestamp(),
         };
-        if (!shouldPreserveSuccessful(order.fulfillmentStatus, nextStatus)) patch.fulfillmentStatus = nextStatus;
+        if (order.walletRefundTransactionId && nextStatus === 'SUCCESSFUL') {
+            patch.providerRemark = `${patch.providerRemark || 'Provider later reported success'} (wallet had already been refunded)`;
+        } else if (!shouldPreserveSuccessful(order.fulfillmentStatus, nextStatus)) {
+            patch.fulfillmentStatus = nextStatus;
+        }
 
         await doc.ref.update(patch);
         await updateProviderHealth(order.network, order.type, nextStatus === 'REFUND_REQUIRED' || nextStatus === 'FAILED' ? 'failure' : 'success');
+        if (
+            order.paymentProvider === 'wallet' &&
+            !order.walletRefundTransactionId &&
+            !shouldPreserveSuccessful(order.fulfillmentStatus, nextStatus) &&
+            (nextStatus === 'REFUND_REQUIRED' || nextStatus === 'FAILED')
+        ) {
+            await refundWalletForCalebNetOrder({
+                orderId: doc.id,
+                reason: 'Provider callback confirmed failure. Wallet refunded.',
+            });
+        }
         return res.status(200).json({ success: true });
     } catch (error: any) {
         console.error('[Clubkonnect Callback]', error);
