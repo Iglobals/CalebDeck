@@ -144,11 +144,11 @@ function CalebNetAuthGate() {
   return (
     <main className="mx-auto grid min-h-[calc(100vh-76px)] max-w-6xl items-center gap-8 px-5 py-8 lg:grid-cols-[1fr_430px]">
       <section className="space-y-5">
-        <Badge variant="purple">CalebNet Wallet</Badge>
-        <h2 className="max-w-2xl text-4xl font-black tracking-tight sm:text-5xl">Sign in once. Fund your wallet. Buy data and airtime faster.</h2>
-        <p className="max-w-xl text-lg text-muted-foreground">CalebNet now uses wallet balance so failed provider calls can be handled cleanly without making students pay again.</p>
+        <Badge variant="purple">CalebNet</Badge>
+        <h2 className="max-w-2xl text-4xl font-black tracking-tight sm:text-5xl">Data and airtime, ready when you need it.</h2>
+        <p className="max-w-xl text-lg text-muted-foreground">Sign in, top up your CalebNet wallet, and buy mobile data or airtime in a few taps.</p>
         <div className="grid gap-3 sm:grid-cols-3">
-          {['Protected wallet', 'Fast checkout', 'Full history'].map((item) => (
+          {['Quick top-ups', 'Secure wallet', 'Easy history'].map((item) => (
             <div key={item} className="rounded-xl border border-border bg-card p-4 font-black">
               <CheckCircle2 className="mb-2 h-5 w-5 text-[#7C3AED]" />
               {item}
@@ -160,7 +160,7 @@ function CalebNetAuthGate() {
       <Card className="space-y-5">
         <div>
           <h3 className="text-2xl font-black">{mode === 'signup' ? 'Create CalebNet account' : 'Welcome back'}</h3>
-          <p className="mt-1 text-sm text-muted-foreground">Food and mart still work normally. Login is required only for CalebNet.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Sign in to continue to CalebNet.</p>
         </div>
         <button
           type="button"
@@ -456,7 +456,7 @@ export default function CalebNet() {
                 <div className="rounded-xl bg-white/15 p-3"><Zap className="h-6 w-6" /></div>
                 <div>
                   <h2 className="text-2xl font-black">Cheap data and airtime for Caleb students</h2>
-                  <p className="text-sm text-white/75">Fast wallet checkout with complete transaction history.</p>
+                <p className="text-sm text-white/75">Top up once, buy whenever you need to.</p>
                 </div>
               </div>
             </div>
@@ -609,7 +609,7 @@ export default function CalebNet() {
               </div>
               <p className="flex items-start gap-2 rounded-xl bg-muted/40 p-3 text-xs text-muted-foreground">
                 <Clock className="mt-0.5 h-4 w-4 shrink-0" />
-                CalebNet now spends wallet balance. Clear provider failures are refunded back to wallet automatically.
+                Keep your wallet funded for faster data and airtime purchases.
               </p>
             </Card>
 
