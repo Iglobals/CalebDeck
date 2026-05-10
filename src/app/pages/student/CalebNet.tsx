@@ -72,6 +72,22 @@ function statusMessage(status?: ProviderStatus) {
   return '';
 }
 
+function authErrorMessage(error: any, mode: 'login' | 'signup') {
+  const code = String(error?.code || '');
+  if (code.includes('auth/invalid-credential') || code.includes('auth/wrong-password') || code.includes('auth/user-not-found')) {
+    return 'Email or password is incorrect. Check your details and try again.';
+  }
+  if (code.includes('auth/invalid-email')) return 'Enter a valid email address.';
+  if (code.includes('auth/email-already-in-use')) return 'An account already exists with this email. Sign in instead.';
+  if (code.includes('auth/weak-password')) return 'Use a password with at least 6 characters.';
+  if (code.includes('auth/popup-closed-by-user')) return 'Sign-in was cancelled.';
+  if (code.includes('auth/network-request-failed')) return 'Network error. Check your connection and try again.';
+  if (code.includes('auth/too-many-requests')) return 'Too many attempts. Please wait a moment and try again.';
+  return mode === 'signup'
+    ? 'Could not create your CalebNet account. Please try again.'
+    : 'Could not sign you in. Please try again.';
+}
+
 async function ensureStudentProfile() {
   const currentUser = auth.currentUser;
   if (!currentUser) return;
@@ -120,7 +136,7 @@ function CalebNetAuthGate() {
       await ensureStudentProfile();
       toast.success(mode === 'signup' ? 'CalebNet wallet created.' : 'Welcome back.');
     } catch (error: any) {
-      toast.error(error.message || 'Unable to sign in.');
+      toast.error(authErrorMessage(error, mode));
     } finally {
       setBusy(false);
     }
@@ -135,7 +151,7 @@ function CalebNetAuthGate() {
       await ensureStudentProfile();
       toast.success('Signed in to CalebNet.');
     } catch (error: any) {
-      toast.error(error.message || 'Google sign-in failed.');
+      toast.error(authErrorMessage(error, 'login'));
     } finally {
       setBusy(false);
     }
@@ -564,7 +580,15 @@ export default function CalebNet() {
                     <p className="text-3xl font-black">{money(walletBalance)}</p>
                   </div>
                 </div>
-                <button onClick={() => logout()} className="rounded-xl p-2 text-muted-foreground hover:bg-muted" title="Sign out"><LogOut className="h-5 w-5" /></button>
+                <button
+                  onClick={() => {
+                    if (window.confirm('Sign out of CalebNet?')) logout();
+                  }}
+                  className="rounded-xl p-2 text-muted-foreground hover:bg-muted"
+                  title="Sign out"
+                >
+                  <LogOut className="h-5 w-5" />
+                </button>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {FUNDING_PRESETS.map((preset) => (
