@@ -4,7 +4,7 @@ import { Logo } from '../../components/design-system/Logo';
 import { Card } from '../../components/design-system/Card';
 import { Badge, StatusDot } from '../../components/design-system/Badge';
 import { Button } from '../../components/design-system/Button';
-import { ArrowLeft, Clock, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Clock, Lock, TrendingUp, Utensils } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { ThemeToggle } from '../../components/ThemeToggle';
 import { toast } from 'react-toastify';
@@ -28,9 +28,18 @@ export default function CafeteriaSelection() {
   
   const openingHour = platformSettings?.systemOpeningHour ?? 10;
   const closingHour = platformSettings?.systemClosingHour ?? 18;
-  const isClosed = !!platformSettings && (hour < openingHour || hour >= closingHour || platformSettings.isAcceptingOrders === false);
+  const isOutOfHours = hour < openingHour || hour >= closingHour;
+  const isFoodLocked = platformSettings?.isFoodOrderingClosed === true;
+  const isGlobalLocked = platformSettings?.isAcceptingOrders === false;
+  const isClosed = !!platformSettings && (isOutOfHours || isGlobalLocked || isFoodLocked);
   const statusLabel = isClosed ? 'CalebDeck is Closed' : 'Open now';
   const statusType = isClosed ? 'inactive' : 'active';
+  const closedTitle = isFoodLocked ? 'Food Ordering is Closed' : isGlobalLocked ? 'CalebDeck is Paused' : 'Ordering Currently Closed';
+  const closedMessage = isFoodLocked
+    ? (platformSettings?.foodOrderingClosedMessage || 'Food ordering is currently closed. Cafeterias are preparing for the next order window.')
+    : isGlobalLocked
+      ? (platformSettings?.globalClosedMessage || 'CalebDeck is temporarily paused while we make a quick operational update. Please check back shortly.')
+      : `CalebDeck food ordering hours are ${openingHour}:00 to ${closingHour}:00.`;
 
   const cafeterias = [
     {
@@ -57,7 +66,7 @@ export default function CafeteriaSelection() {
 
   const handleCafeteriaClick = (cafeteriaId: string) => {
     if (isClosed) {
-      toast.info(`CalebDeck is currently closed. Operational hours: ${openingHour}:00 - ${closingHour}:00.`, {
+      toast.info(closedMessage, {
         position: 'top-center'
       });
       return;
@@ -122,6 +131,21 @@ export default function CafeteriaSelection() {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-6 py-12">
+        {isClosed && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/85 p-4 backdrop-blur-md">
+            <Card className="w-full max-w-md border-2 border-border p-8 text-center shadow-2xl">
+              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-secondary/10 text-secondary">
+                {isFoodLocked ? <Utensils className="h-10 w-10" /> : <Lock className="h-10 w-10" />}
+              </div>
+              <Badge variant={isFoodLocked ? 'amber' : 'gray'} className="mb-4">Closed</Badge>
+              <h2 className="mb-3 text-3xl font-black">{closedTitle}</h2>
+              <p className="mb-8 text-lg font-medium leading-relaxed text-muted-foreground">{closedMessage}</p>
+              <Link to="/">
+                <Button variant="primary" className="w-full py-4">Return Home</Button>
+              </Link>
+            </Card>
+          </div>
+        )}
         {!selectedCafeteria ? (
           <>
             <div className="mb-8">

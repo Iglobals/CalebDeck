@@ -19,6 +19,8 @@ export function MaintenanceGate({ children }: { children: React.ReactNode }) {
 
   // Global ordering pause
   const isGlobalMaintenance = settings.isAcceptingOrders === false;
+  const globalMessage = settings.globalClosedMessage || 'We are currently upgrading CalebDeck to serve you better. The platform is temporarily paused. Please check back shortly!';
+  const martMessage = settings.martClosedMessage || "CalebDeck Mart is currently closed for stocking. We'll be back shortly with fresh items!";
   
   // Feature specific gates based on path
   const isMartPath = location.pathname.startsWith('/mart');
@@ -34,7 +36,7 @@ export function MaintenanceGate({ children }: { children: React.ReactNode }) {
         <Logo size="lg" className="mb-6" />
         <h1 className="text-4xl font-black mb-4">System Maintenance</h1>
         <p className="text-xl text-muted-foreground max-w-lg mb-8">
-          We are currently upgrading CalebDeck to serve you better. The platform is temporarily paused. Please check back shortly!
+          {globalMessage}
         </p>
       </div>
     );
@@ -50,7 +52,7 @@ export function MaintenanceGate({ children }: { children: React.ReactNode }) {
         <Logo size="lg" className="mb-6" />
         <h1 className="text-4xl font-black mb-4">Mart is Restocking!</h1>
         <p className="text-xl text-muted-foreground max-w-lg mb-8">
-          CalebDeck Mart is currently closed for stocking. We'll be back shortly with fresh items!
+          {martMessage}
         </p>
         <button 
           onClick={() => window.history.back()}

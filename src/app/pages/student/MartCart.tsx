@@ -28,6 +28,11 @@ export default function MartCart() {
   const isOutOfHours = currentHour < openingHour || currentHour >= closingHour;
   const isMaintenance = platformSettings?.isAcceptingOrders === false || platformSettings?.isMartComingSoon === true;
   const isMartClosed = !!platformSettings && (isOutOfHours || isMaintenance) && !isDev;
+  const martClosedMessage = platformSettings?.isMartComingSoon === true
+    ? (platformSettings?.martClosedMessage || 'CalebDeck Mart is currently closed for restocking. Fresh items will be available soon.')
+    : platformSettings?.isAcceptingOrders === false
+      ? (platformSettings?.globalClosedMessage || 'CalebDeck is temporarily paused while we make a quick operational update. Please check back shortly.')
+      : `CalebDeck Mart checkout is currently closed. Operating hours are ${openingHour}:00 to ${closingHour}:00.`;
 
   if (items.length === 0) {
     return (
@@ -135,8 +140,7 @@ export default function MartCart() {
             <div className="mb-4 p-4 rounded-2xl bg-amber-500/10 border-2 border-amber-500/20 text-amber-700 dark:text-amber-300 flex gap-3">
               <Clock className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <p className="text-sm font-semibold leading-relaxed">
-                Mart checkout is currently closed. CalebDeck operating hours are {openingHour}:00 to {closingHour}:00.
-                {isMaintenance && " Ordering is paused for maintenance."}
+                {martClosedMessage}
               </p>
             </div>
           )}

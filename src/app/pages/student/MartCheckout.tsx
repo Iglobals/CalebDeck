@@ -66,6 +66,11 @@ export default function MartCheckout() {
   const isOutOfHours = currentHour < openingHour || currentHour >= closingHour; 
   const isMaintenance = platformSettings?.isAcceptingOrders === false || platformSettings?.isMartComingSoon === true || platformSettings?.isMartAcceptingOrders === false;
   const isClosed = !!platformSettings && (isOutOfHours || isMaintenance) && !isDev;
+  const martClosedMessage = platformSettings?.isMartComingSoon === true || platformSettings?.isMartAcceptingOrders === false
+    ? (platformSettings?.martClosedMessage || 'CalebDeck Mart is currently closed for restocking. Fresh items will be available soon.')
+    : platformSettings?.isAcceptingOrders === false
+      ? (platformSettings?.globalClosedMessage || 'CalebDeck is temporarily paused while we make a quick operational update. Please check back shortly.')
+      : `CalebDeck Mart follows CalebDeck operating hours: ${openingHour}:00 to ${closingHour}:00.`;
 
   const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
 
@@ -243,7 +248,7 @@ export default function MartCheckout() {
     }
 
     if (isClosed) {
-      toast.error("Ordering is temporarily paused for maintenance. Please try again later.");
+      toast.error(martClosedMessage);
       return;
     }
 
@@ -288,8 +293,7 @@ export default function MartCheckout() {
           </div>
           <h2 className="text-3xl font-bold mb-4">Mart is Closed</h2>
           <p className="text-muted-foreground mb-10 text-lg">
-            CalebDeck Mart follows CalebDeck operating hours: {openingHour}:00 to {closingHour}:00. 
-            {isMaintenance && " We are currently under maintenance."}
+            {martClosedMessage}
           </p>
           <Link to="/mart" className="inline-block w-full">
             <Button variant="primary" className="w-full py-6 text-xl rounded-2xl">Back to Mart</Button>

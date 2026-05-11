@@ -97,6 +97,7 @@ export default function AdminCalebNet() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [busy, setBusy] = useState('');
   const [draftPlans, setDraftPlans] = useState<DraftPlan[]>([]);
+  const [editingPlan, setEditingPlan] = useState<any | null>(null);
   const [responseView, setResponseView] = useState<any | null>(null);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [providerLoading, setProviderLoading] = useState(false);
@@ -316,6 +317,35 @@ export default function AdminCalebNet() {
     } finally {
       setBusy('');
     }
+  };
+
+  const startEditingPlan = (plan: any) => {
+    if (plan.type === 'AIRTIME') {
+      toast.info('Airtime uses custom amounts, so there is no fixed price to edit.');
+      return;
+    }
+    setEditingPlan({
+      id: plan.id,
+      name: plan.name || '',
+      displayName: plan.displayName || plan.name || '',
+      validity: plan.validity || '',
+      dataSize: plan.dataSize || '',
+      sellingPrice: String(plan.sellingPrice || ''),
+      providerPlanCode: plan.providerPlanCode || '',
+      providerCost: Number(plan.providerCost || 0),
+      profit: Number(plan.profit || 0),
+      network: plan.network,
+      category: plan.category || '',
+      type: plan.type,
+    });
+  };
+
+  const saveEditingPlan = async () => {
+    if (!editingPlan) return;
+    const sellingPrice = Number(editingPlan.sellingPrice || 0);
+    if (!Number.isFinite(sellingPrice) || sellingPrice <= 0) return toast.error('Selling price must be greater than zero.');
+    await patchCatalog(editingPlan.id, { sellingPrice });
+    setEditingPlan(null);
   };
 
   const requery = async (paymentReference: string) => {
@@ -585,9 +615,16 @@ export default function AdminCalebNet() {
                           )}
                           <td className="px-4 py-3">{plan.isActive ? <Badge variant="green">Active</Badge> : <Badge variant="gray">Hidden</Badge>}</td>
                           <td className="px-4 py-3 text-right">
-                            <Button size="sm" variant="outline" onClick={() => patchCatalog(plan.id, { isActive: !plan.isActive })} disabled={busy === plan.id}>
-                              {busy === plan.id ? <Loader2 className="h-3 w-3 animate-spin" /> : plan.isActive ? 'Deactivate' : 'Activate'}
-                            </Button>
+                            <div className="flex justify-end gap-2">
+                              {!isAirtime && (
+                                <Button size="sm" variant="outline" onClick={() => startEditingPlan(plan)}>
+                                  Change Price
+                                </Button>
+                              )}
+                              <Button size="sm" variant="outline" onClick={() => patchCatalog(plan.id, { isActive: !plan.isActive })} disabled={busy === plan.id}>
+                                {busy === plan.id ? <Loader2 className="h-3 w-3 animate-spin" /> : plan.isActive ? 'Deactivate' : 'Activate'}
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -728,6 +765,51 @@ export default function AdminCalebNet() {
             {health.length === 0 && <p className="text-muted-foreground">Provider health records will appear after syncs or transactions.</p>}
           </div>
         </Card>
+      )}
+
+      {editingPlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setEditingPlan(null)}>
+          <div className="w-full max-w-2xl" onClick={(event) => event.stopPropagation()}>
+            <Card className="border-[#7C3AED]/40 p-4 shadow-2xl">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-[#7C3AED]">Published data plan</p>
+                  <h3 className="mt-1 text-lg font-black">Change Selling Price</h3>
+                  <p className="text-sm text-muted-foreground">Only CalebDeck's student price changes. Provider plan details stay untouched.</p>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => setEditingPlan(null)}>Close</Button>
+              </div>
+
+              <div className="mt-5 grid gap-3 md:grid-cols-[1fr_160px_auto_auto] md:items-end">
+                <div>
+                  <p className="font-black">{editingPlan.name || editingPlan.displayName}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {editingPlan.network} | {editingPlan.dataSize || 'Data'} {editingPlan.validity || ''} | {editingPlan.category}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Cost {String.fromCharCode(8358)}{Number(editingPlan.providerCost || 0).toLocaleString()} | {editingPlan.providerPlanCode}
+                  </p>
+                </div>
+                <label className="block">
+                  <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Selling Price</span>
+                  <input
+                    value={editingPlan.sellingPrice}
+                    onChange={(event) => setEditingPlan((prev: any) => ({ ...prev, sellingPrice: event.target.value }))}
+                    type="number"
+                    className="w-full rounded-xl border-2 border-border bg-muted/40 px-3 py-2 font-bold outline-none focus:border-[#7C3AED]"
+                  />
+                </label>
+                <Button onClick={saveEditingPlan} disabled={busy === editingPlan.id}>
+                  {busy === editingPlan.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                  Save
+                </Button>
+                <Button variant="outline" onClick={() => setEditingPlan(null)}>
+                  Cancel
+                </Button>
+              </div>
+            </Card>
+          </div>
+        </div>
       )}
 
       {responseView && (

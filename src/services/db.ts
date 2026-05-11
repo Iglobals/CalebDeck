@@ -516,9 +516,14 @@ export interface PlatformSettings {
     premiumRiderRate?: number;
     martRatePerDelivery?: number; // NEW - for CalebMart orders
     isAcceptingOrders?: boolean;
+    isFoodOrderingClosed?: boolean;
     isMartComingSoon?: boolean;
     isCalebNetComingSoon?: boolean;
     isIPizzaComingSoon?: boolean;
+    globalClosedMessage?: string;
+    foodOrderingClosedMessage?: string;
+    martClosedMessage?: string;
+    calebNetClosedMessage?: string;
     autoDispatchEnabled?: boolean;
     autoDispatchDelaySeconds?: number;
     systemOpeningHour?: number;
@@ -533,7 +538,7 @@ export const getPlatformSettings = async (): Promise<PlatformSettings> => {
         return snapshot.data() as PlatformSettings;
     }
     // Default settings
-    return { riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18 };
+    return { riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18 };
 };
 
 export const subscribeToPlatformSettings = (callback: (settings: PlatformSettings) => void) => {
@@ -544,6 +549,7 @@ export const subscribeToPlatformSettings = (callback: (settings: PlatformSetting
             if (!data.premiumDeliveryFee) data.premiumDeliveryFee = 1250;
             if (!data.premiumRiderRate) data.premiumRiderRate = 750;
             if (data.isAcceptingOrders === undefined) data.isAcceptingOrders = true;
+            if (data.isFoodOrderingClosed === undefined) data.isFoodOrderingClosed = false;
             if (data.isCalebNetComingSoon === undefined) data.isCalebNetComingSoon = true;
             if (data.autoDispatchEnabled === undefined) data.autoDispatchEnabled = false;
             if (data.autoDispatchDelaySeconds === undefined) data.autoDispatchDelaySeconds = 60;
@@ -551,11 +557,11 @@ export const subscribeToPlatformSettings = (callback: (settings: PlatformSetting
             if (data.systemClosingHour === undefined) data.systemClosingHour = 18;
             callback(data);
         } else {
-            callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18 });
+            callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18 });
         }
     }, (error) => {
         console.error('subscribeToPlatformSettings error:', error);
-        callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18 });
+        callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18 });
     });
 };
 

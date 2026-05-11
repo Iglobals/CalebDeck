@@ -439,6 +439,7 @@ export default function CalebNet() {
   };
 
   const isComingSoon = platformSettings?.isCalebNetComingSoon !== false;
+  const calebNetClosedMessage = platformSettings?.calebNetClosedMessage || 'CalebNet is temporarily unavailable while we update plans and provider availability.';
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -462,7 +463,7 @@ export default function CalebNet() {
             <Wifi className="mx-auto mb-5 h-12 w-12 text-[#7C3AED]" />
             <Badge variant="purple" className="mb-4">Coming Soon</Badge>
             <h2 className="mb-3 text-3xl font-black">CalebNet is almost here.</h2>
-            <p className="mb-6 text-muted-foreground">Cheap data and airtime for Caleb students is being prepared.</p>
+            <p className="mb-6 text-muted-foreground">{calebNetClosedMessage}</p>
             <Link to="/"><Button className="w-full">Return Home</Button></Link>
           </Card>
         </div>

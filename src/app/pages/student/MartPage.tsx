@@ -180,6 +180,11 @@ export default function MartPage() {
   const isOutOfHours = currentHour < openingHour || currentHour >= closingHour;
   const isMaintenance = platformSettings?.isAcceptingOrders === false || platformSettings?.isMartComingSoon === true;
   const isMartClosed = !!platformSettings && (isOutOfHours || isMaintenance) && !isDev;
+  const martClosedMessage = platformSettings?.isMartComingSoon === true
+    ? (platformSettings?.martClosedMessage || 'CalebDeck Mart is currently closed for restocking. Fresh items will be available soon.')
+    : platformSettings?.isAcceptingOrders === false
+      ? (platformSettings?.globalClosedMessage || 'CalebDeck is temporarily paused while we make a quick operational update. Please check back shortly.')
+      : `CalebDeck Mart follows CalebDeck operating hours: ${openingHour}:00 to ${closingHour}:00.`;
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300 pb-24">
@@ -239,8 +244,7 @@ export default function MartPage() {
             </div>
             <h2 className="text-3xl font-black mb-4">Mart is Closed</h2>
             <p className="text-muted-foreground mb-8 text-lg font-medium">
-              CalebDeck Mart follows CalebDeck operating hours: {openingHour}:00 to {closingHour}:00.
-              {isMaintenance && " Ordering is currently paused for maintenance."}
+              {martClosedMessage}
             </p>
             <Link to="/">
               <Button variant="primary" className="w-full py-4 text-base rounded-xl font-bold">

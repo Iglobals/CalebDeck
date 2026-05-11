@@ -416,8 +416,13 @@ if (isPremiumHostel) {
   const openingHour = platformSettings?.systemOpeningHour ?? 10;
   const closingHour = platformSettings?.systemClosingHour ?? 18;
   const isOutOfHours = currentHour < openingHour || currentHour >= closingHour; 
-  const isMaintenance = platformSettings?.isAcceptingOrders === false;
+  const isMaintenance = platformSettings?.isAcceptingOrders === false || platformSettings?.isFoodOrderingClosed === true;
   const isClosed = isOutOfHours || isMaintenance;
+  const closedMessage = platformSettings?.isFoodOrderingClosed === true
+    ? (platformSettings?.foodOrderingClosedMessage || 'Food ordering is currently closed. Cafeterias are preparing for the next order window.')
+    : platformSettings?.isAcceptingOrders === false
+      ? (platformSettings?.globalClosedMessage || 'CalebDeck is temporarily paused while we make a quick operational update. Please check back shortly.')
+      : `CalebDeck is currently closed. Ordering hours are between ${openingHour}:00 and ${closingHour}:00.`;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -557,14 +562,12 @@ if (isPremiumHostel) {
         <div className="grid lg:grid-cols-[1fr_450px] gap-12">
           {/* Form - Left */}
           <div className="space-y-8">
-            {isOutOfHours && !isMaintenance && (
+            {isClosed && (
               <div className="mb-2 p-5 rounded-2xl bg-red-500/10 border-2 border-red-500/20 text-red-600 dark:text-red-400 flex items-center gap-4 shadow-lg shadow-red-500/5">
                 <Lock className="w-8 h-8 flex-shrink-0 text-red-500" />
                 <div>
                   <h4 className="font-black text-lg">Ordering Currently Closed</h4>
-                  <p className="font-medium text-sm">
-                    CalebDeck is currently closed. Ordering hours are between {openingHour}:00 and {closingHour}:00.
-                  </p>
+                  <p className="font-medium text-sm">{closedMessage}</p>
                 </div>
               </div>
             )}
