@@ -98,6 +98,15 @@ export default function CalebNetStatus() {
                 <div className="flex justify-between"><span className="text-muted-foreground">Amount</span><span className="font-bold">₦{Number(order.amountPaid || 0).toLocaleString()}</span></div>
               </div>
 
+              {status === 'SUCCESSFUL' && order?.type === 'DATA' && (
+                <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-left text-sm">
+                  <p className="mb-1 font-black text-amber-600">📱 Didn't get an SMS?</p>
+                  <p className="text-muted-foreground">
+                    Sometimes your network won't send a confirmation text. To verify your data was delivered, check your data balance — dial <span className="font-bold text-foreground">{order.network === 'MTN' ? '*323#' : order.network === 'GLO' ? '*127*0#' : order.network === 'AIRTEL' ? '*140#' : '*228#'}</span> or check your network app.
+                  </p>
+                </div>
+              )}
+
               <Button onClick={loadStatus} variant="outline" className="mt-6">
                 <RefreshCcw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                 Refresh Status
