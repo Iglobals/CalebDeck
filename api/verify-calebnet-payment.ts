@@ -407,6 +407,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (error?.code === 6) {
             return res.status(200).json({ data: { success: true, message: 'Order already exists' } });
         }
-        return res.status(500).json({ error: error.message || 'CalebNet payment verification failed' });
+        const raw = error.message || '';
+        const isTechnical = raw.includes('Firestore') || raw.includes('firebase') || raw.includes('undefined') || raw.includes('INTERNAL');
+        return res.status(500).json({ error: isTechnical ? 'Something went wrong processing your payment. Please contact support.' : (raw || 'CalebNet payment verification failed') });
     }
 }

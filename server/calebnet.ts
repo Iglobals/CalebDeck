@@ -62,6 +62,10 @@ export function safePayload(payload: Record<string, any>) {
     delete clone.APIKey;
     delete clone.UserID;
     delete clone.apiKey;
+    // Strip undefined values — Firestore rejects them
+    for (const key of Object.keys(clone)) {
+        if (clone[key] === undefined) delete clone[key];
+    }
     return clone;
 }
 

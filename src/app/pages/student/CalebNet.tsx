@@ -426,7 +426,13 @@ export default function CalebNet() {
       purchaseRef.current = `CDNETW-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
       navigate(`/calebnet/status/${encodeURIComponent(clientRequestId)}`);
     } catch (error: any) {
-      toast.error(error.message || 'CalebNet purchase failed.');
+      const raw = error.message || '';
+      // Never show raw Firestore / server internals to students
+      const isTechnical = raw.includes('Firestore') || raw.includes('firebase') || raw.includes('undefined') || raw.includes('INTERNAL') || raw.length > 120;
+      const friendly = isTechnical
+        ? 'Something went wrong processing your request. Please try again or contact support.'
+        : raw || 'CalebNet purchase failed.';
+      toast.error(friendly);
     } finally {
       setIsProcessing(false);
     }

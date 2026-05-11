@@ -351,6 +351,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(402).json({ error: 'Insufficient wallet balance. Fund wallet to continue.' });
         }
         console.error('[CalebNet Wallet Purchase]', error);
-        return res.status(500).json({ error: error.message || 'CalebNet wallet purchase failed' });
+        const raw = error.message || '';
+        const isTechnical = raw.includes('Firestore') || raw.includes('firebase') || raw.includes('undefined') || raw.includes('INTERNAL');
+        return res.status(500).json({ error: isTechnical ? 'Something went wrong processing your request. Please try again.' : (raw || 'CalebNet wallet purchase failed') });
     }
 }
