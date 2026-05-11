@@ -337,6 +337,7 @@ export default function AdminCalebNet() {
       network: plan.network,
       category: plan.category || '',
       type: plan.type,
+      isFeatured: plan.isFeatured || false,
     });
   };
 
@@ -344,7 +345,7 @@ export default function AdminCalebNet() {
     if (!editingPlan) return;
     const sellingPrice = Number(editingPlan.sellingPrice || 0);
     if (!Number.isFinite(sellingPrice) || sellingPrice <= 0) return toast.error('Selling price must be greater than zero.');
-    await patchCatalog(editingPlan.id, { sellingPrice });
+    await patchCatalog(editingPlan.id, { sellingPrice, isFeatured: editingPlan.isFeatured });
     setEditingPlan(null);
   };
 
@@ -613,14 +614,17 @@ export default function AdminCalebNet() {
                               <td className="px-4 py-3 text-emerald-600">{String.fromCharCode(8358)}{Number(plan.profit || 0).toLocaleString()}</td>
                             </>
                           )}
-                          <td className="px-4 py-3">{plan.isActive ? <Badge variant="green">Active</Badge> : <Badge variant="gray">Hidden</Badge>}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              {plan.isActive ? <Badge variant="green">Active</Badge> : <Badge variant="gray">Hidden</Badge>}
+                              {plan.isFeatured && <Badge variant="amber" className="text-[10px]">Best value</Badge>}
+                            </div>
+                          </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex justify-end gap-2">
-                              {!isAirtime && (
-                                <Button size="sm" variant="outline" onClick={() => startEditingPlan(plan)}>
-                                  Change Price
+                              <Button size="sm" variant="outline" onClick={() => startEditingPlan(plan)}>
+                                  Edit Plan
                                 </Button>
-                              )}
                               <Button size="sm" variant="outline" onClick={() => patchCatalog(plan.id, { isActive: !plan.isActive })} disabled={busy === plan.id}>
                                 {busy === plan.id ? <Loader2 className="h-3 w-3 animate-spin" /> : plan.isActive ? 'Deactivate' : 'Activate'}
                               </Button>
@@ -774,13 +778,13 @@ export default function AdminCalebNet() {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-black uppercase tracking-widest text-[#7C3AED]">Published data plan</p>
-                  <h3 className="mt-1 text-lg font-black">Change Selling Price</h3>
-                  <p className="text-sm text-muted-foreground">Only CalebDeck's student price changes. Provider plan details stay untouched.</p>
+                  <h3 className="mt-1 text-lg font-black">Edit Plan</h3>
+                  <p className="text-sm text-muted-foreground">Only CalebNet's student price and badges change. Provider plan details stay untouched.</p>
                 </div>
                 <Button size="sm" variant="ghost" onClick={() => setEditingPlan(null)}>Close</Button>
               </div>
 
-              <div className="mt-5 grid gap-3 md:grid-cols-[1fr_160px_auto_auto] md:items-end">
+              <div className="mt-5 grid gap-3 md:grid-cols-[1fr_160px_auto_auto_auto] md:items-end">
                 <div>
                   <p className="font-black">{editingPlan.name || editingPlan.displayName}</p>
                   <p className="text-sm text-muted-foreground">
@@ -798,6 +802,10 @@ export default function AdminCalebNet() {
                     type="number"
                     className="w-full rounded-xl border-2 border-border bg-muted/40 px-3 py-2 font-bold outline-none focus:border-[#7C3AED]"
                   />
+                </label>
+                <label className="flex h-10 items-center gap-2 rounded-xl border border-border bg-muted/20 px-3 font-bold" title="Shows a Best value badge on the student plan card">
+                  <input type="checkbox" checked={editingPlan.isFeatured || false} onChange={(e) => setEditingPlan((prev: any) => ({ ...prev, isFeatured: e.target.checked }))} />
+                  Best value
                 </label>
                 <Button onClick={saveEditingPlan} disabled={busy === editingPlan.id}>
                   {busy === editingPlan.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}

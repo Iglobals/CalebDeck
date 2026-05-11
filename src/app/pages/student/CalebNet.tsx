@@ -586,7 +586,7 @@ export default function CalebNet() {
             </div>
           </section>
 
-          <aside className="space-y-5">
+          <aside className="space-y-5 lg:row-span-2">
             <Card className="space-y-5">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
@@ -623,7 +623,8 @@ export default function CalebNet() {
               </Button>
             </Card>
 
-            <Card className="sticky top-24 space-y-5">
+            <div className="space-y-5 lg:sticky lg:top-24">
+              <Card className="space-y-5">
               <div className="flex items-center gap-3">
                 <div className="rounded-xl bg-[#7C3AED]/10 p-3 text-[#7C3AED]"><CheckCircle2 className="h-5 w-5" /></div>
                 <h3 className="text-xl font-black">Order Summary</h3>
@@ -653,17 +654,21 @@ export default function CalebNet() {
               </p>
             </Card>
 
-            <Card className="space-y-3">
-              <h3 className="text-lg font-black">Wallet Activity</h3>
+            </div>
+          </aside>
+
+          <Card className="space-y-3 lg:col-start-1 lg:row-start-2">
+            <h3 className="text-lg font-black">Wallet Activity</h3>
+            <div className="max-h-[280px] space-y-2 overflow-y-auto pr-2 custom-scrollbar">
               {walletTransactions.length === 0 ? (
                 <div className="space-y-2">
-                  {[1,2,3].map((i) => (
-                    <div key={i} className="animate-pulse flex items-center justify-between rounded-xl bg-muted/40 p-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center justify-between rounded-xl bg-muted/40 p-3 animate-pulse">
                       <div className="space-y-1.5"><div className="h-3 w-28 rounded bg-muted" /><div className="h-2 w-16 rounded bg-muted" /></div>
                       <div className="h-4 w-16 rounded bg-muted" />
                     </div>
                   ))}
-                  <p className="text-sm text-muted-foreground text-center pt-2">No wallet activity yet.</p>
+                  <p className="pt-2 text-center text-sm text-muted-foreground">No wallet activity yet.</p>
                 </div>
               ) : walletTransactions.map((item) => (
                 <div key={item.id} className="flex items-center justify-between rounded-xl bg-muted/40 p-3 text-sm">
@@ -676,8 +681,8 @@ export default function CalebNet() {
                   </p>
                 </div>
               ))}
-            </Card>
-          </aside>
+            </div>
+          </Card>
         </main>
       )}
     </div>
