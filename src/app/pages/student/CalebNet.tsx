@@ -511,7 +511,16 @@ export default function CalebNet() {
               <div>
                 <h3 className="mb-3 text-xs font-black uppercase tracking-widest text-muted-foreground">Plans</h3>
                 {isLoadingPlans ? (
-                  <div className="flex items-center gap-2 rounded-xl border border-border bg-card p-5 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading plans...</div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {[1,2,3,4].map((i) => (
+                      <div key={i} className="animate-pulse rounded-xl border-2 border-border bg-card p-4 space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-2"><div className="h-5 w-16 rounded bg-muted" /><div className="h-3 w-24 rounded bg-muted" /></div>
+                        </div>
+                        <div className="flex items-center justify-between"><div className="h-5 w-12 rounded bg-muted" /><div className="h-6 w-20 rounded bg-muted" /></div>
+                      </div>
+                    ))}
+                  </div>
                 ) : plans.length === 0 ? (
                   <div className="rounded-xl border border-border bg-card p-5 text-muted-foreground">No active CalebNet plans for this network yet.</div>
                 ) : (
@@ -576,7 +585,7 @@ export default function CalebNet() {
                 <div className="flex items-center gap-3">
                   <div className="rounded-xl bg-[#7C3AED]/10 p-3 text-[#7C3AED]"><Wallet className="h-5 w-5" /></div>
                   <div>
-                    <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Wallet balance</p>
+                  <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Wallet balance</p>
                     <p className="text-3xl font-black">{money(walletBalance)}</p>
                   </div>
                 </div>
@@ -640,7 +649,15 @@ export default function CalebNet() {
             <Card className="space-y-3">
               <h3 className="text-lg font-black">Wallet Activity</h3>
               {walletTransactions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No wallet activity yet.</p>
+                <div className="space-y-2">
+                  {[1,2,3].map((i) => (
+                    <div key={i} className="animate-pulse flex items-center justify-between rounded-xl bg-muted/40 p-3">
+                      <div className="space-y-1.5"><div className="h-3 w-28 rounded bg-muted" /><div className="h-2 w-16 rounded bg-muted" /></div>
+                      <div className="h-4 w-16 rounded bg-muted" />
+                    </div>
+                  ))}
+                  <p className="text-sm text-muted-foreground text-center pt-2">No wallet activity yet.</p>
+                </div>
               ) : walletTransactions.map((item) => (
                 <div key={item.id} className="flex items-center justify-between rounded-xl bg-muted/40 p-3 text-sm">
                   <div>

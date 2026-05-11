@@ -19,7 +19,9 @@ import {
   Search,
   Settings,
   ShieldAlert,
+  Trash2,
   Wifi,
+  X,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { format } from 'date-fns';
@@ -77,6 +79,13 @@ function statusBadge(status: string) {
   return <Badge variant="gray">{status || 'UNKNOWN'}</Badge>;
 }
 
+interface DraftPlan {
+  id: string;
+  plan: any;
+  sellingPrice: string;
+  featured: boolean;
+}
+
 export default function AdminCalebNet() {
   const [orders, setOrders] = useState<any[]>([]);
   const [catalog, setCatalog] = useState<any[]>([]);
@@ -87,29 +96,42 @@ export default function AdminCalebNet() {
   const [catalogSearch, setCatalogSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [busy, setBusy] = useState('');
-  const [selectedProviderPlan, setSelectedProviderPlan] = useState<any | null>(null);
-  const [sellingPrice, setSellingPrice] = useState('');
-  const [featured, setFeatured] = useState(false);
+  const [draftPlans, setDraftPlans] = useState<DraftPlan[]>([]);
   const [responseView, setResponseView] = useState<any | null>(null);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [providerLoading, setProviderLoading] = useState(false);
+  const [healthLoading, setHealthLoading] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(() => {
     const saved = window.localStorage.getItem('calebnetWalletBalance');
     return saved ? Number(saved) : null;
   });
   const catalogDraftRef = useRef<HTMLDivElement | null>(null);
 
+  // Set of providerPlanCodes already in catalog for duplicate detection
+  const catalogCodes = useMemo(() => new Set(catalog.map((c) => c.providerPlanCode).filter(Boolean)), [catalog]);
+
   const loadCatalog = async () => {
-    const snap = await getDocs(query(collection(db, 'calebnet_catalog'), orderBy('network', 'asc'), limit(120)));
-    setCatalog(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    setCatalogLoading(true);
+    try {
+      const snap = await getDocs(query(collection(db, 'calebnet_catalog'), orderBy('network', 'asc'), limit(120)));
+      setCatalog(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    } finally { setCatalogLoading(false); }
   };
 
   const loadProviderPlans = async () => {
-    const snap = await getDocs(query(collection(db, 'calebnet_provider_plans'), orderBy('lastSyncedAt', 'desc'), limit(250)));
-    setProviderPlans(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    setProviderLoading(true);
+    try {
+      const snap = await getDocs(query(collection(db, 'calebnet_provider_plans'), orderBy('lastSyncedAt', 'desc'), limit(250)));
+      setProviderPlans(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    } finally { setProviderLoading(false); }
   };
 
   const loadHealth = async () => {
-    const snap = await getDocs(collection(db, 'calebnet_provider_status'));
-    setHealth(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    setHealthLoading(true);
+    try {
+      const snap = await getDocs(collection(db, 'calebnet_provider_status'));
+      setHealth(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    } finally { setHealthLoading(false); };
   };
 
   useEffect(() => {
@@ -131,6 +153,8 @@ export default function AdminCalebNet() {
     }
     if (tab === 'provider') {
       loadProviderPlans().catch((error) => toast.error(`Provider plans read failed: ${error.message}`));
+      // Also load catalog so we can detect duplicates
+      loadCatalog().catch(() => {});
     }
   }, [tab]);
 
@@ -145,15 +169,39 @@ export default function AdminCalebNet() {
   }), [catalog, catalogSearch]);
 
   const stats = useMemo(() => {
-    const successful = orders.filter((order) => order.fulfillmentStatus === 'SUCCESSFUL');
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    const recent = orders.filter((order) => {
+      const ts = order.createdAt?.seconds ? order.createdAt.seconds * 1000 : Number(order.createdAt || 0);
+      return ts >= cutoff;
+    });
     return {
-      sales: orders.reduce((sum, order) => sum + Number(order.amountPaid || 0), 0),
-      profit: orders.reduce((sum, order) => sum + Number(order.profit || 0), 0),
-      successful: successful.length,
-      pending: orders.filter((order) => ['PROCESSING', 'ORDER_RECEIVED', 'PENDING_PROVIDER'].includes(order.fulfillmentStatus)).length,
-      failed: orders.filter((order) => ['REFUND_REQUIRED', 'FAILED'].includes(order.fulfillmentStatus)).length,
+      sales: recent.reduce((sum, order) => sum + Number(order.amountPaid || 0), 0),
+      profit: recent.reduce((sum, order) => sum + Number(order.profit || 0), 0),
+      successful: recent.filter((order) => order.fulfillmentStatus === 'SUCCESSFUL').length,
+      pending: recent.filter((order) => ['PROCESSING', 'ORDER_RECEIVED', 'PENDING_PROVIDER'].includes(order.fulfillmentStatus)).length,
+      failed: recent.filter((order) => ['REFUND_REQUIRED', 'FAILED'].includes(order.fulfillmentStatus)).length,
     };
   }, [orders]);
+
+  // Grouped catalog: network → type → plans
+  const groupedCatalog = useMemo(() => {
+    const networkOrder = ['MTN', 'GLO', 'AIRTEL', '9MOBILE'];
+    const groups: { network: string; type: string; plans: any[] }[] = [];
+    const filtered = filteredCatalog;
+    for (const net of networkOrder) {
+      const netPlans = filtered.filter((p) => p.network === net);
+      if (netPlans.length === 0) continue;
+      const data = netPlans.filter((p) => p.type !== 'AIRTIME').sort((a, b) => (a.category || '').localeCompare(b.category || '') || Number(a.sellingPrice || 0) - Number(b.sellingPrice || 0));
+      const airtime = netPlans.filter((p) => p.type === 'AIRTIME');
+      if (data.length > 0) groups.push({ network: net, type: 'DATA', plans: data });
+      if (airtime.length > 0) groups.push({ network: net, type: 'AIRTIME', plans: airtime });
+    }
+    // Catch any networks not in the standard list
+    const knownNets = new Set(networkOrder);
+    const other = filtered.filter((p) => !knownNets.has(p.network));
+    if (other.length > 0) groups.push({ network: 'OTHER', type: 'ALL', plans: other });
+    return groups;
+  }, [filteredCatalog]);
 
   const syncProviderPlans = async () => {
     setBusy('sync-plans');
@@ -196,50 +244,65 @@ export default function AdminCalebNet() {
     }
   };
 
-  const createCatalogPlan = async () => {
-    if (!selectedProviderPlan || !sellingPrice) return;
-    setBusy('create-catalog');
+  const publishDraft = async (draft: DraftPlan) => {
+    if (!draft.sellingPrice) return;
+    setBusy(`draft-${draft.id}`);
     try {
       await adminFetch('/api/calebnet/catalog', {
         method: 'POST',
         body: JSON.stringify({
           type: 'DATA',
-          network: selectedProviderPlan.network,
-          name: selectedProviderPlan.rawName || `${selectedProviderPlan.network} ${selectedProviderPlan.dataSize}`,
-          displayName: selectedProviderPlan.rawName,
-          description: selectedProviderPlan.rawName,
-          validity: selectedProviderPlan.validity,
-          dataSize: selectedProviderPlan.dataSize,
-          sellingPrice: Number(sellingPrice),
-          providerCost: Number(selectedProviderPlan.rawPrice || 0),
-          providerPlanCode: selectedProviderPlan.providerPlanCode,
-          providerNetworkCode: selectedProviderPlan.providerNetworkCode || NETWORK_CODES[selectedProviderPlan.network],
-          category: selectedProviderPlan.category || 'SME',
+          network: draft.plan.network,
+          name: draft.plan.rawName || `${draft.plan.network} ${draft.plan.dataSize}`,
+          displayName: draft.plan.rawName,
+          description: draft.plan.rawName,
+          validity: draft.plan.validity,
+          dataSize: draft.plan.dataSize,
+          sellingPrice: Number(draft.sellingPrice),
+          providerCost: Number(draft.plan.rawPrice || 0),
+          providerPlanCode: draft.plan.providerPlanCode,
+          providerNetworkCode: draft.plan.providerNetworkCode || NETWORK_CODES[draft.plan.network],
+          category: draft.plan.category || 'SME',
           isActive: true,
-          isFeatured: featured,
+          isFeatured: draft.featured,
         }),
       });
-      toast.success('CalebNet catalog plan created');
+      toast.success(`Published: ${draft.plan.rawName}`);
+      setDraftPlans((prev) => prev.filter((d) => d.id !== draft.id));
       await loadCatalog();
-      setSelectedProviderPlan(null);
-      setSellingPrice('');
-      setFeatured(false);
-      setTab('catalog');
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(`Failed ${draft.plan.rawName}: ${error.message}`);
     } finally {
       setBusy('');
     }
   };
 
+  const publishAllDrafts = async () => {
+    for (const draft of draftPlans) {
+      await publishDraft(draft);
+    }
+  };
+
   const startCatalogDraft = (plan: any) => {
-    setSelectedProviderPlan(plan);
-    setSellingPrice(String(Math.ceil(Number(plan.rawPrice || 0) * 1.15 / 10) * 10));
-    setFeatured(false);
-    toast.info('Catalog draft opened. Set the selling price and publish when ready.');
-    window.setTimeout(() => {
-      catalogDraftRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 50);
+    // Don't add duplicate drafts for the same plan
+    if (draftPlans.some((d) => d.plan.providerPlanCode === plan.providerPlanCode)) {
+      toast.info('This plan is already in your drafts.');
+      window.setTimeout(() => catalogDraftRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+      return;
+    }
+    const newDraft: DraftPlan = {
+      id: `draft-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      plan,
+      sellingPrice: String(Math.ceil(Number(plan.rawPrice || 0) * 1.15 / 10) * 10),
+      featured: false,
+    };
+    setDraftPlans((prev) => [...prev, newDraft]);
+    toast.info(`Added "${plan.rawName}" to drafts.`);
+    window.setTimeout(() => catalogDraftRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  };
+
+  const updateDraft = (draftId: string, updates: Partial<DraftPlan>) => {
+    setDraftPlans((prev) => prev.map((d) => d.id === draftId ? { ...d, ...updates } : d));
   };
 
   const patchCatalog = async (id: string, updates: any) => {
@@ -314,6 +377,7 @@ export default function AdminCalebNet() {
 
       {tab === 'dashboard' && (
         <div className="space-y-6">
+          <p className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground"><Clock className="h-3.5 w-3.5" /> Showing last 24 hours</p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {[
               ['Total Sales', `₦${stats.sales.toLocaleString()}`, Wifi],
@@ -347,7 +411,9 @@ export default function AdminCalebNet() {
           <Card>
             <h3 className="mb-4 text-lg font-black">Provider Warnings</h3>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {health.length === 0 ? <p className="text-muted-foreground">No provider health records yet.</p> : health.map((item) => (
+              {healthLoading ? [1,2,3,4].map((i) => (
+                <div key={i} className="animate-pulse rounded-xl border border-border p-4"><div className="h-4 w-24 rounded bg-muted mb-3" /><div className="h-6 w-16 rounded bg-muted" /></div>
+              )) : health.length === 0 ? <p className="text-muted-foreground">No provider health records yet.</p> : health.map((item) => (
                 <div key={item.id} className="rounded-xl border border-border p-4">
                   <p className="font-black">{item.network} {item.type}</p>
                   <div className="mt-2">{statusBadge(item.status)}</div>
@@ -462,54 +528,77 @@ export default function AdminCalebNet() {
               />
             </div>
           </div>
+          {catalogLoading ? (
+            <div className="p-5 space-y-3">
+              {[1,2,3,4,5,6].map((i) => (
+                <div key={i} className="animate-pulse flex gap-4 items-center">
+                  <div className="h-4 w-32 rounded bg-muted" />
+                  <div className="h-4 w-16 rounded bg-muted" />
+                  <div className="h-4 w-20 rounded bg-muted" />
+                  <div className="h-4 w-16 rounded bg-muted" />
+                  <div className="flex-1" />
+                  <div className="h-8 w-20 rounded bg-muted" />
+                </div>
+              ))}
+            </div>
+          ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-muted/50 text-xs uppercase tracking-widest text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3">Product</th>
-                  <th className="px-4 py-3">Network</th>
-                  <th className="px-4 py-3">Category</th>
-                  <th className="px-4 py-3">Price</th>
-                  <th className="px-4 py-3">Cost</th>
-                  <th className="px-4 py-3">Profit</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {filteredCatalog.map((plan) => {
-                  const isAirtime = plan.type === 'AIRTIME';
-                  const discount = safeAirtimeDiscount(plan.network, plan.airtimeDiscountPercent);
-                  return (
-                  <tr key={plan.id}>
-                    <td className="px-4 py-3"><span className="font-black">{plan.name || plan.displayName}</span><span className="block text-xs text-muted-foreground">{isAirtime ? 'Custom amount top-up' : `${plan.dataSize || plan.type} ${plan.validity || ''}`}</span></td>
-                    <td className="px-4 py-3">{plan.network}</td>
-                    <td className="px-4 py-3">{plan.category}</td>
-                    {isAirtime ? (
-                      <>
-                        <td className="px-4 py-3 font-black">Custom amount</td>
-                        <td className="px-4 py-3">After {discount}% discount</td>
-                        <td className="px-4 py-3 text-emerald-600">Calculated per order</td>
-                      </>
-                    ) : (
-                      <>
-                    <td className="px-4 py-3 font-black">₦{Number(plan.sellingPrice || 0).toLocaleString()}</td>
-                    <td className="px-4 py-3">₦{Number(plan.providerCost || 0).toLocaleString()}</td>
-                    <td className="px-4 py-3 text-emerald-600">₦{Number(plan.profit || 0).toLocaleString()}</td>
-                      </>
-                    )}
-                    <td className="px-4 py-3">{plan.isActive ? <Badge variant="green">Active</Badge> : <Badge variant="gray">Hidden</Badge>}</td>
-                    <td className="px-4 py-3 text-right">
-                      <Button size="sm" variant="outline" onClick={() => patchCatalog(plan.id, { isActive: !plan.isActive })} disabled={busy === plan.id}>
-                        {busy === plan.id ? <Loader2 className="h-3 w-3 animate-spin" /> : plan.isActive ? 'Deactivate' : 'Activate'}
-                      </Button>
-                    </td>
-                  </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            {groupedCatalog.map((group) => (
+              <div key={`${group.network}-${group.type}`}>
+                <div className="sticky top-0 z-10 flex items-center gap-3 bg-muted/70 backdrop-blur-sm px-4 py-2 border-b border-border">
+                  <span className="text-xs font-black uppercase tracking-widest text-[#7C3AED]">{group.network}</span>
+                  <Badge variant={group.type === 'DATA' ? 'purple' : 'amber'} className="text-[10px]">{group.type}</Badge>
+                  <span className="text-xs text-muted-foreground">{group.plans.length} plan{group.plans.length !== 1 ? 's' : ''}</span>
+                </div>
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-muted/30 text-xs uppercase tracking-widest text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-2">Product</th>
+                      <th className="px-4 py-2">Category</th>
+                      <th className="px-4 py-2">Price</th>
+                      <th className="px-4 py-2">Cost</th>
+                      <th className="px-4 py-2">Profit</th>
+                      <th className="px-4 py-2">Status</th>
+                      <th className="px-4 py-2 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {group.plans.map((plan) => {
+                      const isAirtime = plan.type === 'AIRTIME';
+                      const discount = safeAirtimeDiscount(plan.network, plan.airtimeDiscountPercent);
+                      return (
+                        <tr key={plan.id} className="hover:bg-muted/20">
+                          <td className="px-4 py-3"><span className="font-black">{plan.name || plan.displayName}</span><span className="block text-xs text-muted-foreground">{isAirtime ? 'Custom amount top-up' : `${plan.dataSize || plan.type} ${plan.validity || ''}`}</span></td>
+                          <td className="px-4 py-3">{plan.category}</td>
+                          {isAirtime ? (
+                            <>
+                              <td className="px-4 py-3 font-black">Custom amount</td>
+                              <td className="px-4 py-3">After {discount}% discount</td>
+                              <td className="px-4 py-3 text-emerald-600">Calculated per order</td>
+                            </>
+                          ) : (
+                            <>
+                              <td className="px-4 py-3 font-black">{String.fromCharCode(8358)}{Number(plan.sellingPrice || 0).toLocaleString()}</td>
+                              <td className="px-4 py-3">{String.fromCharCode(8358)}{Number(plan.providerCost || 0).toLocaleString()}</td>
+                              <td className="px-4 py-3 text-emerald-600">{String.fromCharCode(8358)}{Number(plan.profit || 0).toLocaleString()}</td>
+                            </>
+                          )}
+                          <td className="px-4 py-3">{plan.isActive ? <Badge variant="green">Active</Badge> : <Badge variant="gray">Hidden</Badge>}</td>
+                          <td className="px-4 py-3 text-right">
+                            <Button size="sm" variant="outline" onClick={() => patchCatalog(plan.id, { isActive: !plan.isActive })} disabled={busy === plan.id}>
+                              {busy === plan.id ? <Loader2 className="h-3 w-3 animate-spin" /> : plan.isActive ? 'Deactivate' : 'Activate'}
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+            {groupedCatalog.length === 0 && <p className="p-5 text-muted-foreground">No catalog entries found.</p>}
           </div>
+          )}
         </Card>
       )}
 
@@ -525,29 +614,60 @@ export default function AdminCalebNet() {
               <Button variant="outline" onClick={syncAirtime} disabled={busy === 'sync-airtime'}><Phone className="h-4 w-4" />Sync Airtime Discounts</Button>
             </div>
           </Card>
-          {selectedProviderPlan && (
-            <div ref={catalogDraftRef} className="scroll-mt-24">
-            <Card className="border-[#7C3AED]/40 p-5 shadow-sm">
-              <div className="grid gap-4 md:grid-cols-[1fr_160px_130px_auto] md:items-end">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-widest text-[#7C3AED]">Catalog draft opened</p>
-                  <p className="font-black">{selectedProviderPlan.rawName}</p>
-                  <p className="text-sm text-muted-foreground">Cost ₦{Number(selectedProviderPlan.rawPrice || 0).toLocaleString()} | {selectedProviderPlan.providerPlanCode}</p>
+
+          {/* Batch Draft Area */}
+          {draftPlans.length > 0 && (
+            <div ref={catalogDraftRef} className="scroll-mt-24 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-black uppercase tracking-widest text-[#7C3AED]">{draftPlans.length} draft{draftPlans.length !== 1 ? 's' : ''} pending</p>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={publishAllDrafts} disabled={!!busy}><Plus className="h-3 w-3" />Publish All</Button>
+                  <Button size="sm" variant="outline" onClick={() => setDraftPlans([])}><X className="h-3 w-3" />Cancel All</Button>
                 </div>
-                <label className="block">
-                  <span className="mb-1 block text-xs font-black uppercase tracking-widest text-muted-foreground">Selling Price</span>
-                  <input value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} type="number" className="w-full rounded-xl border-2 border-border bg-muted/40 px-3 py-2 outline-none focus:border-[#7C3AED]" />
-                </label>
-                <label className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 font-bold" title="Shows a Best value badge on the student plan card. It does not change price or fulfillment.">
-                  <input type="checkbox" checked={featured} onChange={(e) => setFeatured(e.target.checked)} />
-                  Best value
-                </label>
-                <Button onClick={createCatalogPlan} disabled={busy === 'create-catalog'}><Plus className="h-4 w-4" />Publish</Button>
               </div>
-            </Card>
+              {draftPlans.map((draft) => (
+                <Card key={draft.id} className="border-[#7C3AED]/40 p-4 shadow-sm">
+                  <div className="grid gap-3 md:grid-cols-[1fr_140px_120px_auto_auto] md:items-end">
+                    <div>
+                      <p className="font-black">{draft.plan.rawName}</p>
+                      <p className="text-sm text-muted-foreground">Cost {String.fromCharCode(8358)}{Number(draft.plan.rawPrice || 0).toLocaleString()} | {draft.plan.providerPlanCode}</p>
+                    </div>
+                    <label className="block">
+                      <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Selling Price</span>
+                      <input value={draft.sellingPrice} onChange={(e) => updateDraft(draft.id, { sellingPrice: e.target.value })} type="number" className="w-full rounded-xl border-2 border-border bg-muted/40 px-3 py-2 outline-none focus:border-[#7C3AED]" />
+                    </label>
+                    <label className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-bold">
+                      <input type="checkbox" checked={draft.featured} onChange={(e) => updateDraft(draft.id, { featured: e.target.checked })} />
+                      Best value
+                    </label>
+                    <Button size="sm" onClick={() => publishDraft(draft)} disabled={busy === `draft-${draft.id}`}>
+                      {busy === `draft-${draft.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                      Publish
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setDraftPlans((prev) => prev.filter((d) => d.id !== draft.id))}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </Card>
+              ))}
             </div>
           )}
+
           <Card className="overflow-hidden p-0">
+            {providerLoading ? (
+              <div className="p-5 space-y-3">
+                {[1,2,3,4,5,6].map((i) => (
+                  <div key={i} className="animate-pulse flex gap-4 items-center">
+                    <div className="h-4 w-40 rounded bg-muted" />
+                    <div className="h-4 w-14 rounded bg-muted" />
+                    <div className="h-4 w-20 rounded bg-muted" />
+                    <div className="h-4 w-16 rounded bg-muted" />
+                    <div className="flex-1" />
+                    <div className="h-8 w-24 rounded bg-muted" />
+                  </div>
+                ))}
+              </div>
+            ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="bg-muted/50 text-xs uppercase tracking-widest text-muted-foreground">
@@ -561,19 +681,29 @@ export default function AdminCalebNet() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {providerPlans.map((plan) => (
-                    <tr key={plan.id}>
+                  {providerPlans.map((plan) => {
+                    const alreadyInCatalog = catalogCodes.has(plan.providerPlanCode);
+                    return (
+                    <tr key={plan.id} className={alreadyInCatalog ? 'bg-emerald-500/5' : ''}>
                       <td className="px-4 py-3"><span className="font-black">{plan.rawName}</span><span className="block text-xs text-muted-foreground">{plan.dataSize || ''} {plan.validity || ''}</span></td>
                       <td className="px-4 py-3">{plan.network}</td>
                       <td className="px-4 py-3 font-mono">{plan.providerPlanCode}</td>
-                      <td className="px-4 py-3 font-black">₦{Number(plan.rawPrice || 0).toLocaleString()}</td>
+                      <td className="px-4 py-3 font-black">{String.fromCharCode(8358)}{Number(plan.rawPrice || 0).toLocaleString()}</td>
                       <td className="px-4 py-3">{plan.category}</td>
-                      <td className="px-4 py-3 text-right"><Button size="sm" variant="outline" onClick={() => startCatalogDraft(plan)}>Create Plan</Button></td>
+                      <td className="px-4 py-3 text-right">
+                        {alreadyInCatalog ? (
+                          <Badge variant="green" className="text-[10px]"><CheckCircle2 className="mr-1 h-3 w-3" />In Catalog</Badge>
+                        ) : (
+                          <Button size="sm" variant="outline" onClick={() => startCatalogDraft(plan)}>Create Plan</Button>
+                        )}
+                      </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
+            )}
           </Card>
         </div>
       )}
