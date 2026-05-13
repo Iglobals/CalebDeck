@@ -1,7 +1,7 @@
 {
     "name": "CalebDeck",
     "short_name": "CalebDeck",
-    "description": "Campus Food Delivery App",
+    "description": "Smart campus food, grocery & digital services for Caleb University students. Powered by IGLOBALS TECHNOLOGY.",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#0A0A0A",

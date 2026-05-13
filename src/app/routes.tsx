@@ -128,6 +128,8 @@ export const router = createBrowserRouter([
       { path: "/terms", Component: TermsOfService },
       { path: "/support", Component: Support },
       { path: "/learn-more", Component: LearnMore },
+      { path: "/calebdeck-mart", lazy: () => import("./pages/CalebDeckMartLanding").then(m => ({ Component: m.default })) },
+      { path: "/calebnet-info", lazy: () => import("./pages/CalebNetLanding").then(m => ({ Component: m.default })) },
     ]
   },
 ]);

@@ -463,7 +463,11 @@ export default function CalebNet() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <SEO title="CalebNet - Cheap data and airtime" description="Buy CalebNet data and airtime for Caleb students." />
+      <SEO
+        title="CalebNet — Cheap Student Data & Airtime Plans | CalebDeck"
+        description="Buy affordable data plans and airtime for MTN, Airtel, Glo, and 9Mobile with CalebNet. A digital service of CalebDeck, powered by IGLOBALS TECHNOLOGY."
+        canonical="https://calebdeck.com/calebnet"
+      />
 
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">

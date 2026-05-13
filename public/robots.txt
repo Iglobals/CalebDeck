@@ -1,9 +1,23 @@
 User-agent: *
 Allow: /
 Allow: /cafeteria
+Allow: /mart
+Allow: /calebnet
+Allow: /calebdeck-mart
+Allow: /calebnet-info
+Allow: /learn-more
+Allow: /support
+Allow: /privacy
+Allow: /terms
 Disallow: /admin
 Disallow: /admin/
 Disallow: /rider
 Disallow: /rider/
+Disallow: /checkout
+Disallow: /order-success
+Disallow: /mart/cart
+Disallow: /mart/checkout
+Disallow: /my-orders
+Disallow: /calebnet/status/
 
 Sitemap: https://calebdeck.com/sitemap.xml

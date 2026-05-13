@@ -149,8 +149,22 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       <SEO
-        title="CalebDeck - Caleb University Campus Delivery"
-        description="Campus delivery for Caleb University students. Place convenient campus orders to your hostel area or assigned pickup point."
+        title="CalebDeck — Smart Campus Food, Grocery & Digital Services | Caleb University"
+        description="CalebDeck is the smart campus platform for Caleb University students. Order food, shop groceries on CalebDeck Mart, and buy cheap data & airtime with CalebNet. Powered by IGLOBALS TECHNOLOGY."
+        canonical="https://calebdeck.com/"
+        jsonLd={{
+          '@type': 'LocalBusiness',
+          '@id': 'https://calebdeck.com/#localbusiness',
+          name: 'CalebDeck',
+          image: 'https://calebdeck.com/calebdeck-logo.jpeg',
+          url: 'https://calebdeck.com',
+          telephone: '+2348072550635',
+          address: { '@type': 'PostalAddress', streetAddress: 'Caleb University Campus', addressLocality: 'Imota', addressRegion: 'Lagos', postalCode: '104102', addressCountry: 'NG' },
+          geo: { '@type': 'GeoCoordinates', latitude: 6.6433, longitude: 3.6593 },
+          parentOrganization: { '@id': 'https://iglobalstech.com.ng/#organization' },
+          sameAs: ['https://x.com/iglobalstechinc'],
+          description: 'Smart campus food delivery, grocery, and digital services for Caleb University students. A product of IGLOBALS TECHNOLOGY.'
+        }}
       />
 
       {/* Navigation */}
@@ -562,19 +576,28 @@ export default function LandingPage() {
 
       <footer className="border-t border-border py-20 bg-muted/20">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-12">
-            <div onDoubleClick={() => navigate('/admin/login')} className="cursor-pointer">
-              <Logo size="md" />
+          <div className="flex flex-col gap-12">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-12">
+              <div onDoubleClick={() => navigate('/admin/login')} className="cursor-pointer">
+                <Logo size="md" />
+              </div>
+              <div className="flex flex-wrap justify-center gap-6 sm:gap-10 text-sm font-semibold uppercase tracking-wider">
+                <Link to="/calebdeck-mart" className="text-muted-foreground hover:text-[#10B981] transition-colors">CalebDeck Mart</Link>
+                <Link to="/calebnet-info" className="text-muted-foreground hover:text-blue-500 transition-colors">CalebNet</Link>
+                <Link to="/privacy" className="text-muted-foreground hover:text-secondary transition-colors">Privacy</Link>
+                <Link to="/terms" className="text-muted-foreground hover:text-secondary transition-colors">Terms</Link>
+                <Link to="/support" className="text-muted-foreground hover:text-secondary transition-colors">Support</Link>
+                <Link to="/my-orders" className="text-muted-foreground hover:text-[#A78BFA] transition-colors">My Orders</Link>
+                <Link to="/rider/signup" className="text-muted-foreground hover:text-[#10B981] transition-colors">Become a Rider</Link>
+              </div>
             </div>
-            <div className="flex flex-wrap justify-center gap-6 sm:gap-10 text-sm font-semibold uppercase tracking-wider">
-              <Link to="/privacy" className="text-muted-foreground hover:text-secondary transition-colors">Privacy</Link>
-              <Link to="/terms" className="text-muted-foreground hover:text-secondary transition-colors">Terms</Link>
-              <Link to="/support" className="text-muted-foreground hover:text-secondary transition-colors">Support</Link>
-              <Link to="/my-orders" className="text-muted-foreground hover:text-[#A78BFA] transition-colors">My Orders</Link>
-              <Link to="/rider/signup" className="text-muted-foreground hover:text-[#10B981] transition-colors">Become a Rider</Link>
-            </div>
-            <div onDoubleClick={() => navigate('/rider/login')} className="text-sm text-muted-foreground font-medium cursor-pointer">
-              © 2026 CalebDeck. Fast campus delivery.
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-4 border-t border-border">
+              <div onDoubleClick={() => navigate('/rider/login')} className="text-sm text-muted-foreground font-medium cursor-pointer">
+                © 2026 CalebDeck. All rights reserved.
+              </div>
+              <a href="https://iglobalstech.com.ng" target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-secondary transition-colors font-semibold">
+                A product of <span className="font-black">IGLOBALS TECHNOLOGY</span>
+              </a>
             </div>
           </div>
         </div>

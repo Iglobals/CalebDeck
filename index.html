@@ -4,9 +4,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>CalebDeck — Caleb University Food Delivery</title>
+  <title>CalebDeck | Smart Campus Food, Grocery & Digital Services</title>
 
-  <!-- Preconnect & Preloads for SEO/Speed -->
+  <!-- Preconnect & Preloads for Speed -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin />
@@ -14,29 +14,34 @@
   <link rel="preconnect" href="https://calebdeck-1f4bc.firebaseapp.com" crossorigin />
   <link rel="preload" as="image" href="/calebdeck-logo.jpeg" />
 
-  <!-- SEO -->
-  <meta name="description"
-    content="CalebDeck — The official food delivery app for Caleb University students. Order from campus cafeterias and get food delivered straight to your hostel fast." />
-  <meta name="keywords"
-    content="CalebDeck, Caleb University, Caleb University food delivery, Caleb University hostel delivery, Caleb University cafeteria, campus food delivery" />
-  <meta name="author" content="CalebDeck" />
+  <!-- Canonical -->
+  <link rel="canonical" href="https://calebdeck.com/" />
 
-  <!-- Open Graph (Facebook, WhatsApp, LinkedIn, etc.) -->
+  <!-- SEO Meta -->
+  <meta name="description"
+    content="CalebDeck is the smart campus platform for Caleb University students — order food, shop groceries on CalebDeck Mart, and buy cheap data & airtime with CalebNet. Powered by IGLOBALS TECHNOLOGY." />
+  <meta name="keywords"
+    content="CalebDeck, CalebDeck Mart, CalebNet, Caleb University, campus food delivery, student data plans, student airtime, campus grocery delivery, IGLOBALS TECHNOLOGY" />
+  <meta name="author" content="IGLOBALS TECHNOLOGY" />
+
+  <!-- Open Graph (Facebook, WhatsApp, LinkedIn) -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://calebdeck.com/" />
-  <meta property="og:title" content="CalebDeck — Caleb University Food Delivery" />
+  <meta property="og:title" content="CalebDeck | Smart Campus Food, Grocery & Digital Services" />
   <meta property="og:description"
-    content="The official food delivery app for Caleb University students. Order from campus cafeterias and get it delivered to your hostel fast." />
+    content="Order food, shop groceries, and buy cheap student data plans easily with CalebDeck. Powered by IGLOBALS TECHNOLOGY." />
   <meta property="og:image" content="https://calebdeck.com/calebdeck-logo.jpeg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:site_name" content="CalebDeck" />
 
-  <!-- Twitter Card -->
+  <!-- Twitter / X Card -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="CalebDeck — Caleb University Food Delivery" />
+  <meta name="twitter:site" content="@iglobalstechinc" />
+  <meta name="twitter:creator" content="@iglobalstechinc" />
+  <meta name="twitter:title" content="CalebDeck | Smart Campus Food, Grocery & Digital Services" />
   <meta name="twitter:description"
-    content="The official food delivery app for Caleb University students. Order from campus cafeterias and get it delivered to your hostel fast." />
+    content="Order food, shop groceries, and buy cheap student data plans easily with CalebDeck. Powered by IGLOBALS TECHNOLOGY." />
   <meta name="twitter:image" content="https://calebdeck.com/calebdeck-logo.jpeg" />
 
   <!-- Favicon -->
@@ -50,6 +55,155 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="CalebDeck" />
+
+  <!-- ============================================================
+       GLOBAL JSON-LD STRUCTURED DATA
+       Establishes entity relationships for Google Knowledge Graph:
+       IGLOBALS TECHNOLOGY → CalebDeck → CalebDeck Mart / CalebNet
+       ============================================================ -->
+
+  <!-- 1. WebSite Schema -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": "https://calebdeck.com/#website",
+    "name": "CalebDeck",
+    "alternateName": "CalebDeck Platform",
+    "url": "https://calebdeck.com",
+    "description": "Smart campus food, grocery, and digital services platform for Caleb University students.",
+    "publisher": { "@id": "https://iglobalstech.com.ng/#organization" },
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://calebdeck.com/?q={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  }
+  </script>
+
+  <!-- 2. Organization Schema (IGLOBALS TECHNOLOGY — parent company) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": "https://iglobalstech.com.ng/#organization",
+    "name": "IGLOBALS TECHNOLOGY",
+    "url": "https://iglobalstech.com.ng",
+    "logo": "https://calebdeck.com/calebdeck-logo.jpeg",
+    "sameAs": [
+      "https://x.com/iglobalstechinc"
+    ],
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "telephone": "+2348072550635",
+      "contactType": "customer service",
+      "availableLanguage": "English"
+    },
+    "knowsAbout": ["campus technology", "food delivery", "digital services", "student data plans"]
+  }
+  </script>
+
+  <!-- 3. SoftwareApplication Schema (CalebDeck — the platform) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "@id": "https://calebdeck.com/#application",
+    "name": "CalebDeck",
+    "url": "https://calebdeck.com",
+    "applicationCategory": "LifestyleApplication",
+    "operatingSystem": "Web",
+    "description": "Smart campus platform for Caleb University students — order food, shop groceries, and buy cheap data & airtime.",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "NGN"
+    },
+    "creator": { "@id": "https://iglobalstech.com.ng/#organization" },
+    "provider": { "@id": "https://iglobalstech.com.ng/#organization" },
+    "image": "https://calebdeck.com/calebdeck-logo.jpeg",
+    "sameAs": [
+      "https://x.com/iglobalstechinc"
+    ]
+  }
+  </script>
+
+  <!-- 4. Service Schema (CalebDeck Mart — part of CalebDeck) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": "https://calebdeck.com/mart#service",
+    "name": "CalebDeck Mart",
+    "url": "https://calebdeck.com/mart",
+    "description": "Campus grocery and essentials delivery for Caleb University students. A service of CalebDeck.",
+    "provider": { "@id": "https://calebdeck.com/#application" },
+    "brand": { "@id": "https://calebdeck.com/#application" },
+    "serviceType": "Grocery Delivery",
+    "areaServed": {
+      "@type": "Place",
+      "name": "Caleb University, Imota, Lagos, Nigeria"
+    },
+    "isPartOf": { "@id": "https://calebdeck.com/#website" }
+  }
+  </script>
+
+  <!-- 5. Service Schema (CalebNet — part of CalebDeck) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": "https://calebdeck.com/calebnet#service",
+    "name": "CalebNet",
+    "url": "https://calebdeck.com/calebnet",
+    "description": "Affordable student data plans and airtime top-up for MTN, Airtel, Glo, and 9Mobile. A digital service of CalebDeck.",
+    "provider": { "@id": "https://calebdeck.com/#application" },
+    "brand": { "@id": "https://calebdeck.com/#application" },
+    "serviceType": "Telecommunications Service",
+    "areaServed": {
+      "@type": "Country",
+      "name": "Nigeria"
+    },
+    "isPartOf": { "@id": "https://calebdeck.com/#website" }
+  }
+  </script>
+
+  <!-- 6. LocalBusiness Schema (physical campus operation) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "@id": "https://calebdeck.com/#localbusiness",
+    "name": "CalebDeck",
+    "image": "https://calebdeck.com/calebdeck-logo.jpeg",
+    "url": "https://calebdeck.com",
+    "telephone": "+2348072550635",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "Caleb University Campus",
+      "addressLocality": "Imota",
+      "addressRegion": "Lagos",
+      "postalCode": "104102",
+      "addressCountry": "NG"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": 6.6433,
+      "longitude": 3.6593
+    },
+    "openingHoursSpecification": {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
+      "opens": "07:00",
+      "closes": "22:00"
+    },
+    "parentOrganization": { "@id": "https://iglobalstech.com.ng/#organization" },
+    "sameAs": [
+      "https://x.com/iglobalstechinc"
+    ],
+    "description": "Smart campus food delivery, grocery, and digital services for Caleb University students. A product of IGLOBALS TECHNOLOGY."
+  }
+  </script>
 </head>
 
 <body>

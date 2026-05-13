@@ -189,8 +189,9 @@ export default function MartPage() {
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300 pb-24">
       <SEO
-        title="CalebDeck Mart — Campus Grocery Delivery"
-        description="Order groceries, snacks, drinks, and essentials delivered directly to your hostel at Caleb University."
+        title="CalebDeck Mart — Campus Grocery & Essentials Delivery | CalebDeck"
+        description="Shop groceries, snacks, drinks, and everyday essentials delivered to your hostel at Caleb University. CalebDeck Mart is a service of CalebDeck, powered by IGLOBALS TECHNOLOGY."
+        canonical="https://calebdeck.com/mart"
       />
 
       {flyingItem && (

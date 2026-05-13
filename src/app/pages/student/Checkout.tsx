@@ -4,6 +4,12 @@ import { Logo } from '../../components/design-system/Logo';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router';
+import { Logo } from '../../components/design-system/Logo';
+import { Card } from '../../components/design-system/Card';
+import { Button } from '../../components/design-system/Button';
+import { Badge } from '../../components/design-system/Badge';
 import { Input, Select, Textarea } from '../../components/design-system/Input';
 import { ArrowLeft, Lock, Shield, CreditCard, MapPin, User, AlertTriangle } from 'lucide-react';
 import { getActiveHostels, Hostel, subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
@@ -13,6 +19,7 @@ import { db } from '../../../services/firebase';
 import { usePaystackPayment } from 'react-paystack';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
+import SEO from '../../components/SEO';
 import { 
   trackCheckoutView, 
   trackDeliveryModeSelected, 
@@ -535,15 +542,6 @@ if (isPremiumHostel) {
       </div>
     );
   }
-
-  return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
-      {/* Header */}
-      <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border shadow-sm transition-colors duration-300">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button onClick={() => {
-              if (cafeteriaId) {
                 navigate(`/plate-builder/${cafeteriaId}`, { state: { cafeteria, cafeteriaId, sectionId }, replace: true });
               } else {
                 navigate('/cafeteria', { replace: true });

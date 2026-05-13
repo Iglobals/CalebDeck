@@ -10,6 +10,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import { subscribeToOrderStatus, getRiderById, getHostelById, Rider, getOrderById, submitReview } from '../../../services/db';
 import { trackOrderTracked } from '../../../services/analytics';
 import { saveOrderToHistory, buildFoodOrderEntry, buildMartOrderEntry, buildCalebNetEntry } from '../../../services/orderHistory';
+import SEO from '../../components/SEO';
 
 const TRACKING_STEPS = ['Received', 'Out for Delivery', 'On The Way', 'Delivered'];
 const MASS_COMM_PICKUP_HOSTELS = ['mary', 'mary hall', 'rebecca', 'rebecca hall', 'esme', 'esme hall', 'mercy', 'mercy hall', 'deborah', 'deborah hall'];
@@ -225,6 +226,7 @@ export default function OrderSuccess() {
 
     return (
       <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+        <SEO title="Payment Status — CalebDeck" description="Check the status of your CalebDeck order payment." />
         <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border transition-colors duration-300">
           <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-center">
             <Logo size="md" />
@@ -281,6 +283,7 @@ export default function OrderSuccess() {
   if (!showTracking) {
     return (
       <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+        <SEO title="Order Placed — CalebDeck" description="Your CalebDeck order has been successfully placed." />
         <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border transition-colors duration-300">
           <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-center">
             <Logo size="md" />
@@ -394,6 +397,7 @@ export default function OrderSuccess() {
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+      <SEO title="Order Tracker — CalebDeck" description="Track your CalebDeck delivery in real-time." />
       <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border transition-colors duration-300 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
