@@ -542,6 +542,16 @@ if (isPremiumHostel) {
       </div>
     );
   }
+
+  return (
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+      <SEO title="Checkout — CalebDeck" description="Complete your CalebDeck order." />
+      {/* Header */}
+      <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border shadow-sm transition-colors duration-300">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button onClick={() => {
+              if (cafeteriaId) {
                 navigate(`/plate-builder/${cafeteriaId}`, { state: { cafeteria, cafeteriaId, sectionId }, replace: true });
               } else {
                 navigate('/cafeteria', { replace: true });
