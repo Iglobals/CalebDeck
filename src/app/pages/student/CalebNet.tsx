@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { AlertCircle, ArrowLeft, CheckCircle2, Clock, CreditCard, Eye, EyeOff, Loader2, LogOut, Mail, Phone, Shield, Signal, Wallet, Wifi, Zap } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2, ChevronDown, Clock, CreditCard, Eye, EyeOff, Info, Loader2, LogOut, Mail, Phone, Shield, Signal, Wallet, Wifi, X, Zap } from 'lucide-react';
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { usePaystackPayment } from 'react-paystack';
 import { toast } from 'react-toastify';
@@ -239,6 +239,26 @@ export default function CalebNet() {
   const [fundAmount, setFundAmount] = useState<number | ''>(1000);
   const [fundingReference, setFundingReference] = useState(`CDWALLET-${Date.now()}-${Math.floor(Math.random() * 100000)}`);
   const purchaseRef = useRef(`CDNETW-${Date.now()}-${Math.floor(Math.random() * 100000)}`);
+
+  const [infoModalOpen, setInfoModalOpen] = useState(false);
+  const [infoModalTitle, setInfoModalTitle] = useState('');
+  const [infoModalText, setInfoModalText] = useState('');
+
+  const openInfo = (e: React.MouseEvent, category: string) => {
+    e.stopPropagation();
+    let text = 'This is a data bundle for mobile internet access.';
+    const cat = category.toUpperCase();
+    if (cat.includes('SME')) text = 'SME data is a cheaper shared data bundle provided through bulk reseller allocations. It works like normal mobile data for browsing, streaming, WhatsApp, TikTok, YouTube and everyday use.';
+    else if (cat.includes('DIRECT')) text = 'Direct Data is delivered directly through the network provider. It is usually slightly more expensive but very stable and reliable.';
+    else if (cat.includes('AWOOF')) text = 'Awoof Data are special promotional bundles that give extra value for short-term usage. They are usually cheaper and bigger for the price.';
+    else if (cat.includes('WEEKLY')) text = 'These bundles are designed to last for 7 days.';
+    else if (cat.includes('MONTHLY')) text = 'These bundles are designed to last for 30 days.';
+    else if (cat.includes('NIGHT')) text = 'These plans are optimized for heavy nighttime usage and may work best during late-night hours depending on the provider.';
+    
+    setInfoModalTitle(`${category} Info`);
+    setInfoModalText(text);
+    setInfoModalOpen(true);
+  };
 
   useEffect(() => subscribeToPlatformSettings(setPlatformSettings), []);
 
@@ -532,6 +552,21 @@ export default function CalebNet() {
                   <div className="rounded-xl border border-border bg-card p-5 text-muted-foreground">No active CalebNet plans for this network yet.</div>
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="col-span-full mb-2">
+                      <details className="group rounded-xl border border-border bg-card p-4 text-sm transition-all">
+                        <summary className="flex cursor-pointer items-center justify-between font-black outline-none">
+                          <span className="flex items-center gap-2"><Info className="h-4 w-4 text-[#7C3AED]" /> What do these plans mean?</span>
+                          <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+                        </summary>
+                        <div className="mt-4 space-y-3 border-t border-border pt-4 text-muted-foreground">
+                          <p><strong className="text-foreground">SME Data:</strong> SME data is a cheaper shared data bundle provided through bulk reseller allocations. It works like normal mobile data for browsing, streaming, WhatsApp, TikTok, YouTube and everyday use.</p>
+                          <p><strong className="text-foreground">Direct Data:</strong> Direct Data is delivered directly through the network provider. It is usually slightly more expensive but very stable and reliable.</p>
+                          <p><strong className="text-foreground">Awoof Data:</strong> Awoof Data are special promotional bundles that give extra value for short-term usage. They are usually cheaper and bigger for the price.</p>
+                          <p><strong className="text-foreground">Night Plans:</strong> These plans are optimized for heavy nighttime usage and may work best during late-night hours depending on the provider.</p>
+                          <p><strong className="text-foreground">Weekly vs Monthly:</strong> Weekly bundles last for 7 days, while Monthly bundles are designed to last for 30 days.</p>
+                        </div>
+                      </details>
+                    </div>
                     {planCategories.length > 2 && (
                       <div className="col-span-full mb-1 flex gap-2 overflow-x-auto pb-1">
                         {planCategories.map((category) => (
@@ -551,7 +586,10 @@ export default function CalebNet() {
                           {plan.isFeatured && <Badge variant="green" className="text-xs">Best value</Badge>}
                         </div>
                         <div className="flex items-center justify-between">
-                          <Badge variant="muted" className="text-xs">{plan.category}</Badge>
+                          <div className="flex items-center gap-1.5" onClick={(e) => openInfo(e, plan.category)} title="Click to learn more about this plan type">
+                            <Badge variant="muted" className="text-xs">{plan.category}</Badge>
+                            <Info className="h-4 w-4 text-muted-foreground transition-colors hover:text-[#7C3AED]" />
+                          </div>
                           <span className="text-xl font-black text-[#7C3AED]">{money(plan.sellingPrice)}</span>
                         </div>
                       </button>
@@ -648,6 +686,11 @@ export default function CalebNet() {
                 {!airtimeAvailable && <p className="mt-3 text-center text-xs font-bold text-red-500">{network} airtime is currently unavailable.</p>}
                 {airtimeAmountError && <p className="mt-3 text-center text-xs font-bold text-red-500">{airtimeAmountError}</p>}
               </div>
+              <div className="mt-5 space-y-2 rounded-xl bg-muted/30 p-3 text-xs text-muted-foreground">
+                <p className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 shrink-0 text-green-500" /> All plans are delivered automatically after successful payment.</p>
+                <p className="flex items-center gap-2"><Zap className="h-3 w-3 shrink-0 text-amber-500" /> Fast automated delivery.</p>
+                <p className="flex items-center gap-2"><Shield className="h-3 w-3 shrink-0 text-[#7C3AED]" /> Secure payment and wallet system.</p>
+              </div>
               <p className="flex items-start gap-2 rounded-xl bg-muted/40 p-3 text-xs text-muted-foreground">
                 <Clock className="mt-0.5 h-4 w-4 shrink-0" />
                 Keep your wallet funded for faster data and airtime purchases.
@@ -684,6 +727,22 @@ export default function CalebNet() {
             </div>
           </Card>
         </main>
+      )}
+
+      {infoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setInfoModalOpen(false)}>
+          <Card className="w-full max-w-sm border-[#7C3AED]/20 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-[#7C3AED]/10 p-2 text-[#7C3AED]"><Info className="h-5 w-5" /></div>
+                <h3 className="text-lg font-black">{infoModalTitle}</h3>
+              </div>
+              <button onClick={() => setInfoModalOpen(false)} className="rounded-full p-2 text-muted-foreground hover:bg-muted"><X className="h-4 w-4" /></button>
+            </div>
+            <p className="text-sm leading-relaxed text-muted-foreground">{infoModalText}</p>
+            <Button className="mt-6 w-full py-5" onClick={() => setInfoModalOpen(false)}>Got it</Button>
+          </Card>
+        </div>
       )}
     </div>
   );

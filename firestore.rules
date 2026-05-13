@@ -165,6 +165,11 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /calebnet_analytics_daily/{dateId} {
+      allow read: if isAdmin();
+      allow write: if false; // Only backend (Admin SDK) writes
+    }
+
     match /calebnet_provider_status/{statusId} {
       allow read: if true;
       allow write: if isAdmin();

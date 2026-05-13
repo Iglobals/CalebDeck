@@ -18,6 +18,7 @@ import {
     updateProviderHealth,
 } from '../calebnet.js';
 import { ensureWalletUser, refundWalletForCalebNetOrder } from '../wallet.js';
+import { recordCalebNetAnalytics } from '../calebnet-analytics.js';
 
 const FALLBACK_AIRTIME_DISCOUNTS: Record<CalebNetNetwork, number> = {
     MTN: 3,
@@ -324,6 +325,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (!isTimeout) await refundWalletForCalebNetOrder({ orderId: clientRequestId, reason: 'Provider request failed. Wallet refunded.' });
 
             const afterFailure = await orderRef.get();
+            const failureStatus = isTimeout ? 'PENDING_PROVIDER' : 'FAILED';
+            await recordCalebNetAnalytics(orderRef, afterFailure.data(), failureStatus);
+
             return res.status(200).json({ success: true, order: { id: afterFailure.id, ...afterFailure.data() } });
         }
 
@@ -345,6 +349,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const finalOrder = await orderRef.get();
+        const finalStatus = failedClearly ? 'FAILED' : fulfillmentStatus;
+        await recordCalebNetAnalytics(orderRef, finalOrder.data(), finalStatus);
+
         return res.status(200).json({ success: true, order: { id: finalOrder.id, ...finalOrder.data() } });
     } catch (error: any) {
         if (error?.message === 'INSUFFICIENT_WALLET_BALANCE') {

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { collection, getDocs, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { auth, db } from '../../../services/firebase';
 import { AdminLayout } from './AdminLayout';
+import { AdminCalebNetAnalytics } from './AdminCalebNetAnalytics';
 import { Card } from '../../components/design-system/Card';
 import { Badge } from '../../components/design-system/Badge';
 import { Button } from '../../components/design-system/Button';
@@ -20,13 +21,14 @@ import {
   Settings,
   ShieldAlert,
   Trash2,
+  TrendingUp,
   Wifi,
   X,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { format } from 'date-fns';
 
-type Tab = 'dashboard' | 'orders' | 'catalog' | 'provider' | 'health';
+type Tab = 'dashboard' | 'analytics' | 'orders' | 'catalog' | 'provider' | 'health';
 type CalebNetType = 'DATA' | 'AIRTIME';
 
 const NETWORK_CODES: Record<string, string> = { MTN: '01', GLO: '02', '9MOBILE': '03', AIRTEL: '04' };
@@ -391,6 +393,7 @@ export default function AdminCalebNet() {
       <div className="mb-6 flex flex-wrap gap-2">
         {([
           ['dashboard', 'Dashboard', BarChart3],
+          ['analytics', 'Analytics', TrendingUp],
           ['orders', 'Orders', Clock],
           ['catalog', 'Catalog', Settings],
           ['provider', 'Provider Plans', Wifi],
@@ -405,6 +408,8 @@ export default function AdminCalebNet() {
           </button>
         ))}
       </div>
+
+      {tab === 'analytics' && <AdminCalebNetAnalytics />}
 
       {tab === 'dashboard' && (
         <div className="space-y-6">

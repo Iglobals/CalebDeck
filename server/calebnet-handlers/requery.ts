@@ -3,6 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '../firebase-admin.js';
 import { clubkonnectGet, getClubkonnectConfig, mapProviderStatus, requireAdmin, setCors, shouldPreserveSuccessful, updateProviderHealth } from '../calebnet.js';
 import { refundWalletForCalebNetOrder } from '../wallet.js';
+import { recordCalebNetAnalytics } from '../calebnet-analytics.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     setCors(res, 'POST, OPTIONS');
@@ -70,7 +71,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
         }
 
-        return res.status(200).json({ success: true, status: patch.fulfillmentStatus || order.fulfillmentStatus, data: response });
+        const finalOrder = await orderRef.get();
+        const finalStatus = patch.fulfillmentStatus || order.fulfillmentStatus;
+        await recordCalebNetAnalytics(orderRef, finalOrder.data(), finalStatus);
+
+        return res.status(200).json({ success: true, status: finalStatus, data: response });
     } catch (error: any) {
         console.error('[CalebNet Requery]', error);
         return res.status(500).json({ error: error.message || 'Requery failed' });

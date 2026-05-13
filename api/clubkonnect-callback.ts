@@ -3,6 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '../server/firebase-admin.js';
 import { mapProviderStatus, setCors, shouldPreserveSuccessful, updateProviderHealth } from '../server/calebnet.js';
 import { refundWalletForCalebNetOrder } from '../server/wallet.js';
+import { recordCalebNetAnalytics } from '../server/calebnet-analytics.js';
 
 function callbackBody(req: VercelRequest) {
     return { ...(req.query || {}), ...(typeof req.body === 'object' ? req.body : {}) };
@@ -64,6 +65,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 reason: 'Provider callback confirmed failure. Wallet refunded.',
             });
         }
+        
+        const finalOrder = await doc.ref.get();
+        const finalStatus = patch.fulfillmentStatus || order.fulfillmentStatus;
+        await recordCalebNetAnalytics(doc.ref, finalOrder.data(), finalStatus);
+
         return res.status(200).json({ success: true });
     } catch (error: any) {
         console.error('[Clubkonnect Callback]', error);
