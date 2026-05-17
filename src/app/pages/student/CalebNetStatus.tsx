@@ -57,7 +57,12 @@ export default function CalebNetStatus() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <SEO title="CalebNet Status" description="Track your CalebNet data or airtime transaction." />
+      <SEO
+        title="CalebNet Transaction Status | CalebDeck"
+        description="Track the current status of a CalebNet data or airtime transaction."
+        canonical={paymentReference ? `https://calebdeck.com/calebnet/status/${paymentReference}` : 'https://calebdeck.com/calebnet'}
+        robots="noindex,follow"
+      />
       <header className="border-b border-border bg-background">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-5 py-4">
           <Link to="/calebnet" className="flex items-center gap-2 rounded-xl p-2 hover:bg-muted">

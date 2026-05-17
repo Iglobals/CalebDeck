@@ -19,6 +19,7 @@ import { collection, limit, query, where, onSnapshot } from 'firebase/firestore'
 import { db } from '../../../services/firebase';
 import { useTheme } from '../../../context/ThemeContext';
 import { trackPlateBuilderView, trackItemAdded, trackPlateAdded, trackDeliveryModeSelected } from '../../../services/analytics';
+import SEO from '../../components/SEO';
 
 interface PlateItem {
   item: MenuItem;
@@ -516,6 +517,11 @@ export default function PlateBuilder() {
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+      <SEO
+        title={`${cafeteria} Menu - Build Your Plate | CalebDeck`}
+        description={`Build a custom CalebDeck food order from ${cafeteria}${!isOldCafe ? `, ${sectionId} section` : ''}, add portions, proteins, drinks, and checkout for hostel delivery.`}
+        canonical={`https://calebdeck.com/plate-builder/${cafeteriaId}`}
+      />
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-sm transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">

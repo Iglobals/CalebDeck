@@ -226,7 +226,7 @@ export default function OrderSuccess() {
 
     return (
       <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
-        <SEO title="Payment Status — CalebDeck" description="Check the status of your CalebDeck order payment." />
+        <SEO title="Payment Status - CalebDeck" description="Check the status of your CalebDeck order payment." canonical="https://calebdeck.com/order-success" robots="noindex,follow" />
         <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border transition-colors duration-300">
           <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-center">
             <Logo size="md" />
@@ -283,7 +283,7 @@ export default function OrderSuccess() {
   if (!showTracking) {
     return (
       <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
-        <SEO title="Order Placed — CalebDeck" description="Your CalebDeck order has been successfully placed." />
+        <SEO title="Order Placed - CalebDeck" description="Your CalebDeck order has been successfully placed and is ready for live tracking." canonical="https://calebdeck.com/order-success" robots="noindex,follow" />
         <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border transition-colors duration-300">
           <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-center">
             <Logo size="md" />
@@ -397,7 +397,7 @@ export default function OrderSuccess() {
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
-      <SEO title="Order Tracker — CalebDeck" description="Track your CalebDeck delivery in real-time." />
+      <SEO title="Order Tracker - CalebDeck" description="Track your CalebDeck food or mart delivery in real time." canonical="https://calebdeck.com/order-success" robots="noindex,follow" />
       <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border transition-colors duration-300 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">

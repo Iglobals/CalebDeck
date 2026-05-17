@@ -464,9 +464,10 @@ export default function CalebNet() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SEO
-        title="CalebNet — Cheap Student Data & Airtime Plans | CalebDeck"
+        title="CalebNet - Student Data and Airtime | CalebDeck"
         description="Buy affordable data plans and airtime for MTN, Airtel, Glo, and 9Mobile with CalebNet. A digital service of CalebDeck, powered by IGLOBALS TECHNOLOGY."
         canonical="https://calebdeck.com/calebnet"
+        keywords="CalebNet, student data plans, Caleb University airtime, MTN data, Airtel data, Glo data, 9mobile data"
       />
 
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
@@ -475,7 +476,7 @@ export default function CalebNet() {
             <button onClick={() => navigate('/')} className="rounded-xl p-2 hover:bg-muted" aria-label="Back">
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <h1 className="text-xl font-black">CalebNet</h1>
+            <h1 className="text-xl font-black">CalebNet Data and Airtime</h1>
           </div>
           <Logo size="sm" />
         </div>
@@ -502,7 +503,7 @@ export default function CalebNet() {
               <div className="mb-4 flex items-center gap-3">
                 <div className="rounded-xl bg-white/15 p-3"><Zap className="h-6 w-6" /></div>
                 <div>
-                  <h2 className="text-2xl font-black">Cheap data and airtime for Caleb students</h2>
+                  <h2 className="text-2xl font-black">Fast data and airtime for Caleb students</h2>
                 <p className="text-sm text-white/75">Top up once, buy whenever you need to.</p>
                 </div>
               </div>

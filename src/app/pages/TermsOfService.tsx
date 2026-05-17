@@ -1,9 +1,15 @@
 import { Logo } from '../components/design-system/Logo';
 import Footer from '../components/Footer';
+import SEO from '../components/SEO';
 
 export default function TermsOfService() {
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+      <SEO
+        title="Terms of Service - CalebDeck"
+        description="Review CalebDeck terms covering campus food delivery, CalebDeck Mart, CalebNet, payments, delivery rules, and platform usage."
+        canonical="https://calebdeck.com/terms"
+      />
       <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-center">
           <Logo size="md" />

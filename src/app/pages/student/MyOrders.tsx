@@ -130,15 +130,17 @@ export default function MyOrders() {
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       <SEO
-        title="My Orders — CalebDeck"
-        description="View your recent CalebDeck orders. All order history is stored locally on this device."
+        title="My Orders - CalebDeck"
+        description="View recent CalebDeck food, mart, and CalebNet activity saved on this device, with quick links back to live order tracking."
+        canonical="https://calebdeck.com/my-orders"
+        robots="noindex,follow"
       />
 
       {/* Header */}
       <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border shadow-sm transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3 sm:gap-4">
-            <button onClick={() => navigate('/')} className="p-2 hover:bg-muted rounded-xl transition-colors">
+            <button onClick={() => navigate('/')} className="p-2 hover:bg-muted rounded-xl transition-colors" aria-label="Back to CalebDeck home">
               <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6 text-foreground" />
             </button>
             <div className="flex items-center gap-2">
@@ -152,6 +154,7 @@ export default function MyOrders() {
                 onClick={() => setShowClearConfirm(true)}
                 className="p-2 text-muted-foreground hover:text-red-400 rounded-xl transition-colors"
                 title="Clear history"
+                aria-label="Clear local order history"
               >
                 <Trash2 className="w-5 h-5" />
               </button>

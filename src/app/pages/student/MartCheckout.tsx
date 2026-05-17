@@ -287,11 +287,17 @@ export default function MartCheckout() {
   if (isClosed) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <SEO
+          title="Mart Checkout Closed - CalebDeck Mart"
+          description="CalebDeck Mart checkout is currently unavailable. Check operating hours and return when ordering is open."
+          canonical="https://calebdeck.com/mart/checkout"
+          robots="noindex,follow"
+        />
         <Card className="text-center max-w-md w-full py-12 px-8">
           <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
             <Clock className="w-10 h-10 text-amber-500" />
           </div>
-          <h2 className="text-3xl font-bold mb-4">Mart is Closed</h2>
+          <h1 className="text-3xl font-bold mb-4">Mart is Closed</h1>
           <p className="text-muted-foreground mb-10 text-lg">
             {martClosedMessage}
           </p>
@@ -307,7 +313,12 @@ export default function MartCheckout() {
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300 pb-24">
-      <SEO title="Checkout — CalebDeck Mart" description="Complete your CalebDeck Mart order." />
+      <SEO
+        title="Checkout - CalebDeck Mart"
+        description="Complete your CalebDeck Mart order with hostel delivery details, order summary, and secure Paystack payment."
+        canonical="https://calebdeck.com/mart/checkout"
+        robots="noindex,follow"
+      />
 
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm transition-colors duration-300">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-4">

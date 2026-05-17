@@ -37,12 +37,17 @@ export default function MartCart() {
   if (items.length === 0) {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 text-center">
-        <SEO title="Your Cart — CalebDeck Mart" description="View your CalebDeck Mart shopping cart." />
+        <SEO
+          title="Your Cart - CalebDeck Mart"
+          description="Review your CalebDeck Mart cart before checking out for hostel delivery on Caleb University campus."
+          canonical="https://calebdeck.com/mart/cart"
+          robots="noindex,follow"
+        />
         <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-6">
           <ShoppingBag className="w-12 h-12 text-muted-foreground" />
         </div>
-        <h2 className="text-2xl font-bold mb-2">Your cart is empty</h2>
-        <p className="text-muted-foreground mb-8">Looks like you haven't added anything to your cart yet.</p>
+        <h1 className="text-2xl font-bold mb-2">Your cart is empty</h1>
+        <p className="max-w-md text-muted-foreground mb-8">Add snacks, drinks, groceries, or hostel essentials from CalebDeck Mart and review them here before checkout.</p>
         <Link to="/mart">
           <Button variant="primary" className="px-8 py-3 rounded-xl bg-[#10B981] hover:bg-[#059669]">
             Start Shopping
@@ -56,12 +61,17 @@ export default function MartCart() {
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300 pb-24">
-      <SEO title={`Cart (${totalItems}) — CalebDeck Mart`} description="Review your CalebDeck Mart items." />
+      <SEO
+        title={`Cart (${totalItems}) - CalebDeck Mart`}
+        description="Review your CalebDeck Mart items, delivery fee, and checkout total before placing your campus essentials order."
+        canonical="https://calebdeck.com/mart/cart"
+        robots="noindex,follow"
+      />
 
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm transition-colors duration-300">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-4">
-          <button onClick={() => navigate('/mart')} className="p-2 -ml-2 rounded-xl transition-colors hover:bg-muted">
+          <button onClick={() => navigate('/mart')} className="p-2 -ml-2 rounded-xl transition-colors hover:bg-muted" aria-label="Back to CalebDeck Mart">
             <ArrowLeft className="w-6 h-6 text-foreground" />
           </button>
           <h1 className="text-xl font-bold text-foreground">Shopping Cart</h1>
@@ -88,6 +98,7 @@ export default function MartCart() {
                   <button 
                     onClick={() => removeItem(item.id)}
                     className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                    aria-label={`Remove ${item.name} from cart`}
                   >
                     <Trash2 className="w-5 h-5" />
                   </button>
@@ -96,6 +107,7 @@ export default function MartCart() {
                     <button 
                       onClick={() => updateQuantity(item.id, item.quantity - 1)}
                       className="w-8 h-8 flex items-center justify-center rounded-full bg-background hover:bg-background/80 transition-colors shadow-sm"
+                      aria-label={`Reduce ${item.name} quantity`}
                     >
                       <Minus className="w-4 h-4" />
                     </button>
@@ -103,6 +115,7 @@ export default function MartCart() {
                     <button 
                       onClick={() => updateQuantity(item.id, item.quantity + 1)}
                       className="w-8 h-8 flex items-center justify-center rounded-full bg-background hover:bg-background/80 transition-colors shadow-sm"
+                      aria-label={`Increase ${item.name} quantity`}
                     >
                       <Plus className="w-4 h-4" />
                     </button>

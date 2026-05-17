@@ -216,7 +216,7 @@ export default function MartPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Link to="/">
-              <button className="p-2 -ml-2 rounded-xl transition-colors hover:bg-muted">
+              <button className="p-2 -ml-2 rounded-xl transition-colors hover:bg-muted" aria-label="Back to CalebDeck home">
                 <ArrowLeft className="w-6 h-6 text-foreground" />
               </button>
             </Link>
@@ -225,7 +225,7 @@ export default function MartPage() {
             </h1>
           </div>
           <div className="flex items-center gap-4">
-             <Link ref={cartIconRef} to="/mart/cart" className={`relative p-2 rounded-xl hover:bg-muted transition-all duration-300 ${flyingItem?.active ? 'scale-110 bg-[#10B981]/10' : ''}`}>
+             <Link ref={cartIconRef} to="/mart/cart" aria-label={`Open CalebDeck Mart cart with ${totalItems} items`} className={`relative p-2 rounded-xl hover:bg-muted transition-all duration-300 ${flyingItem?.active ? 'scale-110 bg-[#10B981]/10' : ''}`}>
                 <ShoppingBag className="w-6 h-6 text-foreground" />
                 {totalItems > 0 && (
                   <span className="absolute top-0 right-0 bg-[#10B981] text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full transform translate-x-1 -translate-y-1 animate-in zoom-in duration-200">
@@ -257,6 +257,12 @@ export default function MartPage() {
       )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        <section className="mb-6" aria-labelledby="mart-products-title">
+          <h2 id="mart-products-title" className="sr-only">Shop campus groceries and hostel essentials</h2>
+          <p className="max-w-3xl text-sm sm:text-base text-muted-foreground">
+            Browse CalebDeck Mart for snacks, drinks, personal care items, and everyday hostel essentials selected for Caleb University students.
+          </p>
+        </section>
         
         {/* Search & Categories */}
         <div className="mb-8 space-y-6">

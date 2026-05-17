@@ -6,8 +6,9 @@ export default function LearnMore() {
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       <SEO
-        title="About CalebDeck — Caleb University Campus Delivery"
+        title="About CalebDeck - Caleb University Campus Delivery"
         description="Learn how CalebDeck is transforming campus dining at Caleb University by delivering cafeteria meals instantly to your hostel."
+        canonical="https://calebdeck.com/learn-more"
       />
       <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-center">

@@ -100,8 +100,10 @@ export default function CafeteriaSelection() {
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       <SEO
-        title="Cafeterias — CalebDeck Food Delivery"
-        description="Browse all open cafeterias at Caleb University. Order freshly prepared meals directly to your hostel."
+        title="Caleb University Cafeterias - CalebDeck Food Delivery"
+        description="Choose Old Cafeteria or New Cafeteria on CalebDeck, build your plate, and order freshly prepared meals to your Caleb University hostel."
+        canonical="https://calebdeck.com/cafeteria"
+        keywords="Caleb University cafeteria, CalebDeck food delivery, Old Cafeteria Caleb University, New Cafeteria Caleb University"
       />
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-sm transition-colors duration-300">
@@ -111,18 +113,19 @@ export default function CafeteriaSelection() {
               <button
                 onClick={() => setSelectedCafeteria(null)}
                 className="p-2 rounded-xl transition-colors hover:bg-muted"
+                aria-label="Back to cafeteria list"
               >
                 <ArrowLeft className="w-6 h-6 text-foreground" />
               </button>
             ) : (
               <Link to="/">
-                <button className="p-2 rounded-xl transition-colors hover:bg-muted">
+                <button className="p-2 rounded-xl transition-colors hover:bg-muted" aria-label="Back to CalebDeck home">
                   <ArrowLeft className="w-6 h-6 text-foreground" />
                 </button>
               </Link>
             )}
             <h1 className="text-2xl font-bold text-foreground">
-              {selectedCafeteria ? 'Select Section' : 'Choose Cafeteria'}
+              {selectedCafeteria ? 'Choose Your Serving Section' : 'Choose a Caleb University Cafeteria'}
             </h1>
           </div>
           <Logo size="md" />
@@ -148,11 +151,12 @@ export default function CafeteriaSelection() {
         )}
         {!selectedCafeteria ? (
           <>
-            <div className="mb-8">
+            <section className="mb-8" aria-labelledby="cafeteria-options-title">
+              <h2 id="cafeteria-options-title" className="sr-only">Available campus cafeterias on CalebDeck</h2>
               <p className="text-lg text-muted-foreground">
-                Select a cafeteria to start building your plate
+                Browse active campus cafeterias, choose your preferred serving point, and build a meal for hostel delivery without leaving the CalebDeck flow.
               </p>
-            </div>
+            </section>
 
             <div className="grid md:grid-cols-2 gap-8">
               {cafeterias.map((cafeteria) => (

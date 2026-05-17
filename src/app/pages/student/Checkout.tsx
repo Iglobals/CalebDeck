@@ -508,11 +508,17 @@ if (isPremiumHostel) {
   if (!isCombo && !plates.length) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <SEO
+          title="No Active Food Order - CalebDeck Checkout"
+          description="Start a CalebDeck food order by choosing a cafeteria and building your plate before checkout."
+          canonical="https://calebdeck.com/checkout"
+          robots="noindex,follow"
+        />
         <Card className="text-center max-w-md w-full py-12 px-8">
           <div className="w-20 h-20 bg-secondary/10 rounded-full flex items-center justify-center mx-auto mb-6">
             <Lock className="w-10 h-10 text-secondary" />
           </div>
-          <h2 className="text-3xl font-bold mb-4">No Active Order</h2>
+          <h1 className="text-3xl font-bold mb-4">No Active Order</h1>
           <p className="text-muted-foreground mb-10 text-lg">Your cart is currently empty. Head back to build your perfect meal.</p>
           <Link to="/cafeteria" className="inline-block w-full">
             <Button variant="primary" className="w-full py-6 text-xl rounded-2xl">Start Ordering</Button>
@@ -545,7 +551,12 @@ if (isPremiumHostel) {
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
-      <SEO title="Checkout — CalebDeck" description="Complete your CalebDeck order." />
+      <SEO
+        title="Checkout - CalebDeck Food Delivery"
+        description="Complete your CalebDeck food order with hostel delivery details, order summary, and secure Paystack payment."
+        canonical="https://calebdeck.com/checkout"
+        robots="noindex,follow"
+      />
       {/* Header */}
       <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border shadow-sm transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">

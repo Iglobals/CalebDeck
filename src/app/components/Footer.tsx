@@ -1,6 +1,5 @@
 import { useLocation, Link } from 'react-router';
 import { Logo } from './design-system/Logo';
-import { Phone } from 'lucide-react';
 
 export default function Footer() {
   const location = useLocation();
@@ -9,6 +8,10 @@ export default function Footer() {
   // define links; always include home
   const links: Array<{ to: string; label: string }> = [
     { to: '/', label: 'Home' },
+    { to: '/cafeteria', label: 'Cafeterias' },
+    { to: '/calebdeck-mart', label: 'CalebDeck Mart' },
+    { to: '/calebnet-info', label: 'CalebNet' },
+    { to: '/learn-more', label: 'Learn More' },
     { to: '/privacy', label: 'Privacy' },
     { to: '/terms', label: 'Terms' },
     { to: '/support', label: 'Support' },
@@ -19,7 +22,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex flex-col md:flex-row justify-between items-center gap-12">
           <Logo size="md" />
-          <div className="flex gap-10 text-sm font-semibold uppercase tracking-wider">
+          <nav aria-label="Footer navigation" className="flex flex-wrap justify-center gap-6 text-sm font-semibold uppercase tracking-wider md:gap-10">
             {links
               .filter(l => l.to !== current) // hide current page link
               .map(l => (
@@ -31,7 +34,7 @@ export default function Footer() {
                   {l.label}
                 </Link>
               ))}
-          </div>
+          </nav>
           <div className="text-sm text-muted-foreground font-medium">
             © 2026 CalebDeck. Premium campus delivery.
           </div>
