@@ -150,7 +150,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       <SEO
         title="CalebDeck — Smart Campus Food, Grocery & Digital Services | Caleb University"
-        description="CalebDeck is the smart campus platform for Caleb University students. Order food, shop groceries on CalebDeck Mart, and buy cheap data & airtime with CalebNet. Powered by IGLOBALS TECHNOLOGY."
+        description="CalebDeck is the smart campus platform for Caleb University. Order cafeteria food, shop groceries on CalebDeck Mart, and buy cheap student data with CalebNet."
         canonical="https://calebdeck.com/"
         jsonLd={{
           '@type': 'LocalBusiness',

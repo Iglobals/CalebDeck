@@ -27,7 +27,7 @@ export default function CalebNetLanding() {
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       <SEO
         title="CalebNet — Cheap Student Data & Airtime Plans | CalebDeck"
-        description="CalebNet is the affordable data and airtime service by CalebDeck. Buy SME data, direct data, and discounted airtime for MTN, Airtel, Glo, and 9Mobile. Powered by IGLOBALS TECHNOLOGY."
+        description="CalebNet is the affordable data and airtime service by CalebDeck. Buy discounted plans for MTN, Airtel, Glo, and 9Mobile. Powered by IGLOBALS TECHNOLOGY."
         canonical="https://calebdeck.com/calebnet-info"
         jsonLd={{
           '@type': 'Service',

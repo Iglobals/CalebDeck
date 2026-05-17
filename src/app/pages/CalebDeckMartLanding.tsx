@@ -22,7 +22,7 @@ export default function CalebDeckMartLanding() {
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       <SEO
         title="CalebDeck Mart — Campus Grocery & Essentials Delivery | CalebDeck"
-        description="CalebDeck Mart delivers groceries, snacks, drinks, personal care products, and everyday essentials to Caleb University students. A service of CalebDeck, powered by IGLOBALS TECHNOLOGY."
+        description="CalebDeck Mart delivers groceries, snacks, toiletries, and hostel essentials to Caleb University students. Powered by IGLOBALS TECHNOLOGY."
         canonical="https://calebdeck.com/calebdeck-mart"
         jsonLd={{
           '@type': 'Service',
