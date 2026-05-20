@@ -181,6 +181,13 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // ─── Food Batch Days (Order Windows) ───
+    match /food_batch_days/{dayId} {
+      allow read: if true;           // Students see order count / batch status
+      allow write: if isAdmin();     // Admin can update status manually
+      // Note: Server (Admin SDK) handles atomic increments and bypasses rules
+    }
+
     // ─── Settings ───
     match /settings/{settingId} {
       allow read: if true;

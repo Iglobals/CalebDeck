@@ -104,6 +104,7 @@ export const router = createBrowserRouter([
           { path: "mart/inventory", Component: AdminMartInventory },
           { path: "mart/orders", Component: AdminMartOrders },
           { path: "calebnet", lazy: () => import('./pages/admin/AdminCalebNet').then(m => ({ Component: m.default })) },
+          { path: "batches", lazy: () => import('./pages/admin/AdminBatchManager').then(m => ({ Component: m.default })) },
         ]
       },
 

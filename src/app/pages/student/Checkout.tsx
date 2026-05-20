@@ -4,14 +4,8 @@ import { Logo } from '../../components/design-system/Logo';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router';
-import { Logo } from '../../components/design-system/Logo';
-import { Card } from '../../components/design-system/Card';
-import { Button } from '../../components/design-system/Button';
-import { Badge } from '../../components/design-system/Badge';
 import { Input, Select, Textarea } from '../../components/design-system/Input';
-import { ArrowLeft, Lock, Shield, CreditCard, MapPin, User, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Lock, Shield, CreditCard, MapPin, User, AlertTriangle, Timer } from 'lucide-react';
 import { getActiveHostels, Hostel, subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 import { calculateOrderTotal, verifyPayment } from '../../../services/functions';
 import { doc, getDoc } from 'firebase/firestore';
@@ -20,6 +14,8 @@ import { usePaystackPayment } from 'react-paystack';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
 import SEO from '../../components/SEO';
+import { useBatchTimer, formatBatchTime } from '../../../context/BatchTimerContext';
+import { BatchStatusBar } from '../../components/BatchStatusBar';
 import { 
   trackCheckoutView, 
   trackDeliveryModeSelected, 
@@ -419,17 +415,31 @@ if (isPremiumHostel) {
     });
   };
 
+  const batchTimer = useBatchTimer();
+  const isBatchSystemActive = batchTimer.isEnabled || batchTimer.isManualOverride;
+
   const currentHour = new Date().getHours();
   const openingHour = platformSettings?.systemOpeningHour ?? 10;
   const closingHour = platformSettings?.systemClosingHour ?? 18;
   const isOutOfHours = currentHour < openingHour || currentHour >= closingHour; 
   const isMaintenance = platformSettings?.isAcceptingOrders === false || platformSettings?.isFoodOrderingClosed === true;
-  const isClosed = isOutOfHours || isMaintenance;
+  
+  // Batch-aware closing: if batch system is active, use batch state instead of hours
+  const isBatchWindowClosed = isBatchSystemActive && !batchTimer.isBatchOpen && !batchTimer.isManualOverride;
+  const isBatchFull = isBatchSystemActive && batchTimer.isBatchFull;
+  const isClosed = isMaintenance || (isBatchSystemActive ? (isBatchWindowClosed || isBatchFull) : isOutOfHours);
+  
   const closedMessage = platformSettings?.isFoodOrderingClosed === true
     ? (platformSettings?.foodOrderingClosedMessage || 'Food ordering is currently closed. Cafeterias are preparing for the next order window.')
     : platformSettings?.isAcceptingOrders === false
       ? (platformSettings?.globalClosedMessage || 'CalebDeck is temporarily paused while we make a quick operational update. Please check back shortly.')
-      : `CalebDeck is currently closed. Ordering hours are between ${openingHour}:00 and ${closingHour}:00.`;
+      : isBatchSystemActive
+        ? (isBatchFull
+          ? `The ${batchTimer.activeBatch?.batchName || 'current batch'} is at full capacity. ${batchTimer.nextBatch ? `The next window is the ${batchTimer.nextBatch.batchName}.` : ''}`
+          : batchTimer.nextBatch
+            ? `Ordering opens at ${formatBatchTime(batchTimer.nextBatch.orderWindowStart)} for the ${batchTimer.nextBatch.batchName}.`
+            : "Today's delivery windows have ended. Fresh batches open tomorrow.")
+        : `CalebDeck is currently closed. Ordering hours are between ${openingHour}:00 and ${closingHour}:00.`;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -483,11 +493,42 @@ if (isPremiumHostel) {
         })
       };
 
-      await fetch('/api/pre-save-order', {
+      const preSaveResponse = await fetch('/api/pre-save-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reference: paymentRef.current, orderData: preSaveData })
       });
+
+      const preSaveResult = await preSaveResponse.json();
+
+      // Handle batch rejection from server
+      if (!preSaveResponse.ok && preSaveResult.error) {
+        if (preSaveResult.error === 'ORDER_WINDOW_CLOSED') {
+          const nextName = preSaveResult.nextBatch?.batchName || 'the next batch';
+          const nextTime = preSaveResult.nextBatch?.orderWindowStart
+            ? formatBatchTime(preSaveResult.nextBatch.orderWindowStart)
+            : 'soon';
+          toast.info(
+            `This order window just closed. Your next chance is the ${nextName} — ordering opens at ${nextTime}.`,
+            { autoClose: 8000, position: 'top-center' }
+          );
+          setIsSubmitting(false);
+          return;
+        }
+        if (preSaveResult.error === 'BATCH_FULL') {
+          const nextName = preSaveResult.nextBatch?.batchName || 'the next batch';
+          const nextDelivery = preSaveResult.nextBatch?.deliveryWindowStart
+            ? formatBatchTime(preSaveResult.nextBatch.deliveryWindowStart)
+            : 'later';
+          toast.info(
+            `This batch just filled up! Join the ${nextName} — delivery starts at ${nextDelivery}.`,
+            { autoClose: 8000, position: 'top-center' }
+          );
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       console.log('[Checkout] Order pre-saved successfully');
     } catch (preSaveErr) {
       // Pre-save failed — proceed anyway, verify-payment is still the primary path
@@ -581,7 +622,28 @@ if (isPremiumHostel) {
         <div className="grid lg:grid-cols-[1fr_450px] gap-12">
           {/* Form - Left */}
           <div className="space-y-8">
-            {isClosed && (
+            {/* Batch Status Bar (when batch system is active) */}
+            {isBatchSystemActive && (
+              <BatchStatusBar
+                compact
+                className="mb-2"
+                onJoinNextBatch={() => navigate('/cafeteria', { replace: true })}
+              />
+            )}
+            {/* Delivery window confirmation */}
+            {isBatchSystemActive && batchTimer.isBatchOpen && batchTimer.activeBatch && !isBatchFull && (
+              <div className="p-4 rounded-2xl bg-[#7C3AED]/5 border border-[#7C3AED]/20 flex items-center gap-3">
+                <Timer className="w-5 h-5 text-[#7C3AED] flex-shrink-0" />
+                <p className="text-sm font-semibold text-foreground">
+                  Your food will arrive between{' '}
+                  <span className="font-black text-[#7C3AED]">
+                    {formatBatchTime(batchTimer.activeBatch.deliveryWindowStart)}–{formatBatchTime(batchTimer.activeBatch.deliveryWindowEnd)}
+                  </span>
+                </p>
+              </div>
+            )}
+            {/* Legacy closed banner (non-batch or maintenance) */}
+            {isClosed && !isBatchSystemActive && (
               <div className="mb-2 p-5 rounded-2xl bg-red-500/10 border-2 border-red-500/20 text-red-600 dark:text-red-400 flex items-center gap-4 shadow-lg shadow-red-500/5">
                 <Lock className="w-8 h-8 flex-shrink-0 text-red-500" />
                 <div>

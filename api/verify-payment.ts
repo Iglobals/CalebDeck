@@ -272,6 +272,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 updatedAt: FieldValue.serverTimestamp()
             }, { merge: true });
             console.log(`[verify-payment] Updated pre-saved order to PAID: ${reference}`);
+
+            // Confirm batch slot reservation (move from reserved → confirmed)
+            const preSavedData = existingDoc.data()!;
+            if (preSavedData.foodBatchDayId) {
+                try {
+                    const batchDayRef = db.collection('food_batch_days').doc(preSavedData.foodBatchDayId);
+                    await batchDayRef.update({
+                        confirmedOrders: FieldValue.increment(1),
+                        reservedSlots: FieldValue.increment(-1),
+                        revenue: FieldValue.increment(paidAmount),
+                        [`hostelCounts.${preSavedData.hostel || 'unknown'}`]: FieldValue.increment(1),
+                        [`cafeteriaCounts.${preSavedData.cafeteriaId || 'unknown'}`]: FieldValue.increment(1),
+                        pendingReservations: FieldValue.arrayRemove({
+                            reference,
+                            reservedAt: (preSavedData as any)._reservedAt || 0,
+                        }),
+                    });
+                    console.log(`[verify-payment] Confirmed batch slot for ${preSavedData.foodBatchDayId}`);
+                } catch (batchErr) {
+                    console.warn('[verify-payment] Failed to confirm batch slot (non-blocking):', batchErr);
+                }
+            }
         } else {
             await orderRef.set(orderDoc);
         }

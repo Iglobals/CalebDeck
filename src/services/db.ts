@@ -528,6 +528,9 @@ export interface PlatformSettings {
     autoDispatchDelaySeconds?: number;
     systemOpeningHour?: number;
     systemClosingHour?: number;
+    orderWindowsEnabled?: boolean;
+    orderWindowManualOverride?: boolean;
+    emergencyBannerMessage?: string;
     [key: string]: any;
 }
 
@@ -1086,4 +1089,63 @@ export const subscribeToAllRiderPayouts = (callback: (payouts: RiderPayout[]) =>
         console.error('subscribeToAllRiderPayouts error:', error);
         callback([]);
     });
+};
+// --- Food Batch Schedules & Batch Days ---
+import type { FoodBatchSchedule, FoodBatchDay } from './batchSchedule';
+import { getDefaultSchedules } from './batchSchedule';
+
+export type { FoodBatchSchedule, FoodBatchDay };
+
+/** Subscribe to the batch schedules document (real-time). */
+export const subscribeToBatchSchedules = (callback: (schedules: FoodBatchSchedule[]) => void) => {
+    const ref = doc(db, 'settings', 'food_batches');
+    return onSnapshot(ref, (snapshot) => {
+        if (snapshot.exists()) {
+            const data = snapshot.data();
+            callback((data.schedules || []) as FoodBatchSchedule[]);
+        } else {
+            callback(getDefaultSchedules());
+        }
+    }, (error) => {
+        console.error('subscribeToBatchSchedules error:', error);
+        callback(getDefaultSchedules());
+    });
+};
+
+/** Get batch schedules once (non-realtime). */
+export const getBatchSchedules = async (): Promise<FoodBatchSchedule[]> => {
+    const ref = doc(db, 'settings', 'food_batches');
+    const snapshot = await getDoc(ref);
+    if (snapshot.exists()) {
+        return (snapshot.data().schedules || []) as FoodBatchSchedule[];
+    }
+    return getDefaultSchedules();
+};
+
+/** Admin: save batch schedules. */
+export const updateBatchSchedules = async (schedules: FoodBatchSchedule[]) => {
+    const ref = doc(db, 'settings', 'food_batches');
+    await setDoc(ref, { schedules, updatedAt: serverTimestamp() }, { merge: true });
+};
+
+/** Subscribe to today''s batch day documents (real-time). */
+export const subscribeTodayBatchDays = (callback: (days: FoodBatchDay[]) => void) => {
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    const q = query(
+        collection(db, 'food_batch_days'),
+        where('date', '==', todayStr),
+        limit(10)
+    );
+    return onSnapshot(q, (snapshot) => {
+        callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as FoodBatchDay)));
+    }, (error) => {
+        console.error('subscribeTodayBatchDays error:', error);
+        callback([]);
+    });
+};
+
+/** Admin: update a batch day''s status. */
+export const updateBatchDayStatus = async (batchDayId: string, status: FoodBatchDay['status']) => {
+    const ref = doc(db, 'food_batch_days', batchDayId);
+    await updateDoc(ref, { status, updatedAt: serverTimestamp() });
 };

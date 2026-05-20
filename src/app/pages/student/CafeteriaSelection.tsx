@@ -11,12 +11,15 @@ import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
 import SEO from '../../components/SEO';
 import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
+import { useBatchTimer, formatBatchTime } from '../../../context/BatchTimerContext';
+import { BatchStatusBar } from '../../components/BatchStatusBar';
 
 export default function CafeteriaSelection() {
   const [selectedCafeteria, setSelectedCafeteria] = useState<string | null>(null);
   const navigate = useNavigate();
   const { studentTheme } = useTheme();
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+  const batchTimer = useBatchTimer();
 
   useEffect(() => {
     const unsub = subscribeToPlatformSettings(setPlatformSettings);
@@ -31,15 +34,26 @@ export default function CafeteriaSelection() {
   const isOutOfHours = hour < openingHour || hour >= closingHour;
   const isFoodLocked = platformSettings?.isFoodOrderingClosed === true;
   const isGlobalLocked = platformSettings?.isAcceptingOrders === false;
-  const isClosed = !!platformSettings && (isOutOfHours || isGlobalLocked || isFoodLocked);
-  const statusLabel = isClosed ? 'CalebDeck is Closed' : 'Open now';
+
+  // Batch-aware closing logic: if order windows are enabled, use batch state
+  const isBatchSystemActive = batchTimer.isEnabled || batchTimer.isManualOverride;
+  const isBatchWindowClosed = isBatchSystemActive && !batchTimer.isBatchOpen && !batchTimer.isManualOverride;
+  const isBatchFull = isBatchSystemActive && batchTimer.isBatchFull;
+
+  // Final isClosed: global/food locks always apply. Batch window closed only applies when batch system is active.
+  const isClosed = !!platformSettings && (isGlobalLocked || isFoodLocked || (isBatchSystemActive ? (isBatchWindowClosed || isBatchFull) : isOutOfHours));
+  const statusLabel = isClosed ? (isBatchSystemActive && batchTimer.nextBatch ? `Next: ${batchTimer.nextBatch.batchName}` : 'CalebDeck is Closed') : (isBatchSystemActive && batchTimer.activeBatch ? batchTimer.activeBatch.batchName : 'Open now');
   const statusType = isClosed ? 'inactive' : 'active';
-  const closedTitle = isFoodLocked ? 'Food Ordering is Closed' : isGlobalLocked ? 'CalebDeck is Paused' : 'Ordering Currently Closed';
+  const closedTitle = isFoodLocked ? 'Food Ordering is Closed' : isGlobalLocked ? 'CalebDeck is Paused' : (isBatchSystemActive ? 'Ordering Window Closed' : 'Ordering Currently Closed');
   const closedMessage = isFoodLocked
     ? (platformSettings?.foodOrderingClosedMessage || 'Food ordering is currently closed. Cafeterias are preparing for the next order window.')
     : isGlobalLocked
       ? (platformSettings?.globalClosedMessage || 'CalebDeck is temporarily paused while we make a quick operational update. Please check back shortly.')
-      : `CalebDeck food ordering hours are ${openingHour}:00 to ${closingHour}:00.`;
+      : isBatchSystemActive
+        ? (batchTimer.nextBatch
+          ? `The next ordering window is the ${batchTimer.nextBatch.batchName}. Ordering opens at ${formatBatchTime(batchTimer.nextBatch.orderWindowStart)}.`
+          : 'All delivery batches for today have been completed. Fresh batches open tomorrow morning.')
+        : `CalebDeck food ordering hours are ${openingHour}:00 to ${closingHour}:00.`;
 
   const cafeterias = [
     {
@@ -134,7 +148,19 @@ export default function CafeteriaSelection() {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-6 py-12">
-        {isClosed && (
+        {/* Batch Status Bar — shows when order windows are enabled */}
+        {isBatchSystemActive && (
+          <BatchStatusBar
+            className="mb-8"
+            onJoinNextBatch={() => {
+              // Scroll to top if user wants to wait for next batch
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+        )}
+
+        {/* Full-screen closed overlay — only for global/food locks, NOT for batch window closures */}
+        {(isGlobalLocked || isFoodLocked) && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/85 p-4 backdrop-blur-md">
             <Card className="w-full max-w-md border-2 border-border p-8 text-center shadow-2xl">
               <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-secondary/10 text-secondary">
@@ -204,7 +230,7 @@ export default function CafeteriaSelection() {
               ))}
             </div>
 
-            {/* Info Card */}
+            {/* Info Card — batch-aware copy */}
             <div className="mt-12">
               <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-2 border-primary/30">
                 <div className="flex items-start gap-4">
@@ -213,10 +239,13 @@ export default function CafeteriaSelection() {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold mb-2">
-                      Group Orders Save Time & Money
+                      {isBatchSystemActive ? 'Scheduled Delivery — Your Food, On Time' : 'Group Orders Save Time & Money'}
                     </h3>
                     <p className="text-muted-foreground leading-relaxed">
-                      Order with friends and get 20% off delivery per plate. The more you order together, the more you save! Secure your spot in the next batch.
+                      {isBatchSystemActive
+                        ? 'CalebDeck delivers in planned batches so every meal arrives fresh and on schedule. Place your order during an active window, and we handle the rest — no guessing, no delays.'
+                        : 'Order with friends and get 20% off delivery per plate. The more you order together, the more you save! Secure your spot in the next batch.'
+                      }
                     </p>
                   </div>
                 </div>

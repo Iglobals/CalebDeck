@@ -5,12 +5,14 @@ import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
 import { ProgressStepper } from '../../components/design-system/ProgressStepper';
-import { CheckCircle, MapPin, Clock, Phone, Sparkles, RefreshCw, AlertCircle } from 'lucide-react';
+import { CheckCircle, MapPin, Clock, Phone, Sparkles, RefreshCw, AlertCircle, Timer } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import { subscribeToOrderStatus, getRiderById, getHostelById, Rider, getOrderById, submitReview } from '../../../services/db';
 import { trackOrderTracked } from '../../../services/analytics';
 import { saveOrderToHistory, buildFoodOrderEntry, buildMartOrderEntry, buildCalebNetEntry } from '../../../services/orderHistory';
 import SEO from '../../components/SEO';
+import { BatchTimeline } from '../../components/BatchTimeline';
+import { formatBatchTime } from '../../../context/BatchTimerContext';
 
 const TRACKING_STEPS = ['Received', 'Out for Delivery', 'On The Way', 'Delivered'];
 const MASS_COMM_PICKUP_HOSTELS = ['mary', 'mary hall', 'rebecca', 'rebecca hall', 'esme', 'esme hall', 'mercy', 'mercy hall', 'deborah', 'deborah hall'];
@@ -354,11 +356,25 @@ export default function OrderSuccess() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Expected Arrival</p>
-                    <p className="text-xl font-bold">25–30 minutes</p>
+                    {orderData.deliveryWindowStart ? (
+                      <p className="text-xl font-bold">
+                        {formatBatchTime(orderData.deliveryWindowStart)}–{formatBatchTime(orderData.deliveryWindowEnd)}
+                      </p>
+                    ) : (
+                      <p className="text-xl font-bold">25–30 minutes</p>
+                    )}
                   </div>
                 </div>
               </div>
             </Card>
+
+            {/* Batch Timeline — only shows if order has batch info */}
+            {orderData.foodBatchId && (
+              <BatchTimeline
+                className="mb-4"
+                highlightBatchId={orderData.foodBatchId}
+              />
+            )}
 
             <div className="space-y-4">
               <Button

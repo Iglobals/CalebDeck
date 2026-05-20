@@ -56,6 +56,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         updatedAt: FieldValue.serverTimestamp()
                     });
                     console.log(`[Webhook] Marked pre-saved order as FAILED: ${reference}`);
+
+                    // Free batch slot reservation if applicable
+                    if (existingData.foodBatchDayId) {
+                        try {
+                            const batchDayRef = db.collection('food_batch_days').doc(existingData.foodBatchDayId);
+                            await batchDayRef.update({
+                                reservedSlots: FieldValue.increment(-1),
+                            });
+                            console.log(`[Webhook] Freed batch slot for failed payment: ${existingData.foodBatchDayId}`);
+                        } catch (batchErr) {
+                            console.warn('[Webhook] Failed to free batch slot (non-blocking):', batchErr);
+                        }
+                    }
                 }
                 return res.status(200).json({ received: true, failed: true });
             }

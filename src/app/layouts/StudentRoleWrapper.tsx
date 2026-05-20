@@ -4,6 +4,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { ToastContainer } from 'react-toastify';
 import { MartCartProvider } from '../../context/MartCartContext';
+import { BatchTimerProvider } from '../../context/BatchTimerContext';
 import { MaintenanceGate } from './MaintenanceGate';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -17,9 +18,11 @@ export default function StudentRoleWrapper() {
     return (
         <div className={`min-h-screen transition-colors duration-300 ${studentTheme === 'dark' ? 'bg-[#121212]' : 'bg-[#FAF9F6]'}`}>
             <MartCartProvider>
-                <MaintenanceGate>
-                    <Outlet />
-                </MaintenanceGate>
+                <BatchTimerProvider>
+                    <MaintenanceGate>
+                        <Outlet />
+                    </MaintenanceGate>
+                </BatchTimerProvider>
             </MartCartProvider>
             <ThemeToggle theme={studentTheme} onToggle={toggleStudentTheme} />
             <ToastContainer position="top-right" autoClose={3000} />
