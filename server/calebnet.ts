@@ -77,9 +77,18 @@ export function mapProviderStatus(input: any): FulfillmentStatus {
         return 'SUCCESSFUL';
     }
     if (statusCode === '100' || rawStatus === 'ORDER_RECEIVED') return 'ORDER_RECEIVED';
+    if (rawStatus.includes('ONHOLD') || rawStatus.includes('ON_HOLD')) return 'PENDING_PROVIDER';
     if (rawStatus.includes('PENDING') || rawStatus.includes('PROCESS')) return 'PENDING_PROVIDER';
     if (rawStatus.includes('CANCEL')) return 'CANCELLED';
-    if (rawStatus.includes('FAIL') || rawStatus.includes('DECLIN') || statusCode === '300' || statusCode === '400') {
+    if (
+        rawStatus.includes('FAIL') ||
+        rawStatus.includes('DECLIN') ||
+        rawStatus.includes('INVALID') ||
+        rawStatus.includes('MISSING') ||
+        rawStatus.includes('INSUFFICIENT') ||
+        rawStatus.includes('ERROR') ||
+        ['300', '400', '500'].includes(statusCode)
+    ) {
         return 'REFUND_REQUIRED';
     }
     return statusCode || rawStatus ? 'PENDING_PROVIDER' : 'PROCESSING';
@@ -87,6 +96,13 @@ export function mapProviderStatus(input: any): FulfillmentStatus {
 
 export function shouldPreserveSuccessful(current?: string, next?: string) {
     return current === 'SUCCESSFUL' && next !== 'SUCCESSFUL';
+}
+
+export function providerHealthOutcomeForStatus(status: FulfillmentStatus): 'success' | 'failure' | 'timeout' | 'pending' {
+    if (status === 'SUCCESSFUL') return 'success';
+    if (status === 'FAILED' || status === 'REFUND_REQUIRED' || status === 'CANCELLED') return 'failure';
+    if (status === 'PENDING_PROVIDER') return 'timeout';
+    return 'pending';
 }
 
 export async function clubkonnectGet(path: string, params: Record<string, any>, timeout = 20000) {
@@ -98,7 +114,7 @@ export async function clubkonnectGet(path: string, params: Record<string, any>, 
 export async function updateProviderHealth(
     network: CalebNetNetwork,
     type: CalebNetType,
-    outcome: 'success' | 'failure' | 'timeout',
+    outcome: 'success' | 'failure' | 'timeout' | 'pending',
     reason: string | null = null
 ) {
     const db = adminDb();
@@ -108,9 +124,15 @@ export async function updateProviderHealth(
         const snap = await tx.get(ref);
         const current = snap.exists ? snap.data()! : {};
         const currentFailures = Number(current.failureCount || 0);
-        const failureCount = outcome === 'success' ? 0 : currentFailures + 1;
+        const failureCount = outcome === 'success'
+            ? 0
+            : outcome === 'pending'
+                ? currentFailures
+                : currentFailures + 1;
         const status = outcome === 'success'
             ? 'HEALTHY'
+            : outcome === 'pending'
+                ? (current.status || 'HEALTHY')
             : failureCount >= 5
                 ? 'DOWN'
                 : failureCount >= 3
@@ -124,7 +146,7 @@ export async function updateProviderHealth(
             status,
             failureCount,
             lastChecked: FieldValue.serverTimestamp(),
-            lastFailureReason: outcome === 'success' ? null : reason,
+            lastFailureReason: outcome === 'success' ? null : (reason || current.lastFailureReason || null),
             updatedAt: FieldValue.serverTimestamp(),
         }, { merge: true });
     });

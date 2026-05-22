@@ -226,9 +226,9 @@ export default function AdminCalebNet() {
       const nextBalance = Number(data.balance || 0);
       setWalletBalance(nextBalance);
       window.localStorage.setItem('calebnetWalletBalance', String(nextBalance));
-      toast.success('Wallet balance refreshed');
+      toast.success(data.message || `Clubkonnect balance: ₦${nextBalance.toLocaleString()}`);
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.message || 'Could not fetch Clubkonnect wallet balance.');
     } finally {
       setBusy('');
     }
@@ -355,9 +355,13 @@ export default function AdminCalebNet() {
     setBusy(paymentReference);
     try {
       const data = await adminFetch('/api/calebnet/requery', { method: 'POST', body: JSON.stringify({ paymentReference }) });
-      toast.success(`Requery: ${data.status}`);
+      toast.success(data.message || `Provider status: ${data.status}`);
+      if (data.status && ['PROCESSING', 'ORDER_RECEIVED', 'PENDING_PROVIDER'].includes(data.status)) {
+        toast.info('No final result yet. Keep this order under review and do not ask the student to pay again.');
+      }
+      await loadHealth().catch(() => {});
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.message || 'Could not requery this order.');
     } finally {
       setBusy('');
     }
@@ -380,7 +384,8 @@ export default function AdminCalebNet() {
     setBusy(`health-${network}-${type}`);
     try {
       await adminFetch('/api/calebnet/provider-status/reset', { method: 'POST', body: JSON.stringify({ network, type }) });
-      toast.success(`${network} ${type} reset to healthy`);
+      toast.success(`${network} ${type} manually marked healthy`);
+      await loadHealth();
     } catch (error: any) {
       toast.error(error.message);
     } finally {

@@ -13,6 +13,7 @@ import {
     mapProviderStatus,
     normalizeNetwork,
     normalizeType,
+    providerHealthOutcomeForStatus,
     safePayload,
     setCors,
     updateProviderHealth,
@@ -393,7 +394,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             updatedAt: FieldValue.serverTimestamp(),
         });
 
-        await updateProviderHealth(network, type, fulfillmentStatus === 'REFUND_REQUIRED' || fulfillmentStatus === 'FAILED' ? 'failure' : 'success', null);
+        await updateProviderHealth(
+            network,
+            type,
+            providerHealthOutcomeForStatus(fulfillmentStatus),
+            ['ORDER_RECEIVED', 'PROCESSING', 'PENDING_PROVIDER'].includes(fulfillmentStatus)
+                ? 'Provider has not returned a final status yet.'
+                : null
+        );
 
         return res.status(200).json({
             data: {

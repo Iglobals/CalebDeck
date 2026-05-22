@@ -11,9 +11,9 @@ const MESSAGES: Record<string, { title: string; detail: string; icon: any; badge
   SUCCESSFUL: { title: 'Top-up sent successfully', detail: 'Your CalebNet transaction has been confirmed.', icon: CheckCircle2, badge: 'green' },
   ORDER_RECEIVED: { title: 'Processing your top-up', detail: 'The network has received your transaction and is processing it.', icon: Clock, badge: 'amber' },
   PROCESSING: { title: 'Processing your top-up', detail: 'We are confirming your transaction with the network.', icon: Clock, badge: 'amber' },
-  PENDING_PROVIDER: { title: 'Network delay, we are confirming your transaction', detail: 'Please do not pay again. Admin can requery this order if needed.', icon: RefreshCcw, badge: 'amber' },
-  REFUND_REQUIRED: { title: 'Refund/manual review required', detail: 'Payment was received, but delivery needs admin review.', icon: AlertTriangle, badge: 'purple' },
-  FAILED: { title: 'Refund/manual review required', detail: 'Payment was received, but delivery was not confirmed.', icon: AlertTriangle, badge: 'purple' },
+  PENDING_PROVIDER: { title: 'Network delay, we are confirming your transaction', detail: 'Please do not pay again. We are checking the network response and will update this page once it is confirmed.', icon: RefreshCcw, badge: 'amber' },
+  REFUND_REQUIRED: { title: 'We are reviewing this transaction', detail: 'Delivery was not confirmed, so this has been sent for review. Your wallet will be handled safely once the final status is clear.', icon: AlertTriangle, badge: 'purple' },
+  FAILED: { title: 'We are reviewing this transaction', detail: 'Delivery was not confirmed, so this has been sent for review. Your wallet will be handled safely once the final status is clear.', icon: AlertTriangle, badge: 'purple' },
   CANCELLED: { title: 'Refund/manual review required', detail: 'This transaction has been marked for manual resolution.', icon: AlertTriangle, badge: 'gray' },
 };
 

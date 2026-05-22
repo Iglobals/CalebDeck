@@ -13,6 +13,7 @@ import {
     mapProviderStatus,
     normalizeNetwork,
     normalizeType,
+    providerHealthOutcomeForStatus,
     safePayload,
     setCors,
     updateProviderHealth,
@@ -343,7 +344,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             updatedAt: FieldValue.serverTimestamp(),
         });
 
-        await updateProviderHealth(network, type, failedClearly ? 'failure' : 'success', failedClearly ? 'Provider returned clear failure' : null);
+        await updateProviderHealth(
+            network,
+            type,
+            failedClearly ? 'failure' : providerHealthOutcomeForStatus(fulfillmentStatus),
+            failedClearly
+                ? 'Provider returned clear failure'
+                : fulfillmentStatus === 'ORDER_RECEIVED'
+                    ? 'Provider accepted the order but has not completed it yet.'
+                    : null
+        );
         if (failedClearly) {
             await refundWalletForCalebNetOrder({ orderId: clientRequestId, reason: 'Provider confirmed failure. Wallet refunded.' });
         }
