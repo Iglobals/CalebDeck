@@ -605,49 +605,52 @@ export default function AdminBatchManager() {
                   }`}
                 >
                   {/* Collapsed Header */}
-                  <div
-                    className="flex items-center justify-between cursor-pointer p-5"
+                  <button
+                    type="button"
+                    className="flex w-full cursor-pointer items-start justify-between gap-3 p-4 text-left sm:items-center sm:p-5"
                     onClick={() => setExpandedSchedule(isExpanded ? null : schedule.id)}
+                    aria-expanded={isExpanded}
+                    aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${schedule.batchName} schedule`}
                   >
-                    <div className="flex items-center gap-4">
-                      <div className={`w-3.5 h-3.5 rounded-full ${
+                    <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center sm:gap-4">
+                      <div className={`mt-1 h-3.5 w-3.5 flex-shrink-0 rounded-full sm:mt-0 ${
                         schedule.isActive 
                           ? 'bg-emerald-500 shadow-md shadow-emerald-500/30' 
                           : isDark ? 'bg-gray-700' : 'bg-gray-300'
                       }`} />
-                      <div>
-                        <p className={`font-black text-base ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <div className="min-w-0 flex-1">
+                        <p className={`truncate pr-1 text-base font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>
                           {schedule.batchName}
                         </p>
-                        <div className={`flex flex-wrap items-center gap-x-2 text-xs font-semibold mt-0.5 ${
+                        <div className={`mt-1 grid gap-x-3 gap-y-1 text-xs font-semibold min-[380px]:grid-cols-2 sm:flex sm:flex-wrap sm:items-center ${
                           isDark ? 'text-gray-400' : 'text-gray-500'
                         }`}>
-                          <span>Order window:</span>
-                          <span className="text-[#7C3AED] font-bold">
+                          <span className="min-w-0">Order window:</span>
+                          <span className="font-bold text-[#7C3AED]">
                             {formatBatchTime(schedule.orderWindowStart)} – {formatBatchTime(schedule.orderWindowEnd)}
                           </span>
                           <span className="hidden sm:inline">·</span>
-                          <span>Delivery window:</span>
-                          <span className="text-blue-500 font-bold">
+                          <span className="min-w-0">Delivery window:</span>
+                          <span className="font-bold text-blue-500">
                             {formatBatchTime(schedule.deliveryWindowStart)} – {formatBatchTime(schedule.deliveryWindowEnd)}
                           </span>
                           <span className="hidden sm:inline">·</span>
-                          <span>Cap:</span>
-                          <span className="font-bold">{schedule.maxOrdersPerBatch} orders</span>
+                          <span className="min-w-0 sm:whitespace-nowrap">Cap:</span>
+                          <span className="font-bold sm:whitespace-nowrap">{schedule.maxOrdersPerBatch} orders</span>
                         </div>
                       </div>
                     </div>
                     
-                    <div className={`p-2 rounded-xl transition-all ${
+                    <div className={`flex-shrink-0 rounded-xl p-2 transition-all ${
                       isDark ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-500'
                     }`}>
                       {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                     </div>
-                  </div>
+                  </button>
 
                   {/* Expanded Editor Form */}
                   {isExpanded && (
-                    <div className={`border-t p-6 space-y-6 ${isDark ? 'border-[#333333]' : 'border-gray-100'}`}>
+                    <div className={`space-y-6 border-t p-4 sm:p-6 ${isDark ? 'border-[#333333]' : 'border-gray-100'}`}>
                       <div className="grid sm:grid-cols-2 gap-5">
                         <Input
                           label="Custom Batch Identifier (e.g. Lunch batch)"
@@ -662,35 +665,39 @@ export default function AdminBatchManager() {
                         />
                       </div>
                       
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
+                      <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
                         <Input
                           label="Window Opens"
                           type="time"
+                          className="min-w-0"
                           value={schedule.orderWindowStart}
                           onChange={(e: any) => updateScheduleField(schedule.id, 'orderWindowStart', e.target.value)}
                         />
                         <Input
                           label="Window Closes"
                           type="time"
+                          className="min-w-0"
                           value={schedule.orderWindowEnd}
                           onChange={(e: any) => updateScheduleField(schedule.id, 'orderWindowEnd', e.target.value)}
                         />
                         <Input
                           label="Riders Depart"
                           type="time"
+                          className="min-w-0"
                           value={schedule.deliveryWindowStart}
                           onChange={(e: any) => updateScheduleField(schedule.id, 'deliveryWindowStart', e.target.value)}
                         />
                         <Input
                           label="Estimated Close"
                           type="time"
+                          className="min-w-0"
                           value={schedule.deliveryWindowEnd}
                           onChange={(e: any) => updateScheduleField(schedule.id, 'deliveryWindowEnd', e.target.value)}
                         />
                       </div>
 
-                      <div className="flex items-center justify-between border-t border-dashed pt-5 mt-2 border-gray-800">
-                        <label className="flex items-center gap-3 cursor-pointer group">
+                      <div className={`mt-2 flex flex-col gap-4 border-t border-dashed pt-5 sm:flex-row sm:items-center sm:justify-between ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
+                        <label className="group flex cursor-pointer items-center gap-3">
                           <input
                             type="checkbox"
                             checked={schedule.isActive}
@@ -710,7 +717,7 @@ export default function AdminBatchManager() {
                           variant="ghost" 
                           size="sm" 
                           onClick={() => deleteBatch(schedule.id)} 
-                          className="text-red-500 hover:text-red-600 hover:bg-red-500/5 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5"
+                          className="flex w-full items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-red-500 hover:bg-red-500/5 hover:text-red-600 sm:w-auto"
                         >
                           <Trash2 className="w-4 h-4" /> Delete Interval
                         </Button>
