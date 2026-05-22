@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import adminRoleRepairHandler from '../server/calebnet-handlers/admin-role-repair.js';
 import catalogHandler from '../server/calebnet-handlers/catalog.js';
 import diagnosticsHandler from '../server/calebnet-handlers/diagnostics.js';
 import markRefundedHandler from '../server/calebnet-handlers/orders/mark-refunded.js';
@@ -32,6 +33,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     };
 
     if (path === 'catalog') return run(catalogHandler(req, res));
+    if (path === 'admin-role-repair') return run(adminRoleRepairHandler(req, res));
     if (path === 'diagnostics') return run(diagnosticsHandler(req, res));
     if (path === 'purchase') return run(purchaseHandler(req, res));
     if (path === 'requery') return run(requeryHandler(req, res));
