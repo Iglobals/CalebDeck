@@ -36,6 +36,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
     const [riders, setRiders] = useState<Rider[]>([]);
     const [dispatching, setDispatching] = useState<string | null>(null);
     const [emergencyDispatch, setEmergencyDispatch] = useState<{ hostel: Hostel, orders: any[] } | null>(null);
+    const [deliveryTypeFilter, setDeliveryTypeFilter] = useState<'ALL' | 'INSTANT' | 'BATCH'>('ALL');
     const { adminTheme } = useTheme();
 
     useEffect(() => {
@@ -110,12 +111,18 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
         if (!d || d.toLocaleDateString() !== today) return false;
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
-            return (
+            if (!(
                 o.fullName?.toLowerCase().includes(q) ||
                 o.orderId?.toLowerCase().includes(q) ||
                 o.hostel?.toLowerCase().includes(q) ||
                 o.hostelName?.toLowerCase().includes(q)
-            );
+            )) {
+                return false;
+            }
+        }
+        if (deliveryTypeFilter !== 'ALL') {
+            const type = o.deliveryType || 'INSTANT';
+            if (type !== deliveryTypeFilter) return false;
         }
         return true;
     });
@@ -443,6 +450,23 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                         </Badge>
                     </div>
 
+                    {/* Delivery Type Tabs */}
+                    <div className={`flex items-center gap-2 p-1.5 rounded-xl border ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'} w-fit`}>
+                        {(['ALL', 'INSTANT', 'BATCH'] as const).map(tab => (
+                            <button
+                                key={tab}
+                                onClick={() => setDeliveryTypeFilter(tab)}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                                    deliveryTypeFilter === tab 
+                                        ? (isDark ? 'bg-[#7C3AED] text-white shadow-lg shadow-[#7C3AED]/20' : 'bg-[#7C3AED] text-white shadow-md shadow-[#7C3AED]/20') 
+                                        : (isDark ? 'text-[#9C8F7F] hover:bg-[#333333]' : 'text-gray-500 hover:bg-gray-100')
+                                }`}
+                            >
+                                {tab === 'ALL' ? 'All Orders' : tab === 'INSTANT' ? <span className="flex items-center gap-1"><Zap className="w-3 h-3" /> Instant</span> : <span className="flex items-center gap-1"><Package className="w-3 h-3" /> Batch</span>}
+                            </button>
+                        ))}
+                    </div>
+
                     {/* Hostel Groups */}
                     {hostelGroups.length > 0 ? (
                         <div className="space-y-4">
@@ -533,10 +557,20 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                                     {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
                                                                         <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5">Group</Badge>
                                                                     )}
+                                                                    {(!order.deliveryType || order.deliveryType === 'INSTANT') ? (
+                                                                        <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-amber-500/30 flex items-center gap-1"><Zap className="w-3 h-3" /> Instant</Badge>
+                                                                    ) : (
+                                                                        <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-[#7C3AED]/30 flex items-center gap-1"><Package className="w-3 h-3" /> {order.foodBatchName || 'Batch'}</Badge>
+                                                                    )}
                                                                     <span className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                                                                         {' - '}{order.type === 'combo' ? `${order.quantity || 1} combos` : `${order.plates?.length || 0} plates`}
                                                                     </span>
                                                                 </div>
+                                                                {order.deliveryType === 'BATCH' && order.deliveryWindowStart && (
+                                                                    <p className={`text-[10px] font-bold mt-1 ${isDark ? 'text-[#7C3AED]' : 'text-[#7C3AED]'}`}>
+                                                                        Delivery: {order.deliveryWindowStart}–{order.deliveryWindowEnd}
+                                                                    </p>
+                                                                )}
                                                             </div>
                                                         </div>
                                                         <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 sm:gap-3 shrink-0 ml-2">
@@ -573,6 +607,11 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                     {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
                                                         <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 ml-2 mt-1">Group</Badge>
                                                     )}
+                                                    {(!order.deliveryType || order.deliveryType === 'INSTANT') ? (
+                                                        <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-amber-500/30 ml-2 mt-1 flex items-center gap-1"><Zap className="w-3 h-3" /> Instant</Badge>
+                                                    ) : (
+                                                        <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-[#7C3AED]/30 ml-2 mt-1 flex items-center gap-1"><Package className="w-3 h-3" /> {order.foodBatchName || 'Batch'}</Badge>
+                                                    )}
                                                 </div>
                                                 <div className="flex items-center gap-3">
                                                     <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{getOrderAmount(order).toLocaleString()}</span>
@@ -600,7 +639,17 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                         {failedOrders.map(order => (
                                             <Card key={order.id} onClick={() => setSelectedOrder(order)} className={`p-5 border cursor-pointer hover:border-red-500/30 transition-all ${isDark ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-white border-gray-100 shadow-sm'}`}>
                                                 <div className="flex justify-between items-start mb-3">
-                                                    <div className="min-w-0"><h4 className={`text-sm font-bold truncate ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName || 'Guest'}</h4><p className="text-[10px] font-mono text-[#9C8F7F] mt-0.5">CD-{order.orderId?.slice(-6) || 'N/A'}</p></div>
+                                                    <div className="min-w-0">
+                                                        <h4 className={`text-sm font-bold truncate ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName || 'Guest'}</h4>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <p className="text-[10px] font-mono text-[#9C8F7F]">CD-{order.orderId?.slice(-6) || 'N/A'}</p>
+                                                            {(!order.deliveryType || order.deliveryType === 'INSTANT') ? (
+                                                                <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-amber-500/30 flex items-center gap-1"><Zap className="w-3 h-3" /></Badge>
+                                                            ) : (
+                                                                <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-[#7C3AED]/30 flex items-center gap-1"><Package className="w-3 h-3" /></Badge>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                     {getStatusBadge(order.status)}
                                                 </div>
                                                 <div className="flex justify-between items-end">
@@ -643,6 +692,11 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                             )}
                                             {(selectedOrder.deliveryMode === 'group' || selectedOrder.deliveryMode === 'GROUP') && (
                                                 <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 shrink-0">Group</Badge>
+                                            )}
+                                            {(!selectedOrder.deliveryType || selectedOrder.deliveryType === 'INSTANT') ? (
+                                                <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-amber-500/30 shrink-0 flex items-center gap-1"><Zap className="w-3 h-3" /> Instant</Badge>
+                                            ) : (
+                                                <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-[#7C3AED]/30 shrink-0 flex items-center gap-1"><Package className="w-3 h-3" /> {selectedOrder.foodBatchName || 'Batch'}</Badge>
                                             )}
                                         </div>
                                     </div>

@@ -3,7 +3,7 @@ import { Card } from '../../components/design-system/Card';
 import { Badge } from '../../components/design-system/Badge';
 import {
     ArrowLeft, Package, MapPin, Phone, CheckCircle, Truck,
-    ChevronDown, ChevronUp, Download, FileText, X, Printer
+    ChevronDown, ChevronUp, Download, FileText, X, Printer, Zap
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useTheme } from '../../../context/ThemeContext';
@@ -362,7 +362,7 @@ export default function RiderBatchDetails() {
                                 </Badge>
                                 {batch.isEmergency && (
                                     <Badge className="text-[9px] font-black uppercase tracking-widest bg-red-500/10 text-red-500 border border-red-500/20">
-                                        ⚡ Emergency Redirect
+                                        <Zap className="w-3 h-3 inline-block mr-1" /> Emergency Redirect
                                     </Badge>
                                 )}
                             </div>
@@ -480,7 +480,7 @@ export default function RiderBatchDetails() {
                                                     <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5">Group</Badge>
                                                 )}
                                                 {order.isEmergency && (
-                                                    <Badge className="text-[9px] uppercase font-black px-1.5 py-0.5 bg-red-500/10 text-red-500">⚡ Redirect</Badge>
+                                                    <Badge className="text-[9px] uppercase font-black px-1.5 py-0.5 bg-red-500/10 text-red-500"><Zap className="w-3 h-3 inline-block mr-0.5" /> Redirect</Badge>
                                                 )}
                                             </div>
                                         </div>

@@ -173,6 +173,25 @@ export const subscribeToHostelOrders = (hostelId: string, callback: (orders: any
     });
 };
 
+export const getActiveInstantOrdersCount = async (): Promise<number> => {
+    try {
+        const qSafe = query(
+            collection(db, 'orders'),
+            where('status', 'in', ['PAID', 'ASSIGNED', 'OUT_FOR_DELIVERY', 'ON_THE_WAY'])
+        );
+        const snapshotSafe = await getDocs(qSafe);
+        const instantOrders = snapshotSafe.docs.filter(doc => {
+            const data = doc.data();
+            return data.deliveryType === 'INSTANT' || !data.deliveryType;
+        });
+        
+        return instantOrders.length;
+    } catch (error) {
+        console.error('getActiveInstantOrdersCount error:', error);
+        return 0;
+    }
+};
+
 // Orders (Rider)
 export const subscribeToRiderOrdersByHostels = (hostelIds: string[], callback: (orders: any[]) => void) => {
     if (!hostelIds || hostelIds.length === 0) {
@@ -531,6 +550,15 @@ export interface PlatformSettings {
     orderWindowsEnabled?: boolean;
     orderWindowManualOverride?: boolean;
     emergencyBannerMessage?: string;
+    // Hybrid delivery system
+    instantOrderingEnabled?: boolean;
+    maxActiveInstantOrders?: number;
+    maxInstantOrdersPerHour?: number;
+    instantOverloadBehavior?: 'WARN' | 'BLOCK';
+    instantDeliveryEstimateMin?: number;
+    instantDeliveryEstimateMax?: number;
+    recommendedDeliveryType?: 'INSTANT' | 'BATCH';
+    allowFutureBatchPreorders?: boolean;
     [key: string]: any;
 }
 
@@ -558,6 +586,10 @@ export const subscribeToPlatformSettings = (callback: (settings: PlatformSetting
             if (data.autoDispatchDelaySeconds === undefined) data.autoDispatchDelaySeconds = 60;
             if (data.systemOpeningHour === undefined) data.systemOpeningHour = 10;
             if (data.systemClosingHour === undefined) data.systemClosingHour = 18;
+            if (data.instantOrderingEnabled === undefined) data.instantOrderingEnabled = true;
+            if (data.instantOverloadBehavior === undefined) data.instantOverloadBehavior = 'WARN';
+            if (data.recommendedDeliveryType === undefined) data.recommendedDeliveryType = 'INSTANT';
+            if (data.allowFutureBatchPreorders === undefined) data.allowFutureBatchPreorders = false;
             callback(data);
         } else {
             callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18 });

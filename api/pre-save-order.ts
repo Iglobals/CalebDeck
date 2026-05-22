@@ -54,14 +54,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const isMartOrder = orderData.orderType === 'mart' || orderData.type === 'mart';
 
-        // ─── Order Window Validation (food orders only) ───
+        // ─── Delivery Type Validation (food orders only) ───
         let batchInfo: { batchId: string; batchName: string; deliveryWindowStart: string; deliveryWindowEnd: string; batchDayId: string } | null = null;
+        const deliveryType = orderData.deliveryType || 'INSTANT';
 
         if (!isMartOrder) {
             const settingsSnap = await db.collection('settings').doc('platform').get();
             const settings = settingsSnap.exists ? settingsSnap.data()! : {};
 
-            if (settings.orderWindowsEnabled === true && settings.orderWindowManualOverride !== true) {
+            if (deliveryType === 'BATCH' && settings.orderWindowsEnabled === true) {
                 // Read batch schedules
                 const batchConfigSnap = await db.collection('settings').doc('food_batches').get();
                 const schedules = batchConfigSnap.exists
@@ -70,137 +71,146 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                 const now = new Date();
                 const nowMinutes = now.getHours() * 60 + now.getMinutes();
+                const selectedBatchId = orderData.selectedBatchId;
 
-                // Find active batch (open order window)
-                let activeBatch = schedules.find((s: any) => {
-                    if (!s.isActive) return false;
-                    const [startH, startM] = s.orderWindowStart.split(':').map(Number);
-                    const [endH, endM] = s.orderWindowEnd.split(':').map(Number);
-                    const start = startH * 60 + startM;
-                    const end = endH * 60 + endM;
-                    return nowMinutes >= start && nowMinutes < end;
-                });
-
-                // If no active batch, check grace period
-                if (!activeBatch) {
-                    activeBatch = schedules.find((s: any) => {
-                        if (!s.isActive) return false;
-                        const [endH, endM] = s.orderWindowEnd.split(':').map(Number);
-                        const closeTime = new Date(now);
-                        closeTime.setHours(endH, endM, 0, 0);
-                        const diff = now.getTime() - closeTime.getTime();
-                        return diff > 0 && diff <= GRACE_PERIOD_MS;
-                    });
-
-                    if (!activeBatch) {
-                        // Find next batch for client-side display
-                        const sortedSchedules = schedules
-                            .filter((s: any) => s.isActive)
-                            .sort((a: any, b: any) => {
-                                const aMin = parseInt(a.orderWindowStart.split(':')[0]) * 60 + parseInt(a.orderWindowStart.split(':')[1]);
-                                const bMin = parseInt(b.orderWindowStart.split(':')[0]) * 60 + parseInt(b.orderWindowStart.split(':')[1]);
-                                return aMin - bMin;
-                            });
-                        const nextBatch = sortedSchedules.find((s: any) => {
-                            const [startH, startM] = s.orderWindowStart.split(':').map(Number);
-                            return (startH * 60 + startM) > nowMinutes;
-                        }) || sortedSchedules[0] || null;
-
-                        return res.status(400).json({
-                            error: 'ORDER_WINDOW_CLOSED',
-                            message: 'No order window is currently open',
-                            nextBatch: nextBatch ? {
-                                id: nextBatch.id,
-                                batchName: nextBatch.batchName,
-                                orderWindowStart: nextBatch.orderWindowStart,
-                                deliveryWindowStart: nextBatch.deliveryWindowStart,
-                                deliveryWindowEnd: nextBatch.deliveryWindowEnd,
-                            } : null,
-                        });
-                    }
+                if (!selectedBatchId) {
+                    return res.status(400).json({ error: 'BATCH_ID_MISSING', message: 'No batch selected' });
                 }
 
-                // Check capacity
+                const targetBatch = schedules.find((s: any) => s.id === selectedBatchId && s.isActive);
+                
+                if (!targetBatch) {
+                    return res.status(400).json({ error: 'BATCH_NOT_FOUND', message: 'Selected batch is invalid or inactive' });
+                }
+
+                // Check if batch is currently open OR if future pre-orders are allowed
+                const [startH, startM] = targetBatch.orderWindowStart.split(':').map(Number);
+                const [endH, endM] = targetBatch.orderWindowEnd.split(':').map(Number);
+                const start = startH * 60 + startM;
+                const end = endH * 60 + endM;
+                
+                const isOpen = nowMinutes >= start && nowMinutes < end;
+                const isUpcoming = nowMinutes < start;
+                const isGracePeriod = (nowMinutes - end) * 60 * 1000 <= GRACE_PERIOD_MS;
+                const allowPreorder = settings.allowFutureBatchPreorders === true;
+
+                if (!isOpen && !isGracePeriod && !(isUpcoming && allowPreorder)) {
+                    return res.status(400).json({
+                        error: 'ORDER_WINDOW_CLOSED',
+                        message: 'The selected batch is closed',
+                    });
+                }
+
+                // Check capacity & atomic reservation
                 const todayStr = now.toLocaleDateString('en-CA');
-                const batchDayId = `${todayStr}_${activeBatch.id}`;
+                const batchDayId = `${todayStr}_${targetBatch.id}`;
                 const batchDayRef = db.collection('food_batch_days').doc(batchDayId);
-                const batchDaySnap = await batchDayRef.get();
+                
+                // Run transaction to safely expire old reservations and check capacity
+                try {
+                    await db.runTransaction(async (transaction) => {
+                        const batchDaySnap = await transaction.get(batchDayRef);
+                        let batchDayData = batchDaySnap.exists ? batchDaySnap.data()! : null;
 
-                let batchDayData = batchDaySnap.exists ? batchDaySnap.data()! : null;
+                        if (batchDayData) {
+                            // Expire old reservations (older than 10 mins)
+                            const TEN_MINS = 10 * 60 * 1000;
+                            const pendingReservations = batchDayData.pendingReservations || [];
+                            const nowTime = Date.now();
+                            
+                            const validReservations = pendingReservations.filter((res: any) => 
+                                (nowTime - res.reservedAt) <= TEN_MINS
+                            );
+                            
+                            const expiredCount = pendingReservations.length - validReservations.length;
+                            
+                            // Re-calculate active reserved slots based on valid reservations array
+                            // This ensures reservedSlots never goes negative and is always perfectly in sync
+                            let updatedReservedSlots = validReservations.length;
+                            const confirmedOrders = batchDayData.confirmedOrders || 0;
+                            const totalSlots = confirmedOrders + updatedReservedSlots;
+                            const maxOrders = batchDayData.maxOrders || targetBatch.maxOrdersPerBatch || 999;
 
-                if (batchDayData) {
-                    const totalSlots = (batchDayData.confirmedOrders || 0) + (batchDayData.reservedSlots || 0);
-                    const maxOrders = batchDayData.maxOrders || activeBatch.maxOrdersPerBatch || 999;
+                            if (totalSlots >= maxOrders) {
+                                throw new Error('BATCH_FULL');
+                            }
 
-                    if (totalSlots >= maxOrders) {
-                        // Find next available batch
-                        const sortedSchedules = schedules
-                            .filter((s: any) => s.isActive && s.id !== activeBatch!.id)
-                            .sort((a: any, b: any) => {
-                                const aMin = parseInt(a.orderWindowStart.split(':')[0]) * 60 + parseInt(a.orderWindowStart.split(':')[1]);
-                                const bMin = parseInt(b.orderWindowStart.split(':')[0]) * 60 + parseInt(b.orderWindowStart.split(':')[1]);
-                                return aMin - bMin;
+                            // We have capacity, reserve a slot
+                            updatedReservedSlots += 1;
+                            validReservations.push({ reference, reservedAt: nowTime });
+
+                            transaction.update(batchDayRef, {
+                                reservedSlots: updatedReservedSlots,
+                                pendingReservations: validReservations
                             });
-                        const nextBatch = sortedSchedules.find((s: any) => {
-                            const [startH, startM] = s.orderWindowStart.split(':').map(Number);
-                            return (startH * 60 + startM) > nowMinutes;
-                        }) || sortedSchedules[0] || null;
-
+                        } else {
+                            // Create the batch day doc
+                            transaction.set(batchDayRef, {
+                                date: todayStr,
+                                batchId: targetBatch.id,
+                                batchName: targetBatch.batchName,
+                                orderWindowStart: targetBatch.orderWindowStart,
+                                orderWindowEnd: targetBatch.orderWindowEnd,
+                                deliveryWindowStart: targetBatch.deliveryWindowStart,
+                                deliveryWindowEnd: targetBatch.deliveryWindowEnd,
+                                confirmedOrders: 0,
+                                reservedSlots: 1,
+                                maxOrders: targetBatch.maxOrdersPerBatch || 72,
+                                status: 'OPEN',
+                                revenue: 0,
+                                hostelCounts: {},
+                                cafeteriaCounts: {},
+                                pendingReservations: [{
+                                    reference,
+                                    reservedAt: Date.now(),
+                                }],
+                            });
+                        }
+                    });
+                } catch (transactionErr: any) {
+                    if (transactionErr.message === 'BATCH_FULL') {
                         return res.status(400).json({
                             error: 'BATCH_FULL',
-                            message: `${activeBatch.batchName} has reached capacity`,
-                            nextBatch: nextBatch ? {
-                                id: nextBatch.id,
-                                batchName: nextBatch.batchName,
-                                orderWindowStart: nextBatch.orderWindowStart,
-                                deliveryWindowStart: nextBatch.deliveryWindowStart,
-                                deliveryWindowEnd: nextBatch.deliveryWindowEnd,
-                            } : null,
+                            message: `${targetBatch.batchName} has reached capacity`,
                         });
                     }
-                }
-
-                // Reserve a slot atomically
-                if (!batchDayData) {
-                    // Create the batch day doc
-                    await batchDayRef.set({
-                        date: todayStr,
-                        batchId: activeBatch.id,
-                        batchName: activeBatch.batchName,
-                        orderWindowStart: activeBatch.orderWindowStart,
-                        orderWindowEnd: activeBatch.orderWindowEnd,
-                        deliveryWindowStart: activeBatch.deliveryWindowStart,
-                        deliveryWindowEnd: activeBatch.deliveryWindowEnd,
-                        confirmedOrders: 0,
-                        reservedSlots: 1,
-                        maxOrders: activeBatch.maxOrdersPerBatch || 72,
-                        status: 'OPEN',
-                        revenue: 0,
-                        hostelCounts: {},
-                        cafeteriaCounts: {},
-                        pendingReservations: [{
-                            reference,
-                            reservedAt: Date.now(),
-                        }],
-                    });
-                } else {
-                    // Increment reserved slots
-                    await batchDayRef.update({
-                        reservedSlots: FieldValue.increment(1),
-                        pendingReservations: FieldValue.arrayUnion({
-                            reference,
-                            reservedAt: Date.now(),
-                        }),
-                    });
+                    throw transactionErr;
                 }
 
                 batchInfo = {
-                    batchId: activeBatch.id,
-                    batchName: activeBatch.batchName,
-                    deliveryWindowStart: activeBatch.deliveryWindowStart,
-                    deliveryWindowEnd: activeBatch.deliveryWindowEnd,
+                    batchId: targetBatch.id,
+                    batchName: targetBatch.batchName,
+                    deliveryWindowStart: targetBatch.deliveryWindowStart,
+                    deliveryWindowEnd: targetBatch.deliveryWindowEnd,
                     batchDayId,
                 };
+            }
+            
+            if (deliveryType === 'INSTANT') {
+                const instantEnabled = settings.instantOrderingEnabled !== false;
+                const maxInstant = settings.maxActiveInstantOrders || 999;
+                const instantOverloadBehavior = settings.instantOverloadBehavior || 'WARN';
+                
+                if (!instantEnabled) {
+                    return res.status(400).json({ error: 'INSTANT_THROTTLED', message: 'Instant ordering is disabled' });
+                }
+
+                if (instantOverloadBehavior === 'BLOCK') {
+                    // Count active instant orders
+                    const qSafe = db.collection('orders').where('status', 'in', ['PAID', 'ASSIGNED', 'OUT_FOR_DELIVERY', 'ON_THE_WAY']);
+                    const snapshotSafe = await qSafe.get();
+                    let activeCount = 0;
+                    snapshotSafe.forEach(doc => {
+                        const data = doc.data();
+                        if (data.deliveryType === 'INSTANT' || !data.deliveryType) {
+                            activeCount++;
+                        }
+                    });
+                    
+                    if (activeCount >= maxInstant) {
+                        return res.status(400).json({ error: 'INSTANT_THROTTLED', message: 'Instant ordering is at full capacity' });
+                    }
+                }
             }
         }
 
@@ -234,6 +244,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             cafeteriaId: orderData.cafeteriaId || '',
             sectionId: orderData.sectionId || 'none',
             deliveryMode: orderData.deliveryMode || 'solo',
+            deliveryType: deliveryType,
             paymentReference: reference,
             assignedRiderId: null,
             batchId: null,
@@ -243,7 +254,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             updatedAt: FieldValue.serverTimestamp()
         };
 
-        // Add batch info if order windows are active
+        // Add batch info if this is a batch order
         if (batchInfo) {
             orderDoc.foodBatchId = batchInfo.batchId;
             orderDoc.foodBatchName = batchInfo.batchName;

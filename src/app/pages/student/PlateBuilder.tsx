@@ -4,7 +4,7 @@ import { Logo } from '../../components/design-system/Logo';
 import { GlassCard } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
-import { ArrowLeft, Plus, Minus, X, AlertTriangle, Users, ChevronDown, ChevronUp, Trash2, ChefHat, Gift, Lock } from 'lucide-react';
+import { ArrowLeft, Plus, Minus, X, AlertTriangle, Users, ChevronDown, ChevronUp, Trash2, ChefHat, Gift, Lock, Zap } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { ThemeToggle } from '../../components/ThemeToggle';
 import { toast } from 'react-toastify';
@@ -550,7 +550,7 @@ export default function PlateBuilder() {
         {availableCombos.length > 0 && (
           <div className="mb-12 space-y-6">
             <div className="flex items-center gap-3">
-              <h2 className="text-3xl font-black text-foreground">Quick Combo Packs ⚡</h2>
+              <h2 className="text-3xl font-black text-foreground flex items-center gap-2">Quick Combo Packs <Zap className="w-8 h-8 text-amber-500" fill="currentColor" /></h2>
               <Badge variant="green" className="animate-pulse shadow-sm shadow-green-500/20">Fast Checkout</Badge>
             </div>
 

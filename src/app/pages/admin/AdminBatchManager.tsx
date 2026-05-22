@@ -112,6 +112,20 @@ export default function AdminBatchManager() {
     }
   };
 
+  // ─── Update Platform Setting ───
+  const updatePlatformSetting = async (field: keyof PlatformSettings, value: any) => {
+    try {
+      const settingsRef = doc(db, 'settings', 'platform');
+      await updateDoc(settingsRef, {
+        [field]: value,
+        updatedAt: serverTimestamp(),
+      });
+      toast.success('Setting updated successfully');
+    } catch (err) {
+      toast.error('Failed to update setting');
+    }
+  };
+
   // ─── Schedule Editing ───
   const updateScheduleField = (id: string, field: keyof FoodBatchSchedule, value: any) => {
     setEditSchedules(prev =>
@@ -259,6 +273,114 @@ export default function AdminBatchManager() {
             </div>
           </div>
         )}
+
+        {/* Hybrid Delivery Settings */}
+        <div className={`p-6 rounded-[2rem] border transition-all duration-300 ${
+          isDark 
+            ? 'bg-[#222222] border-[#333333]' 
+            : 'bg-white border-gray-100 shadow-sm'
+        }`}>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-3 rounded-xl bg-[#7C3AED]/10">
+              <Zap className="w-6 h-6 text-[#7C3AED]" />
+            </div>
+            <div>
+              <h2 className={`text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>Hybrid Delivery Settings</h2>
+              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Control instant order flow, throttling, and estimates</p>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* Instant Throttling */}
+            <div className="space-y-5">
+              <h3 className={`text-sm font-bold uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Instant Delivery (Order Now)</h3>
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Enable Instant Orders</p>
+                  <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Allow students to use the "Order Now" checkout option</p>
+                </div>
+                <Button 
+                  variant={platformSettings?.instantOrderingEnabled !== false ? 'primary' : 'outline'}
+                  onClick={() => updatePlatformSetting('instantOrderingEnabled', platformSettings?.instantOrderingEnabled === false ? true : false)}
+                  className={`h-9 px-4 ${platformSettings?.instantOrderingEnabled !== false ? 'bg-[#10B981] hover:bg-[#059669] text-white border-none' : ''}`}
+                >
+                  {platformSettings?.instantOrderingEnabled !== false ? 'ON' : 'OFF'}
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <p className={`text-xs font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Maximum Instant Orders Allowed at Once</p>
+                <div className="flex gap-2">
+                  <Input 
+                    type="number" 
+                    value={platformSettings?.maxActiveInstantOrders || 0}
+                    onChange={(e) => updatePlatformSetting('maxActiveInstantOrders', parseInt(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className={`text-xs font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>When Maximum is Reached</p>
+                <div className="flex gap-2 p-1 bg-muted/30 rounded-lg">
+                  <button
+                    onClick={() => updatePlatformSetting('instantOverloadBehavior', 'WARN')}
+                    className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${platformSettings?.instantOverloadBehavior !== 'BLOCK' ? 'bg-[#7C3AED] text-white shadow-sm' : 'text-muted-foreground'}`}
+                  >
+                    Show Warning Message
+                  </button>
+                  <button
+                    onClick={() => updatePlatformSetting('instantOverloadBehavior', 'BLOCK')}
+                    className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${platformSettings?.instantOverloadBehavior === 'BLOCK' ? 'bg-red-500 text-white shadow-sm' : 'text-muted-foreground'}`}
+                  >
+                    Block Instant Orders Completely
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Estimates & UX */}
+            <div className="space-y-5">
+              <h3 className={`text-sm font-bold uppercase tracking-widest ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Batch & Delivery Settings</h3>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Allow Pre-ordering for Later Delivery Batches</p>
+                  <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Students can pick delivery batches scheduled for later</p>
+                </div>
+                <Button 
+                  variant={platformSettings?.allowFutureBatchPreorders === true ? 'primary' : 'outline'}
+                  onClick={() => updatePlatformSetting('allowFutureBatchPreorders', !platformSettings?.allowFutureBatchPreorders)}
+                  className={`h-9 px-4 ${platformSettings?.allowFutureBatchPreorders === true ? 'bg-[#10B981] hover:bg-[#059669] text-white border-none' : ''}`}
+                >
+                  {platformSettings?.allowFutureBatchPreorders === true ? 'ON' : 'OFF'}
+                </Button>
+              </div>
+
+              <div className="space-y-2 mt-4">
+                <p className={`text-xs font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Delivery Time Estimate (Min - Max mins)</p>
+                <div className="flex items-center gap-2">
+                  <Input 
+                    type="number" 
+                    placeholder="Min"
+                    value={platformSettings?.instantDeliveryEstimateMin || ''}
+                    onChange={(e) => updatePlatformSetting('instantDeliveryEstimateMin', parseInt(e.target.value))}
+                    className="w-full"
+                  />
+                  <span className="text-muted-foreground">-</span>
+                  <Input 
+                    type="number" 
+                    placeholder="Max"
+                    value={platformSettings?.instantDeliveryEstimateMax || ''}
+                    onChange={(e) => updatePlatformSetting('instantDeliveryEstimateMax', parseInt(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* ─── LIVE STATUS DASHBOARD ─── */}
         {isEnabled && (

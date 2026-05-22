@@ -3,7 +3,7 @@ import { Card } from '../../components/design-system/Card';
 import { Badge } from '../../components/design-system/Badge';
 import {
   Package, MapPin, CheckCircle, Clock, Truck,
-  DollarSign, TrendingUp, ChevronRight, Bell, LogOut, Sun, Moon
+  DollarSign, TrendingUp, ChevronRight, Bell, LogOut, Sun, Moon, Zap
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useTheme } from '../../../context/ThemeContext';
@@ -300,7 +300,7 @@ export default function RiderDashboard() {
                       {batch.isEmergency && (
                         <>
                           <span className={isDark ? 'text-[#333333]' : 'text-gray-200'}>|</span>
-                          <span className="text-red-500 font-bold uppercase tracking-wider text-[10px]">⚡ Emergency</span>
+                          <span className="text-red-500 font-bold uppercase tracking-wider text-[10px] flex items-center gap-0.5"><Zap className="w-3 h-3" /> Emergency</span>
                         </>
                       )}
                       {orders.some((o: any) => batch.orderIds?.includes(o.id) && (o.deliveryMode === 'group' || o.deliveryMode === 'GROUP')) && (

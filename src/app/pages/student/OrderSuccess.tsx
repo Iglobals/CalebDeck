@@ -7,7 +7,7 @@ import { Badge } from '../../components/design-system/Badge';
 import { ProgressStepper } from '../../components/design-system/ProgressStepper';
 import { CheckCircle, MapPin, Clock, Phone, Sparkles, RefreshCw, AlertCircle, Timer } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
-import { subscribeToOrderStatus, getRiderById, getHostelById, Rider, getOrderById, submitReview } from '../../../services/db';
+import { subscribeToOrderStatus, getRiderById, getHostelById, Rider, getOrderById, submitReview, subscribeToPlatformSettings } from '../../../services/db';
 import { trackOrderTracked } from '../../../services/analytics';
 import { saveOrderToHistory, buildFoodOrderEntry, buildMartOrderEntry, buildCalebNetEntry } from '../../../services/orderHistory';
 import SEO from '../../components/SEO';
@@ -111,7 +111,13 @@ export default function OrderSuccess() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [platformSettings, setPlatformSettings] = useState<any>(null);
   const enjoyMealRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const unsubSettings = subscribeToPlatformSettings(setPlatformSettings);
+    return () => unsubSettings();
+  }, []);
 
   useEffect(() => {
      if (orderId && localStorage.getItem(`reviewed_${orderId}`)) {
@@ -356,12 +362,26 @@ export default function OrderSuccess() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Expected Arrival</p>
-                    {orderData.deliveryWindowStart ? (
-                      <p className="text-xl font-bold">
-                        {formatBatchTime(orderData.deliveryWindowStart)}–{formatBatchTime(orderData.deliveryWindowEnd)}
-                      </p>
+                    {orderData.deliveryType === 'BATCH' || orderData.foodBatchId ? (
+                      <>
+                        <p className="text-xl font-bold">
+                          {formatBatchTime(orderData.deliveryWindowStart)}–{formatBatchTime(orderData.deliveryWindowEnd)}
+                        </p>
+                        <p className="text-sm text-muted-foreground font-medium mt-1">
+                          Your order is part of <strong>{orderData.foodBatchName}</strong>.
+                        </p>
+                      </>
                     ) : (
-                      <p className="text-xl font-bold">25–30 minutes</p>
+                      <>
+                        <p className="text-xl font-bold">
+                          {platformSettings?.instantDeliveryEstimateMin && platformSettings?.instantDeliveryEstimateMax 
+                            ? `${platformSettings.instantDeliveryEstimateMin}–${platformSettings.instantDeliveryEstimateMax} minutes` 
+                            : 'Processing Now'}
+                        </p>
+                        <p className="text-sm text-muted-foreground font-medium mt-1">
+                          Delivery time depends on rider availability and current order volume.
+                        </p>
+                      </>
                     )}
                   </div>
                 </div>
