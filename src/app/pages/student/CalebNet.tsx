@@ -419,16 +419,23 @@ export default function CalebNet() {
     if (!auth.currentUser) return;
     setProfileLoading(true);
     try {
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      const snap = await getDoc(userRef);
       if (auth.currentUser.displayName !== displayName) {
         await updateProfile(auth.currentUser, { displayName });
       }
-      await setDoc(doc(db, 'users', auth.currentUser.uid), {
-        role: 'STUDENT',
+      const profilePayload: Record<string, any> = {
         email: auth.currentUser.email || null,
         displayName,
         phoneNumber: savedPhoneNumber,
         updatedAt: new Date(),
-      }, { merge: true });
+      };
+      if (!snap.exists()) {
+        profilePayload.role = 'STUDENT';
+        profilePayload.walletBalance = 0;
+        profilePayload.createdAt = new Date();
+      }
+      await setDoc(userRef, profilePayload, { merge: true });
       setStudentProfile({ displayName, phoneNumber: savedPhoneNumber });
       setProfileDraft({ displayName, phoneNumber: savedPhoneNumber });
       if (!phoneTouchedRef.current || !phoneNumber) setPhoneNumber(savedPhoneNumber);

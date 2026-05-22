@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { collection, getDocs, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { auth, db } from '../../../services/firebase';
 import { AdminLayout } from './AdminLayout';
 import { AdminCalebNetAnalytics } from './AdminCalebNetAnalytics';
@@ -155,6 +155,26 @@ export default function AdminCalebNet() {
       setWalletUsers(users);
     } finally {
       setWalletUsersLoading(false);
+    }
+  };
+
+  const deleteWalletUser = async (user: any) => {
+    const balance = Number(user.walletBalance || 0);
+    if (balance > 0) {
+      toast.error('This wallet still has a balance. Resolve or refund the balance before deleting the profile.');
+      return;
+    }
+    const label = user.displayName || user.email || user.id;
+    if (!window.confirm(`Delete CalebNet profile for ${label}? This removes the Firestore profile only and cannot be undone.`)) return;
+    setBusy(`delete-user-${user.id}`);
+    try {
+      await deleteDoc(doc(db, 'users', user.id));
+      setWalletUsers((current) => current.filter((item) => item.id !== user.id));
+      toast.success('CalebNet profile deleted.');
+    } catch (error: any) {
+      toast.error(error.message || 'Could not delete this profile.');
+    } finally {
+      setBusy('');
     }
   };
 
@@ -634,6 +654,7 @@ export default function AdminCalebNet() {
                       <th className="px-4 py-3">Wallet Balance</th>
                       <th className="px-4 py-3">Created</th>
                       <th className="px-4 py-3">User ID</th>
+                      <th className="px-4 py-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -653,6 +674,18 @@ export default function AdminCalebNet() {
                           <td className="px-4 py-3 whitespace-nowrap">{created ? format(created, 'MMM d, h:mm a') : 'N/A'}</td>
                           <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                             <span className="block min-w-[180px] break-all">{user.id}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() => deleteWalletUser(user)}
+                              disabled={busy === `delete-user-${user.id}` || Number(user.walletBalance || 0) > 0}
+                              className="inline-flex items-center gap-2 rounded-lg border border-red-500/30 px-3 py-2 text-xs font-black text-red-600 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-45"
+                              title={Number(user.walletBalance || 0) > 0 ? 'Wallet balance must be resolved first' : 'Delete CalebNet profile'}
+                            >
+                              {busy === `delete-user-${user.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                              Delete
+                            </button>
                           </td>
                         </tr>
                       );
