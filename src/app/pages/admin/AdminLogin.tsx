@@ -6,7 +6,7 @@ import { ShieldCheck, Lock, Mail, ChevronRight, ArrowLeft, Eye, EyeOff } from 'l
 import { useNavigate } from 'react-router';
 import { useTheme } from '../../../context/ThemeContext';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../../services/firebase';
 import { useAuth } from '../../../context/AuthContext';
 import { trackAdminLoginAttempt } from '../../../services/analytics';
@@ -40,13 +40,16 @@ export default function AdminLogin() {
 
             const isRecoveryAdmin = ADMIN_RECOVERY_EMAILS.includes(String(res.user.email || '').toLowerCase());
             const repairAdminProfile = async () => {
-                await setDoc(doc(db, 'users', res.user.uid), {
-                    email: res.user.email,
-                    role: 'ADMIN',
-                    fullName: userDoc.exists() ? (userDoc.data().fullName || 'CalebDeck Admin') : 'CalebDeck Admin',
-                    updatedAt: new Date().toISOString(),
-                    ...(!userDoc.exists() ? { createdAt: new Date().toISOString() } : {}),
-                }, { merge: true });
+                const token = await res.user.getIdToken(true);
+                const response = await fetch('/api/calebnet/admin-role-repair', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(data.error || 'Could not restore admin access.');
             };
 
             if (userDoc.exists() && userDoc.data().role === 'ADMIN') {
@@ -64,7 +67,9 @@ export default function AdminLogin() {
                 await auth.signOut();
             }
         } catch (err: any) {
-            setError('Invalid email or password. Please try again.');
+            setError(err?.message?.includes('restore admin access') || err?.message?.includes('approved for admin recovery')
+                ? err.message
+                : 'Invalid email or password. Please try again.');
             trackAdminLoginAttempt(email, false);
         } finally {
             setLoading(false);

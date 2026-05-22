@@ -419,23 +419,16 @@ export default function CalebNet() {
     if (!auth.currentUser) return;
     setProfileLoading(true);
     try {
-      const userRef = doc(db, 'users', auth.currentUser.uid);
-      const snap = await getDoc(userRef);
       if (auth.currentUser.displayName !== displayName) {
         await updateProfile(auth.currentUser, { displayName });
       }
-      const profilePayload: Record<string, any> = {
+      await setDoc(doc(db, 'users', auth.currentUser.uid), {
+        role: 'STUDENT',
         email: auth.currentUser.email || null,
         displayName,
         phoneNumber: savedPhoneNumber,
         updatedAt: new Date(),
-      };
-      if (!snap.exists()) {
-        profilePayload.role = 'STUDENT';
-        profilePayload.walletBalance = 0;
-        profilePayload.createdAt = new Date();
-      }
-      await setDoc(userRef, profilePayload, { merge: true });
+      }, { merge: true });
       setStudentProfile({ displayName, phoneNumber: savedPhoneNumber });
       setProfileDraft({ displayName, phoneNumber: savedPhoneNumber });
       if (!phoneTouchedRef.current || !phoneNumber) setPhoneNumber(savedPhoneNumber);
@@ -537,8 +530,7 @@ export default function CalebNet() {
 
   const isComingSoon = platformSettings?.isCalebNetComingSoon !== false;
   const calebNetClosedMessage = platformSettings?.calebNetClosedMessage || 'CalebNet is temporarily unavailable while we update plans and provider availability.';
-  const isStudentAccount = !user?.role || user.role === 'STUDENT';
-  const needsProfileSetup = !!user && isStudentAccount && !hasCompleteStudentProfile(studentProfile);
+  const needsProfileSetup = !!user && !hasCompleteStudentProfile(studentProfile);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
