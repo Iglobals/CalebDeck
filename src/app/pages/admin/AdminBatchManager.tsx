@@ -544,39 +544,7 @@ export default function AdminBatchManager() {
           )}
         </div>
 
-        {/* Hour-based Fallback View */}
-        {!isEnabled && (
-          <div className={`p-10 rounded-[2.5rem] border text-center transition-all ${
-            isDark ? 'bg-[#222222]/30 border-[#333333]' : 'bg-white border-gray-100 shadow-xl'
-          }`}>
-            <div className="max-w-md mx-auto space-y-6">
-              <div className={`w-16 h-16 rounded-[1.75rem] mx-auto flex items-center justify-center ${
-                isDark ? 'bg-[#2A2A2A] text-gray-500' : 'bg-gray-50 text-gray-400'
-              }`}>
-                <Clock className="w-8 h-8" />
-              </div>
-              
-              <div className="space-y-2">
-                <h3 className={`text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  Batch System is Inactive
-                </h3>
-                <p className={`text-sm font-medium leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  CalebDeck is using standard operational hours ({platformSettings?.systemOpeningHour || 10}:00 – {platformSettings?.systemClosingHour || 18}:00). Students can place orders instantly at any point in this period.
-                </p>
-              </div>
 
-              <div className="pt-2">
-                <Button 
-                  variant="primary" 
-                  onClick={toggleOrderWindows}
-                  className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white shadow-lg shadow-[#7C3AED]/20 font-black px-8 py-4 rounded-2xl border-none"
-                >
-                  Enable Delivery Batches
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </AdminLayout>
   );
