@@ -22,14 +22,16 @@ export function BatchClock({ size = 80, className = '' }: BatchClockProps) {
 
   // Derive hand rotations from countdown
   const { forkAngle, spoonAngle } = useMemo(() => {
-    const totalSeconds = Math.floor(countdownMs / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
+    // By using the raw total seconds without a modulo (% 60), 
+    // the CSS transform value grows/shrinks continuously (e.g. 360 -> 354 -> 348).
+    // This prevents the visual "snapping" or "restarting" effect when crossing 0.
+    const totalSeconds = countdownMs / 1000;
 
     // Fork (minute hand): full rotation per 60 minutes
-    const forkDeg = (minutes % 60) * 6; // 360° / 60 = 6° per minute
+    const forkDeg = (totalSeconds / 60) * 6; 
+    
     // Spoon (second hand): full rotation per 60 seconds
-    const spoonDeg = seconds * 6;
+    const spoonDeg = totalSeconds * 6;
 
     return { forkAngle: forkDeg, spoonAngle: spoonDeg };
   }, [countdownMs]);
@@ -52,8 +54,9 @@ export function BatchClock({ size = 80, className = '' }: BatchClockProps) {
     return { x1, y1, x2, y2, major: i % 3 === 0 };
   });
 
-  const glowColor = isBatchOpen ? 'rgba(124, 58, 237, 0.25)' : 'rgba(252, 211, 77, 0.15)';
-  const accentColor = isBatchOpen ? '#7C3AED' : '#FCD34D';
+  const glowColor = 'rgba(124, 58, 237, 0.25)';
+  const primaryColor = '#7C3AED'; // Purple
+  const secondaryColor = '#FCD34D'; // Honey Yellow
   const pulseClass = isBatchOpen ? 'animate-pulse' : '';
 
   return (
@@ -74,7 +77,7 @@ export function BatchClock({ size = 80, className = '' }: BatchClockProps) {
           cy={center}
           r={plateRadius + 2}
           fill="none"
-          stroke={accentColor}
+          stroke={primaryColor}
           strokeWidth="1"
           opacity="0.3"
         />
@@ -128,7 +131,7 @@ export function BatchClock({ size = 80, className = '' }: BatchClockProps) {
             y1={center + 3}
             x2={center}
             y2={center - forkLength}
-            stroke={accentColor}
+            stroke={primaryColor}
             strokeWidth="2"
             strokeLinecap="round"
           />
@@ -138,7 +141,7 @@ export function BatchClock({ size = 80, className = '' }: BatchClockProps) {
             y1={center - forkLength + 3}
             x2={center - 2.5}
             y2={center - forkLength - 2}
-            stroke={accentColor}
+            stroke={primaryColor}
             strokeWidth="1"
             strokeLinecap="round"
           />
@@ -147,7 +150,7 @@ export function BatchClock({ size = 80, className = '' }: BatchClockProps) {
             y1={center - forkLength + 1}
             x2={center}
             y2={center - forkLength - 3}
-            stroke={accentColor}
+            stroke={primaryColor}
             strokeWidth="1"
             strokeLinecap="round"
           />
@@ -156,7 +159,7 @@ export function BatchClock({ size = 80, className = '' }: BatchClockProps) {
             y1={center - forkLength + 3}
             x2={center + 2.5}
             y2={center - forkLength - 2}
-            stroke={accentColor}
+            stroke={primaryColor}
             strokeWidth="1"
             strokeLinecap="round"
           />
@@ -176,7 +179,7 @@ export function BatchClock({ size = 80, className = '' }: BatchClockProps) {
             y1={center + 3}
             x2={center}
             y2={center - spoonLength + 3}
-            className="stroke-muted-foreground"
+            stroke={secondaryColor}
             strokeWidth="1.5"
             strokeLinecap="round"
           />
@@ -186,7 +189,7 @@ export function BatchClock({ size = 80, className = '' }: BatchClockProps) {
             cy={center - spoonLength - 1}
             rx="2.5"
             ry="4"
-            className="fill-muted-foreground/60"
+            fill={secondaryColor}
             stroke="none"
           />
         </g>
@@ -196,7 +199,7 @@ export function BatchClock({ size = 80, className = '' }: BatchClockProps) {
           cx={center}
           cy={center}
           r={size * 0.04}
-          fill={accentColor}
+          fill={secondaryColor}
         />
       </svg>
 

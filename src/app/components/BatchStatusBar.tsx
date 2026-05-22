@@ -69,7 +69,7 @@ export function BatchStatusBar({ compact = false, className = '', onJoinNextBatc
     const isAlmostFull = fillPercent >= 80;
 
     return (
-      <Card className={`border-2 border-[#7C3AED]/20 bg-gradient-to-r from-[#7C3AED]/5 to-transparent overflow-hidden ${className}`}>
+      <Card className={`border-2 border-y-[#7C3AED]/20 border-r-[#7C3AED]/20 border-l-[#FCD34D] border-l-4 bg-gradient-to-r from-[#7C3AED]/5 to-[#FCD34D]/5 overflow-hidden ${className}`}>
         <div className={`flex items-center gap-4 ${compact ? 'p-3' : 'p-5'}`}>
           {!compact && <BatchClock size={64} />}
 
@@ -88,7 +88,7 @@ export function BatchStatusBar({ compact = false, className = '', onJoinNextBatc
             {/* Delivery promise — psychologically reassuring copy */}
             <p className="text-sm font-semibold text-foreground leading-snug">
               Order now — your food arrives between{' '}
-              <span className="font-black text-[#7C3AED]">
+              <span className="font-black text-amber-600 dark:text-[#FCD34D]">
                 {formatBatchTime(activeBatch.deliveryWindowStart)}–{formatBatchTime(activeBatch.deliveryWindowEnd)}
               </span>
             </p>

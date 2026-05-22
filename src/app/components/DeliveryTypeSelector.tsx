@@ -16,6 +16,7 @@ interface DeliveryTypeSelectorProps {
   selectedBatch: SelectedBatchInfo | null;
   onOpenBatchPicker: () => void;
   isBatchSystemEnabled: boolean;
+  isInstantEnabled: boolean;
   recommendedType: 'INSTANT' | 'BATCH';
   instantThrottleState: 'OK' | 'WARN' | 'BLOCKED';
   instantEstimateMin?: number;
@@ -35,6 +36,7 @@ export function DeliveryTypeSelector({
   selectedBatch,
   onOpenBatchPicker,
   isBatchSystemEnabled,
+  isInstantEnabled,
   recommendedType,
   instantThrottleState,
   instantEstimateMin,
@@ -44,9 +46,14 @@ export function DeliveryTypeSelector({
   const showThrottleWarning = instantThrottleState === 'WARN';
 
   // Order cards: recommended type first
-  const cards: ('INSTANT' | 'BATCH')[] = recommendedType === 'BATCH' && isBatchSystemEnabled
-    ? ['BATCH', 'INSTANT']
-    : ['INSTANT', 'BATCH'];
+  const cards: ('INSTANT' | 'BATCH')[] = [];
+  if (recommendedType === 'BATCH' && isBatchSystemEnabled) {
+    cards.push('BATCH');
+    if (isInstantEnabled) cards.push('INSTANT');
+  } else {
+    if (isInstantEnabled) cards.push('INSTANT');
+    if (isBatchSystemEnabled) cards.push('BATCH');
+  }
 
   return (
     <div className="space-y-4">
@@ -88,7 +95,7 @@ export function DeliveryTypeSelector({
                     ? 'opacity-50 cursor-not-allowed border-border bg-muted/30'
                     : isSelected
                       ? 'border-[#7C3AED] bg-[#7C3AED]/5 shadow-lg shadow-[#7C3AED]/10 scale-[1.01]'
-                      : 'border-border hover:border-[#7C3AED]/40 hover:bg-[#7C3AED]/[0.02] bg-card/50'
+                      : 'border-border hover:border-[#FCD34D]/40 hover:bg-[#FCD34D]/[0.05] bg-card/50'
                   }
                 `}
               >
@@ -97,22 +104,24 @@ export function DeliveryTypeSelector({
                   {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-white" />}
                 </div>
 
-                <div className="flex items-start gap-4 pr-8">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? 'bg-[#7C3AED] shadow-lg shadow-[#7C3AED]/30' : 'bg-amber-500/10'}`}>
-                    <Zap className={`w-6 h-6 ${isSelected ? 'text-white' : 'text-amber-500'}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-3 pr-8 mb-2">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? 'bg-[#7C3AED] shadow-lg shadow-[#7C3AED]/30' : 'bg-amber-500/10'}`}>
+                      <Zap className={`w-5 h-5 ${isSelected ? 'text-white' : 'text-amber-500'}`} />
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-lg font-bold">Order Now</h3>
                       <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
                         Standard
                       </span>
                       {isRecommended && (
-                        <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-[#7C3AED]/10 text-[#7C3AED] flex items-center gap-1">
+                        <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-[#FCD34D]/10 text-amber-500 dark:text-[#FCD34D] flex items-center gap-1">
                           <Sparkles className="w-3 h-3" /> Recommended
                         </span>
                       )}
                     </div>
+                  </div>
+                  <div className="flex-1 min-w-0 pr-8">
                     <p className="text-sm text-muted-foreground font-medium leading-relaxed">
                       Your order gets processed immediately once payment is confirmed. Delivery time depends on cafeteria queue, rider availability, and current order volume.
                     </p>
@@ -148,7 +157,7 @@ export function DeliveryTypeSelector({
                   relative w-full text-left p-5 rounded-2xl border-2 transition-all duration-300 group
                   ${isSelected
                     ? 'border-[#7C3AED] bg-[#7C3AED]/5 shadow-lg shadow-[#7C3AED]/10 scale-[1.01]'
-                    : 'border-border hover:border-[#7C3AED]/40 hover:bg-[#7C3AED]/[0.02] bg-card/50'
+                    : 'border-border hover:border-[#FCD34D]/40 hover:bg-[#FCD34D]/[0.05] bg-card/50'
                   }
                 `}
               >
@@ -157,22 +166,24 @@ export function DeliveryTypeSelector({
                   {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-white" />}
                 </div>
 
-                <div className="flex items-start gap-4 pr-8">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? 'bg-[#7C3AED] shadow-lg shadow-[#7C3AED]/30' : 'bg-[#7C3AED]/10'}`}>
-                    <Package className={`w-6 h-6 ${isSelected ? 'text-white' : 'text-[#7C3AED]'}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-3 pr-8 mb-2">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? 'bg-[#7C3AED] shadow-lg shadow-[#7C3AED]/30' : 'bg-[#7C3AED]/10'}`}>
+                      <Package className={`w-5 h-5 ${isSelected ? 'text-white' : 'text-[#7C3AED]'}`} />
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-lg font-bold">Join a Delivery Batch</h3>
                       <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-[#7C3AED]/10 text-[#7C3AED]">
                         Scheduled
                       </span>
                       {isRecommended && (
-                        <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-[#7C3AED]/10 text-[#7C3AED] flex items-center gap-1">
+                        <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-[#FCD34D]/10 text-amber-500 dark:text-[#FCD34D] flex items-center gap-1">
                           <Sparkles className="w-3 h-3" /> Recommended
                         </span>
                       )}
                     </div>
+                  </div>
+                  <div className="flex-1 min-w-0 pr-8">
                     <p className="text-sm text-muted-foreground font-medium leading-relaxed">
                       Pick a scheduled batch and your order is prepared and dispatched together with others for a smoother, more predictable delivery window.
                     </p>

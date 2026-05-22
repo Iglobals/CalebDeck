@@ -147,6 +147,7 @@ export default function AdminOrderHistory() {
                     <div class="oid">
                         ORD-${order.orderId?.slice(-6) || 'XXXXXX'}
                         ${(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') ? '  -  GROUP' : ''}
+                        ${order.deliveryType === 'BATCH' ? `  -  ${(order.foodBatchName || 'BATCH').toUpperCase()}` : '  -  INSTANT'}
                     </div>
                 </div>
                 <div class="label">Student</div>

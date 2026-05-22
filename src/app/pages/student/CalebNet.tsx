@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { AlertCircle, ArrowLeft, CheckCircle2, ChevronDown, Clock, CreditCard, Eye, EyeOff, Info, Loader2, LogOut, Mail, Phone, Shield, Signal, Wallet, Wifi, X, Zap } from 'lucide-react';
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { AlertCircle, ArrowLeft, CheckCircle2, ChevronDown, Clock, CreditCard, Eye, EyeOff, Info, Loader2, LogOut, Mail, Phone, Shield, Signal, UserRound, Wallet, Wifi, X, Zap } from 'lucide-react';
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup, updateProfile } from 'firebase/auth';
 import { usePaystackPayment } from 'react-paystack';
 import { toast } from 'react-toastify';
 import { collection, doc, getDoc, limit, onSnapshot, query, setDoc, where } from 'firebase/firestore';
@@ -41,6 +41,11 @@ interface WalletTransaction {
   purpose: string;
   status: string;
   createdAt?: any;
+}
+
+interface StudentProfile {
+  displayName: string;
+  phoneNumber: string;
 }
 
 const NETWORKS: Array<{ id: Network; label: string; color: string; text: string; prefixes: string[] }> = [
@@ -112,6 +117,10 @@ async function ensureStudentProfile() {
     phoneNumber: snap.data().phoneNumber || currentUser.phoneNumber || null,
     updatedAt: new Date(),
   }, { merge: true });
+}
+
+function hasCompleteStudentProfile(profile: StudentProfile) {
+  return profile.displayName.trim().length >= 2 && isValidNigerianPhone(profile.phoneNumber.trim());
 }
 
 function CalebNetAuthGate() {
@@ -239,6 +248,10 @@ export default function CalebNet() {
   const [fundAmount, setFundAmount] = useState<number | ''>(1000);
   const [fundingReference, setFundingReference] = useState(`CDWALLET-${Date.now()}-${Math.floor(Math.random() * 100000)}`);
   const purchaseRef = useRef(`CDNETW-${Date.now()}-${Math.floor(Math.random() * 100000)}`);
+  const phoneTouchedRef = useRef(false);
+  const [studentProfile, setStudentProfile] = useState<StudentProfile>({ displayName: '', phoneNumber: '' });
+  const [profileDraft, setProfileDraft] = useState<StudentProfile>({ displayName: '', phoneNumber: '' });
+  const [profileLoading, setProfileLoading] = useState(false);
 
   const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [infoModalTitle, setInfoModalTitle] = useState('');
@@ -265,7 +278,20 @@ export default function CalebNet() {
   useEffect(() => {
     if (!user?.uid) return;
     const userUnsub = onSnapshot(doc(db, 'users', user.uid), (snap) => {
-      setWalletBalance(Number(snap.data()?.walletBalance || 0));
+      const data = snap.data() || {};
+      const nextProfile = {
+        displayName: String(data.displayName || user.displayName || '').trim(),
+        phoneNumber: String(data.phoneNumber || user.phoneNumber || '').trim(),
+      };
+      setWalletBalance(Number(data.walletBalance || 0));
+      setStudentProfile(nextProfile);
+      setProfileDraft((current) => ({
+        displayName: current.displayName || nextProfile.displayName,
+        phoneNumber: current.phoneNumber || nextProfile.phoneNumber,
+      }));
+      if (!phoneTouchedRef.current && !phoneNumber && isValidNigerianPhone(nextProfile.phoneNumber)) {
+        setPhoneNumber(nextProfile.phoneNumber);
+      }
     });
     const txQuery = query(collection(db, 'wallet_transactions'), where('userId', '==', user.uid), limit(12));
     const txUnsub = onSnapshot(txQuery, (snap) => {
@@ -370,6 +396,50 @@ export default function CalebNet() {
 
   const handlePhone = (value: string) => setPhoneNumber(value.replace(/[^0-9]/g, '').slice(0, 11));
 
+  const handleTransactionPhone = (value: string) => {
+    phoneTouchedRef.current = true;
+    handlePhone(value);
+  };
+
+  const handleProfilePhone = (value: string) => {
+    setProfileDraft((current) => ({ ...current, phoneNumber: value.replace(/[^0-9]/g, '').slice(0, 11) }));
+  };
+
+  const saveStudentProfile = async () => {
+    const displayName = profileDraft.displayName.trim().replace(/\s+/g, ' ');
+    const savedPhoneNumber = profileDraft.phoneNumber.trim();
+    if (displayName.length < 2) {
+      toast.error('Enter your name as you want it to appear on CalebNet.');
+      return;
+    }
+    if (!isValidNigerianPhone(savedPhoneNumber)) {
+      toast.error('Enter a valid Nigerian phone number.');
+      return;
+    }
+    if (!auth.currentUser) return;
+    setProfileLoading(true);
+    try {
+      if (auth.currentUser.displayName !== displayName) {
+        await updateProfile(auth.currentUser, { displayName });
+      }
+      await setDoc(doc(db, 'users', auth.currentUser.uid), {
+        role: 'STUDENT',
+        email: auth.currentUser.email || null,
+        displayName,
+        phoneNumber: savedPhoneNumber,
+        updatedAt: new Date(),
+      }, { merge: true });
+      setStudentProfile({ displayName, phoneNumber: savedPhoneNumber });
+      setProfileDraft({ displayName, phoneNumber: savedPhoneNumber });
+      if (!phoneTouchedRef.current || !phoneNumber) setPhoneNumber(savedPhoneNumber);
+      toast.success('Profile saved.');
+    } catch {
+      toast.error('Could not save your profile. Please try again.');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
   const verifyFunding = async (reference: string) => {
     const token = await auth.currentUser?.getIdToken();
     const response = await fetch('/api/wallet/verify-funding', {
@@ -460,6 +530,7 @@ export default function CalebNet() {
 
   const isComingSoon = platformSettings?.isCalebNetComingSoon !== false;
   const calebNetClosedMessage = platformSettings?.calebNetClosedMessage || 'CalebNet is temporarily unavailable while we update plans and provider availability.';
+  const needsProfileSetup = !!user && !hasCompleteStudentProfile(studentProfile);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -623,7 +694,10 @@ export default function CalebNet() {
 
             <div>
               <label className="mb-2 block text-xs font-black uppercase tracking-widest text-muted-foreground">Phone Number</label>
-              <input type="tel" value={phoneNumber} onChange={(event) => handlePhone(event.target.value)} placeholder="08012345678" className="w-full rounded-xl border-2 border-border bg-card px-4 py-4 text-lg font-bold outline-none focus:border-[#7C3AED]" />
+              <input type="tel" value={phoneNumber} onChange={(event) => handleTransactionPhone(event.target.value)} placeholder="08012345678" className="w-full rounded-xl border-2 border-border bg-card px-4 py-4 text-lg font-bold outline-none focus:border-[#7C3AED]" />
+              {studentProfile.phoneNumber && (
+                <p className="mt-2 text-xs font-semibold text-muted-foreground">Your saved number is used by default. You can change it for this purchase.</p>
+              )}
               {phoneNumber.length === 11 && !isValidNigerianPhone(phoneNumber) && <p className="mt-2 text-sm font-semibold text-red-500">Enter a valid Nigerian phone number.</p>}
               {phoneMismatch && <p className="mt-2 text-sm font-semibold text-amber-500">This number looks like {detectNetwork(phoneNumber)}. You selected {network}.</p>}
             </div>
@@ -649,6 +723,12 @@ export default function CalebNet() {
                   <LogOut className="h-5 w-5" />
                 </button>
               </div>
+              {studentProfile.displayName && (
+                <div className="rounded-xl bg-muted/40 p-3 text-sm">
+                  <p className="font-black">{studentProfile.displayName}</p>
+                  <p className="font-mono text-xs text-muted-foreground">{studentProfile.phoneNumber || 'Add phone number'}</p>
+                </div>
+              )}
               <div className="grid grid-cols-3 gap-2">
                 {FUNDING_PRESETS.map((preset) => (
                   <button key={preset} type="button" onClick={() => setFundAmount(preset)} className={`rounded-xl border px-3 py-2 text-sm font-black ${Number(fundAmount) === preset ? 'border-[#7C3AED] bg-[#7C3AED]/10 text-[#7C3AED]' : 'border-border bg-card'}`}>
@@ -732,6 +812,57 @@ export default function CalebNet() {
             </div>
           </Card>
         </main>
+      )}
+
+      {needsProfileSetup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm">
+          <Card className="w-full max-w-md border-[#7C3AED]/20 shadow-2xl">
+            <div className="mb-5 flex items-start gap-3">
+              <div className="rounded-2xl bg-[#7C3AED]/10 p-3 text-[#7C3AED]">
+                <UserRound className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-black">Complete your CalebNet profile</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Add your name and main phone number for faster top-ups.</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <label className="block">
+                <span className="mb-2 block text-xs font-black uppercase tracking-widest text-muted-foreground">Full name</span>
+                <input
+                  value={profileDraft.displayName}
+                  onChange={(event) => setProfileDraft((current) => ({ ...current, displayName: event.target.value }))}
+                  className="w-full rounded-xl border-2 border-border bg-card px-4 py-4 font-bold outline-none focus:border-[#7C3AED]"
+                  placeholder="Your full name"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-xs font-black uppercase tracking-widest text-muted-foreground">Main phone number</span>
+                <input
+                  type="tel"
+                  value={profileDraft.phoneNumber}
+                  onChange={(event) => handleProfilePhone(event.target.value)}
+                  className={`w-full rounded-xl border-2 bg-card px-4 py-4 font-bold outline-none ${profileDraft.phoneNumber && !isValidNigerianPhone(profileDraft.phoneNumber) ? 'border-red-500 focus:border-red-500' : 'border-border focus:border-[#7C3AED]'}`}
+                  placeholder="08012345678"
+                />
+                {profileDraft.phoneNumber && !isValidNigerianPhone(profileDraft.phoneNumber) && (
+                  <p className="mt-2 text-sm font-semibold text-red-500">Enter a valid Nigerian phone number.</p>
+                )}
+              </label>
+
+              <div className="rounded-xl bg-muted/40 p-3 text-xs text-muted-foreground">
+                This number will appear first when you buy data or airtime. You can still enter another recipient number anytime.
+              </div>
+
+              <Button onClick={saveStudentProfile} disabled={profileLoading || !hasCompleteStudentProfile(profileDraft)} className="w-full py-5">
+                {profileLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}
+                Save and Continue
+              </Button>
+            </div>
+          </Card>
+        </div>
       )}
 
       {infoModalOpen && (

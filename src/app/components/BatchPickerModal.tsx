@@ -18,9 +18,10 @@ interface BatchPickerModalProps {
   onClose: () => void;
   onSelectBatch: (batch: SelectedBatchInfo) => void;
   allowFutureBatchPreorders: boolean;
+  selectedBatchId?: string;
 }
 
-export function BatchPickerModal({ isOpen, onClose, onSelectBatch, allowFutureBatchPreorders }: BatchPickerModalProps) {
+export function BatchPickerModal({ isOpen, onClose, onSelectBatch, allowFutureBatchPreorders, selectedBatchId }: BatchPickerModalProps) {
   const batchTimer = useBatchTimer();
 
   if (!isOpen || !batchTimer.isEnabled) return null;
@@ -83,6 +84,8 @@ export function BatchPickerModal({ isOpen, onClose, onSelectBatch, allowFutureBa
             const deliveryWindowStart = formatBatchTime(schedule.deliveryWindowStart);
             const deliveryWindowEnd = formatBatchTime(schedule.deliveryWindowEnd);
 
+            const isSelected = schedule.id === selectedBatchId;
+
             return (
               <div 
                 key={schedule.id}
@@ -100,11 +103,20 @@ export function BatchPickerModal({ isOpen, onClose, onSelectBatch, allowFutureBa
                 }}
                 className={`
                   relative overflow-hidden rounded-2xl border-2 transition-all duration-300
-                  ${isSelectable 
-                    ? 'border-border hover:border-[#7C3AED]/50 bg-card/50 cursor-pointer hover:shadow-lg hover:shadow-[#7C3AED]/5' 
-                    : 'border-border/50 bg-muted/20 opacity-70 cursor-not-allowed grayscale-[0.5]'}
+                  ${!isSelectable 
+                    ? 'border-border/50 bg-muted/20 opacity-70 cursor-not-allowed grayscale-[0.5]' 
+                    : isSelected 
+                      ? 'border-[#7C3AED] bg-[#7C3AED]/5 shadow-lg shadow-[#7C3AED]/10 scale-[1.01]' 
+                      : 'border-border hover:border-[#7C3AED]/50 bg-card/50 cursor-pointer hover:shadow-lg hover:shadow-[#7C3AED]/5'}
                 `}
               >
+                {/* Selection indicator */}
+                {isSelected && (
+                  <div className="absolute top-4 right-4 w-6 h-6 rounded-full border-2 border-[#7C3AED] bg-[#7C3AED] flex items-center justify-center">
+                    <div className="w-2.5 h-2.5 rounded-full bg-white" />
+                  </div>
+                )}
+                
                 <div className="p-6">
                   <div className="flex justify-between items-start mb-4">
                     <div>
@@ -155,7 +167,7 @@ export function BatchPickerModal({ isOpen, onClose, onSelectBatch, allowFutureBa
                               status === 'ALMOST_FULL' ? 'bg-amber-500' : 
                               'bg-gradient-to-r from-[#7C3AED] to-secondary'
                             }`}
-                            style={{ width: \`\${Math.min(batchTimer.fillPercent, 100)}%\` }}
+                            style={{ width: `${Math.min(batchTimer.fillPercent, 100)}%` }}
                           />
                         </div>
                       </div>

@@ -219,7 +219,10 @@ export default function RiderBatchDetails() {
                 <body>
                     <div class="header">
                         <div class="logo">CALEB<span>DECK</span> RIDER</div>
-                        <div class="order-id">BATCH — ${batch?.hostelName || 'N/A'}</div>
+                        <div class="order-id">
+                            BATCH — ${batch?.hostelName || 'N/A'}
+                            ${batchOrders[0]?.foodBatchName ? ` — ${batchOrders[0].foodBatchName.toUpperCase()}` : ''}
+                        </div>
                         <div style="margin-top: 10px; font-size: 12px; font-weight: 700; color: #666;">${batchOrders.length} Orders Total</div>
                     </div>
                     

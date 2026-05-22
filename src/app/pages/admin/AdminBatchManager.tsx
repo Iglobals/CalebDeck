@@ -254,48 +254,7 @@ export default function AdminBatchManager() {
           </div>
         </div>
 
-        {/* Manual Override Banner */}
-        {isEnabled && (
-          <div className={`p-5 rounded-3xl border transition-all duration-300 backdrop-blur-md ${
-            isManualOverride 
-              ? isDark 
-                ? 'bg-amber-500/10 border-amber-500/20 text-amber-400 shadow-lg shadow-amber-500/5' 
-                : 'bg-amber-500/5 border-amber-500/10 text-amber-800 shadow-md'
-              : isDark 
-                ? 'bg-[#222222] border-[#333333] text-gray-400' 
-                : 'bg-white border-gray-150 text-gray-600'
-          }`}>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-start gap-4">
-                <div className={`p-3 rounded-2xl ${isManualOverride ? 'bg-amber-500/10 text-amber-500' : 'bg-gray-500/10 text-gray-500'}`}>
-                  <Shield className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className={`font-black text-base ${isDark ? 'text-white' : 'text-gray-900'}`}>Manual Override Gate</p>
-                  <p className="text-sm font-medium mt-0.5">
-                    {isManualOverride
-                      ? '⚠️ Ordering is forced OPEN — standard batch timer and capacity checks are completely bypassed.'
-                      : 'Standard batch rules apply. Students can only purchase inside active, scheduled order windows.'}
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant={isManualOverride ? 'primary' : 'outline'}
-                size="md"
-                onClick={toggleManualOverride}
-                className={`rounded-xl font-bold px-6 py-2.5 transition-all ${
-                  isManualOverride 
-                    ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/25 border-none' 
-                    : isDark 
-                      ? 'border-gray-700 text-gray-300 hover:bg-gray-800' 
-                      : 'border-gray-250 text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                {isManualOverride ? 'Restore Rules' : 'Force Open Now'}
-              </Button>
-            </div>
-          </div>
-        )}
+
 
         {/* Hybrid Delivery Settings */}
         <div className={`p-6 rounded-[2rem] border transition-all duration-300 ${
@@ -337,10 +296,20 @@ export default function AdminBatchManager() {
                 <div className="flex gap-2">
                   <Input 
                     type="number" 
-                    value={platformSettings?.maxActiveInstantOrders || 0}
-                    onChange={(e) => updatePlatformSetting('maxActiveInstantOrders', parseInt(e.target.value))}
+                    id="maxActiveInstantOrdersInput"
+                    defaultValue={platformSettings?.maxActiveInstantOrders || 0}
                     className="w-full"
                   />
+                  <Button 
+                    variant="primary"
+                    onClick={() => {
+                      const input = document.getElementById('maxActiveInstantOrdersInput') as HTMLInputElement;
+                      if (input) updatePlatformSetting('maxActiveInstantOrders', parseInt(input.value) || 0);
+                    }}
+                    className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white border-none shrink-0"
+                  >
+                    Save
+                  </Button>
                 </div>
               </div>
 
@@ -387,200 +356,43 @@ export default function AdminBatchManager() {
                   <Input 
                     type="number" 
                     placeholder="Min"
-                    value={platformSettings?.instantDeliveryEstimateMin || ''}
-                    onChange={(e) => updatePlatformSetting('instantDeliveryEstimateMin', parseInt(e.target.value))}
+                    id="instantDeliveryEstimateMinInput"
+                    defaultValue={platformSettings?.instantDeliveryEstimateMin || ''}
                     className="w-full"
                   />
                   <span className="text-muted-foreground">-</span>
                   <Input 
                     type="number" 
                     placeholder="Max"
-                    value={platformSettings?.instantDeliveryEstimateMax || ''}
-                    onChange={(e) => updatePlatformSetting('instantDeliveryEstimateMax', parseInt(e.target.value))}
+                    id="instantDeliveryEstimateMaxInput"
+                    defaultValue={platformSettings?.instantDeliveryEstimateMax || ''}
                     className="w-full"
                   />
                 </div>
+                <Button 
+                  variant="primary"
+                  className="w-full mt-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white border-none"
+                  onClick={() => {
+                    const minInput = document.getElementById('instantDeliveryEstimateMinInput') as HTMLInputElement;
+                    const maxInput = document.getElementById('instantDeliveryEstimateMaxInput') as HTMLInputElement;
+                    if (minInput && maxInput) {
+                      const min = parseInt(minInput.value);
+                      const max = parseInt(maxInput.value);
+                      if (!isNaN(min) && !isNaN(max)) {
+                        updatePlatformSetting('instantDeliveryEstimateMin', min);
+                        updatePlatformSetting('instantDeliveryEstimateMax', max);
+                      }
+                    }
+                  }}
+                >
+                  Save Estimates
+                </Button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* ─── LIVE STATUS DASHBOARD ─── */}
-        {isEnabled && (
-          <div className="space-y-5">
-            <div className="flex items-center justify-between">
-              <h2 className={`text-2xl font-black tracking-tight flex items-center gap-2.5 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                <Activity className="w-6 h-6 text-[#7C3AED]" />
-                Live Status Tracker
-              </h2>
-              <span className={`text-xs font-black uppercase tracking-widest px-3.5 py-1.5 rounded-full ${
-                isDark ? 'bg-[#2E2E2E] text-[#9C8F7F]' : 'bg-gray-150 text-gray-500'
-              }`}>
-                Today's Windows
-              </span>
-            </div>
 
-            {batchDays.length === 0 ? (
-              <Card className={`p-10 text-center border-dashed border-2 ${
-                isDark ? 'border-[#333333] bg-[#222222]/30' : 'border-gray-200 bg-gray-50/50'
-              } rounded-[2rem]`}>
-                <Zap className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-                <p className={`font-bold text-base ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Waiting for active batch orders...</p>
-                <p className="text-xs text-muted-foreground mt-1">Live metrics populate as soon as the first order in any batch window is received.</p>
-              </Card>
-            ) : (
-              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {batchDays
-                  .filter(bd => bd.date === todayStr)
-                  .sort((a, b) => a.orderWindowStart.localeCompare(b.orderWindowStart))
-                  .map((batchDay) => {
-                    const fill = getBatchFillPercent(batchDay);
-                    const statusColor = STATUS_COLORS[batchDay.status] || 'gray';
-                    const flow = STATUS_FLOW[batchDay.status];
-                    const totalOrders = batchDay.confirmedOrders + batchDay.reservedSlots;
-                    const StatusIcon = flow?.icon || Zap;
-
-                    return (
-                      <div 
-                        key={batchDay.id} 
-                        className={`rounded-[2rem] border overflow-hidden transition-all duration-300 hover:translate-y-[-4px] flex flex-col justify-between ${
-                          isDark 
-                            ? 'bg-[#222222] border-[#333333] hover:border-[#7C3AED]/30 shadow-xl shadow-black/10' 
-                            : 'bg-white border-gray-100 hover:border-[#7C3AED]/20 shadow-lg shadow-gray-150/40'
-                        }`}
-                      >
-                        {/* Header */}
-                        <div className={`p-5 border-b flex items-center justify-between ${
-                          isDark ? 'border-[#333333] bg-[#2A2A2A]/40' : 'border-gray-100 bg-gray-50/30'
-                        }`}>
-                          <div className="space-y-0.5">
-                            <p className={`font-black text-base ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                              {batchDay.batchName}
-                            </p>
-                            <p className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                              Delivery {formatBatchTime(batchDay.deliveryWindowStart)}–{formatBatchTime(batchDay.deliveryWindowEnd)}
-                            </p>
-                          </div>
-                          <Badge variant={statusColor as any} className="text-[10px] font-black uppercase tracking-widest px-3 py-1">
-                            {batchDay.status}
-                          </Badge>
-                        </div>
-
-                        {/* Stats Body */}
-                        <div className="p-6 space-y-5 flex-1">
-                          
-                          {/* Order progress stats */}
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-xs font-bold">
-                              <span className={`flex items-center gap-1.5 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                                <Users className="w-4 h-4 text-[#7C3AED]" />
-                                {batchDay.confirmedOrders} Confirmed
-                                {batchDay.reservedSlots > 0 && (
-                                  <span className="text-amber-500"> (+{batchDay.reservedSlots} holding)</span>
-                                )}
-                              </span>
-                              <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>
-                                {totalOrders} / {batchDay.maxOrders} max
-                              </span>
-                            </div>
-                            
-                            <div className={`h-2.5 rounded-full overflow-hidden ${isDark ? 'bg-[#333333]' : 'bg-gray-100'}`}>
-                              <div
-                                className="h-full rounded-full transition-all duration-500"
-                                style={{
-                                  width: `${Math.min(100, fill)}%`,
-                                  background: fill >= 90
-                                    ? 'linear-gradient(90deg, #EF4444, #F97316)'
-                                    : fill >= 75
-                                      ? 'linear-gradient(90deg, #F59E0B, #FCD34D)'
-                                      : 'linear-gradient(90deg, #7C3AED, #A78BFA)',
-                                }}
-                              />
-                            </div>
-                          </div>
-
-                          {/* Financial KPI */}
-                          <div className={`p-3 rounded-2xl flex items-center justify-between border ${
-                            isDark ? 'bg-[#2A2A2A]/50 border-gray-800' : 'bg-gray-50 border-gray-100'
-                          }`}>
-                            <span className={`text-xs font-bold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Cumulative Revenue</span>
-                            <div className="flex items-center gap-1 font-black text-emerald-500 text-sm">
-                              <DollarSign className="w-4 h-4" />
-                              <span>₦{(batchDay.revenue || 0).toLocaleString()}</span>
-                            </div>
-                          </div>
-
-                          {/* Hostel pill breakdown */}
-                          {Object.keys(batchDay.hostelCounts || {}).length > 0 && (
-                            <div className="space-y-2">
-                              <p className={`font-black uppercase tracking-widest text-[9px] ${
-                                isDark ? 'text-gray-500' : 'text-gray-400'
-                              }`}>Destination Breakdown</p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {Object.entries(batchDay.hostelCounts || {}).map(([hostel, count]) => (
-                                  <span 
-                                    key={hostel} 
-                                    className={`px-3 py-1 rounded-full text-[10px] font-black tracking-wide border transition-all ${
-                                      isDark 
-                                        ? 'bg-[#2A2A2A] border-[#3A3A3A] text-gray-300' 
-                                        : 'bg-white border-gray-150 text-gray-700 shadow-sm'
-                                    }`}
-                                  >
-                                    {hostel}: <span className="text-[#7C3AED] font-black">{count as number}</span>
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Cafeteria breakdown */}
-                          {Object.keys(batchDay.cafeteriaCounts || {}).length > 0 && (
-                            <div className="space-y-2">
-                              <p className={`font-black uppercase tracking-widest text-[9px] ${
-                                isDark ? 'text-gray-500' : 'text-gray-400'
-                              }`}>Cafeteria Load</p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {Object.entries(batchDay.cafeteriaCounts || {}).map(([cafe, count]) => (
-                                  <span 
-                                    key={cafe} 
-                                    className={`px-3 py-1 rounded-full text-[10px] font-black tracking-wide border transition-all ${
-                                      isDark 
-                                        ? 'bg-[#2A2A2A] border-[#3A3A3A] text-gray-300' 
-                                        : 'bg-white border-gray-150 text-gray-700 shadow-sm'
-                                    }`}
-                                  >
-                                    {cafe}: <span className="text-blue-500 font-black">{count as number}</span>
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Transition Actions Area */}
-                        <div className={`p-4 border-t ${isDark ? 'border-[#333333] bg-[#2A2A2A]/20' : 'border-gray-100 bg-gray-50/20'}`}>
-                          {flow && batchDay.status !== 'COMPLETED' ? (
-                            <button
-                              onClick={() => transitionStatus(batchDay)}
-                              className={`w-full py-3.5 rounded-2xl font-black text-sm text-white flex items-center justify-center gap-2.5 transition-all duration-300 active:scale-98 cursor-pointer shadow-lg hover:shadow-xl ${flow.color}`}
-                            >
-                              <StatusIcon className="w-4.5 h-4.5" />
-                              {flow.label}
-                            </button>
-                          ) : (
-                            <div className="py-3 flex items-center justify-center gap-2 text-emerald-500 font-black text-sm">
-                              <Award className="w-5 h-5 animate-bounce" />
-                              <span>Batch Completed</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* ─── SCHEDULE EDITOR ─── */}
         <div className="space-y-5">

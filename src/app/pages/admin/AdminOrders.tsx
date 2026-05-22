@@ -278,6 +278,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                         <div class="order-id">
                             ORD-${order.orderId?.slice(-6) || 'XXXXXX'}
                             ${(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') ? '  -  GROUP' : ''}
+                            ${order.deliveryType === 'BATCH' ? `  -  ${(order.foodBatchName || 'BATCH').toUpperCase()}` : '  -  INSTANT'}
                         </div>
                     </div>
                     <div class="section">

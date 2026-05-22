@@ -23,6 +23,9 @@ import {
   trackOrderPlaced,
   trackPaymentFailed 
 } from '../../../services/analytics';
+import { DeliveryTypeSelector, SelectedBatchInfo } from '../../components/DeliveryTypeSelector';
+import { BatchPickerModal } from '../../components/BatchPickerModal';
+import { BatchClock } from '../../components/BatchClock';
 
 const DELIVERY_FEE_SOLO = 750;
 const DELIVERY_FEE_GROUP = 580;
@@ -89,6 +92,28 @@ export default function Checkout() {
   const [femaleHostelAgreement, setFemaleHostelAgreement] = useState(false);
 
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+
+  const batchTimer = useBatchTimer();
+  const isBatchSystemActive = batchTimer.isEnabled || batchTimer.isManualOverride;
+
+  const [deliveryType, setDeliveryType] = useState<'INSTANT' | 'BATCH'>(
+    isBatchSystemActive ? 'BATCH' : 'INSTANT'
+  );
+  const [selectedBatch, setSelectedBatch] = useState<SelectedBatchInfo | null>(null);
+  const [isBatchPickerOpen, setIsBatchPickerOpen] = useState(false);
+
+  useEffect(() => {
+    if (deliveryType === 'BATCH' && !selectedBatch && batchTimer.activeBatch) {
+      setSelectedBatch({
+        batchId: batchTimer.activeBatch.id,
+        batchName: batchTimer.activeBatch.batchName,
+        orderWindowStart: batchTimer.activeBatch.orderWindowStart,
+        orderWindowEnd: batchTimer.activeBatch.orderWindowEnd,
+        deliveryWindowStart: batchTimer.activeBatch.deliveryWindowStart,
+        deliveryWindowEnd: batchTimer.activeBatch.deliveryWindowEnd,
+      });
+    }
+  }, [deliveryType, batchTimer.activeBatch, selectedBatch]);
 
   useEffect(() => {
     const unsub = subscribeToPlatformSettings(setPlatformSettings);
@@ -226,6 +251,8 @@ if (isPremiumHostel) {
       cafeteriaId,
       sectionId,
       deliveryMode: currentDeliveryMode,
+      deliveryType,
+      selectedBatchId: deliveryType === 'BATCH' ? selectedBatch?.batchId : undefined,
       ...(isCombo ? {
         type: 'combo',
         comboId: comboOrder.comboId,
@@ -280,6 +307,8 @@ if (isPremiumHostel) {
       cafeteriaId,
       sectionId,
       deliveryMode: currentDeliveryMode,
+      deliveryType,
+      selectedBatchId: deliveryType === 'BATCH' ? selectedBatch?.batchId : undefined,
       ...(isCombo ? {
         type: 'combo',
         comboId: comboOrder.comboId,
@@ -415,9 +444,6 @@ if (isPremiumHostel) {
     });
   };
 
-  const batchTimer = useBatchTimer();
-  const isBatchSystemActive = batchTimer.isEnabled || batchTimer.isManualOverride;
-
   const currentHour = new Date().getHours();
   const openingHour = platformSettings?.systemOpeningHour ?? 10;
   const closingHour = platformSettings?.systemClosingHour ?? 18;
@@ -478,6 +504,8 @@ if (isPremiumHostel) {
         cafeteriaId,
         sectionId,
         deliveryMode: currentDeliveryMode,
+        deliveryType,
+        selectedBatchId: deliveryType === 'BATCH' ? selectedBatch?.batchId : undefined,
         ...(isCombo ? {
           type: 'combo',
           comboId: comboOrder.comboId,
@@ -630,16 +658,30 @@ if (isPremiumHostel) {
                 onJoinNextBatch={() => navigate('/cafeteria', { replace: true })}
               />
             )}
-            {/* Delivery window confirmation */}
+            {/* Delivery window confirmation - Detailed Explanation */}
             {isBatchSystemActive && batchTimer.isBatchOpen && batchTimer.activeBatch && !isBatchFull && (
-              <div className="p-4 rounded-2xl bg-[#7C3AED]/5 border border-[#7C3AED]/20 flex items-center gap-3">
-                <Timer className="w-5 h-5 text-[#7C3AED] flex-shrink-0" />
-                <p className="text-sm font-semibold text-foreground">
-                  Your food will arrive between{' '}
-                  <span className="font-black text-[#7C3AED]">
-                    {formatBatchTime(batchTimer.activeBatch.deliveryWindowStart)}–{formatBatchTime(batchTimer.activeBatch.deliveryWindowEnd)}
-                  </span>
-                </p>
+              <div className="p-4 sm:p-5 mb-6 rounded-2xl sm:rounded-[2rem] bg-[#7C3AED]/5 border border-[#7C3AED]/20 shadow-inner">
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-3 mb-3 sm:mb-4">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#FCD34D]/10 border border-[#FCD34D]/20 shadow-sm">
+                      <BatchClock size={36} className="drop-shadow-sm" />
+                    </div>
+                    <h4 className="font-black text-foreground text-sm sm:text-base">Why Scheduled Batches?</h4>
+                  </div>
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground font-medium leading-relaxed">
+                      To reduce delays during peak hours, CalebDeck now groups active food orders into scheduled delivery batches.
+                    </p>
+                    <p className="text-sm text-muted-foreground font-medium leading-relaxed">
+                      This helps us coordinate riders better, reduce cafeteria wait-time issues, and deliver orders more reliably during busy periods.
+                    </p>
+                    <div className="inline-block px-3 py-2 mt-1 rounded-lg bg-[#FCD34D]/10 border border-[#FCD34D]/20">
+                      <p className="text-sm font-semibold text-foreground">
+                        Expected dispatch begins by <span className="font-black text-amber-600 dark:text-[#FCD34D]">{formatBatchTime(batchTimer.activeBatch.deliveryWindowStart)}</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
             {/* Legacy closed banner (non-batch or maintenance) */}
@@ -653,6 +695,23 @@ if (isPremiumHostel) {
               </div>
             )}
             <section>
+              {isBatchSystemActive && (
+                <div className="mb-12">
+                  <DeliveryTypeSelector
+                    selectedType={deliveryType}
+                    onSelectType={setDeliveryType}
+                    selectedBatch={selectedBatch}
+                    onOpenBatchPicker={() => setIsBatchPickerOpen(true)}
+                    isBatchSystemEnabled={isBatchSystemActive}
+                    isInstantEnabled={platformSettings?.instantOrderingEnabled !== false}
+                    recommendedType="BATCH"
+                    instantThrottleState="OK"
+                    instantEstimateMin={platformSettings?.instantDeliveryEstimateMin}
+                    instantEstimateMax={platformSettings?.instantDeliveryEstimateMax}
+                  />
+                </div>
+              )}
+
               <div className="flex items-center gap-3 mb-8">
                 <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg">
                   <User className="w-6 h-6 text-primary-foreground" />
@@ -751,19 +810,19 @@ if (isPremiumHostel) {
                   )}
                   {/* Trust Bar */}
                   <div className="p-6 rounded-[2rem] bg-secondary/5 border-2 border-secondary/10 shadow-inner">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center flex-shrink-0 shadow-lg">
-                        <Shield className="w-8 h-8 text-secondary-foreground" />
-                      </div>
-                      <div>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center flex-shrink-0 shadow-sm">
+                          <Shield className="w-5 h-5 text-secondary-foreground" />
+                        </div>
                         <div className="font-bold text-lg flex items-center gap-2">
-                          <Lock className="w-5 h-5 text-secondary" />
+                          <Lock className="w-4 h-4 text-secondary" />
                           Secured by Paystack
                         </div>
-                        <p className="text-muted-foreground font-medium">
-                          Your sensitive payment information is encrypted and never stored on our servers.
-                        </p>
                       </div>
+                      <p className="text-muted-foreground font-medium text-sm">
+                        Your sensitive payment information is encrypted and never stored on our servers.
+                      </p>
                     </div>
                   </div>
                 </form>
@@ -913,6 +972,18 @@ if (isPremiumHostel) {
           </div>
         </div>
       </main>
+
+      <BatchPickerModal
+        isOpen={isBatchPickerOpen}
+        onClose={() => setIsBatchPickerOpen(false)}
+        onSelectBatch={(batch) => {
+          setSelectedBatch(batch);
+          setDeliveryType('BATCH');
+          setIsBatchPickerOpen(false);
+        }}
+        allowFutureBatchPreorders={platformSettings?.allowFutureBatchPreorders || false}
+        selectedBatchId={selectedBatch?.batchId}
+      />
     </div>
   );
 }

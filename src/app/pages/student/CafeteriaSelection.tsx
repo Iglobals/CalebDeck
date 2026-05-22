@@ -126,7 +126,7 @@ export default function CafeteriaSelection() {
                 </button>
               </Link>
             )}
-            <h1 className="text-2xl font-bold text-foreground">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">
               {selectedCafeteria ? 'Choose Your Serving Section' : 'Choose a Caleb University Cafeteria'}
             </h1>
           </div>
@@ -212,18 +212,18 @@ export default function CafeteriaSelection() {
             {/* Info Card — batch-aware copy */}
             <div className="mt-12">
               <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-2 border-primary/30">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-secondary flex items-center justify-center flex-shrink-0 shadow-lg">
-                    <Clock className="w-6 h-6 text-secondary-foreground" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold mb-2">
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <Clock className="w-5 h-5 text-secondary-foreground" />
+                    </div>
+                    <h3 className="text-lg sm:text-xl font-bold">
                       Two Ways to Get Your Food
                     </h3>
-                    <p className="text-muted-foreground leading-relaxed">
-                      Order Now for immediate processing, or Join a Delivery Batch for a predictable scheduled window. Group with friends to save on delivery either way.
-                    </p>
                   </div>
+                  <p className="text-muted-foreground leading-relaxed text-sm sm:text-base">
+                    Order Now for immediate processing, or Join a Delivery Batch for a predictable scheduled window. Group with friends to save on delivery either way.
+                  </p>
                 </div>
               </Card>
             </div>
