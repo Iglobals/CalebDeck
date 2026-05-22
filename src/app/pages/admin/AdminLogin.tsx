@@ -11,6 +11,8 @@ import { auth, db } from '../../../services/firebase';
 import { useAuth } from '../../../context/AuthContext';
 import { trackAdminLoginAttempt } from '../../../services/analytics';
 
+const ADMIN_RECOVERY_EMAILS = ['admin@calebdeck.com'];
+
 export default function AdminLogin() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -36,16 +38,23 @@ export default function AdminLogin() {
             const res = await signInWithEmailAndPassword(auth, email, password);
             const userDoc = await getDoc(doc(db, 'users', res.user.uid));
 
-            if (userDoc.exists() && userDoc.data().role === 'ADMIN') {
-                trackAdminLoginAttempt(email, true);
-            } else if (!userDoc.exists() && res.user.email === 'admin@calebdeck.com') {
-                // Auto-repair: admin doc is missing, recreate it
+            const isRecoveryAdmin = ADMIN_RECOVERY_EMAILS.includes(String(res.user.email || '').toLowerCase());
+            const repairAdminProfile = async () => {
                 await setDoc(doc(db, 'users', res.user.uid), {
                     email: res.user.email,
                     role: 'ADMIN',
-                    fullName: 'CalebDeck Admin',
-                    createdAt: new Date().toISOString(),
+                    fullName: userDoc.exists() ? (userDoc.data().fullName || 'CalebDeck Admin') : 'CalebDeck Admin',
+                    updatedAt: new Date().toISOString(),
+                    ...(!userDoc.exists() ? { createdAt: new Date().toISOString() } : {}),
                 }, { merge: true });
+            };
+
+            if (userDoc.exists() && userDoc.data().role === 'ADMIN') {
+                trackAdminLoginAttempt(email, true);
+            } else if (isRecoveryAdmin) {
+                // Auto-repair: the canonical admin account must never be locked out
+                // by a missing or accidentally downgraded Firestore role.
+                await repairAdminProfile();
                 trackAdminLoginAttempt(email, true);
                 window.location.href = '/admin';
                 return;

@@ -537,7 +537,8 @@ export default function CalebNet() {
 
   const isComingSoon = platformSettings?.isCalebNetComingSoon !== false;
   const calebNetClosedMessage = platformSettings?.calebNetClosedMessage || 'CalebNet is temporarily unavailable while we update plans and provider availability.';
-  const needsProfileSetup = !!user && !hasCompleteStudentProfile(studentProfile);
+  const isStudentAccount = !user?.role || user.role === 'STUDENT';
+  const needsProfileSetup = !!user && isStudentAccount && !hasCompleteStudentProfile(studentProfile);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
