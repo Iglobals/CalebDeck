@@ -48,6 +48,29 @@ function XSquare(props: any) {
   );
 }
 
+function TimeField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block min-w-0 space-y-2">
+      <span className="block text-sm font-semibold leading-snug text-foreground">{label}</span>
+      <input
+        type="time"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="block h-12 w-full min-w-0 max-w-full rounded-xl border-2 border-input bg-input-background px-3 text-sm text-foreground outline-none transition-colors focus:border-secondary sm:px-4 sm:text-base"
+        style={{ minWidth: 0 }}
+      />
+    </label>
+  );
+}
+
 const STATUS_COLORS: Record<string, string> = {
   OPEN: 'green',
   CLOSED: 'gray',
@@ -665,34 +688,26 @@ export default function AdminBatchManager() {
                         />
                       </div>
                       
-                      <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
-                        <Input
+                      <div className="grid min-w-0 grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
+                        <TimeField
                           label="Window Opens"
-                          type="time"
-                          className="min-w-0"
                           value={schedule.orderWindowStart}
-                          onChange={(e: any) => updateScheduleField(schedule.id, 'orderWindowStart', e.target.value)}
+                          onChange={(value) => updateScheduleField(schedule.id, 'orderWindowStart', value)}
                         />
-                        <Input
+                        <TimeField
                           label="Window Closes"
-                          type="time"
-                          className="min-w-0"
                           value={schedule.orderWindowEnd}
-                          onChange={(e: any) => updateScheduleField(schedule.id, 'orderWindowEnd', e.target.value)}
+                          onChange={(value) => updateScheduleField(schedule.id, 'orderWindowEnd', value)}
                         />
-                        <Input
+                        <TimeField
                           label="Riders Depart"
-                          type="time"
-                          className="min-w-0"
                           value={schedule.deliveryWindowStart}
-                          onChange={(e: any) => updateScheduleField(schedule.id, 'deliveryWindowStart', e.target.value)}
+                          onChange={(value) => updateScheduleField(schedule.id, 'deliveryWindowStart', value)}
                         />
-                        <Input
+                        <TimeField
                           label="Estimated Close"
-                          type="time"
-                          className="min-w-0"
                           value={schedule.deliveryWindowEnd}
-                          onChange={(e: any) => updateScheduleField(schedule.id, 'deliveryWindowEnd', e.target.value)}
+                          onChange={(value) => updateScheduleField(schedule.id, 'deliveryWindowEnd', value)}
                         />
                       </div>
 

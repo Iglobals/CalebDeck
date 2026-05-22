@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { collection, getDocs, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { auth, db } from '../../../services/firebase';
 import { AdminLayout } from './AdminLayout';
 import { AdminCalebNetAnalytics } from './AdminCalebNetAnalytics';
@@ -22,13 +22,15 @@ import {
   ShieldAlert,
   Trash2,
   TrendingUp,
+  Users,
+  Wallet,
   Wifi,
   X,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { format } from 'date-fns';
 
-type Tab = 'dashboard' | 'analytics' | 'orders' | 'catalog' | 'provider' | 'health';
+type Tab = 'dashboard' | 'analytics' | 'orders' | 'users' | 'catalog' | 'provider' | 'health';
 type CalebNetType = 'DATA' | 'AIRTIME';
 
 const NETWORK_CODES: Record<string, string> = { MTN: '01', GLO: '02', '9MOBILE': '03', AIRTEL: '04' };
@@ -104,6 +106,8 @@ export default function AdminCalebNet() {
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [providerLoading, setProviderLoading] = useState(false);
   const [healthLoading, setHealthLoading] = useState(false);
+  const [walletUsers, setWalletUsers] = useState<any[]>([]);
+  const [walletUsersLoading, setWalletUsersLoading] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(() => {
     const saved = window.localStorage.getItem('calebnetWalletBalance');
     return saved ? Number(saved) : null;
@@ -137,6 +141,23 @@ export default function AdminCalebNet() {
     } finally { setHealthLoading(false); };
   };
 
+  const loadWalletUsers = async () => {
+    setWalletUsersLoading(true);
+    try {
+      const snap = await getDocs(query(collection(db, 'users'), where('role', '==', 'STUDENT'), limit(100)));
+      const users = snap.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .sort((a: any, b: any) => {
+          const aTime = a.createdAt?.seconds || 0;
+          const bTime = b.createdAt?.seconds || 0;
+          return bTime - aTime;
+        });
+      setWalletUsers(users);
+    } finally {
+      setWalletUsersLoading(false);
+    }
+  };
+
   useEffect(() => {
     const unsubOrders = onSnapshot(query(collection(db, 'calebnet_orders'), orderBy('createdAt', 'desc'), limit(50)), (snap) => {
       setOrders(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
@@ -158,6 +179,9 @@ export default function AdminCalebNet() {
       loadProviderPlans().catch((error) => toast.error(`Provider plans read failed: ${error.message}`));
       // Also load catalog so we can detect duplicates
       loadCatalog().catch(() => {});
+    }
+    if (tab === 'users') {
+      loadWalletUsers().catch((error) => toast.error(`Wallet users read failed: ${error.message}`));
     }
   }, [tab]);
 
@@ -400,6 +424,7 @@ export default function AdminCalebNet() {
           ['dashboard', 'Dashboard', BarChart3],
           ['analytics', 'Analytics', TrendingUp],
           ['orders', 'Orders', Clock],
+          ['users', 'Wallet Users', Users],
           ['catalog', 'Catalog', Settings],
           ['provider', 'Provider Plans', Wifi],
           ['health', 'Provider Health', ShieldAlert],
@@ -550,6 +575,92 @@ export default function AdminCalebNet() {
                 </tbody>
               </table>
             </div>
+          </Card>
+        </div>
+      )}
+
+      {tab === 'users' && (
+        <div className="space-y-5">
+          <Card className="flex flex-col gap-3 p-5 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h3 className="text-lg font-black">CalebNet Wallet Users</h3>
+              <p className="text-sm text-muted-foreground">
+                Check student wallet balances and account details for refund support. Loads only when this tab is opened.
+              </p>
+            </div>
+            <Button onClick={loadWalletUsers} disabled={walletUsersLoading} variant="outline">
+              <RefreshCcw className={`h-4 w-4 ${walletUsersLoading ? 'animate-spin' : ''}`} />
+              Refresh Users
+            </Button>
+          </Card>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Card className="p-5">
+              <Users className="mb-3 h-6 w-6 text-[#7C3AED]" />
+              <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Users Loaded</p>
+              <p className="mt-1 text-2xl font-black">{walletUsers.length}</p>
+            </Card>
+            <Card className="p-5">
+              <Wallet className="mb-3 h-6 w-6 text-[#7C3AED]" />
+              <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Wallet Value</p>
+              <p className="mt-1 text-2xl font-black">₦{walletUsers.reduce((sum, user) => sum + Number(user.walletBalance || 0), 0).toLocaleString()}</p>
+            </Card>
+            <Card className="p-5">
+              <CheckCircle2 className="mb-3 h-6 w-6 text-emerald-500" />
+              <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Funded Wallets</p>
+              <p className="mt-1 text-2xl font-black">{walletUsers.filter((user) => Number(user.walletBalance || 0) > 0).length}</p>
+            </Card>
+          </div>
+
+          <Card className="overflow-hidden p-0">
+            {walletUsersLoading ? (
+              <div className="space-y-3 p-5">
+                {[1,2,3,4].map((i) => (
+                  <div key={i} className="animate-pulse rounded-xl border border-border p-4">
+                    <div className="mb-3 h-4 w-40 rounded bg-muted" />
+                    <div className="h-3 w-64 rounded bg-muted" />
+                  </div>
+                ))}
+              </div>
+            ) : walletUsers.length === 0 ? (
+              <p className="p-5 text-muted-foreground">No CalebNet student wallet users found yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-muted/50 text-xs uppercase tracking-widest text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3">Student</th>
+                      <th className="px-4 py-3">Contact</th>
+                      <th className="px-4 py-3">Wallet Balance</th>
+                      <th className="px-4 py-3">Created</th>
+                      <th className="px-4 py-3">User ID</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {walletUsers.map((user) => {
+                      const created = parseDate(user.createdAt);
+                      return (
+                        <tr key={user.id} className="hover:bg-muted/30">
+                          <td className="px-4 py-3">
+                            <span className="block font-black">{user.displayName || 'Unnamed student'}</span>
+                            <span className="block text-xs text-muted-foreground">{user.role || 'STUDENT'}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="block break-all">{user.email || 'No email'}</span>
+                            <span className="block font-mono text-xs text-muted-foreground">{user.phoneNumber || 'No phone'}</span>
+                          </td>
+                          <td className="px-4 py-3 font-black text-[#7C3AED]">₦{Number(user.walletBalance || 0).toLocaleString()}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">{created ? format(created, 'MMM d, h:mm a') : 'N/A'}</td>
+                          <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                            <span className="block min-w-[180px] break-all">{user.id}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Card>
         </div>
       )}
