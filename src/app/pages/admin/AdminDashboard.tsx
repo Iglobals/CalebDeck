@@ -16,7 +16,7 @@ import {
   Zap,
   X
 } from 'lucide-react';
-import { subscribeToAllOrders, subscribeToRiders, subscribeToHostels, dispatchBatch, Rider, Hostel, subscribeToPlatformSettings, updatePlatformSettings, PlatformSettings, orderMatchesHostel } from '../../../services/db';
+import { subscribeToAllOrders, subscribeToRiders, subscribeToHostels, dispatchBatch, Rider, Hostel, subscribeToPlatformSettings, updatePlatformSettings, PlatformSettings, orderMatchesHostel, subscribeTodayBatchDays, BatchDay } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 import { isToday, isYesterday, format } from 'date-fns';
 
@@ -28,17 +28,19 @@ export default function AdminDashboard() {
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
   const [dispatchingHostel, setDispatchingHostel] = useState<string | null>(null);
   const [emergencyCard, setEmergencyCard] = useState<any | null>(null);
+  const [batchDays, setBatchDays] = useState<BatchDay[]>([]);
   const [loading, setLoading] = useState(true);
   const autoDispatchingRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     let loaded = 0;
-    const checkLoaded = () => { loaded++; if (loaded >= 3) setLoading(false); };
+    const checkLoaded = () => { loaded++; if (loaded >= 4) setLoading(false); };
     const unsub = subscribeToAllOrders((data) => { setOrders(data); checkLoaded(); });
     const unsubRiders = subscribeToRiders((data) => { setRiders(data); checkLoaded(); });
     const unsubHostels = subscribeToHostels((data) => { setHostels(data); checkLoaded(); });
+    const unsubBatches = subscribeTodayBatchDays((data) => { setBatchDays(data); checkLoaded(); });
     const unsubPlatform = subscribeToPlatformSettings((data) => setPlatformSettings(data));
-    return () => { unsub(); unsubRiders(); unsubHostels(); unsubPlatform(); };
+    return () => { unsub(); unsubRiders(); unsubHostels(); unsubBatches(); unsubPlatform(); };
   }, []);
 
   const parseDate = (d: any) => d?.seconds ? new Date(d.seconds * 1000) : d ? new Date(d) : null;
@@ -118,6 +120,8 @@ export default function AdminDashboard() {
       return d ? d.toLocaleDateString() === today : false;
     });
     const pendingOrders = hostelOrders.filter(o => o.status === 'PAID');
+    const instantPendingOrders = pendingOrders.filter(o => !o.deliveryType || o.deliveryType === 'INSTANT');
+    const batchPendingOrders = pendingOrders.filter(o => o.deliveryType === 'BATCH');
     const outOrders = hostelOrders.filter(o => o.status === 'OUT_FOR_DELIVERY');
     const otwOrders = hostelOrders.filter(o => o.status === 'ON_THE_WAY');
     const deliveredOrders = hostelOrders.filter(o => o.status === 'DELIVERED');
@@ -134,6 +138,9 @@ export default function AdminDashboard() {
     return {
       hostel,
       pendingOrders,
+      instantPendingCount: instantPendingOrders.length,
+      batchPendingCount: batchPendingOrders.length,
+      batchPendingOrders,
       outOrders,
       otwOrders,
       pendingCount: pendingOrders.length,
@@ -188,6 +195,21 @@ export default function AdminDashboard() {
         if (!card.dispatchRider || card.pendingCount === 0 || autoDispatchingRef.current.has(card.hostel.id)) return;
         const eligible = card.pendingOrders.filter((order) => {
           if (order.status !== 'PAID' || order.batchId || order.assignedRiderId) return false;
+          
+          if (order.deliveryType === 'BATCH' && order.foodBatchId) {
+            const batchDay = batchDays.find(b => b.id === order.foodBatchId);
+            if (!batchDay) return false;
+            
+            const isFull = (batchDay.confirmedOrders || 0) >= (batchDay.plateCapacity || 50);
+            
+            const [hours, minutes] = batchDay.closeTime.split(':').map(Number);
+            const closeTimeObj = new Date();
+            closeTimeObj.setHours(hours, minutes, 0, 0);
+            const isTimeEnded = now > closeTimeObj.getTime();
+            
+            return isFull || isTimeEnded;
+          }
+
           const createdAt = parseDate(order.createdAt);
           return createdAt ? (now - createdAt.getTime()) / 1000 >= autoDispatchDelaySeconds : false;
         });
@@ -199,7 +221,7 @@ export default function AdminDashboard() {
       });
     }, 15000);
     return () => window.clearInterval(timer);
-  }, [autoDispatchEnabled, autoDispatchDelaySeconds, loading, dispatchingHostel, orders, riders, hostels]);
+  }, [autoDispatchEnabled, autoDispatchDelaySeconds, loading, dispatchingHostel, orders, riders, hostels, batchDays]);
 
   const toggleAutoDispatch = async () => {
     await updatePlatformSettings({ autoDispatchEnabled: !autoDispatchEnabled });
@@ -314,10 +336,27 @@ export default function AdminDashboard() {
                 <div className="flex-1 space-y-3">
                   <div className="flex flex-wrap items-center gap-3">
                     <h3 className={`text-lg lg:text-xl font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{card.hostel.name}</h3>
-                    {card.pendingCount > 0 && (
-                      <Badge variant="gold" className="text-[10px] uppercase font-black px-2 py-0.5">
-                        {card.pendingCount} pending
+                    {card.instantPendingCount > 0 && (
+                      <Badge variant="gold" className="text-[10px] uppercase font-black px-2 py-0.5 border border-amber-500/30 flex items-center gap-1">
+                        <Zap className="w-3 h-3" /> {card.instantPendingCount} instant
                       </Badge>
+                    )}
+                    {card.batchPendingCount > 0 && (
+                      <div className="flex items-center gap-1">
+                        <Badge variant="purple" className="text-[10px] uppercase font-black px-2 py-0.5 border border-[#7C3AED]/30 flex items-center gap-1">
+                          <Package className="w-3 h-3" /> {card.batchPendingCount} batch
+                        </Badge>
+                        {/* Batch progress trackers */}
+                        {Array.from(new Set(card.batchPendingOrders.map(o => o.foodBatchId))).map(batchId => {
+                          const batch = batchDays.find(b => b.id === batchId);
+                          if (!batch) return null;
+                          return (
+                            <span key={batchId as string} className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${isDark ? 'bg-[#333333] text-[#9C8F7F]' : 'bg-gray-100 text-gray-500'}`}>
+                              {batch.name}: {batch.confirmedOrders || 0}/{batch.plateCapacity || 50}
+                            </span>
+                          );
+                        })}
+                      </div>
                     )}
                     {card.outCount > 0 && (
                       <Badge variant="purple" className="text-[10px] uppercase font-black px-2 py-0.5">
