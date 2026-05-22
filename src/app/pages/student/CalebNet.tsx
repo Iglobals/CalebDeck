@@ -101,6 +101,7 @@ async function ensureStudentProfile() {
   if (!snap.exists()) {
     await setDoc(userRef, {
       role: 'STUDENT',
+      isCalebNetUser: true,
       email: currentUser.email || null,
       displayName: currentUser.displayName || null,
       phoneNumber: currentUser.phoneNumber || null,
@@ -111,12 +112,16 @@ async function ensureStudentProfile() {
     return;
   }
 
-  await setDoc(userRef, {
+  const existing = snap.data();
+  const profilePatch: Record<string, any> = {
     email: snap.data().email || currentUser.email || null,
     displayName: snap.data().displayName || currentUser.displayName || null,
     phoneNumber: snap.data().phoneNumber || currentUser.phoneNumber || null,
+    isCalebNetUser: true,
     updatedAt: new Date(),
-  }, { merge: true });
+  };
+  if (!existing?.role) profilePatch.role = 'STUDENT';
+  await setDoc(userRef, profilePatch, { merge: true });
 }
 
 function hasCompleteStudentProfile(profile: StudentProfile) {
@@ -428,12 +433,15 @@ export default function CalebNet() {
         email: auth.currentUser.email || null,
         displayName,
         phoneNumber: savedPhoneNumber,
+        isCalebNetUser: true,
         updatedAt: new Date(),
       };
       if (!snap.exists()) {
         profilePayload.role = 'STUDENT';
         profilePayload.walletBalance = 0;
         profilePayload.createdAt = new Date();
+      } else if (!snap.data()?.role) {
+        profilePayload.role = 'STUDENT';
       }
       await setDoc(userRef, profilePayload, { merge: true });
       setStudentProfile({ displayName, phoneNumber: savedPhoneNumber });

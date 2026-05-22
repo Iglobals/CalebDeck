@@ -20,6 +20,7 @@ export async function ensureWalletUser(userId: string, profile: WalletProfile = 
         if (!snap.exists) {
             tx.set(userRef, {
                 role: 'STUDENT',
+                isCalebNetUser: true,
                 email: profile.email || null,
                 displayName: profile.displayName || null,
                 phoneNumber: profile.phoneNumber || null,
@@ -32,6 +33,7 @@ export async function ensureWalletUser(userId: string, profile: WalletProfile = 
 
         const data = snap.data() || {};
         const patch: Record<string, any> = {
+            isCalebNetUser: true,
             updatedAt: FieldValue.serverTimestamp(),
         };
         if (typeof data.walletBalance !== 'number') patch.walletBalance = 0;
@@ -73,12 +75,14 @@ export async function creditWallet(params: {
         if (!userSnap.exists) {
             tx.set(userRef, {
                 role: 'STUDENT',
+                isCalebNetUser: true,
                 walletBalance: nextBalance,
                 createdAt: FieldValue.serverTimestamp(),
                 updatedAt: FieldValue.serverTimestamp(),
             });
         } else {
             tx.set(userRef, {
+                isCalebNetUser: true,
                 walletBalance: nextBalance,
                 updatedAt: FieldValue.serverTimestamp(),
             }, { merge: true });

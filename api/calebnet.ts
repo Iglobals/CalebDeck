@@ -10,6 +10,7 @@ import statusHandler from '../server/calebnet-handlers/status.js';
 import syncAirtimeDiscountsHandler from '../server/calebnet-handlers/sync-airtime-discounts.js';
 import syncProviderPlansHandler from '../server/calebnet-handlers/sync-provider-plans.js';
 import walletBalanceHandler from '../server/calebnet-handlers/wallet-balance.js';
+import walletUserDeleteHandler from '../server/calebnet-handlers/wallet-user-delete.js';
 
 function getPath(req: VercelRequest) {
     const queryPath = req.query.path;
@@ -41,6 +42,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     if (path === 'sync-airtime-discounts') return run(syncAirtimeDiscountsHandler(req, res));
     if (path === 'sync-provider-plans') return run(syncProviderPlansHandler(req, res));
     if (path === 'wallet-balance') return run(walletBalanceHandler(req, res));
+    if (path === 'wallet-users/delete') return run(walletUserDeleteHandler(req, res));
     if (path === 'orders/mark-refunded') return run(markRefundedHandler(req, res));
     if (path === 'provider-status/reset') return run(resetProviderStatusHandler(req, res));
 

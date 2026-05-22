@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { collection, deleteDoc, doc, getDocs, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { collection, getDocs, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { auth, db } from '../../../services/firebase';
 import { AdminLayout } from './AdminLayout';
 import { AdminCalebNetAnalytics } from './AdminCalebNetAnalytics';
@@ -144,9 +144,15 @@ export default function AdminCalebNet() {
   const loadWalletUsers = async () => {
     setWalletUsersLoading(true);
     try {
-      const snap = await getDocs(query(collection(db, 'users'), where('role', '==', 'STUDENT'), limit(100)));
-      const users = snap.docs
-        .map((doc) => ({ id: doc.id, ...doc.data() }))
+      const [calebNetSnap, legacyStudentSnap] = await Promise.all([
+        getDocs(query(collection(db, 'users'), where('isCalebNetUser', '==', true), limit(100))),
+        getDocs(query(collection(db, 'users'), where('role', '==', 'STUDENT'), limit(100))),
+      ]);
+      const byId = new Map<string, any>();
+      [...calebNetSnap.docs, ...legacyStudentSnap.docs].forEach((doc) => {
+        byId.set(doc.id, { id: doc.id, ...doc.data() });
+      });
+      const users = Array.from(byId.values())
         .sort((a: any, b: any) => {
           const aTime = a.createdAt?.seconds || 0;
           const bTime = b.createdAt?.seconds || 0;
@@ -161,16 +167,19 @@ export default function AdminCalebNet() {
   const deleteWalletUser = async (user: any) => {
     const balance = Number(user.walletBalance || 0);
     if (balance > 0) {
-      toast.error('This wallet still has a balance. Resolve or refund the balance before deleting the profile.');
+      toast.error('This wallet still has a balance. Resolve or refund the balance before removing CalebNet access.');
       return;
     }
     const label = user.displayName || user.email || user.id;
-    if (!window.confirm(`Delete CalebNet profile for ${label}? This removes the Firestore profile only and cannot be undone.`)) return;
+    if (!window.confirm(`Remove CalebNet access for ${label}? Their main Firebase login and any rider/admin access will remain. Wallet transactions and past orders stay for records.`)) return;
     setBusy(`delete-user-${user.id}`);
     try {
-      await deleteDoc(doc(db, 'users', user.id));
+      const data = await adminFetch('/api/calebnet/wallet-users/delete', {
+        method: 'POST',
+        body: JSON.stringify({ userId: user.id }),
+      });
       setWalletUsers((current) => current.filter((item) => item.id !== user.id));
-      toast.success('CalebNet profile deleted.');
+      toast.success(data.message || 'CalebNet access removed.');
     } catch (error: any) {
       toast.error(error.message || 'Could not delete this profile.');
     } finally {
