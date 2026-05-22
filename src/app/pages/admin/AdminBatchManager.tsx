@@ -350,44 +350,7 @@ export default function AdminBatchManager() {
                 </Button>
               </div>
 
-              <div className="space-y-2 mt-4">
-                <p className={`text-xs font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Delivery Time Estimate (Min - Max mins)</p>
-                <div className="flex items-center gap-2">
-                  <Input 
-                    type="number" 
-                    placeholder="Min"
-                    id="instantDeliveryEstimateMinInput"
-                    defaultValue={platformSettings?.instantDeliveryEstimateMin || ''}
-                    className="w-full"
-                  />
-                  <span className="text-muted-foreground">-</span>
-                  <Input 
-                    type="number" 
-                    placeholder="Max"
-                    id="instantDeliveryEstimateMaxInput"
-                    defaultValue={platformSettings?.instantDeliveryEstimateMax || ''}
-                    className="w-full"
-                  />
-                </div>
-                <Button 
-                  variant="primary"
-                  className="w-full mt-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white border-none"
-                  onClick={() => {
-                    const minInput = document.getElementById('instantDeliveryEstimateMinInput') as HTMLInputElement;
-                    const maxInput = document.getElementById('instantDeliveryEstimateMaxInput') as HTMLInputElement;
-                    if (minInput && maxInput) {
-                      const min = parseInt(minInput.value);
-                      const max = parseInt(maxInput.value);
-                      if (!isNaN(min) && !isNaN(max)) {
-                        updatePlatformSetting('instantDeliveryEstimateMin', min);
-                        updatePlatformSetting('instantDeliveryEstimateMax', max);
-                      }
-                    }
-                  }}
-                >
-                  Save Estimates
-                </Button>
-              </div>
+
             </div>
           </div>
         </div>
