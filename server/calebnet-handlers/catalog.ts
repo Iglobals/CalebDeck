@@ -53,6 +53,73 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (req.method === 'POST') {
             const body = req.body || {};
+
+            if (body.action === 'publishAllProviderPlans') {
+                const providerSnap = await db.collection('calebnet_provider_plans').limit(500).get();
+                if (providerSnap.empty) {
+                    return res.status(400).json({ error: 'No synced provider plans found. Sync data plans first.' });
+                }
+
+                let published = 0;
+                let skipped = 0;
+                let batch = db.batch();
+                let batchOps = 0;
+
+                const commitBatch = async () => {
+                    if (batchOps === 0) return;
+                    await batch.commit();
+                    batch = db.batch();
+                    batchOps = 0;
+                };
+
+                for (const providerDoc of providerSnap.docs) {
+                    const plan = providerDoc.data();
+                    const network = normalizeNetwork(plan.network);
+                    const providerPlanCode = String(plan.providerPlanCode || '').trim();
+                    const providerCost = Number(plan.rawPrice || plan.providerCost || 0);
+                    const category = String(plan.category || 'SME').toUpperCase();
+
+                    if (!network || !providerPlanCode || !Number.isFinite(providerCost) || providerCost <= 0 || !VALID_CATEGORIES.includes(category)) {
+                        skipped += 1;
+                        continue;
+                    }
+
+                    const id = `clubkonnect_catalog_${network}_${providerPlanCode.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+                    const catalogRef = db.collection('calebnet_catalog').doc(id);
+                    const name = plan.rawName || `${network} ${plan.dataSize || 'Data'}`;
+
+                    batch.set(catalogRef, {
+                        id,
+                        type: 'DATA',
+                        network,
+                        name,
+                        displayName: name,
+                        description: name,
+                        validity: plan.validity || null,
+                        dataSize: plan.dataSize || null,
+                        sellingPrice: providerCost,
+                        providerCost,
+                        profit: 0,
+                        provider: 'clubkonnect',
+                        providerPlanCode,
+                        providerNetworkCode: plan.providerNetworkCode || '',
+                        category,
+                        isActive: true,
+                        isFeatured: false,
+                        publishedFromProviderPlanId: providerDoc.id,
+                        updatedAt: FieldValue.serverTimestamp(),
+                        createdAt: FieldValue.serverTimestamp(),
+                    }, { merge: true });
+
+                    published += 1;
+                    batchOps += 1;
+                    if (batchOps >= 450) await commitBatch();
+                }
+
+                await commitBatch();
+                return res.status(200).json({ success: true, published, skipped, total: providerSnap.size });
+            }
+
             const type = normalizeType(body.type);
             const network = normalizeNetwork(body.network);
             const sellingPrice = Number(body.sellingPrice);

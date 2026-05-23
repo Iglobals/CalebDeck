@@ -115,7 +115,9 @@ export default function AdminCalebNet() {
   const catalogDraftRef = useRef<HTMLDivElement | null>(null);
 
   // Set of providerPlanCodes already in catalog for duplicate detection
-  const catalogCodes = useMemo(() => new Set(catalog.map((c) => c.providerPlanCode).filter(Boolean)), [catalog]);
+  const catalogCodes = useMemo(() => new Set(catalog
+    .filter((c) => c.providerPlanCode && c.network)
+    .map((c) => `${c.network}_${c.providerPlanCode}`)), [catalog]);
 
   const loadCatalog = async () => {
     setCatalogLoading(true);
@@ -295,6 +297,23 @@ export default function AdminCalebNet() {
       await loadCatalog();
     } catch (error: any) {
       toast.error(error.message);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const publishAllProviderPlans = async () => {
+    if (!window.confirm('Publish every synced provider data plan to the CalebNet catalog at provider cost price? They will become active for students immediately.')) return;
+    setBusy('publish-all-provider');
+    try {
+      const data = await adminFetch('/api/calebnet/catalog', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'publishAllProviderPlans' }),
+      });
+      toast.success(`Published ${data.published} plans at provider price${data.skipped ? `, skipped ${data.skipped}` : ''}.`);
+      await Promise.all([loadCatalog(), loadProviderPlans()]);
+    } catch (error: any) {
+      toast.error(error.message || 'Could not publish provider plans.');
     } finally {
       setBusy('');
     }
@@ -815,6 +834,10 @@ export default function AdminCalebNet() {
             </div>
             <div className="flex flex-wrap gap-2">
               <Button onClick={syncProviderPlans} disabled={busy === 'sync-plans'}><RefreshCcw className={`h-4 w-4 ${busy === 'sync-plans' ? 'animate-spin' : ''}`} />Sync Data Plans</Button>
+              <Button variant="outline" onClick={publishAllProviderPlans} disabled={busy === 'publish-all-provider' || providerPlans.length === 0}>
+                {busy === 'publish-all-provider' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Publish All at Cost
+              </Button>
               <Button variant="outline" onClick={syncAirtime} disabled={busy === 'sync-airtime'}><Phone className="h-4 w-4" />Sync Airtime Discounts</Button>
             </div>
           </Card>
@@ -886,7 +909,7 @@ export default function AdminCalebNet() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {providerPlans.map((plan) => {
-                    const alreadyInCatalog = catalogCodes.has(plan.providerPlanCode);
+                    const alreadyInCatalog = catalogCodes.has(`${plan.network}_${plan.providerPlanCode}`);
                     return (
                     <tr key={plan.id} className={alreadyInCatalog ? 'bg-emerald-500/5' : ''}>
                       <td className="px-4 py-3"><span className="font-black">{plan.rawName}</span><span className="block text-xs text-muted-foreground">{plan.dataSize || ''} {plan.validity || ''}</span></td>
