@@ -38,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 .where('type', '==', type)
                 .where('network', '==', network)
                 .where('isActive', '==', true)
-                .limit(30)
+                .limit(200)
                 .get();
 
             const plans = snapshot.docs

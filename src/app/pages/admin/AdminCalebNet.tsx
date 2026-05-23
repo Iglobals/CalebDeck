@@ -122,7 +122,7 @@ export default function AdminCalebNet() {
   const loadCatalog = async () => {
     setCatalogLoading(true);
     try {
-      const snap = await getDocs(query(collection(db, 'calebnet_catalog'), orderBy('network', 'asc'), limit(120)));
+      const snap = await getDocs(query(collection(db, 'calebnet_catalog'), orderBy('network', 'asc'), limit(500)));
       setCatalog(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     } finally { setCatalogLoading(false); }
   };
@@ -130,7 +130,7 @@ export default function AdminCalebNet() {
   const loadProviderPlans = async () => {
     setProviderLoading(true);
     try {
-      const snap = await getDocs(query(collection(db, 'calebnet_provider_plans'), orderBy('lastSyncedAt', 'desc'), limit(250)));
+      const snap = await getDocs(query(collection(db, 'calebnet_provider_plans'), orderBy('lastSyncedAt', 'desc'), limit(500)));
       setProviderPlans(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     } finally { setProviderLoading(false); }
   };
