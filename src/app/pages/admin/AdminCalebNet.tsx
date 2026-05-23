@@ -834,10 +834,6 @@ export default function AdminCalebNet() {
             </div>
             <div className="flex flex-wrap gap-2">
               <Button onClick={syncProviderPlans} disabled={busy === 'sync-plans'}><RefreshCcw className={`h-4 w-4 ${busy === 'sync-plans' ? 'animate-spin' : ''}`} />Sync Data Plans</Button>
-              <Button variant="outline" onClick={publishAllProviderPlans} disabled={busy === 'publish-all-provider' || providerPlans.length === 0}>
-                {busy === 'publish-all-provider' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                Publish All at Cost
-              </Button>
               <Button variant="outline" onClick={syncAirtime} disabled={busy === 'sync-airtime'}><Phone className="h-4 w-4" />Sync Airtime Discounts</Button>
             </div>
           </Card>
