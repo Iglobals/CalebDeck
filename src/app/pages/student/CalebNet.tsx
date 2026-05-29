@@ -701,21 +701,24 @@ export default function CalebNet() {
                           key={plan.id}
                           onClick={() => setSelectedPlanId(plan.id)}
                           className={`
-                            rounded-xl border-2 bg-card p-2.5 sm:p-3 text-center transition-all duration-200 relative
-                            flex flex-col items-center justify-start min-w-0 w-full h-full overflow-hidden
+                            rounded-xl border-2 bg-card p-2 sm:p-3 text-center transition-all duration-200 relative
+                            flex flex-col items-center justify-start min-w-0 w-full h-[115px] sm:h-[125px] overflow-hidden
                             ${selectedPlanId === plan.id
                               ? 'border-[#7C3AED] bg-[#7C3AED]/5 shadow-md scale-[1.03]'
                               : 'border-border hover:border-[#7C3AED]/30 hover:bg-muted/30'
                             }
                           `}
+                          title={plan.name}
                         >
                           {plan.isFeatured && (
-                            <span className="absolute -top-1.5 -right-1 text-[8px] font-black uppercase bg-emerald-500 text-white px-1.5 py-0.5 rounded-full leading-none">★</span>
+                            <span className="absolute -top-1.5 -right-1 text-[8px] font-black uppercase bg-emerald-500 text-white px-1.5 py-0.5 rounded-full leading-none z-10 shadow-sm">★</span>
                           )}
-                          <p className="text-sm sm:text-base font-black leading-tight break-words line-clamp-2 w-full">{plan.dataSize || plan.name}</p>
-                          <p className="text-[10px] sm:text-xs text-muted-foreground font-semibold mt-0.5 leading-tight line-clamp-2 w-full break-words">{plan.validity || plan.description}</p>
-                          <p className="text-sm sm:text-base font-black text-[#7C3AED] mt-auto pt-1.5">{money(plan.sellingPrice)}</p>
-                          <p className="text-[9px] font-bold text-muted-foreground/60 mt-0.5 uppercase tracking-wider">{plan.category}</p>
+                          <p className="text-xs sm:text-sm font-black leading-tight break-words line-clamp-1 w-full mt-1">{plan.dataSize || plan.name}</p>
+                          <p className="text-[9px] sm:text-[10px] text-muted-foreground font-semibold mt-1 leading-tight line-clamp-2 w-full break-words">{plan.validity || plan.description}</p>
+                          <div className="mt-auto pt-1 w-full flex flex-col items-center justify-end">
+                            <p className="text-sm sm:text-base font-black text-[#7C3AED] leading-none">{money(plan.sellingPrice)}</p>
+                            <p className="text-[8px] font-bold text-muted-foreground/60 mt-1 uppercase tracking-wider line-clamp-1 leading-none">{plan.category}</p>
+                          </div>
                         </button>
                       ))}
                     </div>
