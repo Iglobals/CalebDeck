@@ -582,13 +582,12 @@ export default function CalebNet() {
           </div>
           {user ? (
             <div className="flex items-center gap-2 sm:gap-3 min-w-0 lg:hidden">
-              <div className="hidden sm:block text-right min-w-0">
-                <p className="text-sm font-black truncate max-w-[120px]">{studentProfile.displayName || 'Student'}</p>
-                <p className="text-xs font-bold text-[#7C3AED]">{money(walletBalance)}</p>
-              </div>
-              <div className="sm:hidden flex items-center gap-1.5 rounded-full bg-[#7C3AED]/10 px-2.5 py-1">
-                <Wallet className="h-3.5 w-3.5 text-[#7C3AED]" />
-                <span className="text-xs font-black text-[#7C3AED]">{money(walletBalance)}</span>
+              <div className="flex flex-col items-end text-right min-w-0">
+                <p className="text-[11px] sm:text-sm font-black truncate max-w-[80px] sm:max-w-[120px] leading-tight">{studentProfile.displayName || 'Student'}</p>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <Wallet className="h-3 w-3 text-[#7C3AED]" />
+                  <span className="text-[10px] sm:text-xs font-bold text-[#7C3AED] leading-none">{money(walletBalance)}</span>
+                </div>
               </div>
               <CalebNetAvatar
                 avatarId={avatarId}
@@ -681,16 +680,14 @@ export default function CalebNet() {
                         <span className="flex items-center gap-2"><Info className="h-4 w-4 text-[#7C3AED]" /> What do these plans mean?</span>
                         <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
                       </summary>
-                      <div className="mt-4 space-y-3 border-t border-border pt-4 text-muted-foreground">
-                        <p><strong className="text-foreground">SME Data:</strong> SME data is a cheaper shared data bundle provided through bulk reseller allocations. It works like normal mobile data for browsing, streaming, WhatsApp, TikTok, YouTube and everyday use.</p>
-                        <p><strong className="text-foreground">Direct Data:</strong> Direct Data is delivered directly through the network provider. It is usually slightly more expensive but very stable and reliable.</p>
-                        <p><strong className="text-foreground">Awoof Data:</strong> Awoof Data are special promotional bundles that give extra value for short-term usage. They are usually cheaper and bigger for the price.</p>
-                        <p><strong className="text-foreground">Night Plans:</strong> These plans are optimized for heavy nighttime usage and may work best during late-night hours depending on the provider.</p>
-                        <p><strong className="text-foreground">Weekly vs Monthly:</strong> Weekly bundles last for 7 days, while Monthly bundles are designed to last for 30 days.</p>
+                      <div className="mt-3 space-y-2 rounded-xl bg-card p-3 text-xs text-muted-foreground">
+                        <p><strong className="text-foreground">Direct/SME:</strong> Normal data plans. Lasts 30 days unless stated otherwise.</p>
+                        <p><strong className="text-foreground">Awoof/Promo:</strong> Special discounted plans. Usually valid for 1-14 days.</p>
+                        <p><strong className="text-[#7C3AED]">Tip:</strong> If one type fails, try another (e.g. if SME is down, use Direct).</p>
                       </div>
                     </details>
                     {planCategories.length > 2 && (
-                      <div className="flex gap-2 overflow-x-auto pb-1">
+                      <div className="flex gap-2 overflow-x-auto pb-1 min-w-0 w-full mb-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                         {planCategories.map((category) => (
                           <button key={category} type="button" onClick={() => setPlanCategory(category)} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-black ${planCategory === category ? 'border-[#7C3AED] bg-[#7C3AED]/10 text-[#7C3AED]' : 'border-border bg-card text-muted-foreground'}`}>
                             {category === 'ALL' ? 'All plans' : category}
@@ -698,13 +695,14 @@ export default function CalebNet() {
                         ))}
                       </div>
                     )}
-                    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2.5">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2.5 min-w-0">
                       {displayPlans.map((plan) => (
                         <button
                           key={plan.id}
                           onClick={() => setSelectedPlanId(plan.id)}
                           className={`
                             rounded-xl border-2 bg-card p-2.5 sm:p-3 text-center transition-all duration-200 relative
+                            flex flex-col items-center justify-start min-w-0 w-full h-full overflow-hidden
                             ${selectedPlanId === plan.id
                               ? 'border-[#7C3AED] bg-[#7C3AED]/5 shadow-md scale-[1.03]'
                               : 'border-border hover:border-[#7C3AED]/30 hover:bg-muted/30'
@@ -714,9 +712,9 @@ export default function CalebNet() {
                           {plan.isFeatured && (
                             <span className="absolute -top-1.5 -right-1 text-[8px] font-black uppercase bg-emerald-500 text-white px-1.5 py-0.5 rounded-full leading-none">★</span>
                           )}
-                          <p className="text-sm sm:text-base font-black leading-tight">{plan.dataSize || plan.name}</p>
-                          <p className="text-[10px] sm:text-xs text-muted-foreground font-semibold mt-0.5 leading-tight">{plan.validity || plan.description}</p>
-                          <p className="text-sm sm:text-base font-black text-[#7C3AED] mt-1.5">{money(plan.sellingPrice)}</p>
+                          <p className="text-sm sm:text-base font-black leading-tight break-words line-clamp-2 w-full">{plan.dataSize || plan.name}</p>
+                          <p className="text-[10px] sm:text-xs text-muted-foreground font-semibold mt-0.5 leading-tight line-clamp-2 w-full break-words">{plan.validity || plan.description}</p>
+                          <p className="text-sm sm:text-base font-black text-[#7C3AED] mt-auto pt-1.5">{money(plan.sellingPrice)}</p>
                           <p className="text-[9px] font-bold text-muted-foreground/60 mt-0.5 uppercase tracking-wider">{plan.category}</p>
                         </button>
                       ))}
