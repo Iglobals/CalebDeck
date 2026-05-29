@@ -3,7 +3,7 @@ import { collection, getDocs, limit, onSnapshot, orderBy, query, where } from 'f
 import { db } from '../../../services/firebase';
 import { Card } from '../../components/design-system/Card';
 import { Badge } from '../../components/design-system/Badge';
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { AlertCircle, BarChart3, CheckCircle2, Loader2, TrendingUp, XCircle } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 
@@ -52,7 +52,8 @@ export function AdminCalebNetAnalytics() {
       limit(50)
     );
     const unsub = onSnapshot(q, (snap) => {
-      setRecentFailed(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setRecentFailed(all.filter((o: any) => o.status !== 'REFUNDED'));
     });
     return () => unsub();
   }, []);
@@ -143,23 +144,29 @@ export function AdminCalebNetAnalytics() {
             <h3 className="mb-6 text-lg font-black">Revenue & Profit Trend</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={dailyStats}>
+                <BarChart data={dailyStats} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} barGap={2}>
                   <defs>
                     <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#7C3AED" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#7C3AED" stopOpacity={0}/>
+                      <stop offset="0%" stopColor="#7C3AED" stopOpacity={1}/>
+                      <stop offset="100%" stopColor="#7C3AED" stopOpacity={0.6}/>
                     </linearGradient>
                     <linearGradient id="colorProf" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                      <stop offset="0%" stopColor="#10B981" stopOpacity={1}/>
+                      <stop offset="100%" stopColor="#10B981" stopOpacity={0.6}/>
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="date" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => val.split('-').slice(1).join('/')} />
-                  <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `₦${value/1000}k`} width={60} />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid var(--border)', backgroundColor: 'var(--card)' }} />
-                  <Area type="monotone" dataKey="totalRevenue" name="Revenue" stroke="#7C3AED" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
-                  <Area type="monotone" dataKey="totalProfit" name="Profit" stroke="#10B981" strokeWidth={3} fillOpacity={1} fill="url(#colorProf)" />
-                </AreaChart>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.4} />
+                  <XAxis dataKey="date" stroke="#888888" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => val.split('-').slice(1).join('/')} dy={10} />
+                  <YAxis stroke="#888888" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => `₦${value/1000}k`} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: '1px solid var(--border)', backgroundColor: 'var(--card)', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', color: 'var(--foreground)' }} 
+                    itemStyle={{ fontWeight: 'bold' }}
+                    cursor={{ fill: 'var(--muted)', opacity: 0.5 }}
+                  />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 700, paddingTop: '10px' }} />
+                  <Bar dataKey="totalRevenue" name="Revenue" fill="url(#colorRev)" radius={[4, 4, 0, 0]} maxBarSize={45} />
+                  <Bar dataKey="totalProfit" name="Profit" fill="url(#colorProf)" radius={[4, 4, 0, 0]} maxBarSize={45} />
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </Card>
