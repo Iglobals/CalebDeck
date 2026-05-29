@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { AlertCircle, ArrowLeft, CheckCircle2, ChevronDown, Clock, CreditCard, Eye, EyeOff, Info, Loader2, LogOut, Mail, Phone, Shield, Signal, UserRound, Wallet, Wifi, X, Zap } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2, ChevronDown, ChevronUp, Clock, CreditCard, Eye, EyeOff, Info, Loader2, LogOut, Mail, Phone, Shield, Signal, UserRound, Wallet, Wifi, X, Zap, Settings, History } from 'lucide-react';
+import { CalebNetAvatar, AvatarPicker, getAvatarById } from '../../components/CalebNetAvatar';
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup, updateProfile } from 'firebase/auth';
 import { usePaystackPayment } from 'react-paystack';
 import { toast } from 'react-toastify';
@@ -257,6 +258,9 @@ export default function CalebNet() {
   const [studentProfile, setStudentProfile] = useState<StudentProfile>({ displayName: '', phoneNumber: '' });
   const [profileDraft, setProfileDraft] = useState<StudentProfile>({ displayName: '', phoneNumber: '' });
   const [profileLoading, setProfileLoading] = useState(false);
+  const [avatarId, setAvatarId] = useState<string>('av1');
+  const [profilePanelOpen, setProfilePanelOpen] = useState(false);
+  const [walletActivityOpen, setWalletActivityOpen] = useState(false);
 
   const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [infoModalTitle, setInfoModalTitle] = useState('');
@@ -289,6 +293,7 @@ export default function CalebNet() {
         phoneNumber: String(data.phoneNumber || user.phoneNumber || '').trim(),
       };
       setWalletBalance(Number(data.walletBalance || 0));
+      if (data.calebNetAvatarId) setAvatarId(data.calebNetAvatarId);
       setStudentProfile(nextProfile);
       setProfileDraft((current) => ({
         displayName: current.displayName || nextProfile.displayName,
@@ -433,6 +438,7 @@ export default function CalebNet() {
         email: auth.currentUser.email || null,
         displayName,
         phoneNumber: savedPhoneNumber,
+        calebNetAvatarId: avatarId,
         isCalebNetUser: true,
         updatedAt: new Date(),
       };
@@ -452,6 +458,16 @@ export default function CalebNet() {
       toast.error('Could not save your profile. Please try again.');
     } finally {
       setProfileLoading(false);
+    }
+  };
+
+  const saveAvatarChoice = async (newAvatarId: string) => {
+    setAvatarId(newAvatarId);
+    if (!auth.currentUser) return;
+    try {
+      await setDoc(doc(db, 'users', auth.currentUser.uid), { calebNetAvatarId: newAvatarId, updatedAt: new Date() }, { merge: true });
+    } catch {
+      // silent — avatar is cosmetic
     }
   };
 
@@ -557,14 +573,32 @@ export default function CalebNet() {
       />
 
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/')} className="rounded-xl p-2 hover:bg-muted" aria-label="Back">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-5 py-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <button onClick={() => navigate('/')} className="rounded-xl p-2 hover:bg-muted flex-shrink-0" aria-label="Back">
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <h1 className="text-xl font-black">CalebNet Data and Airtime</h1>
+            <h1 className="text-lg sm:text-xl font-black truncate">CalebNet</h1>
           </div>
-          <Logo size="sm" />
+          {user ? (
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 lg:hidden">
+              <div className="hidden sm:block text-right min-w-0">
+                <p className="text-sm font-black truncate max-w-[120px]">{studentProfile.displayName || 'Student'}</p>
+                <p className="text-xs font-bold text-[#7C3AED]">{money(walletBalance)}</p>
+              </div>
+              <div className="sm:hidden flex items-center gap-1.5 rounded-full bg-[#7C3AED]/10 px-2.5 py-1">
+                <Wallet className="h-3.5 w-3.5 text-[#7C3AED]" />
+                <span className="text-xs font-black text-[#7C3AED]">{money(walletBalance)}</span>
+              </div>
+              <CalebNetAvatar
+                avatarId={avatarId}
+                size="sm"
+                onClick={() => setProfilePanelOpen(true)}
+              />
+            </div>
+          ) : (
+            <Logo size="sm" />
+          )}
         </div>
       </header>
 
@@ -629,62 +663,64 @@ export default function CalebNet() {
               <div>
                 <h3 className="mb-3 text-xs font-black uppercase tracking-widest text-muted-foreground">Plans</h3>
                 {isLoadingPlans ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {[1,2,3,4].map((i) => (
-                      <div key={i} className="animate-pulse rounded-xl border-2 border-border bg-card p-4 space-y-3">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-2"><div className="h-5 w-16 rounded bg-muted" /><div className="h-3 w-24 rounded bg-muted" /></div>
-                        </div>
-                        <div className="flex items-center justify-between"><div className="h-5 w-12 rounded bg-muted" /><div className="h-6 w-20 rounded bg-muted" /></div>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2.5">
+                    {[1,2,3,4,5,6].map((i) => (
+                      <div key={i} className="animate-pulse rounded-xl border-2 border-border bg-card p-3 space-y-2 text-center">
+                        <div className="h-5 w-12 rounded bg-muted mx-auto" />
+                        <div className="h-3 w-14 rounded bg-muted mx-auto" />
+                        <div className="h-5 w-10 rounded bg-muted mx-auto" />
                       </div>
                     ))}
                   </div>
                 ) : plans.length === 0 ? (
                   <div className="rounded-xl border border-border bg-card p-5 text-muted-foreground">No active CalebNet plans for this network yet.</div>
                 ) : (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="col-span-full mb-2">
-                      <details className="group rounded-xl border border-border bg-card p-4 text-sm transition-all">
-                        <summary className="flex cursor-pointer items-center justify-between font-black outline-none">
-                          <span className="flex items-center gap-2"><Info className="h-4 w-4 text-[#7C3AED]" /> What do these plans mean?</span>
-                          <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-                        </summary>
-                        <div className="mt-4 space-y-3 border-t border-border pt-4 text-muted-foreground">
-                          <p><strong className="text-foreground">SME Data:</strong> SME data is a cheaper shared data bundle provided through bulk reseller allocations. It works like normal mobile data for browsing, streaming, WhatsApp, TikTok, YouTube and everyday use.</p>
-                          <p><strong className="text-foreground">Direct Data:</strong> Direct Data is delivered directly through the network provider. It is usually slightly more expensive but very stable and reliable.</p>
-                          <p><strong className="text-foreground">Awoof Data:</strong> Awoof Data are special promotional bundles that give extra value for short-term usage. They are usually cheaper and bigger for the price.</p>
-                          <p><strong className="text-foreground">Night Plans:</strong> These plans are optimized for heavy nighttime usage and may work best during late-night hours depending on the provider.</p>
-                          <p><strong className="text-foreground">Weekly vs Monthly:</strong> Weekly bundles last for 7 days, while Monthly bundles are designed to last for 30 days.</p>
-                        </div>
-                      </details>
-                    </div>
+                  <div className="space-y-3">
+                    <details className="group rounded-xl border border-border bg-card p-3 text-sm transition-all">
+                      <summary className="flex cursor-pointer items-center justify-between font-black outline-none">
+                        <span className="flex items-center gap-2"><Info className="h-4 w-4 text-[#7C3AED]" /> What do these plans mean?</span>
+                        <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+                      </summary>
+                      <div className="mt-4 space-y-3 border-t border-border pt-4 text-muted-foreground">
+                        <p><strong className="text-foreground">SME Data:</strong> SME data is a cheaper shared data bundle provided through bulk reseller allocations. It works like normal mobile data for browsing, streaming, WhatsApp, TikTok, YouTube and everyday use.</p>
+                        <p><strong className="text-foreground">Direct Data:</strong> Direct Data is delivered directly through the network provider. It is usually slightly more expensive but very stable and reliable.</p>
+                        <p><strong className="text-foreground">Awoof Data:</strong> Awoof Data are special promotional bundles that give extra value for short-term usage. They are usually cheaper and bigger for the price.</p>
+                        <p><strong className="text-foreground">Night Plans:</strong> These plans are optimized for heavy nighttime usage and may work best during late-night hours depending on the provider.</p>
+                        <p><strong className="text-foreground">Weekly vs Monthly:</strong> Weekly bundles last for 7 days, while Monthly bundles are designed to last for 30 days.</p>
+                      </div>
+                    </details>
                     {planCategories.length > 2 && (
-                      <div className="col-span-full mb-1 flex gap-2 overflow-x-auto pb-1">
+                      <div className="flex gap-2 overflow-x-auto pb-1">
                         {planCategories.map((category) => (
-                          <button key={category} type="button" onClick={() => setPlanCategory(category)} className={`shrink-0 rounded-full border px-3 py-2 text-xs font-black ${planCategory === category ? 'border-[#7C3AED] bg-[#7C3AED]/10 text-[#7C3AED]' : 'border-border bg-card text-muted-foreground'}`}>
+                          <button key={category} type="button" onClick={() => setPlanCategory(category)} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-black ${planCategory === category ? 'border-[#7C3AED] bg-[#7C3AED]/10 text-[#7C3AED]' : 'border-border bg-card text-muted-foreground'}`}>
                             {category === 'ALL' ? 'All plans' : category}
                           </button>
                         ))}
                       </div>
                     )}
-                    {displayPlans.map((plan) => (
-                      <button key={plan.id} onClick={() => setSelectedPlanId(plan.id)} className={`rounded-xl border-2 bg-card p-4 text-left transition ${selectedPlanId === plan.id ? 'border-[#7C3AED] shadow-lg' : 'border-border'}`}>
-                        <div className="mb-3 flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-lg font-black">{plan.dataSize || plan.name}</p>
-                            <p className="text-sm text-muted-foreground">{plan.validity || plan.description}</p>
-                          </div>
-                          {plan.isFeatured && <Badge variant="green" className="text-xs">Best value</Badge>}
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5" onClick={(e) => openInfo(e, plan.category)} title="Click to learn more about this plan type">
-                            <Badge variant="muted" className="text-xs">{plan.category}</Badge>
-                            <Info className="h-4 w-4 text-muted-foreground transition-colors hover:text-[#7C3AED]" />
-                          </div>
-                          <span className="text-xl font-black text-[#7C3AED]">{money(plan.sellingPrice)}</span>
-                        </div>
-                      </button>
-                    ))}
+                    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2.5">
+                      {displayPlans.map((plan) => (
+                        <button
+                          key={plan.id}
+                          onClick={() => setSelectedPlanId(plan.id)}
+                          className={`
+                            rounded-xl border-2 bg-card p-2.5 sm:p-3 text-center transition-all duration-200 relative
+                            ${selectedPlanId === plan.id
+                              ? 'border-[#7C3AED] bg-[#7C3AED]/5 shadow-md scale-[1.03]'
+                              : 'border-border hover:border-[#7C3AED]/30 hover:bg-muted/30'
+                            }
+                          `}
+                        >
+                          {plan.isFeatured && (
+                            <span className="absolute -top-1.5 -right-1 text-[8px] font-black uppercase bg-emerald-500 text-white px-1.5 py-0.5 rounded-full leading-none">★</span>
+                          )}
+                          <p className="text-sm sm:text-base font-black leading-tight">{plan.dataSize || plan.name}</p>
+                          <p className="text-[10px] sm:text-xs text-muted-foreground font-semibold mt-0.5 leading-tight">{plan.validity || plan.description}</p>
+                          <p className="text-sm sm:text-base font-black text-[#7C3AED] mt-1.5">{money(plan.sellingPrice)}</p>
+                          <p className="text-[9px] font-bold text-muted-foreground/60 mt-0.5 uppercase tracking-wider">{plan.category}</p>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -719,12 +755,12 @@ export default function CalebNet() {
           </section>
 
           <aside className="space-y-5 lg:row-span-2">
-            <Card className="space-y-5">
+            <Card className="hidden lg:block space-y-5">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="rounded-xl bg-[#7C3AED]/10 p-3 text-[#7C3AED]"><Wallet className="h-5 w-5" /></div>
                   <div>
-                  <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Wallet balance</p>
+                    <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Wallet balance</p>
                     <p className="text-3xl font-black">{money(walletBalance)}</p>
                   </div>
                 </div>
@@ -738,12 +774,48 @@ export default function CalebNet() {
                   <LogOut className="h-5 w-5" />
                 </button>
               </div>
-              {studentProfile.displayName && (
-                <div className="rounded-xl bg-muted/40 p-3 text-sm">
-                  <p className="font-black">{studentProfile.displayName}</p>
-                  <p className="font-mono text-xs text-muted-foreground">{studentProfile.phoneNumber || 'Add phone number'}</p>
+
+              <div className="rounded-xl bg-muted/40 p-4 space-y-4">
+                <div className="flex items-center gap-3">
+                  <CalebNetAvatar avatarId={avatarId} size="md" />
+                  <div>
+                    <p className="font-black text-lg">{studentProfile.displayName || 'Student'}</p>
+                    <p className="font-mono text-xs text-muted-foreground">{studentProfile.phoneNumber || 'Add phone number'}</p>
+                  </div>
                 </div>
-              )}
+                <details className="group text-sm">
+                  <summary className="cursor-pointer font-bold text-[#7C3AED] outline-none hover:underline">Edit Profile</summary>
+                  <div className="pt-4 space-y-4">
+                    <div>
+                      <p className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Avatar</p>
+                      <AvatarPicker selectedId={avatarId} onSelect={saveAvatarChoice} />
+                    </div>
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-bold text-muted-foreground">Display Name</span>
+                      <input
+                        value={profileDraft.displayName}
+                        onChange={(event) => setProfileDraft((current) => ({ ...current, displayName: event.target.value }))}
+                        className="w-full rounded-xl border-2 border-border bg-card px-4 py-3 font-bold outline-none focus:border-[#7C3AED]"
+                        placeholder="Your name"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-bold text-muted-foreground">Default Phone Number</span>
+                      <input
+                        type="tel"
+                        value={profileDraft.phoneNumber}
+                        onChange={(event) => handleProfilePhone(event.target.value)}
+                        className={`w-full rounded-xl border-2 bg-card px-4 py-3 font-bold outline-none ${profileDraft.phoneNumber && !isValidNigerianPhone(profileDraft.phoneNumber) ? 'border-red-500 focus:border-red-500' : 'border-border focus:border-[#7C3AED]'}`}
+                        placeholder="08012345678"
+                      />
+                    </label>
+                    <Button onClick={saveStudentProfile} disabled={profileLoading} className="w-full py-3" size="sm">
+                      {profileLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                      Save Profile
+                    </Button>
+                  </div>
+                </details>
+              </div>
               <div className="grid grid-cols-3 gap-2">
                 {FUNDING_PRESETS.map((preset) => (
                   <button key={preset} type="button" onClick={() => setFundAmount(preset)} className={`rounded-xl border px-3 py-2 text-sm font-black ${Number(fundAmount) === preset ? 'border-[#7C3AED] bg-[#7C3AED]/10 text-[#7C3AED]' : 'border-border bg-card'}`}>
@@ -801,12 +873,29 @@ export default function CalebNet() {
           </aside>
 
           <Card className="space-y-3 lg:col-start-1 lg:row-start-2">
-            <h3 className="text-lg font-black">Wallet Activity</h3>
-            <div className="max-h-[280px] space-y-2 overflow-y-auto pr-2 custom-scrollbar">
+            <div className="lg:hidden">
+              <button
+                type="button"
+                onClick={() => setWalletActivityOpen(!walletActivityOpen)}
+                className="flex w-full items-center justify-between"
+              >
+                <div className="flex items-center gap-2">
+                  <History className="h-4 w-4 text-[#7C3AED]" />
+                  <h3 className="text-base font-black">Wallet Activity</h3>
+                </div>
+                {walletActivityOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+              </button>
+            </div>
+            <div className="hidden lg:flex items-center gap-2">
+              <History className="h-5 w-5 text-[#7C3AED]" />
+              <h3 className="text-lg font-black">Wallet Activity</h3>
+            </div>
+            
+            <div className={`max-h-[280px] space-y-2 overflow-y-auto pr-2 custom-scrollbar ${walletActivityOpen ? 'block pt-2 border-t border-border' : 'hidden'} lg:block lg:pt-0 lg:border-t-0`}>
               {walletTransactions.length === 0 ? (
                 <div className="space-y-2">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex items-center justify-between rounded-xl bg-muted/40 p-3 animate-pulse">
+                    <div key={i} className="hidden lg:flex items-center justify-between rounded-xl bg-muted/40 p-3 animate-pulse">
                       <div className="space-y-1.5"><div className="h-3 w-28 rounded bg-muted" /><div className="h-2 w-16 rounded bg-muted" /></div>
                       <div className="h-4 w-16 rounded bg-muted" />
                     </div>
@@ -877,6 +966,103 @@ export default function CalebNet() {
               </Button>
             </div>
           </Card>
+        </div>
+      )}
+
+      {/* Profile Panel — triggered by avatar tap */}
+      {profilePanelOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 pt-16 backdrop-blur-sm lg:hidden" onClick={() => setProfilePanelOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md max-h-[85vh] flex flex-col">
+            <Card className="w-full flex-1 border-[#7C3AED]/20 shadow-2xl overflow-y-auto custom-scrollbar">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <Settings className="h-5 w-5 text-[#7C3AED]" />
+                  <h3 className="text-xl font-black">Profile & Wallet</h3>
+                </div>
+                <button onClick={() => setProfilePanelOpen(false)} className="rounded-full p-2 text-muted-foreground hover:bg-muted">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Avatar display + balance */}
+              <div className="flex flex-col items-center mb-6">
+                <CalebNetAvatar avatarId={avatarId} size="lg" />
+                <p className="mt-3 text-lg font-black">{studentProfile.displayName || 'Student'}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <Wallet className="h-4 w-4 text-[#7C3AED]" />
+                  <span className="text-xl font-black text-[#7C3AED]">{money(walletBalance)}</span>
+                </div>
+              </div>
+
+              {/* Avatar Picker */}
+              <div className="mb-6">
+                <p className="mb-3 text-xs font-black uppercase tracking-widest text-muted-foreground">Choose your avatar</p>
+                <AvatarPicker selectedId={avatarId} onSelect={saveAvatarChoice} />
+              </div>
+
+              {/* Profile Editor */}
+              <div className="space-y-4 mb-6 border-t border-border pt-5">
+                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Edit Profile</p>
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-bold text-muted-foreground">Display Name</span>
+                  <input
+                    value={profileDraft.displayName}
+                    onChange={(event) => setProfileDraft((current) => ({ ...current, displayName: event.target.value }))}
+                    className="w-full rounded-xl border-2 border-border bg-card px-4 py-3 font-bold outline-none focus:border-[#7C3AED]"
+                    placeholder="Your name"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-bold text-muted-foreground">Default Phone Number</span>
+                  <input
+                    type="tel"
+                    value={profileDraft.phoneNumber}
+                    onChange={(event) => handleProfilePhone(event.target.value)}
+                    className={`w-full rounded-xl border-2 bg-card px-4 py-3 font-bold outline-none ${profileDraft.phoneNumber && !isValidNigerianPhone(profileDraft.phoneNumber) ? 'border-red-500 focus:border-red-500' : 'border-border focus:border-[#7C3AED]'}`}
+                    placeholder="08012345678"
+                  />
+                </label>
+                <Button onClick={() => { saveStudentProfile(); setProfilePanelOpen(false); }} disabled={profileLoading} className="w-full py-3">
+                  {profileLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  Save Profile
+                </Button>
+              </div>
+
+              {/* Fund Wallet (compact) */}
+              <div className="space-y-3 border-t border-border pt-5 mb-5">
+                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Fund Wallet</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {FUNDING_PRESETS.map((preset) => (
+                    <button key={preset} type="button" onClick={() => setFundAmount(preset)} className={`rounded-xl border px-2 py-2 text-xs font-black ${Number(fundAmount) === preset ? 'border-[#7C3AED] bg-[#7C3AED]/10 text-[#7C3AED]' : 'border-border bg-card'}`}>
+                      {money(preset)}
+                    </button>
+                  ))}
+                </div>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-black text-muted-foreground">₦</span>
+                  <input type="number" inputMode="numeric" value={fundAmount} onChange={(event) => setFundAmount(Number(event.target.value) || '')} className="w-full rounded-xl border-2 border-border bg-card py-2.5 pl-8 pr-3 font-bold outline-none focus:border-[#7C3AED] text-sm" placeholder="100 - 50,000" />
+                </div>
+                <Button onClick={() => { handleFundWallet(); setProfilePanelOpen(false); }} disabled={walletLoading} className="w-full py-3">
+                  {walletLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                  Fund Wallet
+                </Button>
+              </div>
+
+              {/* Sign Out */}
+              <button
+                onClick={() => {
+                  if (window.confirm('Sign out of CalebNet?')) {
+                    logout();
+                    setProfilePanelOpen(false);
+                  }
+                }}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-red-500/20 px-4 py-3 text-sm font-black text-red-500 hover:bg-red-500/5 transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </button>
+            </Card>
+          </div>
         </div>
       )}
 

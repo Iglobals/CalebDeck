@@ -139,7 +139,7 @@ export function BatchPickerModal({ isOpen, onClose, onSelectBatch, allowFutureBa
                       <div className="w-16 h-16 flex-shrink-0">
                         <BatchClock 
                           isOpen={status === 'OPEN' || status === 'ALMOST_FULL'} 
-                          size="sm" 
+                          size={64} 
                         />
                       </div>
                     )}

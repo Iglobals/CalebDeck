@@ -2,7 +2,7 @@ import React from 'react';
 
 interface BadgeProps {
   children: React.ReactNode;
-  variant?: 'gold' | 'purple' | 'green' | 'gray' | 'muted' | 'secondary' | 'amber' | 'emerald';
+  variant?: 'gold' | 'purple' | 'green' | 'gray' | 'muted' | 'secondary' | 'amber' | 'emerald' | 'red' | 'primary';
   className?: string;
 }
 
@@ -15,7 +15,9 @@ export function Badge({ children, variant = 'gold', className = '' }: BadgeProps
     gray: 'bg-muted text-muted-foreground border-border',
     muted: 'bg-muted/50 text-muted-foreground border-border/50',
     secondary: 'bg-secondary text-secondary-foreground border-secondary/20',
-    amber: 'bg-amber-500/20 text-amber-600 border-amber-500/30'
+    amber: 'bg-amber-500/20 text-amber-600 border-amber-500/30',
+    red: 'bg-red-500/20 text-red-500 border-red-500/40',
+    primary: 'bg-primary/20 text-primary border-primary/40'
   };
 
   return (
