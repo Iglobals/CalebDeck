@@ -625,7 +625,7 @@ export default function CalebNet() {
         <CalebNetAuthGate />
       ) : (
         <main className="mx-auto grid max-w-7xl gap-8 px-5 py-8 lg:grid-cols-[1fr_400px]">
-          <section className="space-y-7">
+          <section className="space-y-7 min-w-0">
             <div className="rounded-2xl bg-[#7C3AED] p-7 text-white">
               <div className="mb-4 flex items-center gap-3">
                 <div className="rounded-xl bg-white/15 p-3"><Zap className="h-6 w-6" /></div>
@@ -682,7 +682,7 @@ export default function CalebNet() {
                 ) : plans.length === 0 ? (
                   <div className="rounded-xl border border-border bg-card p-5 text-muted-foreground">No active CalebNet plans for this network yet.</div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-3 min-w-0">
                     <details className="group rounded-xl border border-border bg-card p-3 text-sm transition-all">
                       <summary className="flex cursor-pointer items-center justify-between font-black outline-none">
                         <span className="flex items-center gap-2"><Info className="h-4 w-4 text-[#7C3AED]" /> What do these plans mean?</span>
@@ -709,24 +709,20 @@ export default function CalebNet() {
                           key={plan.id}
                           onClick={() => setSelectedPlanId(plan.id)}
                           className={`
-                            rounded-xl border-2 bg-card p-2 sm:p-3 text-center transition-all duration-200 relative
-                            flex flex-col items-center justify-start min-w-0 w-full h-[125px] sm:h-[135px] overflow-hidden
+                            rounded-xl border-2 bg-card p-2.5 sm:p-3 text-center transition-all duration-200 relative min-w-0
                             ${selectedPlanId === plan.id
                               ? 'border-[#7C3AED] bg-[#7C3AED]/5 shadow-md scale-[1.03]'
                               : 'border-border hover:border-[#7C3AED]/30 hover:bg-muted/30'
                             }
                           `}
-                          title={plan.name}
                         >
                           {plan.isFeatured && (
                             <span className="absolute -top-1.5 -right-1 text-[8px] font-black uppercase bg-emerald-500 text-white px-1.5 py-0.5 rounded-full leading-none z-10 shadow-sm">★</span>
                           )}
-                          <p className="text-xs sm:text-sm font-black leading-tight break-words w-full mt-1">{plan.dataSize || plan.name}</p>
-                          <p className="text-[9px] sm:text-[10px] text-muted-foreground font-semibold mt-1 leading-tight w-full break-words">{plan.validity || plan.description}</p>
-                          <div className="mt-auto pt-1 w-full flex flex-col items-center justify-end">
-                            <p className="text-sm sm:text-base font-black text-[#7C3AED] leading-none">{money(plan.sellingPrice)}</p>
-                            <p className="text-[8px] font-bold text-muted-foreground/60 mt-1 uppercase tracking-wider leading-none">{plan.category}</p>
-                          </div>
+                          <p className="text-sm sm:text-base font-black leading-tight break-words">{plan.dataSize || plan.name}</p>
+                          <p className="text-[10px] sm:text-xs text-muted-foreground font-semibold mt-0.5 leading-tight break-words">{plan.validity || plan.description}</p>
+                          <p className="text-sm sm:text-base font-black text-[#7C3AED] mt-1.5 leading-none">{money(plan.sellingPrice)}</p>
+                          <p className="text-[9px] font-bold text-muted-foreground/60 mt-0.5 uppercase tracking-wider leading-none">{plan.category}</p>
                         </button>
                       ))}
                     </div>
