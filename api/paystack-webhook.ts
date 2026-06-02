@@ -2,6 +2,15 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import crypto from 'crypto';
 import { adminDb } from '../server/firebase-admin.js';
+import { creditWallet, ensureWalletUser, WALLET_FUNDING_MAX, WALLET_FUNDING_MIN } from '../server/wallet.js';
+
+function metadataValue(metadata: any, key: string) {
+    if (metadata?.[key] !== undefined && metadata?.[key] !== null) return metadata[key];
+    const field = Array.isArray(metadata?.custom_fields)
+        ? metadata.custom_fields.find((item: any) => item?.variable_name === key || item?.display_name === key)
+        : null;
+    return field?.value;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Paystack only sends POST
@@ -37,6 +46,54 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const paymentData = event.data;
         const reference = paymentData.reference;
+        const metadata = paymentData.metadata || {};
+        const paidAmount = paymentData.amount / 100;
+
+        const walletPurpose = String(metadataValue(metadata, 'purpose') || '').toUpperCase();
+        const walletSource = String(metadataValue(metadata, 'source') || '').toLowerCase();
+        const isWalletFunding = walletSource === 'calebnet_wallet' || walletPurpose === 'CALEBNET_WALLET_FUNDING';
+
+        if (isWalletFunding) {
+            if (event.event === 'charge.failed') {
+                console.log(`[Webhook] CalebNet wallet funding failed: ${reference}`);
+                return res.status(200).json({ received: true, failed: true, walletFunding: true });
+            }
+
+            const userId = String(metadataValue(metadata, 'userId') || '').trim();
+            if (!userId) {
+                console.warn(`[Webhook] Wallet funding missing userId: ${reference}`);
+                return res.status(200).json({ received: true, error: true, walletFunding: true, reason: 'missing_user_id' });
+            }
+
+            if (!Number.isFinite(paidAmount) || paidAmount < WALLET_FUNDING_MIN || paidAmount > WALLET_FUNDING_MAX) {
+                console.warn(`[Webhook] Wallet funding amount outside allowed range: ${reference} (${paidAmount})`);
+                return res.status(200).json({ received: true, error: true, walletFunding: true, reason: 'invalid_amount' });
+            }
+
+            await ensureWalletUser(userId, {
+                email: metadataValue(metadata, 'email') || paymentData.customer?.email || null,
+                displayName: metadataValue(metadata, 'displayName') || null,
+                phoneNumber: metadataValue(metadata, 'phoneNumber') || null,
+            });
+
+            const result = await creditWallet({
+                userId,
+                amount: paidAmount,
+                reference,
+                purpose: 'WALLET_FUNDING',
+                relatedOrderId: null,
+                metadataSafe: {
+                    source: 'paystack_webhook',
+                    paystackStatus: paymentData.status,
+                    channel: paymentData.channel || null,
+                    paidAt: paymentData.paid_at || paymentData.paidAt || null,
+                    customerEmail: paymentData.customer?.email || null,
+                },
+            });
+
+            console.log(`[Webhook] CalebNet wallet funding credited: ${reference} alreadyProcessed=${result.alreadyProcessed}`);
+            return res.status(200).json({ received: true, walletFunding: true, credited: true, alreadyProcessed: result.alreadyProcessed });
+        }
 
         // 3. Idempotent — check if order already exists
         const isMartOrder = paymentData.metadata?.orderType === 'mart';
@@ -138,9 +195,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // 4. Try to extract order data from Paystack metadata
-        const metadata = paymentData.metadata || {};
-        const paidAmount = paymentData.amount / 100;
-
         // 4b. GUARD: Only process CalebDeck transactions
         // If this transaction has no CalebDeck-specific metadata, it belongs to another product
         // sharing the same Paystack account (e.g. IES). Silently ignore it.

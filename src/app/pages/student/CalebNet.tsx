@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { AlertCircle, ArrowLeft, CheckCircle2, ChevronDown, ChevronUp, Clock, CreditCard, Eye, EyeOff, Info, Loader2, LogOut, Mail, Phone, Shield, Signal, UserRound, Wallet, Wifi, X, Zap, Settings, History } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2, ChevronDown, ChevronUp, Clock, CreditCard, Eye, EyeOff, Info, Loader2, LogOut, Mail, Phone, RefreshCcw, Shield, Signal, UserRound, Wallet, Wifi, X, Zap, Settings, History } from 'lucide-react';
 import { CalebNetAvatar, AvatarPicker, getAvatarById } from '../../components/CalebNetAvatar';
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup, updateProfile } from 'firebase/auth';
 import { usePaystackPayment } from 'react-paystack';
@@ -58,6 +58,36 @@ const NETWORKS: Array<{ id: Network; label: string; color: string; text: string;
 const AIRTIME_PRESETS = [50, 100, 200, 500, 1000, 2000];
 const FUNDING_PRESETS = [500, 1000, 2000, 5000, 10000];
 const CATALOG_CACHE_TTL_MS = 10 * 60 * 1000;
+
+function createFundingReference() {
+  return `CDWALLET-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+}
+
+function pendingFundingKey(userId: string) {
+  return `calebnet_pending_wallet_funding_${userId}`;
+}
+
+function getPendingFundingReferences(userId: string) {
+  try {
+    const raw = window.localStorage.getItem(pendingFundingKey(userId));
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((item) => typeof item === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePendingFundingReference(userId: string, reference: string) {
+  const refs = new Set(getPendingFundingReferences(userId));
+  refs.add(reference);
+  window.localStorage.setItem(pendingFundingKey(userId), JSON.stringify(Array.from(refs).slice(-5)));
+}
+
+function removePendingFundingReference(userId: string, reference: string) {
+  const refs = getPendingFundingReferences(userId).filter((item) => item !== reference);
+  if (refs.length === 0) window.localStorage.removeItem(pendingFundingKey(userId));
+  else window.localStorage.setItem(pendingFundingKey(userId), JSON.stringify(refs));
+}
 
 function money(value: number) {
   return `₦${Number(value || 0).toLocaleString()}`;
@@ -252,9 +282,10 @@ export default function CalebNet() {
   const [walletLoading, setWalletLoading] = useState(false);
   const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([]);
   const [fundAmount, setFundAmount] = useState<number | ''>(1000);
-  const [fundingReference, setFundingReference] = useState(`CDWALLET-${Date.now()}-${Math.floor(Math.random() * 100000)}`);
+  const [fundingReference, setFundingReference] = useState(createFundingReference());
   const purchaseRef = useRef(`CDNETW-${Date.now()}-${Math.floor(Math.random() * 100000)}`);
   const phoneTouchedRef = useRef(false);
+  const fundingCompletedRef = useRef(false);
   const [studentProfile, setStudentProfile] = useState<StudentProfile>({ displayName: '', phoneNumber: '' });
   const [profileDraft, setProfileDraft] = useState<StudentProfile>({ displayName: '', phoneNumber: '' });
   const [profileLoading, setProfileLoading] = useState(false);
@@ -397,8 +428,15 @@ export default function CalebNet() {
     amount: fundingAmountNumber * 100,
     publicKey: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
     metadata: {
+      source: 'calebnet_wallet',
+      purpose: 'CALEBNET_WALLET_FUNDING',
+      userId: user?.uid || '',
+      email: user?.email || '',
+      displayName: studentProfile.displayName || user?.displayName || '',
+      phoneNumber: studentProfile.phoneNumber || user?.phoneNumber || '',
       custom_fields: [
-        { display_name: 'Purpose', variable_name: 'purpose', value: 'CalebNet wallet funding' },
+        { display_name: 'Purpose', variable_name: 'purpose', value: 'CALEBNET_WALLET_FUNDING' },
+        { display_name: 'User ID', variable_name: 'userId', value: user?.uid || '' },
       ],
     },
   };
@@ -471,7 +509,28 @@ export default function CalebNet() {
     }
   };
 
-  const verifyFunding = async (reference: string) => {
+  const ensureWalletProfile = async () => {
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) return;
+    await fetch('/api/calebnet/wallet-profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        displayName: studentProfile.displayName || auth.currentUser?.displayName || null,
+        phoneNumber: studentProfile.phoneNumber || auth.currentUser?.phoneNumber || null,
+        email: auth.currentUser?.email || null,
+      }),
+    });
+  };
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    ensureWalletProfile().catch(() => {
+      // The Firestore listener still shows the local profile. Funding/purchase endpoints also ensure wallet server-side.
+    });
+  }, [user?.uid]);
+
+  const verifyFunding = async (reference: string, options: { silent?: boolean } = {}) => {
     const token = await auth.currentUser?.getIdToken();
     const response = await fetch('/api/wallet/verify-funding', {
       method: 'POST',
@@ -480,8 +539,32 @@ export default function CalebNet() {
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Wallet funding failed');
-    toast.success(`Wallet funded. New balance: ${money(data.balance)}`);
+    setWalletBalance(Number(data.balance || 0));
+    if (auth.currentUser) removePendingFundingReference(auth.currentUser.uid, reference);
+    if (!options.silent) toast.success(`Wallet funded. New balance: ${money(data.balance)}`);
   };
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    const refs = getPendingFundingReferences(user.uid);
+    if (refs.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      for (const reference of refs) {
+        if (cancelled) return;
+        try {
+          await verifyFunding(reference, { silent: true });
+        } catch {
+          // Keep the reference locally. A later page load can retry it.
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid]);
 
   const handleFundWallet = () => {
     if (!user) return;
@@ -493,23 +576,55 @@ export default function CalebNet() {
       toast.error('Payment system is not configured. Contact support.');
       return;
     }
+    const currentReference = fundingReference;
+    fundingCompletedRef.current = false;
+    savePendingFundingReference(user.uid, currentReference);
     setWalletLoading(true);
     initializeFunding({
       onSuccess: async (reference: any) => {
+        fundingCompletedRef.current = true;
+        const paidReference = reference.reference || currentReference;
         try {
-          await verifyFunding(reference.reference || fundingReference);
+          await verifyFunding(paidReference);
         } catch (error: any) {
-          toast.error(error.message || 'Payment received, but wallet credit failed. Contact support.');
+          savePendingFundingReference(user.uid, paidReference);
+          toast.error(error.message || 'Payment received. We are confirming your wallet top-up. Please refresh CalebNet or contact support if it does not reflect soon.');
         } finally {
           setWalletLoading(false);
-          setFundingReference(`CDWALLET-${Date.now()}-${Math.floor(Math.random() * 100000)}`);
+          setFundingReference(createFundingReference());
         }
       },
       onClose: () => {
         setWalletLoading(false);
-        toast.info('Funding window closed. No charge was made.');
+        if (!fundingCompletedRef.current) {
+          toast.info('Funding window closed. If you completed payment, tap Refresh wallet.');
+        }
       },
     } as any);
+  };
+
+  const refreshWallet = async () => {
+    if (!user?.uid) return;
+    setWalletLoading(true);
+    try {
+      const refs = getPendingFundingReferences(user.uid);
+      for (const reference of refs) {
+        try {
+          await verifyFunding(reference, { silent: true });
+        } catch {
+          // Leave unresolved references for the next retry.
+        }
+      }
+
+      const snap = await getDoc(doc(db, 'users', user.uid));
+      const balance = Number(snap.data()?.walletBalance || 0);
+      setWalletBalance(balance);
+      toast.success(`Wallet balance refreshed: ${money(balance)}`);
+    } catch {
+      toast.error('Could not refresh wallet balance. Please try again.');
+    } finally {
+      setWalletLoading(false);
+    }
   };
 
   const handlePurchase = async () => {
@@ -836,6 +951,10 @@ export default function CalebNet() {
                 {walletLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" />}
                 Fund Wallet
               </Button>
+              <Button onClick={refreshWallet} disabled={walletLoading} variant="outline" className="w-full">
+                {walletLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <RefreshCcw className="h-5 w-5" />}
+                Refresh Wallet
+              </Button>
             </Card>
 
             <div className="space-y-5 lg:sticky lg:top-24">
@@ -1050,6 +1169,10 @@ export default function CalebNet() {
                 <Button onClick={() => { handleFundWallet(); setProfilePanelOpen(false); }} disabled={walletLoading} className="w-full py-3">
                   {walletLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
                   Fund Wallet
+                </Button>
+                <Button onClick={refreshWallet} disabled={walletLoading} variant="outline" className="w-full py-3">
+                  {walletLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
+                  Refresh Wallet
                 </Button>
               </div>
 

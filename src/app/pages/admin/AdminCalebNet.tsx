@@ -319,6 +319,34 @@ export default function AdminCalebNet() {
     }
   };
 
+  const creditWalletFunding = async (user: any) => {
+    const reference = window.prompt(`Enter the Paystack reference for ${user.displayName || user.email || 'this wallet user'}:`);
+    if (!reference?.trim()) return;
+
+    setBusy(`credit-wallet-${user.id}`);
+    try {
+      const data = await adminFetch('/api/calebnet/wallet-funding/credit', {
+        method: 'POST',
+        body: JSON.stringify({
+          userId: user.id,
+          reference: reference.trim(),
+          email: user.email || null,
+          displayName: user.displayName || null,
+          phoneNumber: user.phoneNumber || null,
+        }),
+      });
+      toast.success(data.alreadyProcessed
+        ? `This payment was already credited. Balance: ₦${Number(data.balance || 0).toLocaleString()}`
+        : `Wallet credited ₦${Number(data.amount || 0).toLocaleString()}. Balance: ₦${Number(data.balance || 0).toLocaleString()}`
+      );
+      await loadWalletUsers();
+    } catch (error: any) {
+      toast.error(error.message || 'Could not credit this wallet funding.');
+    } finally {
+      setBusy('');
+    }
+  };
+
   const publishDraft = async (draft: DraftPlan) => {
     if (!draft.sellingPrice) return;
     setBusy(`draft-${draft.id}`);
@@ -704,16 +732,28 @@ export default function AdminCalebNet() {
                             <span className="block min-w-[180px] break-all">{user.id}</span>
                           </td>
                           <td className="px-4 py-3">
-                            <button
-                              type="button"
-                              onClick={() => deleteWalletUser(user)}
-                              disabled={busy === `delete-user-${user.id}` || Number(user.walletBalance || 0) > 0}
-                              className="inline-flex items-center gap-2 rounded-lg border border-red-500/30 px-3 py-2 text-xs font-black text-red-600 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-45"
-                              title={Number(user.walletBalance || 0) > 0 ? 'Wallet balance must be resolved first' : 'Delete CalebNet profile'}
-                            >
-                              {busy === `delete-user-${user.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-                              Delete
-                            </button>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => creditWalletFunding(user)}
+                                disabled={busy === `credit-wallet-${user.id}`}
+                                className="inline-flex items-center gap-2 rounded-lg border border-[#7C3AED]/30 px-3 py-2 text-xs font-black text-[#7C3AED] hover:bg-[#7C3AED]/10 disabled:cursor-not-allowed disabled:opacity-45"
+                                title="Verify a Paystack reference and credit this CalebNet wallet"
+                              >
+                                {busy === `credit-wallet-${user.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wallet className="h-3 w-3" />}
+                                Credit Ref
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteWalletUser(user)}
+                                disabled={busy === `delete-user-${user.id}` || Number(user.walletBalance || 0) > 0}
+                                className="inline-flex items-center gap-2 rounded-lg border border-red-500/30 px-3 py-2 text-xs font-black text-red-600 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-45"
+                                title={Number(user.walletBalance || 0) > 0 ? 'Wallet balance must be resolved first' : 'Delete CalebNet profile'}
+                              >
+                                {busy === `delete-user-${user.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                                Delete
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
