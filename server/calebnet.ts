@@ -109,6 +109,36 @@ export function isRefundableProviderStatus(status: FulfillmentStatus) {
     return status === 'FAILED' || status === 'REFUND_REQUIRED' || status === 'CANCELLED';
 }
 
+export function providerInvalidPlanReason(input: any) {
+    const parts = [
+        input?.status,
+        input?.orderstatus,
+        input?.remark,
+        input?.orderremark,
+        input?.message,
+        input?.response_description,
+        input?.callback?.orderremark,
+        input?.callback?.remark,
+    ];
+    const text = parts.filter(Boolean).join(' ').toLowerCase();
+    if (!text) return null;
+    const mentionsPlan = text.includes('plan') || text.includes('dataplan') || text.includes('data plan');
+    const invalid = text.includes('not valid') || text.includes('invalid') || text.includes('missing_dataplan');
+    return mentionsPlan && invalid ? parts.filter(Boolean).join(' ') : null;
+}
+
+export async function disableCatalogPlanAfterProviderRejection(order: any, reason: string | null) {
+    const planId = String(order?.planId || '').trim();
+    if (!planId || !reason) return;
+    await adminDb().collection('calebnet_catalog').doc(planId).set({
+        isActive: false,
+        providerDisabled: true,
+        disabledReason: reason,
+        disabledAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+}
+
 export async function clubkonnectGet(path: string, params: Record<string, any>, timeout = 20000) {
     const { baseUrl } = getClubkonnectConfig();
     const response = await axios.get(`${baseUrl}${path}`, { params, timeout });

@@ -47,13 +47,17 @@ export function AdminCalebNetAnalytics() {
   useEffect(() => {
     const q = query(
       collection(db, 'calebnet_orders'),
-      where('fulfillmentStatus', 'in', ['FAILED', 'PENDING_PROVIDER', 'REFUND_REQUIRED']),
+      where('fulfillmentStatus', 'in', ['FAILED', 'PENDING_PROVIDER', 'REFUND_REQUIRED', 'CANCELLED']),
       orderBy('createdAt', 'desc'),
       limit(50)
     );
     const unsub = onSnapshot(q, (snap) => {
       const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setRecentFailed(all.filter((o: any) => o.status !== 'REFUNDED'));
+      setRecentFailed(all.filter((order: any) => {
+        if (order.walletRefundTransactionId || order.refundedAt) return false;
+        if (order.fulfillmentStatus === 'CANCELLED' && order.paymentProvider !== 'wallet') return false;
+        return true;
+      }));
     });
     return () => unsub();
   }, []);
