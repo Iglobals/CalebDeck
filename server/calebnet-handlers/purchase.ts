@@ -7,6 +7,7 @@ import {
     CalebNetType,
     NETWORK_CODES,
     clubkonnectGet,
+    disableCatalogPlanAfterProviderRejection,
     getClubkonnectConfig,
     isRefundableProviderStatus,
     isValidNigerianPhone,
@@ -15,6 +16,7 @@ import {
     normalizeNetwork,
     normalizeType,
     providerHealthOutcomeForStatus,
+    providerInvalidPlanReason,
     safePayload,
     setCors,
     updateProviderHealth,
@@ -336,6 +338,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const fulfillmentStatus = mapProviderStatus(providerResponse);
         const failedClearly = isRefundableProviderStatus(fulfillmentStatus) || clearProviderFailure(providerResponse);
         const finalFailureStatus = isRefundableProviderStatus(fulfillmentStatus) ? fulfillmentStatus : 'FAILED';
+        const invalidPlanReason = type === 'DATA' ? providerInvalidPlanReason(providerResponse) : null;
         await orderRef.update({
             fulfillmentStatus: failedClearly ? finalFailureStatus : fulfillmentStatus,
             providerOrderId: providerResponse?.orderid || providerResponse?.OrderID || null,
@@ -358,6 +361,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
         if (failedClearly) {
             await refundWalletForCalebNetOrder({ orderId: clientRequestId, reason: 'Provider confirmed failure. Wallet refunded.', fulfillmentStatus: finalFailureStatus });
+        }
+        if (invalidPlanReason) {
+            await disableCatalogPlanAfterProviderRejection({ planId: catalogDoc?.id }, invalidPlanReason);
         }
 
         const finalOrder = await orderRef.get();

@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '../server/firebase-admin.js';
-import { isRefundableProviderStatus, mapProviderStatus, providerHealthOutcomeForStatus, setCors, shouldPreserveSuccessful, updateProviderHealth } from '../server/calebnet.js';
+import { disableCatalogPlanAfterProviderRejection, isRefundableProviderStatus, mapProviderStatus, providerHealthOutcomeForStatus, providerInvalidPlanReason, setCors, shouldPreserveSuccessful, updateProviderHealth } from '../server/calebnet.js';
 import { refundWalletForCalebNetOrder } from '../server/wallet.js';
 import { recordCalebNetAnalytics } from '../server/calebnet-analytics.js';
 
@@ -54,6 +54,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         await doc.ref.update(patch);
         await updateProviderHealth(order.network, order.type, providerHealthOutcomeForStatus(nextStatus), patch.providerRemark || null);
+        const invalidPlanReason = order.type === 'DATA' ? providerInvalidPlanReason({ ...body, callback: body }) : null;
+        if (invalidPlanReason) {
+            await disableCatalogPlanAfterProviderRejection(order, invalidPlanReason);
+        }
         if (
             order.paymentProvider === 'wallet' &&
             !order.walletRefundTransactionId &&
