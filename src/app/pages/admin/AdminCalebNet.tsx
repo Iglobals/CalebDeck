@@ -79,7 +79,7 @@ function parseDate(value: any) {
 function statusBadge(status: string) {
   if (status === 'SUCCESSFUL' || status === 'HEALTHY') return <Badge variant="green"><CheckCircle2 className="mr-1 h-3 w-3" />{status}</Badge>;
   if (['PROCESSING', 'ORDER_RECEIVED', 'PENDING_PROVIDER', 'DEGRADED'].includes(status)) return <Badge variant="amber"><Clock className="mr-1 h-3 w-3" />{status}</Badge>;
-  if (['REFUND_REQUIRED', 'FAILED', 'DOWN'].includes(status)) return <Badge variant="purple"><AlertCircle className="mr-1 h-3 w-3" />{status}</Badge>;
+  if (['REFUND_REQUIRED', 'FAILED', 'CANCELLED', 'DOWN'].includes(status)) return <Badge variant="purple"><AlertCircle className="mr-1 h-3 w-3" />{status}</Badge>;
   return <Badge variant="gray">{status || 'UNKNOWN'}</Badge>;
 }
 
@@ -237,7 +237,7 @@ export default function AdminCalebNet() {
       profit: recent.reduce((sum, order) => sum + Number(order.profit || 0), 0),
       successful: recent.filter((order) => order.fulfillmentStatus === 'SUCCESSFUL').length,
       pending: recent.filter((order) => ['PROCESSING', 'ORDER_RECEIVED', 'PENDING_PROVIDER'].includes(order.fulfillmentStatus)).length,
-      failed: recent.filter((order) => ['REFUND_REQUIRED', 'FAILED'].includes(order.fulfillmentStatus)).length,
+      failed: recent.filter((order) => ['REFUND_REQUIRED', 'FAILED', 'CANCELLED'].includes(order.fulfillmentStatus) && !order.walletRefundTransactionId).length,
     };
   }, [orders]);
 
@@ -584,6 +584,7 @@ export default function AdminCalebNet() {
                   <option value="ORDER_RECEIVED">Order received</option>
                   <option value="PENDING_PROVIDER">Pending provider</option>
                   <option value="REFUND_REQUIRED">Refund required</option>
+                  <option value="CANCELLED">Cancelled/resolved</option>
                 </select>
               </div>
             </div>
@@ -609,6 +610,7 @@ export default function AdminCalebNet() {
                 <tbody className="divide-y divide-border">
                   {filteredOrders.map((order) => {
                     const date = parseDate(order.createdAt);
+                    const needsRefundAction = ['REFUND_REQUIRED', 'FAILED', 'CANCELLED'].includes(order.fulfillmentStatus) && !order.walletRefundTransactionId;
                     return (
                       <tr key={order.id} className="hover:bg-muted/30">
                         <td className="px-4 py-3 whitespace-nowrap">{date ? format(date, 'MMM d, h:mm a') : 'N/A'}</td>
@@ -621,6 +623,9 @@ export default function AdminCalebNet() {
                         <td className="px-4 py-3">
                           {statusBadge(order.paymentStatus)}
                           <span className="mt-1 block text-xs font-black uppercase text-muted-foreground">{order.paymentProvider || 'paystack'}</span>
+                          {order.walletRefundTransactionId && (
+                            <span className="mt-1 block break-all text-[10px] font-black text-emerald-600">Refunded</span>
+                          )}
                         </td>
                         <td className="px-4 py-3">{statusBadge(order.fulfillmentStatus)}</td>
                         <td className="px-4 py-3">
@@ -638,7 +643,7 @@ export default function AdminCalebNet() {
                                 Requery
                               </button>
                             )}
-                            {['REFUND_REQUIRED', 'FAILED'].includes(order.fulfillmentStatus) && (
+                            {needsRefundAction && (
                               <button onClick={() => markRefunded(order.id)} className="rounded-lg border border-amber-500/30 px-3 py-2 text-xs font-black text-amber-600 hover:bg-amber-500/10" title="Mark this order as refunded/manual resolved">
                                 Mark refunded
                               </button>

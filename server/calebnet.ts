@@ -105,6 +105,10 @@ export function providerHealthOutcomeForStatus(status: FulfillmentStatus): 'succ
     return 'pending';
 }
 
+export function isRefundableProviderStatus(status: FulfillmentStatus) {
+    return status === 'FAILED' || status === 'REFUND_REQUIRED' || status === 'CANCELLED';
+}
+
 export async function clubkonnectGet(path: string, params: Record<string, any>, timeout = 20000) {
     const { baseUrl } = getClubkonnectConfig();
     const response = await axios.get(`${baseUrl}${path}`, { params, timeout });

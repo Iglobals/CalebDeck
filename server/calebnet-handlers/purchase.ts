@@ -8,6 +8,7 @@ import {
     NETWORK_CODES,
     clubkonnectGet,
     getClubkonnectConfig,
+    isRefundableProviderStatus,
     isValidNigerianPhone,
     makeRequestId,
     mapProviderStatus,
@@ -333,9 +334,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const fulfillmentStatus = mapProviderStatus(providerResponse);
-        const failedClearly = fulfillmentStatus === 'REFUND_REQUIRED' || fulfillmentStatus === 'FAILED' || clearProviderFailure(providerResponse);
+        const failedClearly = isRefundableProviderStatus(fulfillmentStatus) || clearProviderFailure(providerResponse);
+        const finalFailureStatus = isRefundableProviderStatus(fulfillmentStatus) ? fulfillmentStatus : 'FAILED';
         await orderRef.update({
-            fulfillmentStatus: failedClearly ? 'FAILED' : fulfillmentStatus,
+            fulfillmentStatus: failedClearly ? finalFailureStatus : fulfillmentStatus,
             providerOrderId: providerResponse?.orderid || providerResponse?.OrderID || null,
             providerStatusCode: providerResponse?.statuscode || providerResponse?.statusCode || null,
             providerStatus: providerResponse?.status || providerResponse?.orderstatus || null,
@@ -355,11 +357,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     : null
         );
         if (failedClearly) {
-            await refundWalletForCalebNetOrder({ orderId: clientRequestId, reason: 'Provider confirmed failure. Wallet refunded.' });
+            await refundWalletForCalebNetOrder({ orderId: clientRequestId, reason: 'Provider confirmed failure. Wallet refunded.', fulfillmentStatus: finalFailureStatus });
         }
 
         const finalOrder = await orderRef.get();
-        const finalStatus = failedClearly ? 'FAILED' : fulfillmentStatus;
+        const finalStatus = failedClearly ? finalFailureStatus : fulfillmentStatus;
         await recordCalebNetAnalytics(orderRef, finalOrder.data(), finalStatus);
 
         return res.status(200).json({ success: true, order: { id: finalOrder.id, ...finalOrder.data() } });

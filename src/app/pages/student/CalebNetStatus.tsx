@@ -14,7 +14,7 @@ const MESSAGES: Record<string, { title: string; detail: string; icon: any; badge
   PENDING_PROVIDER: { title: 'Network delay, we are confirming your transaction', detail: 'Please do not pay again. We are checking the network response and will update this page once it is confirmed.', icon: RefreshCcw, badge: 'amber' },
   REFUND_REQUIRED: { title: 'We are reviewing this transaction', detail: 'Delivery was not confirmed, so this has been sent for review. Your wallet will be handled safely once the final status is clear.', icon: AlertTriangle, badge: 'purple' },
   FAILED: { title: 'We are reviewing this transaction', detail: 'Delivery was not confirmed, so this has been sent for review. Your wallet will be handled safely once the final status is clear.', icon: AlertTriangle, badge: 'purple' },
-  CANCELLED: { title: 'Refund/manual review required', detail: 'This transaction has been marked for manual resolution.', icon: AlertTriangle, badge: 'gray' },
+  CANCELLED: { title: 'Transaction could not be completed', detail: 'The network could not complete this transaction. If your wallet has not been refunded yet, our team will review it.', icon: AlertTriangle, badge: 'gray' },
 };
 
 export default function CalebNetStatus() {
@@ -50,6 +50,8 @@ export default function CalebNetStatus() {
   const serviceName = order?.type === 'AIRTIME' ? 'Airtime' : 'Data';
   const message = status === 'SUCCESSFUL'
     ? { ...baseMessage, title: `${serviceName} sent successfully`, detail: `Your CalebNet ${serviceName.toLowerCase()} top-up has been confirmed.` }
+    : order?.walletRefundTransactionId && ['FAILED', 'REFUND_REQUIRED', 'CANCELLED'].includes(status)
+      ? { ...baseMessage, title: 'Wallet refunded', detail: `The network could not complete this ${serviceName.toLowerCase()} purchase, so the money has been returned to your CalebNet wallet.` }
     : ['ORDER_RECEIVED', 'PROCESSING'].includes(status)
       ? { ...baseMessage, title: `Processing your ${serviceName.toLowerCase()} purchase` }
       : baseMessage;
@@ -101,6 +103,12 @@ export default function CalebNetStatus() {
                 <div className="mb-2 flex justify-between"><span className="text-muted-foreground">Network</span><span className="font-bold">{order.network}</span></div>
                 <div className="mb-2 flex justify-between"><span className="text-muted-foreground">Phone</span><span className="font-mono font-bold">{order.phoneNumber}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Amount</span><span className="font-bold">₦{Number(order.amountPaid || 0).toLocaleString()}</span></div>
+                {order.walletRefundTransactionId && (
+                  <div className="mt-2 grid grid-cols-[92px_1fr] gap-3 border-t border-border pt-2">
+                    <span className="text-muted-foreground">Refund</span>
+                    <span className="min-w-0 break-all text-right font-mono font-bold">{order.walletRefundTransactionId}</span>
+                  </div>
+                )}
               </div>
 
               {status === 'SUCCESSFUL' && order?.type === 'DATA' && (

@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '../firebase-admin.js';
-import { clubkonnectGet, getClubkonnectConfig, mapProviderStatus, providerHealthOutcomeForStatus, requireAdmin, setCors, shouldPreserveSuccessful, updateProviderHealth } from '../calebnet.js';
+import { clubkonnectGet, getClubkonnectConfig, isRefundableProviderStatus, mapProviderStatus, providerHealthOutcomeForStatus, requireAdmin, setCors, shouldPreserveSuccessful, updateProviderHealth } from '../calebnet.js';
 import { refundWalletForCalebNetOrder } from '../wallet.js';
 import { recordCalebNetAnalytics } from '../calebnet-analytics.js';
 
@@ -21,7 +21,7 @@ function hasUsefulProviderStatus(response: any) {
 
 function adminRequeryMessage(status: string, response: any) {
     if (status === 'SUCCESSFUL') return 'Provider confirmed this transaction as successful.';
-    if (status === 'REFUND_REQUIRED' || status === 'FAILED') return 'Provider confirmed this transaction did not complete. Wallet refund/review has been handled where possible.';
+    if (status === 'REFUND_REQUIRED' || status === 'FAILED' || status === 'CANCELLED') return 'Provider confirmed this transaction did not complete. Wallet refund/review has been handled where possible.';
     if (status === 'ORDER_RECEIVED' || status === 'PROCESSING' || status === 'PENDING_PROVIDER') {
         return 'Provider has not confirmed final delivery yet. Keep this order under review and do not retry blindly.';
     }
@@ -104,11 +104,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             order.paymentProvider === 'wallet' &&
             !order.walletRefundTransactionId &&
             !shouldPreserveSuccessful(order.fulfillmentStatus, nextStatus) &&
-            (nextStatus === 'REFUND_REQUIRED' || nextStatus === 'FAILED')
+            isRefundableProviderStatus(nextStatus)
         ) {
             await refundWalletForCalebNetOrder({
                 orderId: orderRef.id,
                 reason: 'Provider requery confirmed failure. Wallet refunded.',
+                fulfillmentStatus: nextStatus,
             });
         }
 

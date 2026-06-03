@@ -3,6 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '../../firebase-admin.js';
 import { requireAdmin, setCors } from '../../calebnet.js';
 import { refundWalletForCalebNetOrder } from '../../wallet.js';
+import { recordCalebNetAnalytics } from '../../calebnet-analytics.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     setCors(res, 'POST, OPTIONS');
@@ -24,6 +25,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 reason: req.body?.remark || 'Marked refunded by admin',
                 fulfillmentStatus: 'CANCELLED',
             });
+            const finalOrder = await orderSnap.ref.get();
+            await recordCalebNetAnalytics(orderSnap.ref, finalOrder.data(), 'CANCELLED');
             return res.status(200).json({ success: true });
         }
 
@@ -33,6 +36,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             refundedAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
         }, { merge: true });
+        const finalOrder = await orderSnap.ref.get();
+        await recordCalebNetAnalytics(orderSnap.ref, finalOrder.data(), 'CANCELLED');
 
         return res.status(200).json({ success: true });
     } catch (error: any) {
