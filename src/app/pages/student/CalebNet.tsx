@@ -40,6 +40,7 @@ interface WalletTransaction {
   amount: number;
   balanceAfter: number;
   purpose: string;
+  relatedOrderId?: string;
   status: string;
   createdAt?: any;
 }
@@ -106,6 +107,20 @@ function statusMessage(status?: ProviderStatus) {
   if (status === 'DOWN') return 'This network is temporarily unavailable. Please try again later.';
   if (status === 'DEGRADED') return 'Network may be delayed.';
   return '';
+}
+
+function walletActivityTitle(item: WalletTransaction) {
+  if (item.purpose === 'CALEBNET_PURCHASE' && item.type === 'debit') return 'CalebNet purchase';
+  if (item.purpose === 'CALEBNET_REFUND' || item.type === 'refund') return 'Wallet refund';
+  if (item.purpose === 'WALLET_FUNDING' && item.type === 'credit') return 'Wallet funding';
+  return item.purpose?.replace(/_/g, ' ') || item.type;
+}
+
+function walletActivityDetail(item: WalletTransaction) {
+  if (item.purpose === 'CALEBNET_PURCHASE' && item.type === 'debit') return 'Payment made. Check order status for delivery update.';
+  if (item.purpose === 'CALEBNET_REFUND' || item.type === 'refund') return 'Money returned to your CalebNet wallet.';
+  if (item.purpose === 'WALLET_FUNDING' && item.type === 'credit') return 'Wallet credited.';
+  return item.status || 'Updated';
 }
 
 function authErrorMessage(error: any, mode: 'login' | 'signup') {
@@ -983,7 +998,7 @@ export default function CalebNet() {
                 {airtimeAmountError && <p className="mt-3 text-center text-xs font-bold text-red-500">{airtimeAmountError}</p>}
               </div>
               <div className="mt-5 space-y-2 rounded-xl bg-muted/30 p-3 text-xs text-muted-foreground">
-                <p className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 shrink-0 text-green-500" /> All plans are delivered automatically after successful payment.</p>
+                <p className="flex items-center gap-2"><Clock className="h-3 w-3 shrink-0 text-amber-500" /> After wallet payment, we confirm delivery with the network and update your status automatically.</p>
                 <p className="flex items-center gap-2"><Zap className="h-3 w-3 shrink-0 text-amber-500" /> Fast automated delivery.</p>
                 <p className="flex items-center gap-2"><Shield className="h-3 w-3 shrink-0 text-[#7C3AED]" /> Secure payment and wallet system.</p>
               </div>
@@ -1028,9 +1043,18 @@ export default function CalebNet() {
                 </div>
               ) : walletTransactions.map((item) => (
                 <div key={item.id} className="flex items-center justify-between rounded-xl bg-muted/40 p-3 text-sm">
-                  <div>
-                    <p className="font-black">{item.purpose?.replace(/_/g, ' ') || item.type}</p>
-                    <p className="text-xs text-muted-foreground">{item.status}</p>
+                  <div className="min-w-0">
+                    <p className="font-black">{walletActivityTitle(item)}</p>
+                    <p className="text-xs text-muted-foreground">{walletActivityDetail(item)}</p>
+                    {item.relatedOrderId && item.purpose === 'CALEBNET_PURCHASE' && (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/calebnet/status/${encodeURIComponent(item.relatedOrderId!)}`)}
+                        className="mt-1 text-xs font-black text-[#7C3AED] hover:underline"
+                      >
+                        View status
+                      </button>
+                    )}
                   </div>
                   <p className={`font-black ${item.type === 'debit' ? 'text-red-500' : 'text-green-600'}`}>
                     {item.type === 'debit' ? '-' : '+'}{money(item.amount)}

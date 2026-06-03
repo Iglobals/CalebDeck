@@ -124,7 +124,7 @@ export function buildCalebNetEntry(data: {
     type: 'calebnet',
     summary,
     total: data.amount,
-    status: 'PAID',
+    status: 'PROCESSING',
     createdAt: new Date().toISOString()
   };
 }
