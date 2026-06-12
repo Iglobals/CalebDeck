@@ -167,13 +167,28 @@ export default function MyOrders() {
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
 
         {/* Device Notice */}
-        <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl mb-6 text-sm font-medium ${
+        <div className={`rounded-2xl mb-6 overflow-hidden ${
           studentTheme === 'dark'
-            ? 'bg-[#1A1A1A] border border-[#333333] text-[#9C8F7F]'
-            : 'bg-amber-50/50 border border-amber-200/60 text-amber-800'
+            ? 'bg-[#1A1A1A] border border-[#333333]'
+            : 'bg-amber-50/50 border border-amber-200/60'
         }`}>
-          <Smartphone className="w-4 h-4 flex-shrink-0 opacity-70" />
-          <span>Your order history is saved on this device only.</span>
+          <div className={`flex items-center gap-3 px-4 py-3 ${
+            studentTheme === 'dark' ? 'text-amber-400' : 'text-amber-800'
+          }`}>
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
+              studentTheme === 'dark' ? 'bg-amber-500/15' : 'bg-amber-200/50'
+            }`}>
+              <Smartphone className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-sm font-bold">Orders are saved on this device only</p>
+              <p className={`text-xs mt-0.5 ${
+                studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-amber-700/70'
+              }`}>
+                Clearing your browser data, switching browsers, or using incognito mode will erase your history.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Filter Tabs */}
