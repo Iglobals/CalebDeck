@@ -120,6 +120,16 @@ export default function Checkout() {
     return () => unsub();
   }, []);
 
+  useEffect(() => {
+    if (
+      isBatchSystemActive &&
+      platformSettings?.instantOrderingEnabled === false &&
+      deliveryType !== 'BATCH'
+    ) {
+      setDeliveryType('BATCH');
+    }
+  }, [deliveryType, isBatchSystemActive, platformSettings?.instantOrderingEnabled]);
+
   // Fetch Hostels
   useEffect(() => {
     const fetchHostels = async () => {
@@ -534,7 +544,7 @@ if (isPremiumHostel) {
       const preSaveResult = await preSaveResponse.json();
 
       // Handle batch rejection from server
-      if (!preSaveResponse.ok && preSaveResult.error) {
+      if (!preSaveResponse.ok) {
         if (preSaveResult.error === 'ORDER_WINDOW_CLOSED') {
           const nextName = preSaveResult.nextBatch?.batchName || 'the next batch';
           const nextTime = preSaveResult.nextBatch?.orderWindowStart
@@ -559,12 +569,34 @@ if (isPremiumHostel) {
           setIsSubmitting(false);
           return;
         }
+        if (preSaveResult.error === 'INSTANT_THROTTLED') {
+          toast.info(
+            preSaveResult.message || 'Instant ordering is currently unavailable. Please join a delivery batch.',
+            { autoClose: 8000, position: 'top-center' }
+          );
+          setDeliveryType('BATCH');
+          setIsSubmitting(false);
+          return;
+        }
+
+        toast.error(
+          preSaveResult.message || 'We could not prepare this order for payment. Please try again.',
+          { autoClose: 8000, position: 'top-center' }
+        );
+        setIsSubmitting(false);
+        return;
       }
 
       console.log('[Checkout] Order pre-saved successfully');
     } catch (preSaveErr) {
-      // Pre-save failed — proceed anyway, verify-payment is still the primary path
-      console.warn('[Checkout] Pre-save failed (non-blocking):', preSaveErr);
+      // Payment must not begin unless the order was accepted and saved by the server.
+      console.warn('[Checkout] Pre-save failed:', preSaveErr);
+      toast.error(
+        'We could not securely prepare your order for payment. Check your connection and try again.',
+        { autoClose: 8000, position: 'top-center' }
+      );
+      setIsSubmitting(false);
+      return;
     }
 
     initializePayment({ onSuccess: onSuccess as any, onClose: () => { onClose(); setIsSubmitting(false); } });

@@ -201,6 +201,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             cafeteriaId: orderData?.cafeteriaId || '',
             sectionId: orderData?.sectionId || 'none',
             deliveryMode: orderData?.deliveryMode || 'solo',
+            deliveryType: orderData?.deliveryType || 'INSTANT',
             paymentReference: reference,
             assignedRiderId: null,
             batchId: null,
