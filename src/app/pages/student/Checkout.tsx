@@ -451,9 +451,13 @@ if (isPremiumHostel) {
   const isMaintenance = platformSettings?.isAcceptingOrders === false || platformSettings?.isFoodOrderingClosed === true;
   
   // Batch-aware closing: if batch system is active, use batch state instead of hours
+  // BUT if the student chose INSTANT delivery, batch window state should NOT block them
   const isBatchWindowClosed = isBatchSystemActive && !batchTimer.isBatchOpen && !batchTimer.isManualOverride;
   const isBatchFull = isBatchSystemActive && batchTimer.isBatchFull;
-  const isClosed = isMaintenance || (isBatchSystemActive ? (isBatchWindowClosed || isBatchFull) : isOutOfHours);
+  const isInstantSelected = deliveryType === 'INSTANT';
+  const isClosed = isMaintenance || (isBatchSystemActive
+    ? (isInstantSelected ? isOutOfHours : (isBatchWindowClosed || isBatchFull))
+    : isOutOfHours);
   
   const closedMessage = platformSettings?.isFoodOrderingClosed === true
     ? (platformSettings?.foodOrderingClosedMessage || 'Food ordering is currently closed. Cafeterias are preparing for the next order window.')
