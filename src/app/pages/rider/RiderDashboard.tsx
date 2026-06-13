@@ -16,11 +16,14 @@ import {
   Rider,
   Batch,
   PlatformSettings,
-  subscribeToPlatformSettings
+  subscribeToPlatformSettings,
+  subscribeTodayBatchDays,
+  FoodBatchDay
 } from '../../../services/db';
 import { NotificationPanel } from '../../components/NotificationPanel';
 import { requestNotificationPermissionAndSaveToken, onForegroundMessage } from '../../../services/messaging';
 import { BankDetailsModal } from '../../components/BankDetailsModal';
+import { BatchOrderInfo } from '../../components/BatchOrderInfo';
 
 export default function RiderDashboard() {
   const { user } = useAuth();
@@ -31,6 +34,7 @@ export default function RiderDashboard() {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [riderStatus, setRiderStatus] = useState<'available' | 'offline'>('offline');
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+  const [batchDays, setBatchDays] = useState<FoodBatchDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [showBankModal, setShowBankModal] = useState(false);
 
@@ -38,7 +42,8 @@ export default function RiderDashboard() {
 
   useEffect(() => {
     const unsub = subscribeToPlatformSettings(setPlatformSettings);
-    return unsub;
+    const unsubBatchDays = subscribeTodayBatchDays(setBatchDays);
+    return () => { unsub(); unsubBatchDays(); };
   }, []);
 
   useEffect(() => {
@@ -310,6 +315,11 @@ export default function RiderDashboard() {
                         </>
                       )}
                     </div>
+                    <BatchOrderInfo
+                      order={orders.find((order: any) => batch.orderIds?.includes(order.id))}
+                      batchDays={batchDays}
+                      compact
+                    />
                   </div>
                 </div>
                 <div className="flex items-center gap-3">

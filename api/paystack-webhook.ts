@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import crypto from 'crypto';
 import { adminDb } from '../server/firebase-admin.js';
+import { confirmFoodBatchReservation } from '../server/food-batch.js';
 import { creditWallet, ensureWalletUser, WALLET_FUNDING_MAX, WALLET_FUNDING_MIN } from '../server/wallet.js';
 
 function metadataValue(metadata: any, key: string) {
@@ -142,6 +143,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 });
                 console.log(`[Webhook] Confirmed pre-saved order: ${reference}`);
 
+                if (existingData.foodBatchDayId) {
+                    try {
+                        await confirmFoodBatchReservation({
+                            db,
+                            orderRef,
+                            reference,
+                            paidAmount,
+                        });
+                        console.log(`[Webhook] Confirmed batch slot for ${existingData.foodBatchDayId}`);
+                    } catch (batchErr) {
+                        console.warn('[Webhook] Failed to confirm batch slot (non-blocking):', batchErr);
+                    }
+                }
+
                 // Send admin notification since this is the payment confirmation
                 try {
                     const adminMsg = `${existingData.fullName} just ordered from ${existingData.hostelName || existingData.hostel}`;
@@ -228,6 +243,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             cafeteriaId: metadata.cafeteriaId || '',
             sectionId: metadata.sectionId || 'none',
             deliveryMode: metadata.deliveryMode || 'solo',
+            deliveryType: metadata.deliveryType || 'INSTANT',
             paymentReference: reference,
             assignedRiderId: null,
             batchId: null,
@@ -236,6 +252,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             createdAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp()
         };
+
+        if (orderDoc.deliveryType === 'BATCH') {
+            orderDoc.foodBatchId = metadata.selectedBatchId || metadata.foodBatchId || null;
+            orderDoc.foodBatchName = metadata.foodBatchName || 'Scheduled Batch';
+            orderDoc.orderWindowStart = metadata.orderWindowStart || null;
+            orderDoc.orderWindowEnd = metadata.orderWindowEnd || null;
+            orderDoc.deliveryWindowStart = metadata.deliveryWindowStart || null;
+            orderDoc.deliveryWindowEnd = metadata.deliveryWindowEnd || null;
+        }
 
         if (isMartOrder) {
             orderDoc.type = 'mart';

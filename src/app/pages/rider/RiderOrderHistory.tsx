@@ -4,14 +4,16 @@ import { Badge } from '../../components/design-system/Badge';
 import { useAuth } from '../../../context/AuthContext';
 import { CheckCircle, MapPin, DollarSign, Calendar, ChevronDown, ChevronUp, Search, Filter, FileText, ChevronRight, History, Package, RotateCcw } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
-import { subscribeToRiderOrders, PlatformSettings, subscribeToPlatformSettings } from '../../../services/db';
+import { subscribeToRiderOrders, PlatformSettings, subscribeToPlatformSettings, subscribeTodayBatchDays, FoodBatchDay } from '../../../services/db';
 import { format } from 'date-fns';
+import { BatchOrderInfo } from '../../components/BatchOrderInfo';
 
 export default function RiderOrderHistory() {
     const { user } = useAuth();
     const { riderTheme } = useTheme();
     const [orders, setOrders] = useState<any[]>([]);
     const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+    const [batchDays, setBatchDays] = useState<FoodBatchDay[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
@@ -19,7 +21,8 @@ export default function RiderOrderHistory() {
 
     useEffect(() => {
         const unsub = subscribeToPlatformSettings(setPlatformSettings);
-        return unsub;
+        const unsubBatchDays = subscribeTodayBatchDays(setBatchDays);
+        return () => { unsub(); unsubBatchDays(); };
     }, []);
 
     useEffect(() => {
@@ -200,6 +203,7 @@ export default function RiderOrderHistory() {
                                                                     <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 ml-1">Group</Badge>
                                                                 )}
                                                             </div>
+                                                            <BatchOrderInfo order={order} batchDays={batchDays} compact />
                                                         </div>
                                                     </div>
 

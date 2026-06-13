@@ -4,15 +4,17 @@ import { Card } from '../../components/design-system/Card';
 import { Badge } from '../../components/design-system/Badge';
 import { Button } from '../../components/design-system/Button';
 import { Download, Search, Filter, ChevronDown, Trash2, RotateCcw, AlertTriangle, CheckCircle, Package, Clock, Users, Loader2 } from 'lucide-react';
-import { getRecentOrderHistory, subscribeToRiders, trashOrder, recoverOrder, permanentlyDeleteOrder, Rider } from '../../../services/db';
+import { getRecentOrderHistory, subscribeToRiders, trashOrder, recoverOrder, permanentlyDeleteOrder, Rider, subscribeTodayBatchDays, FoodBatchDay } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 import { format } from 'date-fns';
+import { BatchOrderInfo } from '../../components/BatchOrderInfo';
 
 type ViewMode = 'active' | 'trash';
 
 export default function AdminOrderHistory() {
     const [orders, setOrders] = useState<any[]>([]);
     const [riders, setRiders] = useState<Rider[]>([]);
+    const [batchDays, setBatchDays] = useState<FoodBatchDay[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [viewMode, setViewMode] = useState<ViewMode>('active');
@@ -38,7 +40,8 @@ export default function AdminOrderHistory() {
             checkDone();
         });
         const unsubRiders = subscribeToRiders((data) => { setRiders(data); ridersLoaded = true; checkDone(); });
-        return () => { mounted = false; unsubRiders(); };
+        const unsubBatchDays = subscribeTodayBatchDays(setBatchDays);
+        return () => { mounted = false; unsubRiders(); unsubBatchDays(); };
     }, []);
 
     const isDark = adminTheme === 'dark';
@@ -411,6 +414,7 @@ export default function AdminOrderHistory() {
                                                                 {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
                                                                     <Badge variant="purple" className="text-[10px] uppercase font-black px-2 py-0.5">Group</Badge>
                                                                 )}
+                                                                <BatchOrderInfo order={order} batchDays={batchDays} compact />
                                                             </div>
                                                         </td>
                                                         <td className="py-4 px-4 lg:px-6">
@@ -475,6 +479,7 @@ export default function AdminOrderHistory() {
                                                         {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
                                                             <Badge variant="purple" className="text-[10px] uppercase font-black px-2 py-0.5">Group</Badge>
                                                         )}
+                                                        <BatchOrderInfo order={order} batchDays={batchDays} compact />
                                                     </div>
                                                 </td>
                                                 <td className="py-4 px-4 lg:px-6">

@@ -55,7 +55,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const isMartOrder = orderData.orderType === 'mart' || orderData.type === 'mart';
 
         // ─── Delivery Type Validation (food orders only) ───
-        let batchInfo: { batchId: string; batchName: string; deliveryWindowStart: string; deliveryWindowEnd: string; batchDayId: string } | null = null;
+        let batchInfo: {
+            batchId: string;
+            batchName: string;
+            orderWindowStart: string;
+            orderWindowEnd: string;
+            deliveryWindowStart: string;
+            deliveryWindowEnd: string;
+            batchDayId: string;
+        } | null = null;
         const deliveryType = orderData.deliveryType || 'INSTANT';
 
         if (!isMartOrder) {
@@ -180,6 +188,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 batchInfo = {
                     batchId: targetBatch.id,
                     batchName: targetBatch.batchName,
+                    orderWindowStart: targetBatch.orderWindowStart,
+                    orderWindowEnd: targetBatch.orderWindowEnd,
                     deliveryWindowStart: targetBatch.deliveryWindowStart,
                     deliveryWindowEnd: targetBatch.deliveryWindowEnd,
                     batchDayId,
@@ -258,6 +268,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (batchInfo) {
             orderDoc.foodBatchId = batchInfo.batchId;
             orderDoc.foodBatchName = batchInfo.batchName;
+            orderDoc.orderWindowStart = batchInfo.orderWindowStart;
+            orderDoc.orderWindowEnd = batchInfo.orderWindowEnd;
             orderDoc.deliveryWindowStart = batchInfo.deliveryWindowStart;
             orderDoc.deliveryWindowEnd = batchInfo.deliveryWindowEnd;
             orderDoc.foodBatchDayId = batchInfo.batchDayId;

@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import axios from 'axios';
 import { adminDb } from '../server/firebase-admin.js';
+import { confirmFoodBatchReservation } from '../server/food-batch.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
 
@@ -211,6 +212,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             updatedAt: FieldValue.serverTimestamp()
         };
 
+        if (orderDoc.deliveryType === 'BATCH') {
+            orderDoc.foodBatchId = orderData?.selectedBatchId || orderData?.foodBatchId || null;
+            orderDoc.foodBatchName = orderData?.foodBatchName || 'Scheduled Batch';
+            orderDoc.orderWindowStart = orderData?.orderWindowStart || null;
+            orderDoc.orderWindowEnd = orderData?.orderWindowEnd || null;
+            orderDoc.deliveryWindowStart = orderData?.deliveryWindowStart || null;
+            orderDoc.deliveryWindowEnd = orderData?.deliveryWindowEnd || null;
+        }
+
         if (isMartOrder) {
             orderDoc.type = 'mart';
             orderDoc.items = orderData.items || [];
@@ -260,7 +270,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // For pre-saved orders, just update the status — item data is already in Firestore
-        const isPreSaved = existingDoc.exists && existingDoc.data()?.source === 'pre_saved';
+        const existingSource = existingDoc.exists ? existingDoc.data()?.source : null;
+        const isPreSaved = existingDoc.exists && ['pre_saved', 'webhook_confirmed'].includes(existingSource);
 
         if (isPreSaved) {
             await orderRef.set({
@@ -274,21 +285,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }, { merge: true });
             console.log(`[verify-payment] Updated pre-saved order to PAID: ${reference}`);
 
-            // Confirm batch slot reservation (move from reserved → confirmed)
+            // Confirm the reserved slot exactly once across webhook and browser verification.
             const preSavedData = existingDoc.data()!;
             if (preSavedData.foodBatchDayId) {
                 try {
-                    const batchDayRef = db.collection('food_batch_days').doc(preSavedData.foodBatchDayId);
-                    await batchDayRef.update({
-                        confirmedOrders: FieldValue.increment(1),
-                        reservedSlots: FieldValue.increment(-1),
-                        revenue: FieldValue.increment(paidAmount),
-                        [`hostelCounts.${preSavedData.hostel || 'unknown'}`]: FieldValue.increment(1),
-                        [`cafeteriaCounts.${preSavedData.cafeteriaId || 'unknown'}`]: FieldValue.increment(1),
-                        pendingReservations: FieldValue.arrayRemove({
-                            reference,
-                            reservedAt: (preSavedData as any)._reservedAt || 0,
-                        }),
+                    await confirmFoodBatchReservation({
+                        db,
+                        orderRef,
+                        reference,
+                        paidAmount,
                     });
                     console.log(`[verify-payment] Confirmed batch slot for ${preSavedData.foodBatchDayId}`);
                 } catch (batchErr) {

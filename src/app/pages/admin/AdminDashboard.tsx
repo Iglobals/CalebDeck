@@ -19,6 +19,7 @@ import {
 import { subscribeToAllOrders, subscribeToRiders, subscribeToHostels, dispatchBatch, Rider, Hostel, subscribeToPlatformSettings, updatePlatformSettings, PlatformSettings, orderMatchesHostel, subscribeTodayBatchDays, BatchDay } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 import { isToday, isYesterday, format } from 'date-fns';
+import { BatchOrderInfo, resolveOrderBatchInfo } from '../../components/BatchOrderInfo';
 
 export default function AdminDashboard() {
   const { adminTheme } = useTheme();
@@ -196,13 +197,16 @@ export default function AdminDashboard() {
         const eligible = card.pendingOrders.filter((order) => {
           if (order.status !== 'PAID' || order.batchId || order.assignedRiderId) return false;
           
-          if (order.deliveryType === 'BATCH' && order.foodBatchId) {
-            const batchDay = batchDays.find(b => b.id === order.foodBatchId);
+          if (order.deliveryType === 'BATCH') {
+            const batchInfo = resolveOrderBatchInfo(order, batchDays);
+            const batchDay = batchDays.find(b => (
+              b.id === batchInfo?.batchDayId || b.batchId === batchInfo?.batchId
+            ));
             if (!batchDay) return false;
             
-            const isFull = (batchDay.confirmedOrders || 0) >= (batchDay.plateCapacity || 50);
+            const isFull = (batchDay.confirmedOrders || 0) >= (batchDay.maxOrders || 50);
             
-            const [hours, minutes] = batchDay.closeTime.split(':').map(Number);
+            const [hours, minutes] = batchDay.orderWindowEnd.split(':').map(Number);
             const closeTimeObj = new Date();
             closeTimeObj.setHours(hours, minutes, 0, 0);
             const isTimeEnded = now > closeTimeObj.getTime();
@@ -347,12 +351,12 @@ export default function AdminDashboard() {
                           <Package className="w-3 h-3" /> {card.batchPendingCount} batch
                         </Badge>
                         {/* Batch progress trackers */}
-                        {Array.from(new Set(card.batchPendingOrders.map(o => o.foodBatchId))).map(batchId => {
-                          const batch = batchDays.find(b => b.id === batchId);
+                        {Array.from(new Set(card.batchPendingOrders.map(o => resolveOrderBatchInfo(o, batchDays)?.batchId).filter(Boolean))).map(batchId => {
+                          const batch = batchDays.find(b => b.batchId === batchId || b.id === batchId);
                           if (!batch) return null;
                           return (
                             <span key={batchId as string} className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${isDark ? 'bg-[#333333] text-[#9C8F7F]' : 'bg-gray-100 text-gray-500'}`}>
-                              {batch.name}: {batch.confirmedOrders || 0}/{batch.plateCapacity || 50}
+                              {batch.batchName}: {batch.confirmedOrders || 0}/{batch.maxOrders || 50}
                             </span>
                           );
                         })}
@@ -516,14 +520,17 @@ export default function AdminDashboard() {
                     <td className={`py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName || order.studentName || '-'}</td>
                     <td className={`hidden sm:table-cell py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.hostelName || order.hostel || '-'}</td>
                     <td className={`py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
-                      <div className="flex items-center gap-2">
-                        {getOrderItemLabel(order)}
-                        {order.type === 'mart' && (
-                          <Badge variant="green" className="text-[10px] uppercase font-black px-2 py-0.5">Mart</Badge>
-                        )}
-                        {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
-                          <Badge variant="purple" className="text-[10px] uppercase font-black px-2 py-0.5">Group</Badge>
-                        )}
+                      <div>
+                        <div className="flex items-center gap-2">
+                          {getOrderItemLabel(order)}
+                          {order.type === 'mart' && (
+                            <Badge variant="green" className="text-[10px] uppercase font-black px-2 py-0.5">Mart</Badge>
+                          )}
+                          {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
+                            <Badge variant="purple" className="text-[10px] uppercase font-black px-2 py-0.5">Group</Badge>
+                          )}
+                        </div>
+                        <BatchOrderInfo order={order} batchDays={batchDays} compact />
                       </div>
                     </td>
                     <td className={`py-4 px-6 font-black text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{'\u20A6'}{getOrderAmount(order).toLocaleString()}</td>

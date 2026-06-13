@@ -17,9 +17,10 @@ import {
     Zap,
     AlertTriangle
 } from 'lucide-react';
-import { subscribeToAllOrders, subscribeToHostels, Hostel, subscribeToRiders, Rider, dispatchBatch, markOrderRefunded, orderMatchesHostel } from '../../../services/db';
+import { subscribeToAllOrders, subscribeToHostels, Hostel, subscribeToRiders, Rider, dispatchBatch, markOrderRefunded, orderMatchesHostel, subscribeTodayBatchDays, FoodBatchDay } from '../../../services/db';
 import { formatDistanceToNow } from 'date-fns';
 import { useTheme } from '../../../context/ThemeContext';
+import { BatchOrderInfo, resolveOrderBatchInfo } from '../../components/BatchOrderInfo';
 
 type AdminOrdersProps = {
     orderType?: 'food' | 'mart';
@@ -34,6 +35,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
     const [searchQuery, setSearchQuery] = useState('');
     const [expandedHostels, setExpandedHostels] = useState<Set<string>>(new Set());
     const [riders, setRiders] = useState<Rider[]>([]);
+    const [batchDays, setBatchDays] = useState<FoodBatchDay[]>([]);
     const [dispatching, setDispatching] = useState<string | null>(null);
     const [emergencyDispatch, setEmergencyDispatch] = useState<{ hostel: Hostel, orders: any[] } | null>(null);
     const [deliveryTypeFilter, setDeliveryTypeFilter] = useState<'ALL' | 'INSTANT' | 'BATCH'>('ALL');
@@ -46,7 +48,8 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
         });
         const unsubHostels = subscribeToHostels(setHostels);
         const unsubRiders = subscribeToRiders(setRiders);
-        return () => { unsub(); unsubHostels(); unsubRiders(); };
+        const unsubBatchDays = subscribeTodayBatchDays(setBatchDays);
+        return () => { unsub(); unsubHostels(); unsubRiders(); unsubBatchDays(); };
     }, []);
 
     const isDark = adminTheme === 'dark';
@@ -237,6 +240,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
     };
 
     const handlePrint = (order: any) => {
+        const batchInfo = resolveOrderBatchInfo(order, batchDays);
         const printWindow = window.open('', '_blank');
         if (!printWindow) {
             alert('Please allow popups for this site to print tickets.');
@@ -290,6 +294,15 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                         <div class="label">Delivery</div>
                         <div class="value">${order.hostelName || order.hostel}</div>
                     </div>
+                    ${batchInfo ? `
+                    <div class="section" style="padding:14px;background:#f5f3ff;border-left:4px solid #7C3AED;border-radius:6px;">
+                        <div class="label">Scheduled Delivery Batch</div>
+                        <div class="value">${batchInfo.batchName}</div>
+                        ${batchInfo.orderWindowStart && batchInfo.orderWindowEnd ? `<div style="font-size:13px;font-weight:700;margin-top:8px;color:#555;">Ordering window: ${batchInfo.orderWindowStart} - ${batchInfo.orderWindowEnd}</div>` : ''}
+                        ${batchInfo.deliveryWindowStart && batchInfo.deliveryWindowEnd ? `<div style="font-size:13px;font-weight:900;margin-top:5px;color:#7C3AED;">Delivery window: ${batchInfo.deliveryWindowStart} - ${batchInfo.deliveryWindowEnd}</div>` : ''}
+                        ${batchInfo.batchDayId || batchInfo.batchId ? `<div style="font-family:monospace;font-size:10px;font-weight:700;margin-top:7px;color:#777;">Batch reference: ${batchInfo.batchDayId || batchInfo.batchId}</div>` : ''}
+                    </div>
+                    ` : ''}
                     ${cafeName || cafeId ? `
                     <div class="section">
                         <div class="label">Cafe Source</div>
@@ -561,7 +574,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                                     {(!order.deliveryType || order.deliveryType === 'INSTANT') ? (
                                                                         <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-amber-500/30 flex items-center gap-1"><Zap className="w-3 h-3" /> Instant</Badge>
                                                                     ) : (
-                                                                        <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-[#7C3AED]/30 flex items-center gap-1"><Package className="w-3 h-3" /> {order.foodBatchName || 'Batch'}</Badge>
+                                                                        <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-[#7C3AED]/30 flex items-center gap-1"><Package className="w-3 h-3" /> {resolveOrderBatchInfo(order, batchDays)?.batchName || 'Scheduled Batch'}</Badge>
                                                                     )}
                                                                     <span className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                                                                         {' - '}{order.type === 'combo' ? `${order.quantity || 1} combos` : `${order.plates?.length || 0} plates`}
@@ -572,6 +585,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                                         Delivery: {order.deliveryWindowStart}–{order.deliveryWindowEnd}
                                                                     </p>
                                                                 )}
+                                                                <BatchOrderInfo order={order} batchDays={batchDays} compact />
                                                             </div>
                                                         </div>
                                                         <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 sm:gap-3 shrink-0 ml-2">
@@ -611,7 +625,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                     {(!order.deliveryType || order.deliveryType === 'INSTANT') ? (
                                                         <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-amber-500/30 ml-2 mt-1 flex items-center gap-1"><Zap className="w-3 h-3" /> Instant</Badge>
                                                     ) : (
-                                                        <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-[#7C3AED]/30 ml-2 mt-1 flex items-center gap-1"><Package className="w-3 h-3" /> {order.foodBatchName || 'Batch'}</Badge>
+                                                        <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-[#7C3AED]/30 ml-2 mt-1 flex items-center gap-1"><Package className="w-3 h-3" /> {resolveOrderBatchInfo(order, batchDays)?.batchName || 'Scheduled Batch'}</Badge>
                                                     )}
                                                 </div>
                                                 <div className="flex items-center gap-3">
@@ -697,7 +711,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                             {(!selectedOrder.deliveryType || selectedOrder.deliveryType === 'INSTANT') ? (
                                                 <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-amber-500/30 shrink-0 flex items-center gap-1"><Zap className="w-3 h-3" /> Instant</Badge>
                                             ) : (
-                                                <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-[#7C3AED]/30 shrink-0 flex items-center gap-1"><Package className="w-3 h-3" /> {selectedOrder.foodBatchName || 'Batch'}</Badge>
+                                                <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-[#7C3AED]/30 shrink-0 flex items-center gap-1"><Package className="w-3 h-3" /> {resolveOrderBatchInfo(selectedOrder, batchDays)?.batchName || 'Scheduled Batch'}</Badge>
                                             )}
                                         </div>
                                     </div>
@@ -709,6 +723,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
 
                             {/* Content */}
                             <div className="flex-1 overflow-y-auto p-8 lg:p-12 space-y-12">
+                                <BatchOrderInfo order={selectedOrder} batchDays={batchDays} />
                                 <div className="grid md:grid-cols-2 gap-10">
                                     <div className="space-y-8">
                                         <div className="space-y-2">

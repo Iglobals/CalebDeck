@@ -8,8 +8,9 @@ import {
 import { useAuth } from '../../../context/AuthContext';
 import { useTheme } from '../../../context/ThemeContext';
 import { useNavigate, useParams } from 'react-router';
-import { subscribeToRiderOrders, subscribeToBatches, updateOrder, updateBatch, Batch, recordDelivery, subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
+import { subscribeToRiderOrders, subscribeToBatches, updateOrder, updateBatch, Batch, recordDelivery, subscribeToPlatformSettings, PlatformSettings, subscribeTodayBatchDays, FoodBatchDay } from '../../../services/db';
 import { format } from 'date-fns';
+import { BatchOrderInfo, resolveOrderBatchInfo } from '../../components/BatchOrderInfo';
 
 export default function RiderBatchDetails() {
     const { user } = useAuth();
@@ -22,6 +23,7 @@ export default function RiderBatchDetails() {
     const [initialized, setInitialized] = useState(false);
     const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
     const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+    const [batchDays, setBatchDays] = useState<FoodBatchDay[]>([]);
 
     useEffect(() => {
         const unsub = subscribeToPlatformSettings(setPlatformSettings);
@@ -35,12 +37,14 @@ export default function RiderBatchDetails() {
         if (!user) return;
         const unsub = subscribeToRiderOrders(user.uid, setOrders);
         const unsub2 = subscribeToBatches(user.uid, setBatches);
-        return () => { unsub(); unsub2(); };
+        const unsub3 = subscribeTodayBatchDays(setBatchDays);
+        return () => { unsub(); unsub2(); unsub3(); };
     }, [user]);
 
     const batch = batches.find(b => b.id === batchId);
 
     const batchOrders = batch ? orders.filter(o => batch.orderIds.includes(o.id) || o.batchId === batch.id) : [];
+    const deliveryBatchInfo = resolveOrderBatchInfo(batchOrders[0], batchDays);
 
     useEffect(() => {
         if (!initialized && batchOrders.length > 0) {
@@ -224,6 +228,8 @@ export default function RiderBatchDetails() {
                             ${batchOrders[0]?.foodBatchName ? ` — ${batchOrders[0].foodBatchName.toUpperCase()}` : ''}
                         </div>
                         <div style="margin-top: 10px; font-size: 12px; font-weight: 700; color: #666;">${batchOrders.length} Orders Total</div>
+                        ${deliveryBatchInfo?.deliveryWindowStart && deliveryBatchInfo?.deliveryWindowEnd ? `<div style="margin-top:8px;font-size:13px;font-weight:900;color:#7C3AED;">${deliveryBatchInfo.batchName}: delivery ${deliveryBatchInfo.deliveryWindowStart} - ${deliveryBatchInfo.deliveryWindowEnd}</div>` : ''}
+                        ${deliveryBatchInfo?.batchDayId || deliveryBatchInfo?.batchId ? `<div style="margin-top:5px;font-family:monospace;font-size:10px;font-weight:700;color:#777;">Batch reference: ${deliveryBatchInfo.batchDayId || deliveryBatchInfo.batchId}</div>` : ''}
                     </div>
                     
                     ${batchOrders.map((order: any, index: number) => `
@@ -382,6 +388,8 @@ export default function RiderBatchDetails() {
             </header>
 
             <main className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto print:hidden">
+                <BatchOrderInfo order={batchOrders[0]} batchDays={batchDays} />
+
                 {/* Batch Summary */}
                 <div className="grid grid-cols-3 gap-3">
                     <Card className={`text-center p-4 border shadow-none ${isDark ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-white border-gray-100'}`}>
@@ -486,6 +494,7 @@ export default function RiderBatchDetails() {
                                                     <Badge className="text-[9px] uppercase font-black px-1.5 py-0.5 bg-red-500/10 text-red-500"><Zap className="w-3 h-3 inline-block mr-0.5" /> Redirect</Badge>
                                                 )}
                                             </div>
+                                            <BatchOrderInfo order={order} batchDays={batchDays} compact />
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-4">
