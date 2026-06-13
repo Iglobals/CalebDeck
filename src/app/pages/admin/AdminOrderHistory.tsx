@@ -7,7 +7,7 @@ import { Download, Search, Filter, ChevronDown, Trash2, RotateCcw, AlertTriangle
 import { getRecentOrderHistory, subscribeToRiders, trashOrder, recoverOrder, permanentlyDeleteOrder, Rider, subscribeTodayBatchDays, FoodBatchDay } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 import { format } from 'date-fns';
-import { BatchOrderInfo } from '../../components/BatchOrderInfo';
+import { BatchOrderInfo, resolveOrderBatchInfo } from '../../components/BatchOrderInfo';
 
 type ViewMode = 'active' | 'trash';
 
@@ -120,6 +120,7 @@ export default function AdminOrderHistory() {
     };
 
     const handleDownloadPDF = (order: any) => {
+        const batchInfo = resolveOrderBatchInfo(order, batchDays);
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
         const date = parseDate(order.createdAt);
@@ -150,7 +151,7 @@ export default function AdminOrderHistory() {
                     <div class="oid">
                         ORD-${order.orderId?.slice(-6) || 'XXXXXX'}
                         ${(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') ? '  -  GROUP' : ''}
-                        ${order.deliveryType === 'BATCH' ? `  -  ${(order.foodBatchName || 'BATCH').toUpperCase()}` : '  -  INSTANT'}
+                        ${batchInfo ? `  -  ${batchInfo.batchName.toUpperCase()}` : '  -  INSTANT'}
                     </div>
                 </div>
                 <div class="label">Student</div>
@@ -158,6 +159,15 @@ export default function AdminOrderHistory() {
                 <div style="font-size:13px;font-weight:700;margin-top:4px">${order.phone || ''}</div>
                 <div class="label">Delivery</div>
                 <div class="value">${order.hostel || 'N/A'}</div>
+                ${batchInfo ? `
+                <div style="margin-top:18px;padding:12px;background:#f5f3ff;border-left:4px solid #7C3AED;border-radius:6px;">
+                    <div class="label" style="margin-top:0;">Scheduled Delivery Batch</div>
+                    <div class="value">${batchInfo.batchName}</div>
+                    ${batchInfo.orderWindowStart && batchInfo.orderWindowEnd ? `<div style="font-size:12px;font-weight:700;margin-top:7px;color:#555;">Ordering window: ${batchInfo.orderWindowStart} - ${batchInfo.orderWindowEnd}</div>` : ''}
+                    ${batchInfo.deliveryWindowStart && batchInfo.deliveryWindowEnd ? `<div style="font-size:12px;font-weight:900;margin-top:4px;color:#7C3AED;">Delivery window: ${batchInfo.deliveryWindowStart} - ${batchInfo.deliveryWindowEnd}</div>` : ''}
+                    ${batchInfo.batchDayId || batchInfo.batchId ? `<div style="font-family:monospace;font-size:10px;margin-top:5px;color:#777;">${batchInfo.batchDayId || batchInfo.batchId}</div>` : ''}
+                </div>
+                ` : ''}
                 <div class="label">Date</div>
                 <div class="value" style="font-size:14px">${date ? format(date, 'PPpp') : 'N/A'}</div>
                 <div class="label">Status</div>

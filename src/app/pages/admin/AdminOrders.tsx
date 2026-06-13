@@ -282,7 +282,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                         <div class="order-id">
                             ORD-${order.orderId?.slice(-6) || 'XXXXXX'}
                             ${(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') ? '  -  GROUP' : ''}
-                            ${order.deliveryType === 'BATCH' ? `  -  ${(order.foodBatchName || 'BATCH').toUpperCase()}` : '  -  INSTANT'}
+                            ${batchInfo ? `  -  ${batchInfo.batchName.toUpperCase()}` : '  -  INSTANT'}
                         </div>
                     </div>
                     <div class="section">
@@ -580,11 +580,6 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                                         {' - '}{order.type === 'combo' ? `${order.quantity || 1} combos` : `${order.plates?.length || 0} plates`}
                                                                     </span>
                                                                 </div>
-                                                                {order.deliveryType === 'BATCH' && order.deliveryWindowStart && (
-                                                                    <p className={`text-[10px] font-bold mt-1 ${isDark ? 'text-[#7C3AED]' : 'text-[#7C3AED]'}`}>
-                                                                        Delivery: {order.deliveryWindowStart}–{order.deliveryWindowEnd}
-                                                                    </p>
-                                                                )}
                                                                 <BatchOrderInfo order={order} batchDays={batchDays} compact />
                                                             </div>
                                                         </div>

@@ -38,11 +38,27 @@ export const resolveOrderBatchInfo = (
   }
 
   const reference = order.paymentReference || order.id;
-  const batchDay = batchDays.find((day) => (
+  const directlyMatchedBatchDay = batchDays.find((day) => (
     (order.foodBatchDayId && day.id === order.foodBatchDayId) ||
     (order.foodBatchId && day.batchId === order.foodBatchId) ||
     day.pendingReservations?.some((reservation) => reservation.reference === reference)
   ));
+  const createdAt = order.createdAt?.seconds
+    ? new Date(order.createdAt.seconds * 1000)
+    : order.createdAt
+      ? new Date(order.createdAt)
+      : null;
+  const createdMinutes = createdAt
+    ? createdAt.getHours() * 60 + createdAt.getMinutes()
+    : null;
+  const batchDay = directlyMatchedBatchDay || batchDays.find((day) => {
+    if (createdMinutes === null || !day.orderWindowStart || !day.orderWindowEnd) return false;
+    const [startHour, startMinute] = day.orderWindowStart.split(':').map(Number);
+    const [endHour, endMinute] = day.orderWindowEnd.split(':').map(Number);
+    const start = startHour * 60 + startMinute;
+    const end = endHour * 60 + endMinute;
+    return createdMinutes >= start && createdMinutes <= end;
+  });
 
   return {
     batchId: order.foodBatchId || batchDay?.batchId,
