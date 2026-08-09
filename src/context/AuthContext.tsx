@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, onAuthStateChanged, signOut } from 'firebase/auth';
+import { User, onAuthStateChanged, signOut, signInWithCustomToken } from 'firebase/auth';
 import { auth, db } from '../services/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import Cookies from 'js-cookie';
+import { toast } from 'sonner';
 
 interface AppUser extends User {
     role?: 'ADMIN' | 'RIDER' | 'STUDENT';
@@ -32,6 +34,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        // Check for auth errors in URL
+        const params = new URLSearchParams(window.location.search);
+        const authError = params.get('auth_error');
+        if (authError) {
+            toast.error(authError);
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+        }
+
+        const checkCustomToken = async () => {
+            const token = Cookies.get('ica_custom_token');
+            if (token) {
+                Cookies.remove('ica_custom_token');
+                try {
+                    await signInWithCustomToken(auth, token);
+                    toast.success("Successfully signed in securely");
+                } catch (error) {
+                    console.error("Error signing in with custom token:", error);
+                    toast.error("Session expired or invalid. Please try logging in again.");
+                }
+            }
+        };
+
+        checkCustomToken();
+
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
                 // Fetch additional user details from Firestore
@@ -67,7 +94,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     const logout = async () => {
-        await signOut(auth);
+        try {
+            const token = await auth.currentUser?.getIdToken();
+            if (token) {
+                await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+            }
+        } catch (error) {
+            console.error('Error during secure logout:', error);
+        } finally {
+            await signOut(auth);
+        }
     };
 
     return (

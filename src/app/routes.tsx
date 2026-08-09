@@ -82,6 +82,7 @@ export const router = createBrowserRouter([
           { path: "calebnet", lazy: () => import("./pages/student/CalebNet").then(m => ({ Component: m.default })) },
           { path: "calebnet/status/:paymentReference", lazy: () => import("./pages/student/CalebNetStatus").then(m => ({ Component: m.default })) },
           { path: "my-orders", lazy: () => import("./pages/student/MyOrders").then(m => ({ Component: m.default })) },
+          { path: "profile", lazy: () => import("./pages/student/Profile").then(m => ({ Component: m.default })) },
         ]
       },
 

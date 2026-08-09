@@ -8,11 +8,12 @@ import { Input, Select, Textarea } from '../../components/design-system/Input';
 import { ArrowLeft, Lock, Shield, CreditCard, MapPin, User, AlertTriangle, Timer } from 'lucide-react';
 import { getActiveHostels, Hostel, subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 import { calculateOrderTotal, verifyPayment } from '../../../services/functions';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 import { usePaystackPayment } from 'react-paystack';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
+import { useAuth } from '../../../context/AuthContext';
 import SEO from '../../components/SEO';
 import { useBatchTimer, formatBatchTime } from '../../../context/BatchTimerContext';
 import { BatchStatusBar } from '../../components/BatchStatusBar';
@@ -35,6 +36,21 @@ export default function Checkout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { studentTheme } = useTheme();
+  const { user } = useAuth();
+  const [saveAsDefault, setSaveAsDefault] = useState(false);
+  const [hasAutofilled, setHasAutofilled] = useState(false);
+
+  useEffect(() => {
+    if (user && !hasAutofilled) {
+      setFormData(prev => ({
+        ...prev,
+        fullName: prev.fullName || user.fullName || user.displayNameFromProfile || '',
+        phone: prev.phone || user.phone || '',
+        hostel: prev.hostel || (user.assignedHostelIds?.[0]) || (user as any).hostel || ''
+      }));
+      setHasAutofilled(true);
+    }
+  }, [user, hasAutofilled]);
   const locationState = location.state || {};
 
   // CRITICAL: If location.state has plates, this is a plate order — ignore any stale combo in sessionStorage
@@ -312,6 +328,8 @@ if (isPremiumHostel) {
 
     const orderData = {
       orderId,
+      iConId: user?.uid || null,
+      source: 'CalebDeck',
       ...formData,
       studentName: formData.fullName,
       hostelName: selectedHostel?.name || formData.hostel,
@@ -356,7 +374,18 @@ if (isPremiumHostel) {
         .forEach(key => sessionStorage.removeItem(key));
     };
 
-    const goToSuccess = (firestoreId: string, finalOrderId: string) => {
+    const goToSuccess = async (firestoreId: string, finalOrderId: string) => {
+      if (user) {
+        try {
+          const updateData: any = { productsUsed: arrayUnion('CalebDeck') };
+          if (saveAsDefault) {
+            updateData.fullName = formData.fullName;
+            updateData.phone = formData.phone;
+            updateData.hostel = formData.hostel;
+          }
+          await updateDoc(doc(db, 'users', user.uid), updateData);
+        } catch(e) { console.error('Failed to update user profile defaults', e); }
+      }
       clearSession();
       
       // Track order placed
@@ -515,6 +544,8 @@ if (isPremiumHostel) {
     try {
       const preSaveData = {
         orderId,
+        iConId: user?.uid || null,
+        source: 'CalebDeck',
         fullName: formData.fullName,
         studentName: formData.fullName,
         phone: formData.phone,
@@ -783,6 +814,13 @@ if (isPremiumHostel) {
                       className="bg-background/80"
                     />
 
+                        {user && (
+                      <div className="flex items-center gap-2 mb-2">
+                        <input type="checkbox" id="saveAsDefault" checked={saveAsDefault} onChange={(e) => setSaveAsDefault(e.target.checked)} className="w-4 h-4 text-[#7C3AED] rounded border-border" />
+                        <label htmlFor="saveAsDefault" className="text-sm font-medium">Save these details as default</label>
+                      </div>
+                    )}
+
                     <Input
                       label="Phone Number"
                       type="tel"
@@ -1038,3 +1076,5 @@ if (isPremiumHostel) {
     </div>
   );
 }
+
+

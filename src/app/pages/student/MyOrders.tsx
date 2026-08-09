@@ -8,6 +8,9 @@ import { Card } from '../../components/design-system/Card';
 import SEO from '../../components/SEO';
 import { getOrderHistory, clearOrderHistory, OrderHistoryEntry } from '../../../services/orderHistory';
 import { getOrderById } from '../../../services/db';
+import { useAuth } from '../../../context/AuthContext';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { db } from '../../../services/firebase';
 
 const typeConfig: Record<string, { icon: React.ReactNode; color: string; bgColor: string; borderColor: string; label: string }> = {
   food: {
@@ -173,17 +176,17 @@ export default function MyOrders() {
             : 'bg-amber-50/50 border border-amber-200/60'
         }`}>
           <div className={`flex items-center gap-3 px-4 py-3 ${
-            studentTheme === 'dark' ? 'text-amber-400' : 'text-amber-800'
+            isAuth ? 'text-amber-600 dark:text-amber-500' : (studentTheme === 'dark' ? 'text-amber-400' : 'text-amber-800')
           }`}>
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
-              studentTheme === 'dark' ? 'bg-amber-500/15' : 'bg-amber-200/50'
+              isAuth ? 'bg-amber-100 dark:bg-amber-900/30' : (studentTheme === 'dark' ? 'bg-amber-500/15' : 'bg-amber-200/50')
             }`}>
               <Smartphone className="w-4 h-4" />
             </div>
             <div>
               <p className="text-sm font-bold">Orders are saved on this device only</p>
               <p className={`text-xs mt-0.5 ${
-                studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-amber-700/70'
+                isAuth ? 'text-muted-foreground' : (studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-amber-700/70')
               }`}>
                 Clearing your browser data, switching browsers, or using incognito mode will erase your history.
               </p>
@@ -202,9 +205,9 @@ export default function MyOrders() {
                   onClick={() => setFilter(fb.key)}
                   className="px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all duration-200"
                   style={{
-                    background: isActive ? fb.color : studentTheme === 'dark' ? '#1A1A1A' : '#f3f4f6',
-                    color: isActive ? (fb.key === 'food' ? '#1A1A1A' : '#fff') : studentTheme === 'dark' ? '#9C8F7F' : '#6b7280',
-                    border: `1.5px solid ${isActive ? fb.color : studentTheme === 'dark' ? '#333333' : '#e5e7eb'}`,
+                    background: isActive ? fb.color : isAuth ? 'var(--muted)' : (studentTheme === 'dark' ? '#1A1A1A' : '#f3f4f6'),
+                    color: isActive ? (fb.key === 'food' ? '#1A1A1A' : '#fff') : isAuth ? 'var(--muted-foreground)' : (studentTheme === 'dark' ? '#9C8F7F' : '#6b7280'),
+                    border: `1.5px solid ${isActive ? fb.color : isAuth ? 'var(--border)' : (studentTheme === 'dark' ? '#333333' : '#e5e7eb')}`,
                   }}
                 >
                   {fb.label}
@@ -219,7 +222,7 @@ export default function MyOrders() {
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className={`w-24 h-24 rounded-[2rem] flex items-center justify-center mb-6 ${
-              studentTheme === 'dark' ? 'bg-[#1A1A1A]' : 'bg-gray-100'
+              isAuth ? 'bg-muted' : (studentTheme === 'dark' ? 'bg-[#1A1A1A]' : 'bg-gray-100')
             }`}>
               <Package className="w-10 h-10 text-muted-foreground/50" />
             </div>
@@ -305,10 +308,10 @@ export default function MyOrders() {
                         </div>
                         <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                           order.status === 'PAID' || order.status === 'SUCCESSFUL' || order.status === 'DELIVERED'
-                            ? studentTheme === 'dark' ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-700'
+                            ? isAuth ? 'bg-green-500/10 text-green-600 dark:text-green-400' : (studentTheme === 'dark' ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-700')
                             : order.status === 'PENDING' || order.status === 'PROCESSING'
-                              ? studentTheme === 'dark' ? 'bg-yellow-900/30 text-yellow-400' : 'bg-yellow-100 text-yellow-700'
-                              : studentTheme === 'dark' ? 'bg-red-900/30 text-red-400' : 'bg-red-100 text-red-700'
+                              ? isAuth ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' : (studentTheme === 'dark' ? 'bg-yellow-900/30 text-yellow-400' : 'bg-yellow-100 text-yellow-700')
+                              : isAuth ? 'bg-red-500/10 text-red-600 dark:text-red-400' : (studentTheme === 'dark' ? 'bg-red-900/30 text-red-400' : 'bg-red-100 text-red-700')
                         }`}>
                           {order.status}
                         </span>
@@ -346,7 +349,7 @@ export default function MyOrders() {
         {/* Quick Actions */}
         {orders.length > 0 && (
           <div className={`mt-10 rounded-2xl border p-6 text-center ${
-            studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-gray-50/50 border-gray-100'
+            isAuth ? 'bg-card border-border' : (studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-gray-50/50 border-gray-100')
           }`}>
             <p className="text-sm text-muted-foreground mb-4 font-medium">Need something else?</p>
             <div className="flex flex-wrap justify-center gap-3">
@@ -368,7 +371,7 @@ export default function MyOrders() {
       {showClearConfirm && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className={`w-full max-w-sm rounded-3xl p-8 shadow-2xl ${
-            studentTheme === 'dark' ? 'bg-[#1A1A1A]' : 'bg-white'
+            isAuth ? 'bg-card' : (studentTheme === 'dark' ? 'bg-[#1A1A1A]' : 'bg-white')
           }`}>
             <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-red-500/15 flex items-center justify-center">
               <Trash2 className="w-8 h-8 text-red-500" />
@@ -419,3 +422,7 @@ export default function MyOrders() {
     </div>
   );
 }
+
+
+
+

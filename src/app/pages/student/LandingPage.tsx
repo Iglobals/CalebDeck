@@ -11,12 +11,18 @@ import SEO from '../../components/SEO';
 import { submitReview } from '../../../services/db';
 import { toast } from 'react-toastify';
 import { PaperBagHamburger } from '../../components/design-system/PaperBagHamburger';
+import { SignedInHome } from './SignedInHome';
 
 export default function LandingPage() {
   const { studentTheme } = useTheme();
   const { user } = useAuth();
+  const isAuth = !!user;
   const navigate = useNavigate();
   const supportWhatsapp = 'https://wa.me/2348072550635';
+
+  if (isAuth) {
+    return <SignedInHome />;
+  }
 
   // Global Review State
   const [isReviewOpen, setIsReviewOpen] = useState(false);
@@ -203,9 +209,15 @@ export default function LandingPage() {
               <Link to="/calebnet" className="text-sm font-bold text-blue-500 hover:text-blue-600 transition-colors px-1 xl:px-2 py-1 whitespace-nowrap">
                 CalebNet
               </Link>
-              <Link to="/my-orders" className="text-sm font-bold text-[#A78BFA] hover:text-[#8B5CF6] transition-colors px-1 xl:px-2 py-1 whitespace-nowrap">
-                My Orders
-              </Link>
+              {user ? (
+                <Link to="/profile" className="text-sm font-bold text-[#7C3AED] hover:text-[#6D28D9] transition-colors px-1 xl:px-2 py-1 whitespace-nowrap flex items-center gap-1.5 bg-[#7C3AED]/10 rounded-lg">
+                  i-CON Profile
+                </Link>
+              ) : (
+                <Link to="/my-orders" className="text-sm font-bold text-[#A78BFA] hover:text-[#8B5CF6] transition-colors px-1 xl:px-2 py-1 whitespace-nowrap">
+                  My Orders
+                </Link>
+              )}
 
               <div className="h-5 w-px bg-border mx-1" />
 
@@ -250,6 +262,11 @@ export default function LandingPage() {
                   Shop Mart <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
+              <a href="/api/auth/login">
+                <Button variant="secondary" size="lg" className="w-full sm:w-auto border-[#7C3AED] text-[#7C3AED] hover:bg-[#7C3AED]/10">
+                  Test ICA Login
+                </Button>
+              </a>
               <Link to="/calebnet">
                 <Button variant="secondary" size="lg" className="w-full sm:w-auto border-blue-500 text-blue-500 hover:bg-blue-500/10">
                   CalebNet Top-Up <Wifi className="w-5 h-5 ml-2" />
@@ -258,27 +275,27 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center gap-4 sm:gap-6 pt-4">
               <div className="text-center">
-                <div className={`text-2xl sm:text-3xl font-bold ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'
+                <div className={`text-2xl sm:text-3xl font-bold ${isAuth ? 'text-foreground' : (studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900')
                   }`}>20-30</div>
-                <div className={`text-sm ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'
+                <div className={`text-sm ${isAuth ? 'text-muted-foreground' : (studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600')
                   }`}>Food ETA</div>
               </div>
-              <div className={`w-px h-12 ${studentTheme === 'dark' ? 'bg-[#333333]' : 'bg-gray-200'
+              <div className={`w-px h-12 ${isAuth ? 'bg-border' : (studentTheme === 'dark' ? 'bg-[#333333]' : 'bg-gray-200')
                 }`}></div>
               <div className="text-center">
-                <div className={`text-2xl sm:text-3xl font-bold ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'
+                <div className={`text-2xl sm:text-3xl font-bold ${isAuth ? 'text-foreground' : (studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900')
                   }`}>50+</div>
-                <div className={`text-sm flex items-center justify-center gap-1 ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'
+                <div className={`text-sm flex items-center justify-center gap-1 ${isAuth ? 'text-muted-foreground' : (studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600')
                   }`}>
                   Orders
                 </div>
               </div>
-              <div className={`w-px h-12 ${studentTheme === 'dark' ? 'bg-[#333333]' : 'bg-gray-200'
+              <div className={`w-px h-12 ${isAuth ? 'bg-border' : (studentTheme === 'dark' ? 'bg-[#333333]' : 'bg-gray-200')
                 }`}></div>
               <div className="text-center">
-                <div className={`text-2xl sm:text-3xl font-bold ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'
+                <div className={`text-2xl sm:text-3xl font-bold ${isAuth ? 'text-foreground' : (studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900')
                   }`}>Campus</div>
-                <div className={`text-sm ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'
+                <div className={`text-sm ${isAuth ? 'text-muted-foreground' : (studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600')
                   }`}>Convenience</div>
               </div>
             </div>
@@ -303,34 +320,34 @@ export default function LandingPage() {
       <section className="py-16 md:py-24 max-w-7xl mx-auto px-4 sm:px-6">
         <div className="grid md:grid-cols-3 gap-8">
           <Link to="/cafeteria" className="group">
-            <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl h-full ${studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#FCD34D]/20' : 'bg-amber-50/50 border-amber-200'}`}>
+            <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl h-full ${isAuth ? 'bg-card border-border hover:border-[#FCD34D]/50' : (studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#FCD34D]/20' : 'bg-amber-50/50 border-amber-200')}`}>
               <div className="w-16 h-16 rounded-2xl bg-[#FCD34D]/20 flex items-center justify-center mb-6">
                 <Utensils className="w-8 h-8 text-[#FCD34D]" />
               </div>
-              <h3 className={`text-2xl font-bold mb-3 ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Food Delivery</h3>
-              <p className={`text-lg mb-6 ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Hot meals from campus cafeterias delivered to your hostel area or agreed pickup point.</p>
+              <h3 className={`text-2xl font-bold mb-3 ${isAuth ? 'text-foreground' : (studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900')}`}>Food Delivery</h3>
+              <p className={`text-lg mb-6 ${isAuth ? 'text-muted-foreground' : (studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600')}`}>Hot meals from campus cafeterias delivered to your hostel area or agreed pickup point.</p>
               <span className="text-[#FCD34D] font-bold flex items-center gap-2 group-hover:gap-4 transition-all">Order Now <ArrowRight className="w-5 h-5" /></span>
             </div>
           </Link>
           
           <Link to="/mart" className="group">
-            <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl h-full ${studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#10B981]/20' : 'bg-emerald-50/50 border-emerald-200'}`}>
+            <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl h-full ${isAuth ? 'bg-card border-border hover:border-[#10B981]/50' : (studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#10B981]/20' : 'bg-emerald-50/50 border-emerald-200')}`}>
               <div className="w-16 h-16 rounded-2xl bg-[#10B981]/20 flex items-center justify-center mb-6">
                 <ShoppingBag className="w-8 h-8 text-[#10B981]" />
               </div>
-              <h3 className={`text-2xl font-bold mb-3 ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>CalebDeck Mart</h3>
-              <p className={`text-lg mb-6 ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Groceries, snacks, drinks, and essentials delivered around campus when you need them.</p>
+              <h3 className={`text-2xl font-bold mb-3 ${isAuth ? 'text-foreground' : (studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900')}`}>CalebDeck Mart</h3>
+              <p className={`text-lg mb-6 ${isAuth ? 'text-muted-foreground' : (studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600')}`}>Groceries, snacks, drinks, and essentials delivered around campus when you need them.</p>
               <span className="text-[#10B981] font-bold flex items-center gap-2 group-hover:gap-4 transition-all">Shop Mart <ArrowRight className="w-5 h-5" /></span>
             </div>
           </Link>
 
           <Link to="/calebnet" className="group">
-            <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl h-full ${studentTheme === 'dark' ? 'bg-[#1A1A1A] border-blue-500/20' : 'bg-blue-50/50 border-blue-200'}`}>
+            <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl h-full ${isAuth ? 'bg-card border-border hover:border-blue-500/50' : (studentTheme === 'dark' ? 'bg-[#1A1A1A] border-blue-500/20' : 'bg-blue-50/50 border-blue-200')}`}>
               <div className="w-16 h-16 rounded-2xl bg-blue-500/20 flex items-center justify-center mb-6">
                 <Wifi className="w-8 h-8 text-blue-500" />
               </div>
-              <h3 className={`text-2xl font-bold mb-3 ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>CalebNet</h3>
-              <p className={`text-lg mb-6 ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Instant data and airtime top-up for MTN, Airtel, Glo, and 9Mobile directly from CalebDeck.</p>
+              <h3 className={`text-2xl font-bold mb-3 ${isAuth ? 'text-foreground' : (studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900')}`}>CalebNet</h3>
+              <p className={`text-lg mb-6 ${isAuth ? 'text-muted-foreground' : (studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600')}`}>Instant data and airtime top-up for MTN, Airtel, Glo, and 9Mobile directly from CalebDeck.</p>
               <span className="text-blue-500 font-bold flex items-center gap-2 group-hover:gap-4 transition-all">Top Up <ArrowRight className="w-5 h-5" /></span>
             </div>
           </Link>
@@ -397,7 +414,7 @@ export default function LandingPage() {
       </section>
 
       {/* Rider Opportunity */}
-      <section className={`py-16 md:py-24 ${studentTheme === 'dark' ? 'bg-[#101A17]' : 'bg-emerald-50/70'}`}>
+      <section className={`py-16 md:py-24 ${isAuth ? 'bg-muted/30' : (studentTheme === 'dark' ? 'bg-[#101A17]' : 'bg-emerald-50/70')}`}>
         <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-8 lg:gap-12 items-center max-w-7xl mx-auto px-4 sm:px-6">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#10B981]/10 border border-[#10B981]/20 text-[#10B981] text-sm font-bold mb-5">
@@ -420,17 +437,17 @@ export default function LandingPage() {
           </div>
           <div className="h-full">
             <div className="grid gap-4">
-              <div className={`rounded-2xl border p-5 ${studentTheme === 'dark' ? 'bg-black/20 border-white/10' : 'bg-white border-emerald-100'}`}>
+              <div className={`rounded-2xl border p-5 ${isAuth ? 'bg-card border-border' : (studentTheme === 'dark' ? 'bg-black/20 border-white/10' : 'bg-white border-emerald-100')}`}>
                 <Banknote className="w-7 h-7 text-[#10B981] mb-4" />
                 <p className="text-2xl font-black">Up to ₦60k monthly</p>
                 <p className="text-sm text-muted-foreground mt-2">A clear earning path for consistent campus riders.</p>
               </div>
-              <div className={`rounded-2xl border p-5 ${studentTheme === 'dark' ? 'bg-black/20 border-white/10' : 'bg-white border-emerald-100'}`}>
+              <div className={`rounded-2xl border p-5 ${isAuth ? 'bg-card border-border' : (studentTheme === 'dark' ? 'bg-black/20 border-white/10' : 'bg-white border-emerald-100')}`}>
                 <GraduationCap className="w-7 h-7 text-[#7C3AED] mb-4" />
                 <p className="text-2xl font-black">For Caleb students</p>
                 <p className="text-sm text-muted-foreground mt-2">Best for students who know campus routes and pickup points.</p>
               </div>
-              <div className={`rounded-2xl border p-5 ${studentTheme === 'dark' ? 'bg-black/20 border-white/10' : 'bg-white border-emerald-100'}`}>
+              <div className={`rounded-2xl border p-5 ${isAuth ? 'bg-card border-border' : (studentTheme === 'dark' ? 'bg-black/20 border-white/10' : 'bg-white border-emerald-100')}`}>
                 <CheckCircle className="w-7 h-7 text-[#FCD34D] mb-4" />
                 <p className="text-2xl font-black">Responsibility matters</p>
                 <p className="text-sm text-muted-foreground mt-2">Be available, careful with orders, and respectful with every customer.</p>
@@ -489,58 +506,58 @@ export default function LandingPage() {
       </section>
 
       {/* PWA Installation */}
-      <section id="install-app" className={`py-20 md:py-28 ${studentTheme === 'dark' ? 'bg-[#0A0A0A]' : 'bg-white'}`}>
+      <section id="install-app" className={`py-20 md:py-28 ${isAuth ? 'bg-background' : (studentTheme === 'dark' ? 'bg-[#0A0A0A]' : 'bg-white')}`}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-12">
-            <h2 className={`text-2xl sm:text-4xl md:text-5xl mb-5 font-black tracking-tight ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
+            <h2 className={`text-2xl sm:text-4xl md:text-5xl mb-5 font-black tracking-tight ${isAuth ? 'text-foreground' : (studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900')}`}>
               Get Faster Access Next Time
             </h2>
             <p className={`text-xl max-w-2xl mx-auto ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Install CalebDeck on your home screen after your first order. No app store required.</p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start">
-            <div className={`p-8 md:p-10 rounded-[3rem] border-2 transition-all duration-500 hover:shadow-xl relative overflow-hidden ${studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-gray-50 border-gray-100'}`}>
+            <div className={`p-8 md:p-10 rounded-[3rem] border-2 transition-all duration-500 hover:shadow-xl relative overflow-hidden ${isAuth ? 'bg-card border-border' : (studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-gray-50 border-gray-100')}`}>
               <div className="flex items-center gap-4 mb-8">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${studentTheme === 'dark' ? 'bg-[#333333] text-[#FAF9F6]' : 'bg-white shadow-sm text-gray-900 border border-gray-100'}`}>
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${isAuth ? 'bg-muted text-foreground' : (studentTheme === 'dark' ? 'bg-[#333333] text-[#FAF9F6]' : 'bg-white shadow-sm text-gray-900 border border-gray-100')}`}>
                   <Smartphone className="w-7 h-7" />
                 </div>
-                <h3 className={`text-2xl font-black ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>iOS Installation</h3>
+                <h3 className={`text-2xl font-black ${isAuth ? 'text-foreground' : (studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900')}`}>iOS Installation</h3>
               </div>
               <ol className="space-y-6 mb-10">
                 <li className="flex gap-4 items-start">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold flex-shrink-0 ${studentTheme === 'dark' ? 'bg-[#333333] text-[#FAF9F6]' : 'bg-gray-200 text-gray-900'}`}>1</div>
-                  <p className={`text-lg leading-relaxed flex-1 ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Open CalebDeck in <strong>Safari</strong>.</p>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold flex-shrink-0 ${isAuth ? 'bg-muted text-foreground' : (studentTheme === 'dark' ? 'bg-[#333333] text-[#FAF9F6]' : 'bg-gray-200 text-gray-900')}`}>1</div>
+                  <p className={`text-lg leading-relaxed flex-1 ${isAuth ? 'text-muted-foreground' : (studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600')}`}>Open CalebDeck in <strong>Safari</strong>.</p>
                 </li>
                 <li className="flex gap-4 items-start">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold flex-shrink-0 ${studentTheme === 'dark' ? 'bg-[#333333] text-[#FAF9F6]' : 'bg-gray-200 text-gray-900'}`}>2</div>
-                  <p className={`text-lg leading-relaxed flex-1 ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Tap <Share className="w-5 h-5 inline mx-1 -mt-1 text-primary" /> <strong>Share</strong>, then <PlusSquare className="w-5 h-5 inline mx-1 -mt-1" /> <strong>Add to Home Screen</strong>.</p>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold flex-shrink-0 ${isAuth ? 'bg-muted text-foreground' : (studentTheme === 'dark' ? 'bg-[#333333] text-[#FAF9F6]' : 'bg-gray-200 text-gray-900')}`}>2</div>
+                  <p className={`text-lg leading-relaxed flex-1 ${isAuth ? 'text-muted-foreground' : (studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600')}`}>Tap <Share className="w-5 h-5 inline mx-1 -mt-1 text-primary" /> <strong>Share</strong>, then <PlusSquare className="w-5 h-5 inline mx-1 -mt-1" /> <strong>Add to Home Screen</strong>.</p>
                 </li>
               </ol>
 
-              <div className={`relative rounded-3xl overflow-hidden aspect-video border-4 shadow-inner flex items-center justify-center ${studentTheme === 'dark' ? 'bg-[#0A0A0A] border-[#222222]' : 'bg-gray-200 border-white'}`}>
+              <div className={`relative rounded-3xl overflow-hidden aspect-video border-4 shadow-inner flex items-center justify-center ${isAuth ? 'bg-background border-border' : (studentTheme === 'dark' ? 'bg-[#0A0A0A] border-[#222222]' : 'bg-gray-200 border-white')}`}>
                 <ImageWithFallback src="https://res.cloudinary.com/dpwx4djzx/image/upload/v1772831572/iphone-mock_gehuma.jpg" alt="iOS Install Mockup" className="absolute inset-0 w-full h-full object-contain" />
               </div>
             </div>
 
-            <div className={`p-8 md:p-10 rounded-[3rem] border-2 transition-all duration-500 hover:shadow-xl relative overflow-hidden ${studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-gray-50 border-gray-100'}`}>
+            <div className={`p-8 md:p-10 rounded-[3rem] border-2 transition-all duration-500 hover:shadow-xl relative overflow-hidden ${isAuth ? 'bg-card border-border' : (studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#222222]' : 'bg-gray-50 border-gray-100')}`}>
               <div className="flex items-center gap-4 mb-8">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${studentTheme === 'dark' ? 'bg-[#10B981]/20 text-[#10B981]' : 'bg-green-100 text-green-600 shadow-sm border border-green-50'}`}>
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${isAuth ? 'bg-[#10B981]/10 text-[#10B981]' : (studentTheme === 'dark' ? 'bg-[#10B981]/20 text-[#10B981]' : 'bg-green-100 text-green-600 shadow-sm border border-green-50')}`}>
                   <Smartphone className="w-7 h-7" />
                 </div>
-                <h3 className={`text-2xl font-black ${studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Android Installation</h3>
+                <h3 className={`text-2xl font-black ${isAuth ? 'text-foreground' : (studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900')}`}>Android Installation</h3>
               </div>
               <ol className="space-y-6 mb-10">
                 <li className="flex gap-4 items-start">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold flex-shrink-0 ${studentTheme === 'dark' ? 'bg-[#333333] text-[#FAF9F6]' : 'bg-gray-200 text-gray-900'}`}>1</div>
-                  <p className={`text-lg leading-relaxed flex-1 ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Open CalebDeck in <strong>Chrome</strong>.</p>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold flex-shrink-0 ${isAuth ? 'bg-muted text-foreground' : (studentTheme === 'dark' ? 'bg-[#333333] text-[#FAF9F6]' : 'bg-gray-200 text-gray-900')}`}>1</div>
+                  <p className={`text-lg leading-relaxed flex-1 ${isAuth ? 'text-muted-foreground' : (studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600')}`}>Open CalebDeck in <strong>Chrome</strong>.</p>
                 </li>
                 <li className="flex gap-4 items-start">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold flex-shrink-0 ${studentTheme === 'dark' ? 'bg-[#333333] text-[#FAF9F6]' : 'bg-gray-200 text-gray-900'}`}>2</div>
-                  <p className={`text-lg leading-relaxed flex-1 ${studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Tap <MoreVertical className="w-5 h-5 inline mx-1 -mt-1" /> then choose <strong>Install app</strong> or <strong>Add to Home screen</strong>.</p>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold flex-shrink-0 ${isAuth ? 'bg-muted text-foreground' : (studentTheme === 'dark' ? 'bg-[#333333] text-[#FAF9F6]' : 'bg-gray-200 text-gray-900')}`}>2</div>
+                  <p className={`text-lg leading-relaxed flex-1 ${isAuth ? 'text-muted-foreground' : (studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600')}`}>Tap <MoreVertical className="w-5 h-5 inline mx-1 -mt-1" /> then choose <strong>Install app</strong> or <strong>Add to Home screen</strong>.</p>
                 </li>
               </ol>
 
-              <div className={`relative rounded-3xl overflow-hidden aspect-video border-4 shadow-inner flex items-center justify-center ${studentTheme === 'dark' ? 'bg-[#0A0A0A] border-[#222222]' : 'bg-gray-200 border-white'}`}>
+              <div className={`relative rounded-3xl overflow-hidden aspect-video border-4 shadow-inner flex items-center justify-center ${isAuth ? 'bg-background border-border' : (studentTheme === 'dark' ? 'bg-[#0A0A0A] border-[#222222]' : 'bg-gray-200 border-white')}`}>
                 <ImageWithFallback src="https://res.cloudinary.com/dpwx4djzx/image/upload/v1772831571/android-mock_ulo238.jpg" alt="Android Install Mockup" className="absolute inset-0 w-full h-full object-contain" />
               </div>
             </div>
@@ -550,7 +567,7 @@ export default function LandingPage() {
 
       {/* Support */}
       <section className="py-16 md:py-24 max-w-7xl mx-auto px-4 sm:px-6">
-        <div className={`grid md:grid-cols-[0.9fr_1.1fr] gap-8 lg:gap-12 items-center rounded-[2rem] border p-8 sm:p-10 md:p-14 ${studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#333333]' : 'bg-gray-50 border-gray-100'}`}>
+        <div className={`grid md:grid-cols-[0.9fr_1.1fr] gap-8 lg:gap-12 items-center rounded-[2rem] border p-8 sm:p-10 md:p-14 ${isAuth ? 'bg-card border-border' : (studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#333333]' : 'bg-gray-50 border-gray-100')}`}>
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 border border-secondary/20 text-secondary text-sm font-bold mb-5">
               <MessageCircle className="w-4 h-4" />
@@ -564,7 +581,7 @@ export default function LandingPage() {
             </p>
           </div>
           <div>
-            <a href={supportWhatsapp} target="_blank" rel="noopener noreferrer" className={`block rounded-2xl border p-5 transition-all hover:-translate-y-1 ${studentTheme === 'dark' ? 'bg-[#222222] border-[#333333] hover:border-secondary/50' : 'bg-white border-gray-100 hover:border-secondary/40'}`}>
+            <a href={supportWhatsapp} target="_blank" rel="noopener noreferrer" className={`block rounded-2xl border p-5 transition-all hover:-translate-y-1 ${isAuth ? 'bg-muted hover:bg-muted/80 border-border' : (studentTheme === 'dark' ? 'bg-[#222222] border-[#333333] hover:border-secondary/50' : 'bg-white border-gray-100 hover:border-secondary/40')}`}>
               <MessageCircle className="w-6 h-6 text-secondary mb-4" />
               <p className="font-black text-xl">Chat on WhatsApp</p>
               <p className="text-sm text-muted-foreground mt-2">0807 255 0635</p>
@@ -634,3 +651,4 @@ export default function LandingPage() {
     </div>
   );
 }
+

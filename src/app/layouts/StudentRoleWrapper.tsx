@@ -1,29 +1,44 @@
 import React, { useEffect } from 'react';
 import { Outlet } from 'react-router';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { ToastContainer } from 'react-toastify';
 import { MartCartProvider } from '../../context/MartCartContext';
 import { BatchTimerProvider } from '../../context/BatchTimerContext';
 import { MaintenanceGate } from './MaintenanceGate';
 import 'react-toastify/dist/ReactToastify.css';
+import { GuestBanner } from '../components/student/GuestBanner';
+import { FloatingNav } from '../components/student/FloatingNav';
 
 export default function StudentRoleWrapper() {
     const { studentTheme, toggleStudentTheme, applyTheme } = useTheme();
+    const { user } = useAuth();
 
     useEffect(() => {
         applyTheme('student');
     }, [studentTheme, applyTheme]);
 
+    useEffect(() => {
+        if (user) {
+            document.documentElement.classList.add('i-con');
+        } else {
+            document.documentElement.classList.remove('i-con');
+        }
+        return () => document.documentElement.classList.remove('i-con');
+    }, [user]);
+
     return (
-        <div className={`min-h-screen transition-colors duration-300 ${studentTheme === 'dark' ? 'bg-[#121212]' : 'bg-[#FAF9F6]'}`}>
+        <div className={`min-h-screen bg-background transition-colors duration-300 ${user ? 'pb-28 md:pb-0 md:pl-24' : ''}`}>
             <MartCartProvider>
                 <BatchTimerProvider>
                     <MaintenanceGate>
                         <Outlet />
+                        <GuestBanner />
                     </MaintenanceGate>
                 </BatchTimerProvider>
             </MartCartProvider>
+            <FloatingNav />
             <ThemeToggle theme={studentTheme} onToggle={toggleStudentTheme} />
             <ToastContainer position="top-right" autoClose={3000} />
         </div>

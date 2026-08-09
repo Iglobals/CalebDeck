@@ -5,7 +5,7 @@ import { CalebNetAvatar, AvatarPicker, getAvatarById } from '../../components/Ca
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup, updateProfile } from 'firebase/auth';
 import { usePaystackPayment } from 'react-paystack';
 import { toast } from 'react-toastify';
-import { collection, doc, getDoc, limit, onSnapshot, query, setDoc, where } from 'firebase/firestore';
+import { collection, doc, getDoc, limit, onSnapshot, query, setDoc, where, updateDoc, arrayUnion } from 'firebase/firestore';
 import { auth, db } from '../../../services/firebase';
 import { useAuth } from '../../../context/AuthContext';
 import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
@@ -290,6 +290,7 @@ export default function CalebNet() {
   const [planCategory, setPlanCategory] = useState('ALL');
   const [amount, setAmount] = useState<number | ''>('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [saveAsDefaultPhone, setSaveAsDefaultPhone] = useState(false);
   const [statuses, setStatuses] = useState<Record<string, ProviderStatus>>({});
   const [isLoadingPlans, setIsLoadingPlans] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -674,6 +675,16 @@ export default function CalebNet() {
         planName: selectedPlan?.name || 'Airtime',
         reference: clientRequestId,
       }));
+
+      if (user?.uid) {
+        try {
+          const updateData: any = { productsUsed: arrayUnion('CalebNet') };
+          if (saveAsDefaultPhone && phoneNumber !== studentProfile.phoneNumber) {
+            updateData.calebNetNumber = phoneNumber;
+          }
+          await updateDoc(doc(db, 'users', user.uid), updateData);
+        } catch(e) {}
+      }
       purchaseRef.current = `CDNETW-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
       navigate(`/calebnet/status/${encodeURIComponent(clientRequestId)}`);
     } catch (error: any) {
@@ -713,9 +724,9 @@ export default function CalebNet() {
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-5 py-3">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <button onClick={() => navigate('/')} className="rounded-xl p-2 hover:bg-muted flex-shrink-0" aria-label="Back">
+            {!user && (<button onClick={() => navigate('/')} className="rounded-xl p-2 hover:bg-muted flex-shrink-0" aria-label="Back">
               <ArrowLeft className="h-5 w-5" />
-            </button>
+            </button>)}
             <h1 className="text-lg sm:text-xl font-black truncate">CalebNet</h1>
           </div>
           {user ? (
@@ -883,6 +894,12 @@ export default function CalebNet() {
               <input type="tel" value={phoneNumber} onChange={(event) => handleTransactionPhone(event.target.value)} placeholder="08012345678" className="w-full rounded-xl border-2 border-border bg-card px-4 py-4 text-lg font-bold outline-none focus:border-[#7C3AED]" />
               {studentProfile.phoneNumber && (
                 <p className="mt-2 text-xs font-semibold text-muted-foreground">Your saved number is used by default. You can change it for this purchase.</p>
+              )}
+              {phoneNumber && phoneNumber !== studentProfile.phoneNumber && isValidNigerianPhone(phoneNumber) && user && (
+                <div className="flex items-center gap-2 mt-2">
+                  <input type="checkbox" id="saveAsDefaultPhone" checked={saveAsDefaultPhone} onChange={(e) => setSaveAsDefaultPhone(e.target.checked)} className="w-4 h-4 text-[#7C3AED] rounded border-border" />
+                  <label htmlFor="saveAsDefaultPhone" className="text-sm font-medium">Save this number as default for CalebNet</label>
+                </div>
               )}
               {phoneNumber.length === 11 && !isValidNigerianPhone(phoneNumber) && <p className="mt-2 text-sm font-semibold text-red-500">Enter a valid Nigerian phone number.</p>}
               {phoneMismatch && <p className="mt-2 text-sm font-semibold text-amber-500">This number looks like {detectNetwork(phoneNumber)}. You selected {network}.</p>}
@@ -1236,3 +1253,5 @@ export default function CalebNet() {
     </div>
   );
 }
+
+

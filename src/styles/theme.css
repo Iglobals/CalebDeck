@@ -88,6 +88,45 @@
   --sidebar-ring: #7C3AED;
 }
 
+.i-con {
+  --caleb-bg: #FFFFFF;
+  --caleb-text: #000000;
+  --caleb-shadow: rgba(0, 0, 0, 0.08);
+
+  --background: #FFFFFF;
+  --foreground: #000000;
+  --card: #FFFFFF;
+  --card-foreground: #000000;
+  --popover: #FFFFFF;
+  --popover-foreground: #000000;
+  --muted: #F3F4F6;
+  --muted-foreground: #6B7280;
+  --border: #E5E7EB;
+  --input: #E5E7EB;
+  --input-background: #FFFFFF;
+  --switch-background: #E5E7EB;
+  --radius: 1.25rem;
+}
+
+.i-con.dark {
+  --caleb-bg: #000000;
+  --caleb-text: #FFFFFF;
+  --caleb-shadow: rgba(255, 255, 255, 0.1);
+
+  --background: #000000;
+  --foreground: #FFFFFF;
+  --card: #121212;
+  --card-foreground: #FFFFFF;
+  --popover: #121212;
+  --popover-foreground: #FFFFFF;
+  --muted: #222222;
+  --muted-foreground: #A1A1AA;
+  --border: #222222;
+  --input: #222222;
+  --input-background: #121212;
+  --switch-background: #222222;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -189,5 +228,17 @@
     font-size: 1rem;
     font-weight: 400;
     line-height: 1.5;
+  }
+}
+
+@layer utilities {
+  .squircle {
+    clip-path: polygon(0% 16%, 1% 10%, 3% 6%, 6% 3%, 10% 1%, 16% 0%, 84% 0%, 90% 1%, 94% 3%, 97% 6%, 99% 10%, 100% 16%, 100% 84%, 99% 90%, 97% 94%, 94% 97%, 90% 99%, 84% 100%, 16% 100%, 10% 99%, 6% 97%, 3% 94%, 1% 90%, 0% 84%);
+  }
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-lg;
+  }
+  .i-con.dark .glass {
+    @apply bg-black/60 backdrop-blur-xl border border-white/10 shadow-lg;
   }
 }

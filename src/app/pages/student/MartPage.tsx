@@ -6,6 +6,7 @@ import { GlassCard } from '../../components/design-system/Card';
 import { ArrowLeft, Search, ShoppingBag, Plus, Minus, Package } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { useTheme } from '../../../context/ThemeContext';
+import { useAuth } from '../../../context/AuthContext';
 import SEO from '../../components/SEO';
 import { useMartCart } from '../../../context/MartCartContext';
 import { subscribeToMartItems, MartItem } from '../../../services/mart';
@@ -32,6 +33,7 @@ const VERY_SLOW_LOAD_MS = 12000;
 
 export default function MartPage() {
   const { studentTheme } = useTheme();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -215,11 +217,13 @@ export default function MartPage() {
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Link to="/">
-              <button className="p-2 -ml-2 rounded-xl transition-colors hover:bg-muted" aria-label="Back to CalebDeck home">
-                <ArrowLeft className="w-6 h-6 text-foreground" />
-              </button>
-            </Link>
+            {!user && (
+              <Link to="/">
+                <button className="p-2 -ml-2 rounded-xl transition-colors hover:bg-muted" aria-label="Back to CalebDeck home">
+                  <ArrowLeft className="w-6 h-6 text-foreground" />
+                </button>
+              </Link>
+            )}
             <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
               <span className="text-2xl">🛒</span> CalebDeck Mart
             </h1>
