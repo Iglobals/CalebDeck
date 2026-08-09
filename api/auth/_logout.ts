@@ -48,7 +48,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 baseUrl: process.env.ICA_BASE_URL || 'https://iglobals-c-auth-web.vercel.app',
                 clientId: process.env.ICA_CLIENT_ID || '',
                 clientSecret: process.env.ICA_CLIENT_SECRET || '',
-                redirectUri: process.env.ICA_REDIRECT_URI || ''
+                redirectUri: process.env.ICA_REDIRECT_URI || '',
+                scopes: ['openid']
             });
 
             try {

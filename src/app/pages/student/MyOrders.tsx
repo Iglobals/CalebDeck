@@ -67,6 +67,8 @@ type FilterType = 'all' | 'food' | 'combo' | 'mart' | 'calebnet';
 export default function MyOrders() {
   const navigate = useNavigate();
   const { studentTheme } = useTheme();
+  const { user } = useAuth();
+  const isAuth = !!user;
   const [orders, setOrders] = useState<OrderHistoryEntry[]>([]);
   const [filter, setFilter] = useState<FilterType>('all');
   const [showClearConfirm, setShowClearConfirm] = useState(false);

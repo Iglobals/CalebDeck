@@ -4,9 +4,10 @@ interface CardProps {
   children: React.ReactNode;
   className?: string;
   hover?: boolean;
+  onClick?: () => void;
 }
 
-export function Card({ children, className = '', hover = false }: CardProps) {
+export function Card({ children, className = '', hover = false, onClick }: CardProps) {
   const hoverClass = hover ? 'hover:shadow-xl transition-shadow duration-300 cursor-pointer' : '';
 
   return (
@@ -16,6 +17,7 @@ export function Card({ children, className = '', hover = false }: CardProps) {
         boxShadow: 'var(--caleb-shadow)',
         border: '1px solid var(--border)'
       }}
+      onClick={onClick}
     >
       {children}
     </div>
