@@ -262,11 +262,7 @@ export default function LandingPage() {
                   Shop Mart <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
-              <a href="/api/auth/login">
-                <Button variant="secondary" size="lg" className="w-full sm:w-auto border-[#7C3AED] text-[#7C3AED] hover:bg-[#7C3AED]/10">
-                  Test ICA Login
-                </Button>
-              </a>
+
               <Link to="/calebnet">
                 <Button variant="secondary" size="lg" className="w-full sm:w-auto border-blue-500 text-blue-500 hover:bg-blue-500/10">
                   CalebNet Top-Up <Wifi className="w-5 h-5 ml-2" />
