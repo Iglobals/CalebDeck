@@ -1,8 +1,16 @@
 {
     "rewrites": [
         {
+            "source": "/api/auth/:action",
+            "destination": "/api/auth/:action"
+        },
+        {
             "source": "/api/calebnet/(.*)",
             "destination": "/api/calebnet?path=$1"
+        },
+        {
+            "source": "/((?!api/).*)",
+            "destination": "/index.html"
         }
     ],
     "headers": [
