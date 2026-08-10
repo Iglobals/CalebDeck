@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Outlet } from 'react-router';
+import { Outlet, useLocation } from 'react-router';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { GlobalCart } from '../components/student/GlobalCart';
@@ -14,6 +14,7 @@ import { FloatingNav } from '../components/student/FloatingNav';
 export default function StudentRoleWrapper() {
     const { studentTheme, toggleStudentTheme, applyTheme } = useTheme();
     const { user } = useAuth();
+    const location = useLocation();
 
     useEffect(() => {
         applyTheme('student');
@@ -35,7 +36,7 @@ export default function StudentRoleWrapper() {
                     <MaintenanceGate>
                         <Outlet />
                         <GuestBanner />
-                        {user && <GlobalCart />}
+                        {user && !location.pathname.startsWith('/calebnet') && <GlobalCart />}
                     </MaintenanceGate>
                 </BatchTimerProvider>
             </MartCartProvider>
