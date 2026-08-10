@@ -4,9 +4,9 @@ import { Link, useLocation } from 'react-router';
 import { useMartCart } from '../../../context/MartCartContext';
 
 export function GlobalCart() {
-  const { cart } = useMartCart();
+  const { items } = useMartCart();
   const location = useLocation();
-  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
   // Hide global cart on the actual cart and checkout pages to avoid duplicate UI
   if (location.pathname.includes('/cart') || location.pathname.includes('/checkout')) {
