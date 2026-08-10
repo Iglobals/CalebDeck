@@ -23,6 +23,12 @@ export default defineConfig({
   server: {
     port: 3000,
     strictPort: false, // If 3000 is occupied, it will still try the next available port, but it defaults to 3000
+    proxy: {
+      '/api': {
+        target: 'https://calebdeck.com',
+        changeOrigin: true,
+      }
+    }
   },
 
   build: {

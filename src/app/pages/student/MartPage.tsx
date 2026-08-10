@@ -217,13 +217,30 @@ export default function MartPage() {
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            {/* Back button removed per IA changes */}
+            {!user && (
+              <button 
+                onClick={() => navigate(-1)}
+                className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors"
+                aria-label="Go back"
+              >
+                <ArrowLeft className="w-6 h-6" />
+              </button>
+            )}
             <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
               <span className="text-2xl">🛒</span> CalebDeck Mart
             </h1>
           </div>
           <div className="flex items-center gap-4">
-             {/* Cart moved to global top bar */}
+            {!user && (
+              <Link to="/cart" ref={cartIconRef} className="relative p-2 text-foreground/80 hover:text-primary transition-colors">
+                <ShoppingBag className="w-6 h-6" />
+                {totalItems > 0 && (
+                  <span className="absolute top-0 right-0 w-5 h-5 bg-primary text-primary-foreground text-xs font-bold rounded-full flex items-center justify-center translate-x-1 -translate-y-1">
+                    {totalItems > 99 ? '99+' : totalItems}
+                  </span>
+                )}
+              </Link>
+            )}
           </div>
         </div>
       </header>

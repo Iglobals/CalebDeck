@@ -35,7 +35,7 @@ export default function StudentRoleWrapper() {
                     <MaintenanceGate>
                         <Outlet />
                         <GuestBanner />
-                        <GlobalCart />
+                        {user && <GlobalCart />}
                     </MaintenanceGate>
                 </BatchTimerProvider>
             </MartCartProvider>

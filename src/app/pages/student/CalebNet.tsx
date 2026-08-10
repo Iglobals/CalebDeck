@@ -384,9 +384,16 @@ export default function CalebNet() {
         if (Date.now() - Number(parsed.cachedAt || 0) < CATALOG_CACHE_TTL_MS) {
           const cachedPlans = parsed.plans || [];
           setPlans(cachedPlans);
-          const defaultPlan = location.state?.preSelectedPlanId && cachedPlans.some((p: any) => p.id === location.state.preSelectedPlanId) 
-            ? location.state.preSelectedPlanId 
-            : cachedPlans[0]?.id;
+          const getMatchedPlanId = (plans: any[]) => {
+            if (!location.state?.preSelectedPlanId) return plans[0]?.id;
+            const exact = plans.find((p: any) => p.id === location.state.preSelectedPlanId);
+            if (exact) return exact.id;
+            const preId = location.state.preSelectedPlanId.toLowerCase();
+            if (preId.includes('1gb')) return plans.find((p: any) => p.name.toUpperCase().includes('1GB') || p.name.toUpperCase().includes('1.5GB'))?.id || plans[0]?.id;
+            if (preId.includes('2gb')) return plans.find((p: any) => p.name.toUpperCase().includes('2GB') || p.name.toUpperCase().includes('2.5GB'))?.id || plans[0]?.id;
+            return plans[0]?.id;
+          };
+          const defaultPlan = getMatchedPlanId(cachedPlans);
           setSelectedPlanId(type === 'DATA' && cachedPlans.length > 0 ? defaultPlan : '');
           setPlanCategory('ALL');
           setIsLoadingPlans(false);
@@ -406,9 +413,16 @@ export default function CalebNet() {
         const nextPlans = data.plans || [];
         setPlans(nextPlans);
         window.sessionStorage.setItem(cacheKey, JSON.stringify({ cachedAt: Date.now(), plans: nextPlans }));
-        const defaultPlan = location.state?.preSelectedPlanId && nextPlans.some((p: any) => p.id === location.state.preSelectedPlanId) 
-          ? location.state.preSelectedPlanId 
-          : nextPlans[0]?.id;
+        const getMatchedPlanId = (plans: any[]) => {
+          if (!location.state?.preSelectedPlanId) return plans[0]?.id;
+          const exact = plans.find((p: any) => p.id === location.state.preSelectedPlanId);
+          if (exact) return exact.id;
+          const preId = location.state.preSelectedPlanId.toLowerCase();
+          if (preId.includes('1gb')) return plans.find((p: any) => p.name.toUpperCase().includes('1GB') || p.name.toUpperCase().includes('1.5GB'))?.id || plans[0]?.id;
+          if (preId.includes('2gb')) return plans.find((p: any) => p.name.toUpperCase().includes('2GB') || p.name.toUpperCase().includes('2.5GB'))?.id || plans[0]?.id;
+          return plans[0]?.id;
+        };
+        const defaultPlan = getMatchedPlanId(nextPlans);
         if (type === 'DATA' && nextPlans.length > 0) setSelectedPlanId(defaultPlan);
       })
       .catch(() => toast.error('Unable to load CalebNet catalog.'))
