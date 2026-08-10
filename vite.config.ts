@@ -20,6 +20,11 @@ export default defineConfig({
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
 
+  server: {
+    port: 3000,
+    strictPort: false, // If 3000 is occupied, it will still try the next available port, but it defaults to 3000
+  },
+
   build: {
     target: 'esnext',
     minify: 'esbuild',
