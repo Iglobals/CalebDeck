@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router";
-import { Utensils, ShoppingBag, Headset, Bike, Wifi } from "lucide-react";
+import { Utensils, ShoppingBag, Headset, Bike, Wifi, LogIn, User } from "lucide-react";
+import { useAuth } from "../../../context/AuthContext";
 
 const PaperBagSVG = () => (
   <svg viewBox="0 0 100 132" width="44" height="58" xmlns="http://www.w3.org/2000/svg" style={{ overflow: 'visible' }}>
@@ -110,14 +111,22 @@ export function PaperBagHamburger() {
   const [isClosing, setIsClosing] = useState(false);
   const [showSpill, setShowSpill] = useState(false);
 
+  const { user } = useAuth();
+  
   const navLinks = [
     { label: "Order Food", icon: <Utensils className="w-5 h-5 text-[#FCD34D]" />, to: "/cafeteria" },
     { label: "CalebDeck Mart", icon: <ShoppingBag className="w-5 h-5 text-[#10B981]" />, to: "/mart" },
     { label: "CalebNet", icon: <Wifi className="w-5 h-5 text-blue-500" />, to: "/calebnet" },
-    { label: "My Orders", icon: <ShoppingBag className="w-5 h-5 text-[#A78BFA]" />, to: "/my-orders" },
+    user 
+      ? { label: "i-CON Profile", icon: <User className="w-5 h-5 text-[#7C3AED]" />, to: "/profile" }
+      : { label: "My Orders", icon: <ShoppingBag className="w-5 h-5 text-[#A78BFA]" />, to: "/my-orders" },
     { label: "Become a Rider", icon: <Bike className="w-5 h-5 text-[#10B981]" />, to: "/rider/signup" },
     { label: "Support", icon: <Headset className="w-5 h-5 text-[#7C3AED]" />, to: "/support" }
   ];
+
+  if (!user) {
+    navLinks.push({ label: "Become an i-CON", icon: <LogIn className="w-5 h-5 text-white" />, to: "/api/auth/login", isExternal: true, highlight: true });
+  }
 
   const handleToggle = () => {
     if (isClosing) return;
@@ -264,24 +273,30 @@ export function PaperBagHamburger() {
         ))}
       </div>
 
-      {/* Nav links dropdown */}
       <div className="nav-links-container">
-        {navLinks.map((link, i) => (
-          <Link
-            key={link.label}
-            to={link.to}
-            onClick={() => setIsOpen(false)}
-            className={`flex items-center gap-3 px-5 py-3.5 rounded-2xl border border-border bg-card shadow-2xl text-foreground font-semibold hover:bg-muted transition-colors whitespace-nowrap opacity-0 transform -translate-y-3 ${
-              isOpen && !isClosing ? "visible-anim" : ""
-            } ${isClosing ? "hiding-anim" : ""} ${!isOpen && !isClosing ? "hidden" : ""}`}
-            style={{
-              animationDelay: isOpen && !isClosing ? `${i * 0.1 + 0.1}s` : `${(navLinks.length - 1 - i) * 0.05}s`,
-            }}
-          >
-            <span className="nav-icon-container bg-muted/50 p-1.5 rounded-xl">{link.icon}</span>
-            <span className="text-[15px] tracking-wide">{link.label}</span>
-          </Link>
-        ))}
+        {navLinks.map((link, i) => {
+          const Tag = link.isExternal ? "a" : Link;
+          const hrefProp = link.isExternal ? { href: link.to } : { to: link.to };
+          
+          return (
+            <Tag
+              key={link.label}
+              {...hrefProp}
+              onClick={() => setIsOpen(false)}
+              className={`flex items-center gap-3 px-5 py-3.5 rounded-2xl border bg-card shadow-2xl font-semibold transition-colors whitespace-nowrap opacity-0 transform -translate-y-3 
+                ${link.highlight ? 'bg-[#7C3AED] border-[#7C3AED] text-white hover:bg-[#6D28D9]' : 'border-border text-foreground hover:bg-muted'}
+                ${isOpen && !isClosing ? "visible-anim" : ""} 
+                ${isClosing ? "hiding-anim" : ""} 
+                ${!isOpen && !isClosing ? "hidden" : ""}`}
+              style={{
+                animationDelay: isOpen && !isClosing ? `${i * 0.1 + 0.1}s` : `${(navLinks.length - 1 - i) * 0.05}s`,
+              }}
+            >
+              <span className={`nav-icon-container p-1.5 rounded-xl ${link.highlight ? 'bg-white/20' : 'bg-muted/50'}`}>{link.icon}</span>
+              <span className="text-[15px] tracking-wide">{link.label}</span>
+            </Tag>
+          );
+        })}
       </div>
     </div>
   );
