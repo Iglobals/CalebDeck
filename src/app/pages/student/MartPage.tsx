@@ -139,7 +139,7 @@ export default function MartPage() {
 
   const animateToCart = (item: MartItem, sourceElement: HTMLElement) => {
     const imageElement = sourceElement.closest('[data-mart-card]')?.querySelector('img');
-    const cartElement = cartIconRef.current;
+    const cartElement = document.getElementById('global-cart');
     if (!imageElement || !cartElement) return;
 
     const imageRect = imageElement.getBoundingClientRect();
@@ -217,26 +217,13 @@ export default function MartPage() {
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            {!user && (
-              <Link to="/">
-                <button className="p-2 -ml-2 rounded-xl transition-colors hover:bg-muted" aria-label="Back to CalebDeck home">
-                  <ArrowLeft className="w-6 h-6 text-foreground" />
-                </button>
-              </Link>
-            )}
+            {/* Back button removed per IA changes */}
             <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
               <span className="text-2xl">🛒</span> CalebDeck Mart
             </h1>
           </div>
           <div className="flex items-center gap-4">
-             <Link ref={cartIconRef} to="/mart/cart" aria-label={`Open CalebDeck Mart cart with ${totalItems} items`} className={`relative p-2 rounded-xl hover:bg-muted transition-all duration-300 ${flyingItem?.active ? 'scale-110 bg-[#10B981]/10' : ''}`}>
-                <ShoppingBag className="w-6 h-6 text-foreground" />
-                {totalItems > 0 && (
-                  <span className="absolute top-0 right-0 bg-[#10B981] text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full transform translate-x-1 -translate-y-1 animate-in zoom-in duration-200">
-                    {totalItems}
-                  </span>
-                )}
-             </Link>
+             {/* Cart moved to global top bar */}
           </div>
         </div>
       </header>

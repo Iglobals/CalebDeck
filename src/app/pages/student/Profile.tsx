@@ -10,6 +10,7 @@ import { Input, Select, Textarea } from '../../components/design-system/Input';
 import { ArrowLeft, User, Phone, MapPin, Settings, LogOut, Bell, Shield, Calendar, CreditCard, ChevronRight, CheckCircle2, History } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
+import { ThemeToggle } from '../../components/ThemeToggle';
 import SEO from '../../components/SEO';
 
 interface UserProfile {
@@ -147,24 +148,15 @@ export default function Profile() {
 
       {/* Header */}
       <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border shadow-sm transition-colors duration-300">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/')} className="p-2 hover:bg-muted rounded-xl transition-colors">
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <h1 className="text-xl font-bold tracking-tight">i-CON Profile</h1>
-          </div>
-          <Button variant="secondary" onClick={handleLogout} className="text-red-500 hover:text-red-600 border-red-500/20 hover:border-red-500/40 bg-red-500/5">
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-center">
+          <h1 className="text-xl font-bold tracking-tight">i-CON Profile</h1>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
         
         {/* Profile Card (Glassmorphism) */}
-        <div className="relative overflow-hidden rounded-[2rem] p-8 mb-10 shadow-2xl bg-card border border-border">
+        <div className="relative overflow-hidden rounded-[2rem] p-8 mb-10 shadow-2xl bg-card border border-border max-w-2xl mx-auto">
           <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-white/10 blur-3xl"></div>
           
           <div className="relative z-10 flex flex-col md:flex-row items-center gap-6">
@@ -195,8 +187,8 @@ export default function Profile() {
           {/* Settings Form */}
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-[#7C3AED]/10 flex items-center justify-center">
-                <Settings className="w-5 h-5 text-[#7C3AED]" />
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Settings className="w-5 h-5 text-primary" />
               </div>
               <h2 className="text-2xl font-bold">Preferences</h2>
             </div>
@@ -267,7 +259,7 @@ export default function Profile() {
                         onChange={handleChange}
                         className="peer sr-only"
                       />
-                      <div className="w-5 h-5 rounded border-2 border-muted-foreground peer-checked:border-[#7C3AED] peer-checked:bg-[#7C3AED] transition-all flex items-center justify-center">
+                      <div className="w-5 h-5 rounded border-2 border-muted-foreground peer-checked:border-primary peer-checked:bg-primary transition-all flex items-center justify-center">
                         <CheckCircle2 className="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100" />
                       </div>
                     </div>
@@ -278,10 +270,31 @@ export default function Profile() {
                   </label>
                 </div>
 
-                <div className="pt-2">
-                  <Button type="submit" variant="primary" disabled={saving} className="w-full sm:w-auto py-3 px-8 text-sm bg-[#7C3AED] hover:bg-[#6D28D9] border-[#7C3AED]">
+                <div className="pt-4 border-t border-border flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-sm">Appearance</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">Toggle between light and dark mode.</p>
+                    </div>
+                    <ThemeToggle theme={studentTheme} onToggle={toggleStudentTheme} variant="inline" />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex flex-col gap-4">
+                  <Button type="submit" variant="primary" disabled={saving} className="w-full sm:w-auto py-3 px-8 text-sm">
                     {saving ? 'Saving...' : 'Save Preferences'}
                   </Button>
+                  
+                  <div className="pt-4 border-t border-border mt-2">
+                    <button 
+                      type="button" 
+                      onClick={handleLogout} 
+                      className="w-full text-left text-sm font-bold text-red-500 hover:text-red-600 transition-colors py-2 flex items-center gap-2"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sign Out
+                    </button>
+                  </div>
                 </div>
               </form>
             </Card>

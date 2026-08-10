@@ -4,28 +4,54 @@ import { useAuth } from '../../../context/AuthContext';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { StatusDot, Badge } from '../../components/design-system/Badge';
-import { Search, Wallet, Package, Clock, Utensils, ShoppingBag, Wifi, Shirt, TrendingUp } from 'lucide-react';
+import { Search, Wallet, Package, Clock, Utensils, ShoppingBag, Wifi, Shirt, TrendingUp, ChevronRight, ChevronLeft, Store } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 
-const CATEGORIES = [
-  { id: 'mart', name: 'Mart', icon: ShoppingBag, color: 'text-[#10B981]', bg: 'bg-[#10B981]/10', path: '/mart' },
-  { id: 'calebnet', name: 'CalebNet', icon: Wifi, color: 'text-blue-500', bg: 'bg-blue-500/10', path: '/calebnet' },
-  { id: 'fashion', name: 'Fashion', icon: Shirt, color: 'text-purple-500', bg: 'bg-purple-500/10', path: '/fashion', disabled: true },
+const CROSS_PRODUCTS = [
+  { id: 'p1', type: 'Mart', name: 'Mart Placeholder Item', price: 1200, path: '/mart', disabled: false },
+  { id: 'p2', type: 'CalebNet', name: 'Data Placeholder', price: 500, path: '/calebnet', disabled: false },
+  { id: 'p3', type: 'Fashion', name: 'Fashion Placeholder', price: 8500, path: '/fashion', disabled: true },
+];
+
+const LOCAL_BUSINESSES = [
+  { id: 'b1', name: 'Placeholder Business 1', category: 'Food & Drinks', rating: '4.8', image: '' },
+  { id: 'b2', name: 'Placeholder Business 2', category: 'Gadgets', rating: '4.5', image: '' },
+  { id: 'b3', name: 'Placeholder Business 3', category: 'Fashion', rating: '4.9', image: '' },
+];
+
+const PROMO_SLIDES = [
+  { id: 'slide1', bgClass: 'bg-primary' },
+  { id: 'slide2', bgClass: 'bg-primary/90' },
+  { id: 'slide3', bgClass: 'bg-primary/80' }
 ];
 
 export function SignedInHome() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
     const unsub = subscribeToPlatformSettings(setPlatformSettings);
     return () => unsub();
   }, []);
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % PROMO_SLIDES.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
   const currentTime = new Date();
   const hour = currentTime.getHours();
+  
+  const getGreeting = () => {
+    if (hour < 12) return 'Good morning,';
+    if (hour < 18) return 'Good afternoon,';
+    return 'Good evening,';
+  };
   
   const openingHour = platformSettings?.systemOpeningHour ?? 10;
   const closingHour = platformSettings?.systemClosingHour ?? 18;
@@ -57,13 +83,10 @@ export function SignedInHome() {
 
   const handleCafeteriaClick = (cafeteriaId: string) => {
     if (isClosed) return;
-    if (cafeteriaId === 'old') {
-      navigate(`/plate-builder/${cafeteriaId}`, {
-        state: { cafeteria: 'Old Cafeteria', cafeteriaId, sectionId: 'none' }
-      });
-    } else {
-      navigate('/cafeteria');
-    }
+    const cafeteriaName = cafeteriaId === 'old' ? 'Old Cafeteria' : 'New Cafeteria';
+    navigate(`/plate-builder/${cafeteriaId}`, {
+      state: { cafeteria: cafeteriaName, cafeteriaId, sectionId: 'none' }
+    });
   };
 
   const displayName = user?.displayNameFromProfile || user?.fullName?.split(' ')[0] || user?.email?.split('@')[0] || 'Student';
@@ -74,10 +97,10 @@ export function SignedInHome() {
       {/* Top Header Section */}
       <header className="px-6 pt-12 pb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black">Good afternoon,</h1>
+          <h1 className="text-2xl font-black">{getGreeting()}</h1>
           <p className="text-3xl font-black text-primary">{displayName}</p>
         </div>
-        <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center shadow-sm overflow-hidden border-2 border-border">
+        <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center shadow-sm overflow-hidden border-2 border-border shrink-0 ml-4">
           {user?.photoURL ? (
             <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
           ) : (
@@ -102,7 +125,7 @@ export function SignedInHome() {
           <Link to="/my-orders">
             <Card hover className="p-4 flex flex-col justify-between h-full border-border bg-card shadow-sm squircle">
               <div className="flex items-center gap-2 text-muted-foreground mb-4">
-                <Package className="w-5 h-5" />
+                <Package className="w-5 h-5 text-primary" />
                 <span className="text-xs font-bold uppercase tracking-wider">Orders</span>
               </div>
               <h2 className="text-sm font-bold leading-tight">View live<br/>history</h2>
@@ -122,35 +145,49 @@ export function SignedInHome() {
           />
         </div>
 
-        {/* Promo Banner */}
-        <div className="relative rounded-[2rem] overflow-hidden bg-primary text-primary-foreground p-8 shadow-xl">
+        {/* Promo Carousel */}
+        <div className={`relative rounded-[2rem] overflow-hidden ${PROMO_SLIDES[currentSlide].bgClass} text-primary-foreground p-8 shadow-xl transition-colors duration-500`}>
+          {/* Placeholder for the real product photo background - currently just uses the color class above */}
+          <div className="absolute inset-0 bg-black/10 z-0"></div>
+          
           <div className="relative z-10 max-w-[70%]">
-            <Badge variant="gray" className="bg-white/20 text-black border-none mb-3 backdrop-blur-none">New!</Badge>
+            <Badge variant="gray" className="bg-white/20 text-white font-bold border-none mb-3 backdrop-blur-md">New!</Badge>
             <h2 className="text-2xl font-black mb-2 leading-tight">CalebDeck Mart is live!</h2>
-            <p className="font-bold opacity-80 mb-4 text-sm">Groceries and essentials delivered to your hostel.</p>
+            <p className="font-bold opacity-90 mb-4 text-sm">Groceries and essentials delivered to your hostel.</p>
             <Link to="/mart">
-              <Button variant="secondary" className="bg-black text-white hover:bg-black/80 border-none font-bold rounded-xl text-xs py-2 px-4 h-auto">Shop Now</Button>
+              <Button variant="secondary" className="bg-background text-foreground hover:bg-muted border-none font-bold rounded-xl text-xs py-2 px-4 h-auto shadow-md">Shop Now</Button>
             </Link>
           </div>
-          <div className="absolute right-[-20%] bottom-[-20%] w-48 h-48 bg-white/20 rounded-full blur-2xl pointer-events-none"></div>
-          <ShoppingBag className="absolute right-6 top-1/2 -translate-y-1/2 w-32 h-32 text-black/10 pointer-events-none" />
+          <ShoppingBag className="absolute right-6 top-1/2 -translate-y-1/2 w-32 h-32 text-black/10 pointer-events-none z-0" />
+          
+          {/* Carousel indicators */}
+          <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
+            {PROMO_SLIDES.map((_, idx) => (
+              <div key={idx} className={`w-2 h-2 rounded-full transition-all ${idx === currentSlide ? 'bg-white w-4' : 'bg-white/50'}`}></div>
+            ))}
+          </div>
         </div>
 
-        {/* Cross-Product Row */}
+        {/* Cross-Product Preview Cards */}
         <div>
           <h3 className="text-lg font-black mb-4">Explore CalebDeck</h3>
           <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar -mx-6 px-6">
-            {CATEGORIES.map((cat) => (
+            {CROSS_PRODUCTS.map((product) => (
               <Link 
-                key={cat.id} 
-                to={cat.disabled ? '#' : cat.path}
-                className={`flex flex-col items-center gap-3 min-w-[80px] group ${cat.disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
-                onClick={(e) => cat.disabled && e.preventDefault()}
+                key={product.id} 
+                to={product.disabled ? '#' : product.path}
+                className={`flex flex-col min-w-[140px] max-w-[140px] group ${product.disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+                onClick={(e) => product.disabled && e.preventDefault()}
               >
-                <div className={`w-16 h-16 rounded-2xl ${cat.bg} flex items-center justify-center transition-transform group-hover:scale-105 squircle`}>
-                  <cat.icon className={`w-8 h-8 ${cat.color}`} />
+                <div className="w-full aspect-square rounded-2xl bg-muted mb-3 overflow-hidden border border-border shadow-sm squircle relative flex items-center justify-center">
+                  {/* Placeholder image slot */}
+                  <span className="text-xs font-bold text-muted-foreground">Placeholder</span>
+                  <div className="absolute top-2 left-2 bg-background/80 backdrop-blur text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-border">
+                    {product.type}
+                  </div>
                 </div>
-                <span className="text-xs font-bold text-center">{cat.name}</span>
+                <h4 className="text-sm font-bold truncate leading-tight mb-1">{product.name}</h4>
+                <p className="text-primary font-black text-sm">{money(product.price)}</p>
               </Link>
             ))}
           </div>
@@ -160,7 +197,7 @@ export function SignedInHome() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-black">Food Vendors</h3>
-            <Link to="/cafeteria" className="text-sm font-bold text-primary hover:underline">See all</Link>
+            {/* "See all" link removed per IA changes */}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {cafeterias.map((cafeteria) => (
@@ -189,13 +226,40 @@ export function SignedInHome() {
                     <StatusDot status={statusType} label={statusLabel} className="text-white text-xs drop-shadow-md" />
                   </div>
                 </div>
-                <div className="p-4 bg-card flex items-center justify-between">
+                <div className="p-4 bg-card flex items-center justify-between border-t border-border/50">
                   <div className="flex items-center gap-2 text-muted-foreground text-sm font-bold">
                     <Clock className="w-4 h-4" />
                     <span>{cafeteria.prepTime}</span>
                   </div>
                   <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                     <Utensils className="w-4 h-4" />
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* CalebDeck Local Businesses */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-black">Local Businesses</h3>
+          </div>
+          <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar -mx-6 px-6">
+            {LOCAL_BUSINESSES.map((business) => (
+              <Card 
+                key={business.id} 
+                className="min-w-[240px] p-3 flex items-center gap-3 border-border shadow-sm squircle opacity-80"
+              >
+                <div className="w-16 h-16 rounded-xl bg-muted shrink-0 flex items-center justify-center border border-border">
+                  <Store className="w-6 h-6 text-muted-foreground" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-sm font-black truncate">{business.name}</h4>
+                  <p className="text-[10px] text-muted-foreground font-bold mt-0.5">{business.category}</p>
+                  <div className="flex items-center gap-1 mt-1 text-primary">
+                    <span className="text-xs font-black">★</span>
+                    <span className="text-xs font-bold">{business.rating}</span>
                   </div>
                 </div>
               </Card>

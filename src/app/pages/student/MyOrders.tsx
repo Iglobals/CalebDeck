@@ -145,9 +145,7 @@ export default function MyOrders() {
       <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border shadow-sm transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3 sm:gap-4">
-            <button onClick={() => navigate('/')} className="p-2 hover:bg-muted rounded-xl transition-colors" aria-label="Back to CalebDeck home">
-              <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6 text-foreground" />
-            </button>
+             {/* Back button removed per IA changes */}
             <div className="flex items-center gap-2">
               <Package className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />
               <h1 className="text-lg sm:text-2xl font-bold tracking-tight">My Orders</h1>

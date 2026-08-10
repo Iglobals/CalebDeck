@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Outlet } from 'react-router';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { ThemeToggle } from '../components/ThemeToggle';
+import { GlobalCart } from '../components/student/GlobalCart';
 import { ToastContainer } from 'react-toastify';
 import { MartCartProvider } from '../../context/MartCartContext';
 import { BatchTimerProvider } from '../../context/BatchTimerContext';
@@ -35,11 +35,11 @@ export default function StudentRoleWrapper() {
                     <MaintenanceGate>
                         <Outlet />
                         <GuestBanner />
+                        <GlobalCart />
                     </MaintenanceGate>
                 </BatchTimerProvider>
             </MartCartProvider>
             <FloatingNav />
-            <ThemeToggle theme={studentTheme} onToggle={toggleStudentTheme} />
             <ToastContainer position="top-right" autoClose={3000} />
         </div>
     );
