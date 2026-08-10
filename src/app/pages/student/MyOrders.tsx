@@ -143,7 +143,7 @@ export default function MyOrders() {
 
       {/* Header */}
       <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border shadow-sm transition-colors duration-300">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between pr-16 sm:pr-20">
           <div className="flex items-center gap-3 sm:gap-4">
              {/* Back button removed per IA changes */}
             <div className="flex items-center gap-2">

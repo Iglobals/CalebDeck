@@ -9,15 +9,14 @@ import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 
 const CROSS_PRODUCTS = [
-  { id: 'p1', type: 'Mart', name: 'Mart Placeholder Item', price: 1200, path: '/mart', disabled: false },
-  { id: 'p2', type: 'CalebNet', name: 'Data Placeholder', price: 500, path: '/calebnet', disabled: false },
-  { id: 'p3', type: 'Fashion', name: 'Fashion Placeholder', price: 8500, path: '/fashion', disabled: true },
+  { id: 'm1', type: 'Mart', name: 'Indomie Super Pack (120g)', price: 350, path: '/mart', disabled: false, image: 'https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?q=80&w=200&auto=format&fit=crop' },
+  { id: 'c1', type: 'CalebNet', name: 'MTN 1GB Data (30 Days)', price: 280, path: '/calebnet', disabled: false, image: 'https://images.unsplash.com/photo-1620283085439-3f62eb351e23?q=80&w=200&auto=format&fit=crop' },
+  { id: 'f1', type: 'Fashion', name: 'Caleb Classic Tee', price: 6500, path: '/fashion', disabled: true, image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=200&auto=format&fit=crop' },
 ];
 
 const LOCAL_BUSINESSES = [
-  { id: 'b1', name: 'Placeholder Business 1', category: 'Food & Drinks', rating: '4.8', image: '' },
-  { id: 'b2', name: 'Placeholder Business 2', category: 'Gadgets', rating: '4.5', image: '' },
-  { id: 'b3', name: 'Placeholder Business 3', category: 'Fashion', rating: '4.9', image: '' },
+  { id: 'b1', name: 'TechHub Gadgets', category: 'Accessories', rating: '4.8', image: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=200&auto=format&fit=crop' },
+  { id: 'b2', name: 'Sweet Treats Bakery', category: 'Food & Pastries', rating: '4.9', image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=200&auto=format&fit=crop' },
 ];
 
 const PROMO_SLIDES = [
@@ -95,7 +94,7 @@ export function SignedInHome() {
   return (
     <div className="min-h-screen bg-background text-foreground pb-32">
       {/* Top Header Section */}
-      <header className="px-6 pt-12 pb-6 flex items-center justify-between">
+      <header className="px-6 pt-12 pb-6 flex items-center justify-between pr-20">
         <div>
           <h1 className="text-2xl font-black">{getGreeting()}</h1>
           <p className="text-3xl font-black text-primary">{displayName}</p>
@@ -179,10 +178,9 @@ export function SignedInHome() {
                 className={`flex flex-col min-w-[140px] max-w-[140px] group ${product.disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
                 onClick={(e) => product.disabled && e.preventDefault()}
               >
-                <div className="w-full aspect-square rounded-2xl bg-muted mb-3 overflow-hidden border border-border shadow-sm squircle relative flex items-center justify-center">
-                  {/* Placeholder image slot */}
-                  <span className="text-xs font-bold text-muted-foreground">Placeholder</span>
-                  <div className="absolute top-2 left-2 bg-background/80 backdrop-blur text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-border">
+                <div className="w-full aspect-square rounded-2xl bg-muted mb-3 overflow-hidden border border-border shadow-sm squircle relative flex items-center justify-center group-hover:shadow-md transition-shadow">
+                  <img src={product.image} alt={product.name} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute top-2 left-2 bg-background/90 backdrop-blur text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-border">
                     {product.type}
                   </div>
                 </div>
@@ -251,8 +249,8 @@ export function SignedInHome() {
                 key={business.id} 
                 className="min-w-[240px] p-3 flex items-center gap-3 border-border shadow-sm squircle opacity-80"
               >
-                <div className="w-16 h-16 rounded-xl bg-muted shrink-0 flex items-center justify-center border border-border">
-                  <Store className="w-6 h-6 text-muted-foreground" />
+                <div className="w-16 h-16 rounded-xl bg-muted shrink-0 overflow-hidden flex items-center justify-center border border-border">
+                  <img src={business.image} alt={business.name} className="w-full h-full object-cover" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <h4 className="text-sm font-black truncate">{business.name}</h4>

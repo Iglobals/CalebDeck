@@ -722,7 +722,7 @@ export default function CalebNet() {
       />
 
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-5 py-3">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-5 py-3 pr-16 sm:pr-20">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             {/* Back button removed */}
             <h1 className="text-lg sm:text-xl font-black truncate">CalebNet</h1>

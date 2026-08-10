@@ -27,7 +27,7 @@ interface UserProfile {
 export default function Profile() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { studentTheme } = useTheme();
+  const { studentTheme, toggleStudentTheme } = useTheme();
 
   const [hostels, setHostels] = useState<Hostel[]>([]);
   const [profile, setProfile] = useState<UserProfile>({
