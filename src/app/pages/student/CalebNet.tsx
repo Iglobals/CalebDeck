@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useLocation } from 'react-router';
 import { AlertCircle, ArrowLeft, CheckCircle2, ChevronDown, ChevronUp, Clock, CreditCard, Eye, EyeOff, Info, Loader2, LogOut, Mail, Phone, RefreshCcw, Shield, Signal, UserRound, Wallet, Wifi, X, Zap, Settings, History } from 'lucide-react';
 import { CalebNetAvatar, AvatarPicker, getAvatarById } from '../../components/CalebNetAvatar';
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup, updateProfile } from 'firebase/auth';
@@ -280,11 +280,12 @@ function CalebNetAuthGate() {
 }
 
 export default function CalebNet() {
+  const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
-  const [type, setType] = useState<CalebNetType>('DATA');
-  const [network, setNetwork] = useState<Network>('MTN');
+  const [type, setType] = useState<CalebNetType>(location.state?.preSelectedType || 'DATA');
+  const [network, setNetwork] = useState<Network>(location.state?.preSelectedNetwork || 'MTN');
   const [plans, setPlans] = useState<CatalogPlan[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const [planCategory, setPlanCategory] = useState('ALL');
@@ -383,7 +384,10 @@ export default function CalebNet() {
         if (Date.now() - Number(parsed.cachedAt || 0) < CATALOG_CACHE_TTL_MS) {
           const cachedPlans = parsed.plans || [];
           setPlans(cachedPlans);
-          setSelectedPlanId(type === 'DATA' && cachedPlans.length > 0 ? cachedPlans[0].id : '');
+          const defaultPlan = location.state?.preSelectedPlanId && cachedPlans.some((p: any) => p.id === location.state.preSelectedPlanId) 
+            ? location.state.preSelectedPlanId 
+            : cachedPlans[0]?.id;
+          setSelectedPlanId(type === 'DATA' && cachedPlans.length > 0 ? defaultPlan : '');
           setPlanCategory('ALL');
           setIsLoadingPlans(false);
           return;
@@ -402,7 +406,10 @@ export default function CalebNet() {
         const nextPlans = data.plans || [];
         setPlans(nextPlans);
         window.sessionStorage.setItem(cacheKey, JSON.stringify({ cachedAt: Date.now(), plans: nextPlans }));
-        if (type === 'DATA' && nextPlans.length > 0) setSelectedPlanId(nextPlans[0].id);
+        const defaultPlan = location.state?.preSelectedPlanId && nextPlans.some((p: any) => p.id === location.state.preSelectedPlanId) 
+          ? location.state.preSelectedPlanId 
+          : nextPlans[0]?.id;
+        if (type === 'DATA' && nextPlans.length > 0) setSelectedPlanId(defaultPlan);
       })
       .catch(() => toast.error('Unable to load CalebNet catalog.'))
       .finally(() => setIsLoadingPlans(false));

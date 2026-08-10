@@ -153,10 +153,10 @@ export default function Profile() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         
         {/* Profile Card (Glassmorphism) */}
-        <div className="relative overflow-hidden rounded-[2rem] p-8 mb-10 shadow-2xl bg-card border border-border max-w-2xl mx-auto">
+        <div className="relative overflow-hidden rounded-[2rem] p-8 mb-10 shadow-2xl bg-card border border-border w-full">
           <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-white/10 blur-3xl"></div>
           
           <div className="relative z-10 flex flex-col md:flex-row items-center gap-6">
@@ -182,7 +182,7 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-[1fr_300px] gap-8">
+        <div className="grid lg:grid-cols-[1fr_340px] md:grid-cols-[1fr_280px] gap-8 items-start">
           
           {/* Settings Form */}
           <div className="space-y-6">

@@ -4,15 +4,24 @@ import { useAuth } from '../../../context/AuthContext';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { StatusDot, Badge } from '../../components/design-system/Badge';
-import { Search, Wallet, Package, Clock, Utensils, ShoppingBag, Wifi, Shirt, TrendingUp, ChevronRight, ChevronLeft, Store } from 'lucide-react';
+import { Search, Wallet, Package, Clock, Utensils, ShoppingBag, Wifi, Shirt, TrendingUp, ChevronRight, ChevronLeft, Store, Plus, Minus } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
+import { useMartCart } from '../../../context/MartCartContext';
+import { subscribeToMartItems, MartItem } from '../../../services/mart';
 
-const CROSS_PRODUCTS = [
-  { id: 'm1', type: 'Mart', name: 'Indomie Super Pack (120g)', price: 350, path: '/mart', disabled: false, image: 'https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?q=80&w=200&auto=format&fit=crop' },
-  { id: 'c1', type: 'CalebNet', name: 'MTN 1GB Data (30 Days)', price: 280, path: '/calebnet', disabled: false, image: 'https://images.unsplash.com/photo-1620283085439-3f62eb351e23?q=80&w=200&auto=format&fit=crop' },
-  { id: 'f1', type: 'Fashion', name: 'Caleb Classic Tee', price: 6500, path: '/fashion', disabled: true, image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=200&auto=format&fit=crop' },
+const STATIC_CALEBNET_PRODUCTS = [
+  { id: 'calebnet-mtn-1gb', type: 'CalebNet', name: 'MTN 1GB SME (30 Days)', price: 280, path: '/calebnet', disabled: false, icon: 'wifi', network: 'MTN' },
+  { id: 'calebnet-mtn-2gb', type: 'CalebNet', name: 'MTN 2GB SME (30 Days)', price: 560, path: '/calebnet', disabled: false, icon: 'wifi', network: 'MTN' },
+  { id: 'calebnet-glo-1gb', type: 'CalebNet', name: 'GLO 1GB (30 Days)', price: 250, path: '/calebnet', disabled: false, icon: 'wifi', network: 'GLO' },
+  { id: 'calebnet-glo-2gb', type: 'CalebNet', name: 'GLO 2GB (30 Days)', price: 500, path: '/calebnet', disabled: false, icon: 'wifi', network: 'GLO' }
 ];
+
+const FASHION_PLACEHOLDERS = [
+  { id: 'fashion-tee', type: 'Fashion', name: 'Caleb Classic Tee', price: 6500, path: '/fashion', disabled: true, image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=200&auto=format&fit=crop' },
+  { id: 'fashion-hoodie', type: 'Fashion', name: 'Caleb Premium Hoodie', price: 12000, path: '/fashion', disabled: true, image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=200&auto=format&fit=crop' }
+];
+
 
 const LOCAL_BUSINESSES = [
   { id: 'b1', name: 'TechHub Gadgets', category: 'Accessories', rating: '4.8', image: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=200&auto=format&fit=crop' },
@@ -30,10 +39,28 @@ export function SignedInHome() {
   const navigate = useNavigate();
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const { items: cartItems, addItem, updateQuantity } = useMartCart();
+  const [exploreMartItems, setExploreMartItems] = useState<any[]>([]);
 
   useEffect(() => {
-    const unsub = subscribeToPlatformSettings(setPlatformSettings);
-    return () => unsub();
+    const unsubSettings = subscribeToPlatformSettings(setPlatformSettings);
+    const unsubMart = subscribeToMartItems((items) => {
+      // Pick top 4 in-stock items
+      setExploreMartItems(items.filter(i => i.inStock).slice(0, 4).map(item => ({
+        id: item.id,
+        type: 'Mart',
+        name: item.name,
+        price: item.price,
+        path: '/mart',
+        disabled: false,
+        image: item.imageUrl,
+        category: item.category
+      })));
+    });
+    return () => {
+      unsubSettings();
+      unsubMart();
+    };
   }, []);
 
   useEffect(() => {
@@ -86,6 +113,10 @@ export function SignedInHome() {
     navigate(`/plate-builder/${cafeteriaId}`, {
       state: { cafeteria: cafeteriaName, cafeteriaId, sectionId: 'none' }
     });
+  };
+
+  const getCartQuantity = (itemId: string) => {
+    return cartItems.find(i => i.id === itemId)?.quantity || 0;
   };
 
   const displayName = user?.displayNameFromProfile || user?.fullName?.split(' ')[0] || user?.email?.split('@')[0] || 'Student';
@@ -171,23 +202,80 @@ export function SignedInHome() {
         <div>
           <h3 className="text-lg font-black mb-4">Explore CalebDeck</h3>
           <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar -mx-6 px-6">
-            {CROSS_PRODUCTS.map((product) => (
-              <Link 
-                key={product.id} 
-                to={product.disabled ? '#' : product.path}
-                className={`flex flex-col min-w-[140px] max-w-[140px] group ${product.disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
-                onClick={(e) => product.disabled && e.preventDefault()}
-              >
-                <div className="w-full aspect-square rounded-2xl bg-muted mb-3 overflow-hidden border border-border shadow-sm squircle relative flex items-center justify-center group-hover:shadow-md transition-shadow">
-                  <img src={product.image} alt={product.name} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
-                  <div className="absolute top-2 left-2 bg-background/90 backdrop-blur text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-border">
-                    {product.type}
+            {[...exploreMartItems, ...STATIC_CALEBNET_PRODUCTS, ...FASHION_PLACEHOLDERS].map((product) => {
+              if (product.type === 'Mart') {
+                const qty = getCartQuantity(product.id);
+                return (
+                  <div key={product.id} className="flex flex-col min-w-[140px] max-w-[140px] group relative">
+                    <div className="w-full aspect-square rounded-2xl bg-muted mb-3 overflow-hidden border border-border shadow-sm squircle relative flex items-center justify-center group-hover:shadow-md transition-shadow">
+                      <img src={product.image} alt={product.name} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                      <div className="absolute top-2 left-2 bg-background/90 backdrop-blur text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-border">
+                        {product.type}
+                      </div>
+                      {qty > 0 && (
+                        <div className="absolute top-2 right-2 bg-[#10B981] text-white text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full shadow-lg border-2 border-background animate-in zoom-in z-10">
+                          {qty}
+                        </div>
+                      )}
+                    </div>
+                    <h4 className="text-sm font-bold truncate leading-tight mb-1">{product.name}</h4>
+                    <p className="text-primary font-black text-sm mb-2">{money(product.price)}</p>
+                    
+                    {qty === 0 ? (
+                      <button
+                        onClick={() => addItem({ id: product.id, name: product.name, price: product.price, imageUrl: product.image, category: 'Groceries' })}
+                        className="w-full h-8 rounded-xl bg-[#10B981] text-white hover:bg-[#059669] transition-all flex items-center justify-center gap-1 shadow-sm font-black uppercase tracking-wider text-[10px]"
+                      >
+                        <Plus className="w-3 h-3" /> Add
+                      </button>
+                    ) : (
+                      <div className="flex items-center justify-between w-full h-8">
+                        <button
+                          onClick={() => updateQuantity(product.id, qty - 1)}
+                          className="w-8 h-8 rounded-lg bg-muted hover:bg-secondary hover:text-white transition-colors flex items-center justify-center"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <span className="font-bold text-sm">{qty}</span>
+                        <button
+                          onClick={() => updateQuantity(product.id, qty + 1)}
+                          className="w-8 h-8 rounded-lg bg-[#10B981] text-white transition-colors flex items-center justify-center"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
                   </div>
-                </div>
-                <h4 className="text-sm font-bold truncate leading-tight mb-1">{product.name}</h4>
-                <p className="text-primary font-black text-sm">{money(product.price)}</p>
-              </Link>
-            ))}
+                );
+              }
+
+              return (
+                <Link 
+                  key={product.id} 
+                  to={product.disabled ? '#' : product.path}
+                  state={{ preSelectedPlanId: product.id, preSelectedType: 'DATA', preSelectedNetwork: product.network }}
+                  className={`flex flex-col min-w-[140px] max-w-[140px] group ${product.disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  onClick={(e) => product.disabled && e.preventDefault()}
+                >
+                  <div className={`w-full aspect-square rounded-2xl ${product.icon ? 'bg-[#7C3AED]/10 border-[#7C3AED]/20' : 'bg-muted border-border'} mb-3 overflow-hidden border shadow-sm squircle relative flex items-center justify-center group-hover:shadow-md transition-shadow`}>
+                    {product.icon ? (
+                      <Wifi className="w-12 h-12 text-[#7C3AED] opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300" />
+                    ) : (
+                      <img src={product.image} alt={product.name} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                    )}
+                    <div className="absolute top-2 left-2 bg-background/90 backdrop-blur text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-border">
+                      {product.type}
+                    </div>
+                  </div>
+                  <h4 className="text-sm font-bold truncate leading-tight mb-1">{product.name}</h4>
+                  <p className="text-primary font-black text-sm mb-2">{money(product.price)}</p>
+                  
+                  <div className="w-full h-8 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all flex items-center justify-center shadow-sm font-black uppercase tracking-wider text-[10px]">
+                    Select
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </div>
 

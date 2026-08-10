@@ -8,8 +8,8 @@ export function GlobalCart() {
   const location = useLocation();
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
-  // Hide global cart on the actual cart and checkout pages to avoid duplicate UI
-  if (location.pathname.includes('/cart') || location.pathname.includes('/checkout')) {
+  // Hide global cart on the actual cart, checkout, and profile pages to avoid duplicate UI/clutter
+  if (location.pathname.includes('/cart') || location.pathname.includes('/checkout') || location.pathname === '/profile') {
     return null;
   }
 
