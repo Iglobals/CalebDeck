@@ -7,7 +7,7 @@ import { getActiveHostels, Hostel } from '../../../services/db';
 import { Button } from '../../components/design-system/Button';
 import { Card } from '../../components/design-system/Card';
 import { Input, Select, Textarea } from '../../components/design-system/Input';
-import { ArrowLeft, User, Phone, MapPin, Settings, LogOut, Bell, Shield, Calendar, CreditCard, ChevronRight, CheckCircle2, History } from 'lucide-react';
+import { ArrowLeft, User, Phone, MapPin, Settings, LogOut, Bell, Shield, Calendar, CreditCard, ChevronRight, CheckCircle2, History, Wallet } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
 import { ThemeToggle } from '../../components/ThemeToggle';
