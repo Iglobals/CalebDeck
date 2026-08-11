@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { adminDb, ensureFirebaseAdmin } from '../../server/firebase-admin.js';
-import { calculateServerOrderTotal } from '../server/order-utils.js';
+import { calculateServerOrderTotal } from '../../server/order-utils.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
 

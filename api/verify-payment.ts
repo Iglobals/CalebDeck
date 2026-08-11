@@ -3,7 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import axios from 'axios';
 import { adminDb } from '../server/firebase-admin.js';
 import { confirmFoodBatchReservation } from '../server/food-batch.js';
-import { calculateServerOrderTotal } from './server/order-utils.js';
+import { calculateServerOrderTotal } from '../server/order-utils.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
 
