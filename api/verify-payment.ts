@@ -3,7 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import axios from 'axios';
 import { adminDb } from '../server/firebase-admin.js';
 import { confirmFoodBatchReservation } from '../server/food-batch.js';
-import { calculateServerOrderTotal } from '../server/order-utils.js';
+import { calculateServerOrderTotal } from './server/order-utils.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
 
@@ -38,6 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // 1. Check if order already exists
         const isMartOrder = orderData?.orderType === 'mart';
+        const isCombo = orderData?.type === 'combo';
         const orderRef = db.collection('orders').doc(reference);
         const existingDoc = await orderRef.get();
 

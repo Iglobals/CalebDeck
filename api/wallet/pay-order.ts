@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
-import { adminAuth, adminDb } from '../server/firebase-admin.js';
+import { getAuth } from 'firebase-admin/auth';
+import { adminDb, ensureFirebaseAdmin } from '../../server/firebase-admin.js';
 import { calculateServerOrderTotal } from '../server/order-utils.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
@@ -20,7 +21,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const idToken = authHeader.split('Bearer ')[1];
-        const decodedToken = await adminAuth().verifyIdToken(idToken);
+        ensureFirebaseAdmin();
+        const decodedToken = await getAuth().verifyIdToken(idToken);
         const uid = decodedToken.uid;
 
         const db = adminDb();
