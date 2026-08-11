@@ -32,7 +32,15 @@ export function MartCartProvider({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
-    sessionStorage.setItem('cd_martCart', JSON.stringify(items));
+    try {
+      const storageItems = items.map(item => ({
+        ...item,
+        imageUrl: item.imageUrl?.startsWith('data:image') ? '' : item.imageUrl
+      }));
+      sessionStorage.setItem('cd_martCart', JSON.stringify(storageItems));
+    } catch (e) {
+      console.warn('Could not save cart to storage', e);
+    }
   }, [items]);
 
   const addItem = (item: Omit<CartItem, 'quantity'>) => {
