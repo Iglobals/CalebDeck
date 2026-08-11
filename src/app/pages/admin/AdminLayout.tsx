@@ -36,6 +36,7 @@ const SEARCHABLE_ITEMS = [
     { label: 'Menu Management', keywords: ['menu', 'food', 'item', 'rice', 'pasta', 'swallow', 'protein', 'price', 'available', 'unavailable', 'cafeteria', 'section'], path: '/admin/menu', icon: '🍽️' },
     { label: 'Analytics', keywords: ['analytics', 'revenue', 'chart', 'report', 'trend', 'profit', 'sales'], path: '/admin/analytics', icon: '📈' },
     { label: 'Reviews', keywords: ['reviews', 'star', 'feedback', 'student', 'rating', 'comment'], path: '/admin/reviews', icon: '⭐' },
+    { label: 'i-CON Directory', keywords: ['users', 'students', 'icons', 'directory', 'wallet', 'ecosystem', 'accounts'], path: '/admin/directory', icon: '👥' },
     { label: 'Order History', keywords: ['history', 'past', 'old', 'receipt', 'date', 'archive', 'delete', 'trash', 'recover'], path: '/admin/history', icon: '📋' },
     { label: 'CalebNet', keywords: ['calebnet', 'clubkonnect', 'nellobyte', 'airtime', 'data', 'recharge', 'topup'], path: '/admin/calebnet', icon: '📶' },
 ];
@@ -68,6 +69,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
         { id: 'menu', path: '/admin/menu', icon: <UtensilsCrossed className="w-5 h-5" />, label: 'Menu Management' },
         { id: 'riders', path: '/admin/riders', icon: <Users className="w-5 h-5" />, label: 'Riders' },
         { id: 'analytics', path: '/admin/analytics', icon: <BarChart3 className="w-5 h-5" />, label: 'Analytics' },
+        { id: 'directory', path: '/admin/directory', icon: <Users className="w-5 h-5" />, label: 'i-CON Directory' },
         { id: 'reviews', path: '/admin/reviews', icon: <Star className="w-5 h-5" />, label: 'Reviews' },
         { id: 'history', path: '/admin/history', icon: <Package className="w-5 h-5" />, label: 'Order History' },
         { id: 'settings', path: '/admin/settings', icon: <Settings className="w-5 h-5" />, label: 'Platform Settings' },

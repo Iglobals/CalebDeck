@@ -567,106 +567,10 @@ export default function CalebNet() {
     });
   }, [user?.uid]);
 
-  const verifyFunding = async (reference: string, options: { silent?: boolean } = {}) => {
-    const token = await auth.currentUser?.getIdToken();
-    const response = await fetch('/api/wallet/verify-funding', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ reference }),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Wallet funding failed');
-    setWalletBalance(Number(data.balance || 0));
-    if (auth.currentUser) removePendingFundingReference(auth.currentUser.uid, reference);
-    if (!options.silent) toast.success(`Wallet funded. New balance: ${money(data.balance)}`);
-  };
-
-  useEffect(() => {
-    if (!user?.uid) return;
-    const refs = getPendingFundingReferences(user.uid);
-    if (refs.length === 0) return;
-
-    let cancelled = false;
-    (async () => {
-      for (const reference of refs) {
-        if (cancelled) return;
-        try {
-          await verifyFunding(reference, { silent: true });
-        } catch {
-          // Keep the reference locally. A later page load can retry it.
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.uid]);
-
-  const handleFundWallet = () => {
-    if (!user) return;
-    if (fundingAmountNumber < 100 || fundingAmountNumber > 50000) {
-      toast.error('Wallet funding must be between ₦100 and ₦50,000.');
-      return;
-    }
-    if (!import.meta.env.VITE_PAYSTACK_PUBLIC_KEY) {
-      toast.error('Payment system is not configured. Contact support.');
-      return;
-    }
-    const currentReference = fundingReference;
-    fundingCompletedRef.current = false;
-    savePendingFundingReference(user.uid, currentReference);
-    setWalletLoading(true);
-    initializeFunding({
-      onSuccess: async (reference: any) => {
-        fundingCompletedRef.current = true;
-        const paidReference = reference.reference || currentReference;
-        try {
-          await verifyFunding(paidReference);
-        } catch (error: any) {
-          savePendingFundingReference(user.uid, paidReference);
-          toast.error(error.message || 'Payment received. We are confirming your wallet top-up. Please refresh CalebNet or contact support if it does not reflect soon.');
-        } finally {
-          setWalletLoading(false);
-          setFundingReference(createFundingReference());
-        }
-      },
-      onClose: () => {
-        setWalletLoading(false);
-        if (!fundingCompletedRef.current) {
-          toast.info('Funding window closed. If you completed payment, tap Refresh wallet.');
-        }
-      },
-    } as any);
-  };
-
-  const refreshWallet = async () => {
-    if (!user?.uid) return;
-    setWalletLoading(true);
-    try {
-      const refs = getPendingFundingReferences(user.uid);
-      for (const reference of refs) {
-        try {
-          await verifyFunding(reference, { silent: true });
-        } catch {
-          // Leave unresolved references for the next retry.
-        }
-      }
-
-      const snap = await getDoc(doc(db, 'users', user.uid));
-      const balance = Number(snap.data()?.walletBalance || 0);
-      setWalletBalance(balance);
-      toast.success(`Wallet balance refreshed: ${money(balance)}`);
-    } catch {
-      toast.error('Could not refresh wallet balance. Please try again.');
-    } finally {
-      setWalletLoading(false);
-    }
-  };
 
   const handlePurchase = async () => {
     if (!valid || isProcessing) {
-      if (insufficientBalance) toast.error('Insufficient wallet balance. Fund wallet to continue.');
+      if (insufficientBalance) toast.error('Insufficient wallet balance. Please top up your wallet.');
       return;
     }
     setIsProcessing(true);
@@ -765,11 +669,9 @@ export default function CalebNet() {
                   <span className="text-[10px] sm:text-xs font-bold text-[#7C3AED] leading-none">{money(walletBalance)}</span>
                 </div>
               </div>
-              <CalebNetAvatar
-                avatarId={avatarId}
-                size="sm"
-                onClick={() => setProfilePanelOpen(true)}
-              />
+              <div className="w-8 h-8 rounded-full bg-[#7C3AED]/20 border border-[#7C3AED]/40 flex items-center justify-center text-xs font-black text-[#7C3AED]">
+                {(studentProfile.displayName || 'Student').charAt(0).toUpperCase()}
+              </div>
             </div>
           ) : (
             <Logo size="sm" />
@@ -956,65 +858,24 @@ export default function CalebNet() {
 
               <div className="rounded-xl bg-muted/40 p-4 space-y-4">
                 <div className="flex items-center gap-3">
-                  <CalebNetAvatar avatarId={avatarId} size="md" />
+                  <div className="w-10 h-10 rounded-full bg-[#7C3AED]/20 border-2 border-[#7C3AED]/40 flex items-center justify-center text-lg font-black text-[#7C3AED]">
+                    {(studentProfile.displayName || 'Student').charAt(0).toUpperCase()}
+                  </div>
                   <div>
                     <p className="font-black text-lg">{studentProfile.displayName || 'Student'}</p>
                     <p className="font-mono text-xs text-muted-foreground">{studentProfile.phoneNumber || 'Add phone number'}</p>
                   </div>
                 </div>
-                <details className="group text-sm">
-                  <summary className="cursor-pointer font-bold text-[#7C3AED] outline-none hover:underline">Edit Profile</summary>
-                  <div className="pt-4 space-y-4">
-                    <div>
-                      <p className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Avatar</p>
-                      <AvatarPicker selectedId={avatarId} onSelect={saveAvatarChoice} />
-                    </div>
-                    <label className="block">
-                      <span className="mb-1.5 block text-xs font-bold text-muted-foreground">Display Name</span>
-                      <input
-                        value={profileDraft.displayName}
-                        onChange={(event) => setProfileDraft((current) => ({ ...current, displayName: event.target.value }))}
-                        className="w-full rounded-xl border-2 border-border bg-card px-4 py-3 font-bold outline-none focus:border-[#7C3AED]"
-                        placeholder="Your name"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="mb-1.5 block text-xs font-bold text-muted-foreground">Default Phone Number</span>
-                      <input
-                        type="tel"
-                        value={profileDraft.phoneNumber}
-                        onChange={(event) => handleProfilePhone(event.target.value)}
-                        className={`w-full rounded-xl border-2 bg-card px-4 py-3 font-bold outline-none ${profileDraft.phoneNumber && !isValidNigerianPhone(profileDraft.phoneNumber) ? 'border-red-500 focus:border-red-500' : 'border-border focus:border-[#7C3AED]'}`}
-                        placeholder="08012345678"
-                      />
-                    </label>
-                    <Button onClick={saveStudentProfile} disabled={profileLoading} className="w-full py-3" size="sm">
-                      {profileLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                      Save Profile
-                    </Button>
-                  </div>
-                </details>
+                <Link to="/profile" className="block text-sm font-bold text-[#7C3AED] hover:underline">
+                  Edit Profile
+                </Link>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                {FUNDING_PRESETS.map((preset) => (
-                  <button key={preset} type="button" onClick={() => setFundAmount(preset)} className={`rounded-xl border px-3 py-2 text-sm font-black ${Number(fundAmount) === preset ? 'border-[#7C3AED] bg-[#7C3AED]/10 text-[#7C3AED]' : 'border-border bg-card'}`}>
-                    {money(preset)}
-                  </button>
-                ))}
-              </div>
-              <div className="relative">
-                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg font-black text-muted-foreground">₦</span>
-                <input type="number" inputMode="numeric" value={fundAmount} onChange={(event) => setFundAmount(Number(event.target.value) || '')} className="w-full rounded-xl border-2 border-border bg-card py-3 pl-10 pr-4 font-bold outline-none focus:border-[#7C3AED]" placeholder="100 - 50,000" />
-              </div>
-              <Button onClick={handleFundWallet} disabled={walletLoading} className="w-full">
-                {walletLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" />}
-                Fund Wallet
-              </Button>
-              <Button onClick={refreshWallet} disabled={walletLoading} variant="outline" className="w-full">
-                {walletLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <RefreshCcw className="h-5 w-5" />}
-                Refresh Wallet
-              </Button>
-            </Card>
+              <Link to="/wallet" className="block">
+                <Button className="w-full">
+                  <CreditCard className="h-5 w-5" />
+                  Manage Wallet
+                </Button>
+              </Link>
 
             <div className="space-y-5 lg:sticky lg:top-24">
               <Card className="space-y-5">
@@ -1034,10 +895,17 @@ export default function CalebNet() {
                   <span className="text-3xl font-black text-[#7C3AED]">{money(currentAmount)}</span>
                 </div>
                 {insufficientBalance && <p className="mb-3 rounded-xl bg-red-500/10 p-3 text-sm font-bold text-red-500">Insufficient wallet balance. Fund wallet to continue.</p>}
-                <Button onClick={handlePurchase} disabled={!valid || isProcessing} className="w-full py-4">
-                  {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Shield className="h-5 w-5" />}
-                  {insufficientBalance ? 'Fund wallet to continue' : 'Pay from Wallet'}
-                </Button>
+                {insufficientBalance ? (
+                  <Button onClick={() => navigate('/wallet', { state: { prefillAmount: Math.max(100, currentAmount - walletBalance) } })} className="w-full py-4 bg-amber-500 hover:bg-amber-600 border-none text-white">
+                    <CreditCard className="h-5 w-5" />
+                    Top up ₦{Math.max(100, currentAmount - walletBalance)} to continue
+                  </Button>
+                ) : (
+                  <Button onClick={handlePurchase} disabled={!valid || isProcessing} className="w-full py-4">
+                    {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Shield className="h-5 w-5" />}
+                    Pay from Wallet
+                  </Button>
+                )}
                 {!airtimeAvailable && <p className="mt-3 text-center text-xs font-bold text-red-500">{network} airtime is currently unavailable.</p>}
                 {airtimeAmountError && <p className="mt-3 text-center text-xs font-bold text-red-500">{airtimeAmountError}</p>}
               </div>
@@ -1055,58 +923,7 @@ export default function CalebNet() {
             </div>
           </aside>
 
-          <Card className="space-y-3 lg:col-start-1 lg:row-start-2">
-            <div className="lg:hidden">
-              <button
-                type="button"
-                onClick={() => setWalletActivityOpen(!walletActivityOpen)}
-                className="flex w-full items-center justify-between"
-              >
-                <div className="flex items-center gap-2">
-                  <History className="h-4 w-4 text-[#7C3AED]" />
-                  <h3 className="text-base font-black">Wallet Activity</h3>
-                </div>
-                {walletActivityOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-              </button>
-            </div>
-            <div className="hidden lg:flex items-center gap-2">
-              <History className="h-5 w-5 text-[#7C3AED]" />
-              <h3 className="text-lg font-black">Wallet Activity</h3>
-            </div>
-            
-            <div className={`max-h-[280px] space-y-2 overflow-y-auto pr-2 custom-scrollbar ${walletActivityOpen ? 'block pt-2 border-t border-border' : 'hidden'} lg:block lg:pt-0 lg:border-t-0`}>
-              {walletTransactions.length === 0 ? (
-                <div className="space-y-2">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="hidden lg:flex items-center justify-between rounded-xl bg-muted/40 p-3 animate-pulse">
-                      <div className="space-y-1.5"><div className="h-3 w-28 rounded bg-muted" /><div className="h-2 w-16 rounded bg-muted" /></div>
-                      <div className="h-4 w-16 rounded bg-muted" />
-                    </div>
-                  ))}
-                  <p className="pt-2 text-center text-sm text-muted-foreground">No wallet activity yet.</p>
-                </div>
-              ) : walletTransactions.map((item) => (
-                <div key={item.id} className="flex items-center justify-between rounded-xl bg-muted/40 p-3 text-sm">
-                  <div className="min-w-0">
-                    <p className="font-black">{walletActivityTitle(item)}</p>
-                    <p className="text-xs text-muted-foreground">{walletActivityDetail(item)}</p>
-                    {item.relatedOrderId && item.purpose === 'CALEBNET_PURCHASE' && (
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/calebnet/status/${encodeURIComponent(item.relatedOrderId!)}`)}
-                        className="mt-1 text-xs font-black text-[#7C3AED] hover:underline"
-                      >
-                        View status
-                      </button>
-                    )}
-                  </div>
-                  <p className={`font-black ${item.type === 'debit' ? 'text-red-500' : 'text-green-600'}`}>
-                    {item.type === 'debit' ? '-' : '+'}{money(item.amount)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </Card>
+
         </main>
       )}
 

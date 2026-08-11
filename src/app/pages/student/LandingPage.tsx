@@ -218,7 +218,7 @@ export default function LandingPage() {
                   <Link to="/my-orders" className="text-sm font-bold text-[#A78BFA] hover:text-[#8B5CF6] transition-colors px-1 xl:px-2 py-1 whitespace-nowrap">
                     My Orders
                   </Link>
-                  <button onClick={() => window.location.href = '/api/auth/login'} className="text-sm font-bold text-white bg-[#7C3AED] hover:bg-[#6D28D9] transition-colors px-3 py-1.5 rounded-lg whitespace-nowrap shadow-sm shadow-[#7C3AED]/20 ml-2">
+                  <button onClick={() => window.location.href = `/api/auth/login?return_to=${encodeURIComponent(window.location.origin)}`} className="text-sm font-bold text-white bg-[#7C3AED] hover:bg-[#6D28D9] transition-colors px-3 py-1.5 rounded-lg whitespace-nowrap shadow-sm shadow-[#7C3AED]/20 ml-2">
                     Become an i-CON
                   </button>
                 </>

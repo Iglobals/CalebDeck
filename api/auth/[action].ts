@@ -37,9 +37,11 @@ function parseCookies(cookieHeader: string): Record<string, string> {
 
 function getEnvConfig() {
     const isLocal = process.env.NODE_ENV === 'development' || !process.env.VERCEL_ENV;
-    const redirectUri = isLocal
-        ? 'http://localhost:3000/api/auth/callback'
-        : 'https://calebdeck.com/api/auth/callback';
+    // Prefer the env var so .env controls it; fallback to sensible defaults
+    const redirectUri = process.env.ICA_REDIRECT_URI?.trim()
+        || (isLocal
+            ? 'http://localhost:3000/api/auth/callback'
+            : 'https://calebdeck.com/api/auth/callback');
     return { isLocal, redirectUri };
 }
 
@@ -68,6 +70,9 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
     const { codeVerifier, codeChallenge } = icaClient.generatePKCE();
     const state = crypto.randomUUID();
 
+    // Capture the origin the user came from so the callback can redirect back
+    const returnTo = typeof req.query.return_to === 'string' ? req.query.return_to : '';
+
     const isSecure = !isLocal;
 
     const cookieOptions: CookieOptions = {
@@ -80,10 +85,12 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
 
     const verifierCookie = serializeCookie('ica_code_verifier', codeVerifier, cookieOptions);
     const stateCookie = serializeCookie('ica_state', state, cookieOptions);
+    // Store the return-to origin so the callback can redirect the user back
+    const returnToCookie = serializeCookie('ica_return_to', returnTo, cookieOptions);
 
     const authUrl = icaClient.getAuthorizationUrl(state, codeChallenge);
 
-    res.setHeader('Set-Cookie', [verifierCookie, stateCookie]);
+    res.setHeader('Set-Cookie', [verifierCookie, stateCookie, returnToCookie]);
     res.redirect(302, authUrl);
 }
 
@@ -238,8 +245,21 @@ async function handleCallback(req: VercelRequest, res: VercelResponse) {
 
     cookiesToSet.push(customTokenCookie);
 
-    // 10. Redirect to frontend
+    // 10. Redirect to frontend — if the user came from localhost, send them back there
+    const returnTo = cookies['ica_return_to'] || '';
+    const clearReturnToCookie = serializeCookie('ica_return_to', '', clearCookieOptions);
+    cookiesToSet.push(clearReturnToCookie);
+
     res.setHeader('Set-Cookie', cookiesToSet);
+
+    if (returnTo && returnTo.startsWith('http://localhost')) {
+        // Redirect back to local dev with the token as a query param
+        // (cookie won't survive cross-origin, so pass it explicitly)
+        const localUrl = new URL('/', returnTo);
+        localUrl.searchParams.set('ica_token', customToken);
+        return res.redirect(302, localUrl.toString());
+    }
+
     res.redirect(302, '/');
 }
 

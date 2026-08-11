@@ -12,6 +12,8 @@ import { Input, Select, Textarea } from '../../components/design-system/Input';
 import { Button } from '../../components/design-system/Button';
 import { Card } from '../../components/design-system/Card';
 import SEO from '../../components/SEO';
+import { PaymentSelector, PaymentMethod } from '../../components/student/PaymentSelector';
+import { Loader2 } from 'lucide-react';
 
 const FEMALE_HOSTEL_IDS = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'];
 
@@ -33,6 +35,8 @@ export default function MartCheckout() {
   });
   const [femaleHostelAgreement, setFemaleHostelAgreement] = useState(false);
   const [saveAsDefault, setSaveAsDefault] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PAYSTACK');
+  const [isWalletPaying, setIsWalletPaying] = useState(false);
 
   const selectedHostel = hostels.find(h => h.id === formData.hostel);
   const isFemaleHostelSelected = FEMALE_HOSTEL_IDS.includes((formData.hostel || '').toLowerCase());
@@ -254,6 +258,50 @@ export default function MartCheckout() {
     toast.info("Your order details were saved, but payment was not completed. Try again with a stronger network or switch data/WiFi.");
   };
 
+  const handleWalletPayment = async (orderPayload: any) => {
+    setIsWalletPaying(true);
+    toast.loading("Processing atomic wallet transaction...");
+    try {
+      const token = await user?.getIdToken();
+      const res = await fetch('/api/wallet/pay-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ orderData: orderPayload })
+      });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Wallet payment failed');
+      }
+
+      // Success
+      toast.dismiss();
+      clearCart();
+      navigate('/order-success', {
+        state: {
+          ...orderPayload,
+          orderId: data.data.orderId,
+          paymentReference: `WALLET-${data.data.orderId}`,
+          totalAmount: total,
+          total,
+          cafeteria: 'CalebDeck Mart',
+          status: 'PAID'
+        },
+        replace: true
+      });
+
+    } catch (err: any) {
+      toast.dismiss();
+      toast.error(err.message || "Failed to process wallet payment");
+      setPaymentMethod('PAYSTACK'); // fallback safely
+    } finally {
+      setIsWalletPaying(false);
+    }
+  };
+
   const handlePay = () => {
     if (!formData.fullName.trim()) return toast.error('Please enter your full name');
     if (!formData.phone.trim()) return toast.error('Please enter your phone number');
@@ -290,6 +338,11 @@ export default function MartCheckout() {
       subtotal,
       totalAmount: total
     };
+
+    if (paymentMethod === 'WALLET') {
+      handleWalletPayment(preSaveData);
+      return;
+    }
 
     fetch('/api/pre-save-order', {
       method: 'POST',
@@ -465,24 +518,35 @@ export default function MartCheckout() {
               </div>
 
               <div className="pt-4 border-t border-border mt-4 mb-6">
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center mb-6">
                   <span className="font-bold">Total</span>
                   <span className="text-2xl font-black text-[#10B981]">Γéª{total}</span>
                 </div>
+                
+                <PaymentSelector 
+                  amount={total} 
+                  selectedMethod={paymentMethod} 
+                  onSelect={setPaymentMethod} 
+                  disabled={isFemaleHostelSelected && !femaleHostelAgreement || isWalletPaying} 
+                />
               </div>
 
               <Button 
                 variant="primary" 
-                className="w-full py-4 text-lg bg-[#10B981] hover:bg-[#059669] text-white flex items-center justify-center gap-2 shadow-xl shadow-[#10B981]/20"
+                className={`w-full py-4 text-lg text-white flex items-center justify-center gap-2 shadow-xl ${paymentMethod === 'WALLET' ? 'bg-[#10B981] hover:bg-[#059669] shadow-[#10B981]/20' : 'bg-primary hover:bg-primary/90 shadow-primary/20'}`}
                 onClick={handlePay}
-                disabled={isFemaleHostelSelected && !femaleHostelAgreement}
+                disabled={(isFemaleHostelSelected && !femaleHostelAgreement) || isWalletPaying}
               >
-                <CreditCard className="w-5 h-5" /> Pay Γéª{total}
+                {isWalletPaying ? (
+                  <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</>
+                ) : (
+                  <><CreditCard className="w-5 h-5" /> Pay Γéª{total}</>
+                )}
               </Button>
 
               <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">
                 <Shield className="w-4 h-4 text-green-500" />
-                <span>Secured by Paystack</span>
+                <span>Secured by Paystack & i-CON</span>
               </div>
             </Card>
           </div>

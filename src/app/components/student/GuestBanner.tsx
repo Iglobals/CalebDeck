@@ -24,8 +24,8 @@ export function GuestBanner() {
   };
 
   const handleLogin = () => {
-    // Navigate to the central ICA login flow
-    window.location.href = '/api/auth/login';
+    // Navigate to the central ICA login flow and pass current origin so we return locally
+    window.location.href = `/api/auth/login?return_to=${encodeURIComponent(window.location.origin)}`;
   };
 
   return (

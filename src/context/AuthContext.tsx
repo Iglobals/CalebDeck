@@ -44,9 +44,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         const checkCustomToken = async () => {
-            const token = Cookies.get('ica_custom_token');
+            // First check URL (for cross-origin local dev flow)
+            const tokenFromUrl = params.get('ica_token');
+            const tokenFromCookie = Cookies.get('ica_custom_token');
+            
+            const token = tokenFromUrl || tokenFromCookie;
+            
             if (token) {
-                Cookies.remove('ica_custom_token');
+                if (tokenFromCookie) Cookies.remove('ica_custom_token');
+                if (tokenFromUrl) {
+                    // Clean URL
+                    const newUrl = window.location.pathname;
+                    window.history.replaceState({}, document.title, newUrl);
+                }
+                
                 try {
                     await signInWithCustomToken(auth, token);
                     toast.success("Successfully signed in securely");

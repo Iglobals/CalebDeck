@@ -1,8 +1,20 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { ShoppingBag, Wifi, Home, Shirt, User } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
+
+// Routes where the nav should slide away to avoid blocking product UI
+const HIDDEN_ROUTE_PREFIXES = [
+  '/plate-builder',
+  '/checkout',
+  '/order-success',
+  '/mart/cart',
+  '/mart/checkout',
+  '/calebnet',
+  '/wallet',
+  '/my-orders',
+];
 
 const navItems = [
   { id: 'mart', label: 'Mart', icon: ShoppingBag, path: '/mart' },
@@ -18,10 +30,22 @@ export function FloatingNav() {
 
   if (!user) return null;
 
+  const isProductPage = HIDDEN_ROUTE_PREFIXES.some(
+    prefix => location.pathname === prefix || location.pathname.startsWith(prefix + '/')
+  );
+
   return (
     <>
       {/* Mobile Bottom Pill */}
-      <div className="fixed bottom-6 left-0 right-0 z-[60] flex justify-center px-4 md:hidden pointer-events-none">
+      <AnimatePresence>
+        {!isProductPage && (
+      <motion.div
+        initial={{ y: 120, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 120, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+        className="fixed bottom-6 left-0 right-0 z-[60] flex justify-center px-4 md:hidden pointer-events-none"
+      >
         <nav className="glass rounded-[2rem] px-2 py-2 flex items-center gap-2 shadow-2xl pointer-events-auto border border-border/40 relative">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
@@ -76,10 +100,20 @@ export function FloatingNav() {
             );
           })}
         </nav>
-      </div>
+      </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex fixed top-0 left-0 bottom-0 z-[60] w-24 flex-col items-center py-8 glass border-r border-border/40">
+      <AnimatePresence>
+        {!isProductPage && (
+      <motion.div
+        initial={{ x: -100, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: -100, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+        className="hidden md:flex fixed top-0 left-0 bottom-0 z-[60] w-24 flex-col items-center py-8 glass border-r border-border/40"
+      >
         <div className="w-12 h-12 bg-primary text-primary-foreground rounded-2xl flex items-center justify-center font-black text-xl shadow-lg mb-8 squircle">
           C
         </div>
@@ -137,7 +171,9 @@ export function FloatingNav() {
             );
           })}
         </nav>
-      </div>
+      </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

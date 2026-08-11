@@ -160,9 +160,12 @@ export default function Profile() {
           <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-white/10 blur-3xl"></div>
           
           <div className="relative z-10 flex flex-col md:flex-row items-center gap-6">
-            <div className="w-24 h-24 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-4xl font-black shadow-lg backdrop-blur-sm shrink-0">
-              {initial}
-            </div>
+              <button type="button" className="w-24 h-24 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-4xl font-black shadow-lg backdrop-blur-sm shrink-0 hover:scale-105 transition-transform overflow-hidden relative group">
+                <span className="z-10">{initial}</span>
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-xs text-white uppercase tracking-widest">Edit</span>
+                </div>
+              </button>
             
             <div className="text-center md:text-left flex-1 min-w-0">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-bold mb-2">
@@ -315,12 +318,12 @@ export default function Profile() {
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
               </Link>
               
-              <Link to="/calebnet" className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors group">
+              <Link to="/wallet" className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors group">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform">
-                    <CreditCard className="w-5 h-5" />
+                    <Wallet className="w-5 h-5" />
                   </div>
-                  <div className="font-bold">CalebNet Wallet</div>
+                  <div className="font-bold">i-CON Wallet</div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
               </Link>

@@ -83,6 +83,7 @@ export const router = createBrowserRouter([
           { path: "calebnet/status/:paymentReference", lazy: () => import("./pages/student/CalebNetStatus").then(m => ({ Component: m.default })) },
           { path: "my-orders", lazy: () => import("./pages/student/MyOrders").then(m => ({ Component: m.default })) },
           { path: "profile", lazy: () => import("./pages/student/Profile").then(m => ({ Component: m.default })) },
+          { path: "wallet", lazy: () => import("./pages/student/WalletPage").then(m => ({ Component: m.default })) },
         ]
       },
 
@@ -100,6 +101,7 @@ export const router = createBrowserRouter([
           { path: "analytics", Component: AdminAnalytics },
           { path: "history", Component: AdminOrderHistory },
           { path: "reviews", Component: AdminReviews },
+          { path: "directory", lazy: () => import('./pages/admin/AdminDirectory').then(m => ({ Component: m.default })) },
           { path: "settings", lazy: () => import('./pages/admin/AdminSettings').then(m => ({ Component: m.default })) },
           { path: "seed", Component: SeedData },
           { path: "mart/inventory", Component: AdminMartInventory },

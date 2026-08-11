@@ -3,6 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import axios from 'axios';
 import { adminDb } from '../server/firebase-admin.js';
 import { confirmFoodBatchReservation } from '../server/food-batch.js';
+import { calculateServerOrderTotal } from '../server/order-utils.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
 
@@ -100,82 +101,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // 3. Recalculate total from Firestore prices (server-side validation)
-        const settingsDoc = await db.collection('settings').doc('platform').get();
-        const platformSettings = settingsDoc.exists ? settingsDoc.data() : {};
-        const premiumDeliveryFee = platformSettings!.premiumDeliveryFee || 1250;
-
-        let serverTotal = 0;
-        const isCombo = orderData?.type === 'combo';
-        const isGroup = orderData?.deliveryMode === 'group' || orderData?.deliveryMode === 'GROUP';
-        const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((orderData?.hostel || orderData?.hostelName || '').toString().toLowerCase());
-
-        let baseDeliveryFee = isGroup ? 580 : 750;
-        if (isPremiumHostel) {
-            baseDeliveryFee = premiumDeliveryFee;
-        }
+        const { serverTotal, comboDoc } = await calculateServerOrderTotal(db, orderData);
 
         const platformFee = 100;
         const processingFee = 200;
-
-        if (isMartOrder) {
-            const items = orderData?.items || [];
-            let martTotal = 0;
-            const martDeliveryFee = orderData?.deliveryFee || 1500;
-            if (items.length > 0) {
-                const itemRefs = items.map((i: any) => db!.collection('mart_items').doc(i.id));
-                const itemDocs = await db!.getAll(...itemRefs);
-                for (let idx = 0; idx < itemDocs.length; idx++) {
-                    const doc = itemDocs[idx];
-                    const qty = items[idx].quantity || 1;
-                    const currentPrice = doc.exists ? (doc.data()!.price || 0) : (items[idx].price || 0);
-                    martTotal += currentPrice * qty;
-                }
-            }
-            serverTotal = martTotal + martDeliveryFee + platformFee + processingFee;
-        } else if (isCombo) {
-            const comboDoc = await db.collection('combo_packs').doc(orderData.comboId).get();
-            if (!comboDoc.exists) {
-                 return res.status(400).json({ error: 'Invalid combo selected' });
-            }
-            const comboData = comboDoc.data()!;
-            const quantity = orderData.quantity || 1;
-            const deliveryFee = baseDeliveryFee * quantity;
-            
-            // Add service and processing fee for combos
-            serverTotal = (comboData.basePrice * quantity) + deliveryFee + platformFee + processingFee;
-        } else {
-            const items = orderData?.items || [];
-            let foodTotal = 0;
-            let cafeCharge = 0;
-
-            if (items.length > 0) {
-                const itemRefs = items.map((i: any) => db!.collection('menu_items').doc(i.id));
-                const itemDocs = await db!.getAll(...itemRefs);
-
-                for (let idx = 0; idx < itemDocs.length; idx++) {
-                    const doc = itemDocs[idx];
-                    const qty = items[idx].quantity || 1;
-                    let currentPrice = 0;
-
-                    if (doc.exists) {
-                        currentPrice = doc.data()!.price || 0;
-                    } else {
-                        currentPrice = items[idx].price || 0;
-                    }
-
-                    if (items[idx].isAddon && currentPrice < 1000) {
-                        currentPrice += 50;
-                    }
-
-                    foodTotal += currentPrice * qty;
-                }
-            }
-
-            const plateCount = typeof orderData?.plateCount === 'number' ? orderData.plateCount : 1;
-            const deliveryFee = baseDeliveryFee * plateCount;
-            const takeawayFee = 200 * plateCount;
-            serverTotal = foodTotal + deliveryFee + takeawayFee + platformFee + processingFee;
-        }
 
         // 4. Verify amount — allow 5% tolerance for rounding
         const paidAmount = data.amount / 100; // Paystack sends in kobo
@@ -204,6 +133,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             deliveryMode: orderData?.deliveryMode || 'solo',
             deliveryType: orderData?.deliveryType || 'INSTANT',
             paymentReference: reference,
+            paymentMethod: 'PAYSTACK',
             assignedRiderId: null,
             batchId: null,
             status: 'PAID',
@@ -280,6 +210,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 total: paidAmount, // Use Paystack-verified amount
                 paymentStatus: data.status,
                 paymentMessage: data.gateway_response || 'Payment confirmed',
+                paymentMethod: 'PAYSTACK',
                 paidAt: data.paid_at || null,
                 updatedAt: FieldValue.serverTimestamp()
             }, { merge: true });

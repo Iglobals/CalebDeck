@@ -125,7 +125,7 @@ export function PaperBagHamburger() {
   ];
 
   if (!user) {
-    navLinks.push({ label: "Become an i-CON", icon: <LogIn className="w-5 h-5 text-white" />, to: "/api/auth/login", isExternal: true, highlight: true });
+    navLinks.push({ label: "Become an i-CON", icon: <LogIn className="w-5 h-5 text-white" />, to: `/api/auth/login?return_to=${encodeURIComponent(window.location.origin)}`, isExternal: true, highlight: true });
   }
 
   const handleToggle = () => {

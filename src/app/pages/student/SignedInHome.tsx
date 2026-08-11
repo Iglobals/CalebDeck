@@ -143,7 +143,7 @@ export function SignedInHome() {
         
         {/* At-a-Glance Row */}
         <div className="grid grid-cols-2 gap-4">
-          <Link to="/calebnet">
+          <Link to="/wallet">
             <Card hover className="p-4 flex flex-col justify-between h-full border-border bg-card shadow-sm squircle">
               <div className="flex items-center gap-2 text-muted-foreground mb-4">
                 <Wallet className="w-5 h-5 text-primary" />
