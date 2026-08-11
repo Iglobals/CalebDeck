@@ -876,6 +876,7 @@ export default function CalebNet() {
                   Manage Wallet
                 </Button>
               </Link>
+            </Card>
 
             <div className="space-y-5 lg:sticky lg:top-24">
               <Card className="space-y-5">
