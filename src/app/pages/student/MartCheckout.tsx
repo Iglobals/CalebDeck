@@ -497,7 +497,7 @@ export default function MartCheckout() {
                 {items.map(item => (
                   <div key={item.id} className="flex justify-between text-sm">
                     <span className="text-muted-foreground truncate pr-2">{item.quantity}x {item.name}</span>
-                    <span className="font-medium shrink-0">Γéª{item.price * item.quantity}</span>
+                    <span className="font-medium shrink-0">₦{item.price * item.quantity}</span>
                   </div>
                 ))}
               </div>
@@ -505,22 +505,22 @@ export default function MartCheckout() {
               <div className="space-y-3 pt-4 border-t border-border">
                 <div className="flex justify-between text-muted-foreground">
                   <span>Subtotal</span>
-                  <span className="font-medium text-foreground">Γéª{subtotal}</span>
+                  <span className="font-medium text-foreground">₦{subtotal}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>Delivery Fee</span>
-                  <span className="font-medium text-foreground">Γéª{MART_DELIVERY_FEE}</span>
+                  <span className="font-medium text-foreground">₦{MART_DELIVERY_FEE}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground text-sm">
                   <span>Service & Processing Fee</span>
-                  <span className="font-medium text-foreground">Γéª{SERVICE_PROCESSING_FEE}</span>
+                  <span className="font-medium text-foreground">₦{SERVICE_PROCESSING_FEE}</span>
                 </div>
               </div>
 
               <div className="pt-4 border-t border-border mt-4 mb-6">
                 <div className="flex justify-between items-center mb-6">
                   <span className="font-bold">Total</span>
-                  <span className="text-2xl font-black text-[#10B981]">Γéª{total}</span>
+                  <span className="text-2xl font-black text-[#10B981]">₦{total}</span>
                 </div>
                 
                 <PaymentSelector 
@@ -540,7 +540,7 @@ export default function MartCheckout() {
                 {isWalletPaying ? (
                   <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</>
                 ) : (
-                  <><CreditCard className="w-5 h-5" /> Pay Γéª{total}</>
+                  <><CreditCard className="w-5 h-5" /> Pay ₦{total}</>
                 )}
               </Button>
 

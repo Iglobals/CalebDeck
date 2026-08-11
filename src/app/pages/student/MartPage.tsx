@@ -217,15 +217,13 @@ export default function MartPage() {
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            {!user && (
-              <button 
-                onClick={() => navigate(-1)}
-                className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors"
-                aria-label="Go back"
-              >
-                <ArrowLeft className="w-6 h-6" />
-              </button>
-            )}
+            <button 
+              onClick={() => navigate(-1)}
+              className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="w-6 h-6" />
+            </button>
             <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
               <span className="text-2xl">🛒</span> CalebDeck Mart
             </h1>
