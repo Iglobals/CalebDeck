@@ -36,7 +36,13 @@ export default function StudentRoleWrapper() {
                     <MaintenanceGate>
                         <Outlet />
                         <GuestBanner />
-                        {user && !location.pathname.startsWith('/calebnet') && <GlobalCart />}
+                        {user && 
+                         !location.pathname.startsWith('/calebnet') && 
+                         !location.pathname.startsWith('/mart/cart') &&
+                         !location.pathname.startsWith('/fashion/product') &&
+                         !location.pathname.startsWith('/checkout') &&
+                         !location.pathname.startsWith('/fashion/checkout') && 
+                         <GlobalCart />}
                     </MaintenanceGate>
                 </BatchTimerProvider>
             </MartCartProvider>

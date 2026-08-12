@@ -13,6 +13,8 @@ const HIDDEN_ROUTE_PREFIXES = [
   '/calebnet',
   '/wallet',
   '/my-orders',
+  '/fashion/product',
+  '/fashion/checkout'
 ];
 
 const navItems = [

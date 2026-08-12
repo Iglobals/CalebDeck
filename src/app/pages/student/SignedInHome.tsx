@@ -35,7 +35,7 @@ const PROMO_SLIDES = [
 ];
 
 export function SignedInHome() {
-  const { user } = useAuth();
+  const { user, userData } = useAuth();
   const navigate = useNavigate();
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -125,17 +125,19 @@ export function SignedInHome() {
   return (
     <div className="min-h-screen bg-background text-foreground pb-32">
       {/* Top Header Section */}
-      <header className="px-6 pt-12 pb-6 flex items-center justify-between pr-20">
+      <header className="px-6 pt-12 pb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black">{getGreeting()}</h1>
           <p className="text-3xl font-black text-primary">{displayName}</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center shadow-sm overflow-hidden border-2 border-border shrink-0">
-            {user?.photoURL ? (
+            {userData?.avatar ? (
+              <span className="text-3xl leading-none">{userData.avatar}</span>
+            ) : user?.photoURL ? (
               <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
             ) : (
-              <span className="text-xl font-black">{user?.avatar || displayName.charAt(0)}</span>
+              <span className="text-xl font-black">{displayName.charAt(0)}</span>
             )}
           </div>
           <Link to="/mart/cart" className="relative p-2 rounded-full hover:bg-muted transition-colors">

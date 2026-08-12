@@ -218,7 +218,7 @@ export default function MartPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <button 
-              onClick={() => navigate(-1)}
+              onClick={() => navigate('/')}
               className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors"
               aria-label="Go back"
             >

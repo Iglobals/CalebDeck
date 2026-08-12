@@ -19,6 +19,7 @@ export default function FashionPDP() {
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [activeThumbnail, setActiveThumbnail] = useState<string>('');
+  const [showCartOverlay, setShowCartOverlay] = useState(false);
 
   const FALLBACK_ITEMS: FashionItem[] = [
     {
@@ -84,7 +85,8 @@ export default function FashionPDP() {
     }
   ];
 
-  const { items: cartItems, addItem, updateQuantity, totalItems } = useMartCart();
+  const { items: cartItems, addItem, updateQuantity, removeItem, totalItems, subtotal } = useMartCart();
+  const MART_DELIVERY_FEE = 1600; // Mock delivery fee for the cart overlay
 
   useEffect(() => {
     if (!user) {
@@ -151,7 +153,7 @@ export default function FashionPDP() {
 
   const handleBuyNow = () => {
     handleAddToCart();
-    navigate('/fashion/checkout');
+    setShowCartOverlay(true);
   };
 
   if (loading) {
@@ -237,7 +239,7 @@ export default function FashionPDP() {
       </div>
 
       {/* Bottom Sheet / Content Side */}
-      <div className="relative z-10 mt-[50vh] md:mt-0 md:ml-[50%] bg-card rounded-t-[32px] md:rounded-none min-h-[50vh] px-6 pt-8 pb-32 shadow-[0_-8px_30px_rgb(0,0,0,0.05)] md:shadow-none">
+      <div className="relative z-10 mt-[50vh] md:mt-0 md:ml-[50%] bg-card rounded-t-[32px] md:rounded-none px-6 pt-8 pb-24 shadow-[0_-8px_30px_rgb(0,0,0,0.05)] md:shadow-none">
         
         {/* Header Row: Title & Stepper */}
         <div className="flex justify-between items-start gap-4 mb-2">
@@ -345,6 +347,94 @@ export default function FashionPDP() {
           Buy Now
         </Button>
       </div>
+
+      {/* Cart Overlay Slide-up */}
+      {showCartOverlay && (
+        <div 
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300"
+          onClick={() => setShowCartOverlay(false)}
+        >
+          <div 
+            className="bg-[#F8F9FA] dark:bg-card w-full sm:max-w-md rounded-t-[32px] sm:rounded-[32px] shadow-2xl animate-in slide-in-from-bottom-full duration-300 max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Drag Handle (Mobile) */}
+            <div className="w-12 h-1.5 bg-muted-foreground/20 rounded-full mx-auto mt-4 mb-2 sm:hidden" />
+
+            {/* Overlay Header */}
+            <div className="flex items-center justify-between px-6 pt-2 pb-6">
+              <h2 className="text-xl font-bold">My Cart</h2>
+              <Button 
+                variant="secondary" 
+                onClick={() => navigate('/fashion/checkout')} 
+                className="h-10 px-4 rounded-xl text-sm font-semibold bg-white dark:bg-background border border-border/50 shadow-sm hover:bg-muted"
+              >
+                <ShoppingBag className="w-4 h-4 mr-2" /> Add to Checkout
+              </Button>
+            </div>
+            
+            {/* Cart Items List */}
+            <div className="flex-1 overflow-y-auto px-6 space-y-4">
+              {cartItems.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">Your cart is empty</p>
+              ) : (
+                cartItems.map(cartItem => (
+                  <div key={cartItem.id} className="relative flex gap-4 items-center bg-white dark:bg-background p-3 rounded-[20px] shadow-sm border border-border/30">
+                    <button 
+                      onClick={() => removeItem(cartItem.id)} 
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-white dark:bg-card border border-border/50 rounded-full flex items-center justify-center text-muted-foreground hover:text-red-500 shadow-sm z-10 transition-colors"
+                      aria-label="Remove item"
+                    >
+                      <Minus className="w-3 h-3 rotate-45" />
+                    </button>
+
+                    <div className="w-20 h-20 rounded-[16px] p-2 flex-shrink-0" style={{ backgroundColor: item?.brandColor || '#FDBA74' }}>
+                      <ImageWithFallback src={cartItem.imageUrl} alt={cartItem.name} className="w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal" />
+                    </div>
+                    
+                    <div className="flex-1 min-w-0 pr-2">
+                      <h3 className="font-bold text-sm leading-tight text-foreground">{cartItem.name}</h3>
+                      <p className="text-xs text-muted-foreground mt-1">Size {selectedSize || 'N/A'}, {selectedColor || 'Default'}</p>
+                    </div>
+                    
+                    <div className="bg-black dark:bg-white text-white dark:text-black font-bold px-4 py-2 rounded-full text-xs shadow-md shrink-0">
+                      ${Math.floor(cartItem.price / 100)} {/* Mocking USD price for visual parity with inspo, real price in summary */}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Cart Summary & Checkout */}
+            {cartItems.length > 0 && (
+              <div className="p-6 mt-4 space-y-4">
+                <div className="space-y-3 px-2">
+                  <div className="flex justify-between text-sm font-medium text-muted-foreground">
+                    <span>Sub-total</span>
+                    <span className="text-foreground">₦{subtotal.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-medium text-muted-foreground">
+                    <span>Delivery Fee</span>
+                    <span className="text-foreground">₦{MART_DELIVERY_FEE.toLocaleString()}</span>
+                  </div>
+                  <div className="w-full h-px bg-border/50 my-2" />
+                  <div className="flex justify-between text-base font-bold">
+                    <span>Total Price</span>
+                    <span>₦{(subtotal + MART_DELIVERY_FEE).toLocaleString()}</span>
+                  </div>
+                </div>
+                
+                <Button 
+                  onClick={() => navigate('/fashion/checkout')}
+                  className="w-full h-14 rounded-2xl bg-[#FDBA74] hover:bg-[#F97316] text-black border-none font-bold text-base shadow-sm transition-colors mt-2"
+                >
+                  Checkout
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );
