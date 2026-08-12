@@ -59,7 +59,7 @@ export default function AdminLogin() {
                 // by a missing or accidentally downgraded Firestore role.
                 await repairAdminProfile();
                 trackAdminLoginAttempt(email, true);
-                window.location.href = '/admin';
+                navigate('/admin');
                 return;
             } else {
                 setError('Access denied. This account does not have admin privileges.');

@@ -15,6 +15,11 @@ const MartPage = lazy(() => import("./pages/student/MartPage"));
 const MartCart = lazy(() => import("./pages/student/MartCart"));
 const MartCheckout = lazy(() => import("./pages/student/MartCheckout"));
 
+// --- Lazy Load Fashion Pages ---
+const FashionPage = lazy(() => import("./pages/student/FashionPage"));
+const FashionPDP = lazy(() => import("./pages/student/FashionPDP"));
+const FashionCheckout = lazy(() => import("./pages/student/FashionCheckout"));
+
 // --- Lazy Load Info & Legal Pages ---
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService"));
@@ -34,6 +39,7 @@ const SeedData = lazy(() => import("./pages/admin/SeedData"));
 const AdminReviews = lazy(() => import("./pages/admin/AdminReviews"));
 const AdminMartInventory = lazy(() => import("./pages/admin/AdminMartInventory"));
 const AdminMartOrders = lazy(() => import("./pages/admin/AdminMartOrders"));
+const AdminFashion = lazy(() => import("./pages/admin/AdminFashion"));
 
 // --- Lazy Load Rider Pages ---
 const RiderLogin = lazy(() => import("./pages/rider/RiderLogin"));
@@ -79,6 +85,9 @@ export const router = createBrowserRouter([
           { path: "mart", Component: MartPage },
           { path: "mart/cart", Component: MartCart },
           { path: "mart/checkout", Component: MartCheckout },
+          { path: "fashion", lazy: () => import("./pages/student/FashionPage").then(m => ({ Component: m.default })) },
+          { path: "fashion/product/:id", lazy: () => import("./pages/student/FashionPDP").then(m => ({ Component: m.default })) },
+          { path: "fashion/checkout", lazy: () => import("./pages/student/FashionCheckout").then(m => ({ Component: m.default })) },
           { path: "calebnet", lazy: () => import("./pages/student/CalebNet").then(m => ({ Component: m.default })) },
           { path: "calebnet/status/:paymentReference", lazy: () => import("./pages/student/CalebNetStatus").then(m => ({ Component: m.default })) },
           { path: "my-orders", lazy: () => import("./pages/student/MyOrders").then(m => ({ Component: m.default })) },
@@ -106,6 +115,7 @@ export const router = createBrowserRouter([
           { path: "seed", Component: SeedData },
           { path: "mart/inventory", Component: AdminMartInventory },
           { path: "mart/orders", Component: AdminMartOrders },
+          { path: "fashion", lazy: () => import("./pages/admin/AdminFashion").then(m => ({ Component: m.default })) },
           { path: "calebnet", lazy: () => import('./pages/admin/AdminCalebNet').then(m => ({ Component: m.default })) },
           { path: "batches", lazy: () => import('./pages/admin/AdminBatchManager').then(m => ({ Component: m.default })) },
         ]

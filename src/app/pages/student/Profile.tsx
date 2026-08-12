@@ -21,6 +21,7 @@ interface UserProfile {
   deliveryNotes: string;
   newsletterOptIn: boolean;
   productsUsed: string[];
+  avatar?: string;
   createdAt?: any;
 }
 
@@ -30,17 +31,22 @@ export default function Profile() {
   const { studentTheme, toggleStudentTheme } = useTheme();
 
   const [hostels, setHostels] = useState<Hostel[]>([]);
-  const [profile, setProfile] = useState<UserProfile>({
-    fullName: '',
-    phone: '',
-    hostel: '',
-    calebNetNumber: '',
-    deliveryNotes: '',
-    newsletterOptIn: true,
-    productsUsed: [],
-  });
+  const [profile, setProfile] = useState<UserProfile>(() => ({
+    fullName: user?.displayNameFromProfile || user?.fullName || user?.displayName || '',
+    phone: user?.phone || user?.phoneNumber || '',
+    hostel: user?.hostel || '',
+    calebNetNumber: user?.calebNetNumber || '',
+    deliveryNotes: user?.deliveryNotes || '',
+    newsletterOptIn: user?.newsletterOptIn !== false,
+    productsUsed: user?.productsUsed || [],
+    avatar: user?.avatar || '',
+    createdAt: user?.createdAt
+  }));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+
+  const memojis = ['😎', '🤓', '🤠', '😇', '👾', '👻', '🤖', '👑', '🚀', '🌟', '🦄', '🦁', '🐶', '🦊', '🐼', '🐯'];
 
   useEffect(() => {
     if (user === null) {
@@ -52,21 +58,6 @@ export default function Profile() {
       try {
         const activeHostels = await getActiveHostels();
         setHostels(activeHostels);
-
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          setProfile({
-            fullName: data.fullName || user.displayName || '',
-            phone: data.phone || data.phoneNumber || '',
-            hostel: data.hostel || '',
-            calebNetNumber: data.calebNetNumber || '',
-            deliveryNotes: data.deliveryNotes || '',
-            newsletterOptIn: data.newsletterOptIn !== false,
-            productsUsed: data.productsUsed || [],
-            createdAt: data.createdAt
-          });
-        }
       } catch (err) {
         toast.error('Could not load profile data');
       } finally {
@@ -98,13 +89,30 @@ export default function Profile() {
         hostel: profile.hostel,
         calebNetNumber: profile.calebNetNumber,
         deliveryNotes: profile.deliveryNotes,
-        newsletterOptIn: profile.newsletterOptIn
+        newsletterOptIn: profile.newsletterOptIn,
+        avatar: profile.avatar || ''
       });
       toast.success('Profile updated successfully');
     } catch (err) {
       toast.error('Failed to save profile updates');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAvatarSelect = async (emoji: string) => {
+    setProfile(prev => ({ ...prev, avatar: emoji }));
+    setShowAvatarPicker(false);
+    if (!user) return;
+    
+    // Auto-save the avatar for immediate feedback
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        avatar: emoji
+      });
+      toast.success('Memoji updated successfully');
+    } catch (err) {
+      toast.error('Failed to update Memoji');
     }
   };
 
@@ -129,8 +137,38 @@ export default function Profile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-4 border-[#7C3AED]/20 border-t-[#7C3AED] animate-spin" />
+      <div className="min-h-screen bg-background transition-colors duration-300">
+        <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border shadow-sm p-4 flex justify-center">
+          <div className="w-32 h-6 bg-muted rounded-full animate-pulse"></div>
+        </header>
+        <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+          <div className="rounded-[2rem] p-8 mb-10 bg-card border border-border w-full flex flex-col md:flex-row items-center gap-6 animate-pulse">
+            <div className="w-24 h-24 rounded-full bg-muted shrink-0"></div>
+            <div className="flex-1 space-y-3 w-full max-w-sm">
+              <div className="w-24 h-6 bg-muted rounded-full"></div>
+              <div className="w-48 h-8 bg-muted rounded"></div>
+              <div className="w-32 h-4 bg-muted rounded"></div>
+            </div>
+          </div>
+          <div className="grid lg:grid-cols-[1fr_340px] md:grid-cols-[1fr_280px] gap-8 items-start">
+            <div className="space-y-6">
+              <div className="w-48 h-8 bg-muted rounded animate-pulse"></div>
+              <div className="p-6 md:p-8 border border-border rounded-2xl bg-card space-y-6 animate-pulse">
+                <div className="w-full h-12 bg-muted rounded-xl"></div>
+                <div className="grid sm:grid-cols-2 gap-6">
+                  <div className="w-full h-12 bg-muted rounded-xl"></div>
+                  <div className="w-full h-12 bg-muted rounded-xl"></div>
+                </div>
+                <div className="w-full h-12 bg-muted rounded-xl"></div>
+                <div className="w-full h-24 bg-muted rounded-xl"></div>
+              </div>
+            </div>
+            <div className="space-y-6 hidden md:block animate-pulse">
+               <div className="w-full h-48 bg-muted rounded-2xl"></div>
+               <div className="w-full h-64 bg-muted rounded-2xl"></div>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
@@ -160,8 +198,8 @@ export default function Profile() {
           <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-white/10 blur-3xl"></div>
           
           <div className="relative z-10 flex flex-col md:flex-row items-center gap-6">
-              <button type="button" className="w-24 h-24 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-4xl font-black shadow-lg backdrop-blur-sm shrink-0 hover:scale-105 transition-transform overflow-hidden relative group">
-                <span className="z-10">{initial}</span>
+              <button onClick={() => setShowAvatarPicker(true)} type="button" className="w-24 h-24 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-4xl font-black shadow-lg backdrop-blur-sm shrink-0 hover:scale-105 transition-transform overflow-hidden relative group">
+                <span className="z-10">{profile.avatar || initial}</span>
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <span className="text-xs text-white uppercase tracking-widest">Edit</span>
                 </div>
@@ -350,6 +388,34 @@ export default function Profile() {
           </div>
         </div>
       </main>
+
+      {/* Avatar Picker Modal */}
+      {showAvatarPicker && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowAvatarPicker(false)}></div>
+          <div className="relative bg-card border border-border shadow-2xl rounded-3xl p-6 w-full max-w-md animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-bold mb-6 text-center">Choose your Memoji</h3>
+            <div className="grid grid-cols-4 gap-4">
+              {memojis.map((emoji, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleAvatarSelect(emoji)}
+                  className={`text-4xl w-16 h-16 rounded-full flex items-center justify-center transition-transform hover:scale-110 mx-auto ${profile.avatar === emoji ? 'bg-primary/20 border-2 border-primary' : 'bg-muted hover:bg-muted/80'}`}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowAvatarPicker(false)}
+              className="mt-8 w-full py-3 bg-muted hover:bg-muted/80 font-bold rounded-xl transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

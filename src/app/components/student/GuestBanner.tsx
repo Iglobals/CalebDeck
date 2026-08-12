@@ -49,10 +49,10 @@ export function GuestBanner() {
           
           <div className="flex-1">
             <h3 className="text-lg font-black tracking-tight mb-1">
-              Get a better CalebDeck experience
+              Unlock CalebDeck Fashion & More
             </h3>
             <p className="text-sm text-muted-foreground leading-relaxed font-medium">
-              Become an <span className="text-[#7C3AED] font-bold">i-CON</span>. Save your hostel, phone number, CalebNet details, order history, and connect your activity across all iGLOBALS products.
+              CalebDeck Fashion is locked for <span className="text-[#7C3AED] font-bold">i-CONs</span> only. Become an i-CON to shop exclusive merch, save your hostel/phone details, and connect your activity across all iGLOBALS products.
             </p>
           </div>
 

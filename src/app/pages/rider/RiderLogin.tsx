@@ -164,7 +164,7 @@ export default function RiderLogin({ initialMode = 'login' }: { initialMode?: 'l
             });
 
             // Force a page reload so AuthContext picks up the new Firestore doc
-            window.location.href = '/rider';
+            navigate('/rider');
         } catch (err: any) {
             setError(err.message || 'Failed to save profile.');
         } finally {

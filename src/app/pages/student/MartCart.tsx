@@ -57,6 +57,12 @@ export default function MartCart() {
     );
   }
 
+  const hasFashionItems = items.some(item => ['Apparel', 'Accessories', 'Footwear', 'Merch'].includes(item.category));
+  const hasMartItems = items.some(item => !['Apparel', 'Accessories', 'Footwear', 'Merch'].includes(item.category));
+  
+  // If it's exclusively fashion, route to fashion checkout
+  const checkoutRoute = (hasFashionItems && !hasMartItems) ? '/fashion/checkout' : '/mart/checkout';
+
   const total = subtotal + MART_DELIVERY_FEE;
 
   return (
@@ -157,7 +163,7 @@ export default function MartCart() {
               </p>
             </div>
           )}
-          <Link to={isMartClosed ? "#" : "/mart/checkout"} onClick={(event) => {
+          <Link to={isMartClosed ? "#" : checkoutRoute} onClick={(event) => {
             if (isMartClosed) {
               event.preventDefault();
             }

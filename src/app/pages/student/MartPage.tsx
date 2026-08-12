@@ -322,7 +322,7 @@ export default function MartPage() {
                     : 'Please hold on while CalebDeck fetches the latest products and prices.'}
                 </p>
                 {isVerySlowLoading && (
-                  <Button variant="secondary" onClick={() => window.location.reload()} className="mt-4">
+                  <Button variant="secondary" onClick={() => navigate(0)} className="mt-4">
                     Retry Loading
                   </Button>
                 )}
@@ -336,7 +336,7 @@ export default function MartPage() {
             <p className="text-muted-foreground">
               Your connection may be unstable. Please try again with a better network.
             </p>
-            <Button variant="secondary" onClick={() => window.location.reload()} className="mt-6">
+            <Button variant="secondary" onClick={() => navigate(0)} className="mt-6">
               Retry Loading
             </Button>
           </div>

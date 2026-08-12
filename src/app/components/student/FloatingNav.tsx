@@ -19,7 +19,7 @@ const navItems = [
   { id: 'mart', label: 'Mart', icon: ShoppingBag, path: '/mart' },
   { id: 'calebnet', label: 'CalebNet', icon: Wifi, path: '/calebnet' },
   { id: 'home', label: 'Home', icon: Home, path: '/' },
-  { id: 'fashion', label: 'Fashion', icon: Shirt, path: '/fashion', disabled: true },
+  { id: 'fashion', label: 'Fashion', icon: Shirt, path: '/fashion' },
   { id: 'profile', label: 'i-CON', icon: User, path: '/profile' },
 ];
 

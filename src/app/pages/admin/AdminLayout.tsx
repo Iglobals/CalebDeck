@@ -15,7 +15,8 @@ import {
     LogOut,
     ArrowRight,
     Star,
-    Store
+    Store,
+    Shirt
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useTheme } from '../../../context/ThemeContext';
@@ -39,6 +40,8 @@ const SEARCHABLE_ITEMS = [
     { label: 'i-CON Directory', keywords: ['users', 'students', 'icons', 'directory', 'wallet', 'ecosystem', 'accounts'], path: '/admin/directory', icon: '👥' },
     { label: 'Order History', keywords: ['history', 'past', 'old', 'receipt', 'date', 'archive', 'delete', 'trash', 'recover'], path: '/admin/history', icon: '📋' },
     { label: 'CalebNet', keywords: ['calebnet', 'clubkonnect', 'nellobyte', 'airtime', 'data', 'recharge', 'topup'], path: '/admin/calebnet', icon: '📶' },
+    { label: 'Fashion Inventory', keywords: ['fashion', 'clothes', 'shoes', 'apparel', 'merch', 'brand', 'clothing'], path: '/admin/fashion', icon: '👕' },
+    { label: 'Fashion Inventory', keywords: ['fashion', 'clothes', 'shoes', 'apparel', 'merch', 'brand', 'clothing'], path: '/admin/fashion', icon: '👕' },
 ];
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
@@ -65,6 +68,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
         { id: 'orders', path: '/admin/orders', icon: <ShoppingBag className="w-5 h-5" />, label: 'Food Orders' },
         { id: 'mart-orders', path: '/admin/mart/orders', icon: <Store className="w-5 h-5" />, label: 'Mart Orders' },
         { id: 'mart-inventory', path: '/admin/mart/inventory', icon: <Package className="w-5 h-5" />, label: 'Mart Inventory' },
+        { id: 'fashion-inventory', path: '/admin/fashion', icon: <Shirt className="w-5 h-5" />, label: 'Fashion Inventory' },
         { id: 'calebnet', path: '/admin/calebnet', icon: <Bell className="w-5 h-5" />, label: 'CalebNet' },
         { id: 'menu', path: '/admin/menu', icon: <UtensilsCrossed className="w-5 h-5" />, label: 'Menu Management' },
         { id: 'riders', path: '/admin/riders', icon: <Users className="w-5 h-5" />, label: 'Riders' },

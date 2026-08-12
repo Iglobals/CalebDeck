@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router';
 import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
@@ -236,11 +237,11 @@ export default function AdminSettings() {
                   : `Using basic hour gate (${platformSettings?.systemOpeningHour || 10}:00–${platformSettings?.systemClosingHour || 18}:00). Enable for scheduled batch deliveries.`}
               </p>
             </div>
-            <a href="/admin/batches">
+            <Link to="/admin/batches">
               <Button variant="primary" className="w-full">
                 Manage Batches →
               </Button>
-            </a>
+            </Link>
           </Card>
           {/* Global Ordering Toggle */}
           <Card className={`p-6 border-l-4 ${isAcceptingOrders ? 'border-l-green-500' : 'border-l-red-500'}`}>

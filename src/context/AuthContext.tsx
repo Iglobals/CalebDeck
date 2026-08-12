@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, onAuthStateChanged, signOut, signInWithCustomToken } from 'firebase/auth';
 import { auth, db } from '../services/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import Cookies from 'js-cookie';
 import { toast } from 'sonner';
 
@@ -13,6 +13,13 @@ interface AppUser extends User {
     department?: string;
     walletBalance?: number;
     displayNameFromProfile?: string;
+    hostel?: string;
+    calebNetNumber?: string;
+    deliveryNotes?: string;
+    newsletterOptIn?: boolean;
+    productsUsed?: string[];
+    avatar?: string;
+    createdAt?: any;
 }
 
 interface AuthContextType {
@@ -70,11 +77,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         checkCustomToken();
 
-        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        let unsubscribeSnapshot: (() => void) | undefined;
+
+        const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
+            if (unsubscribeSnapshot) {
+                unsubscribeSnapshot();
+                unsubscribeSnapshot = undefined;
+            }
+
             if (firebaseUser) {
-                // Fetch additional user details from Firestore
-                try {
-                    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+                unsubscribeSnapshot = onSnapshot(doc(db, 'users', firebaseUser.uid), (userDoc) => {
                     if (userDoc.exists()) {
                         const userData = userDoc.data();
                         setUser({
@@ -86,22 +98,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             department: userData.department,
                             walletBalance: userData.walletBalance,
                             displayNameFromProfile: userData.displayName,
+                            hostel: userData.hostel,
+                            calebNetNumber: userData.calebNetNumber,
+                            deliveryNotes: userData.deliveryNotes,
+                            newsletterOptIn: userData.newsletterOptIn !== false,
+                            productsUsed: userData.productsUsed || [],
+                            avatar: userData.avatar,
+                            createdAt: userData.createdAt,
                         });
                     } else {
-                        // User authenticated but not in database (should not happen for pure admin/rider app, but safe fallback)
                         setUser(firebaseUser);
                     }
-                } catch (error) {
-                    console.error("Error fetching user role:", error);
+                    setLoading(false);
+                }, (error) => {
+                    console.error("Error fetching user profile:", error);
                     setUser(firebaseUser);
-                }
+                    setLoading(false);
+                });
             } else {
                 setUser(null);
+                setLoading(false);
             }
-            setLoading(false);
         });
 
-        return () => unsubscribe();
+        return () => {
+            unsubscribeAuth();
+            if (unsubscribeSnapshot) unsubscribeSnapshot();
+        };
     }, []);
 
     const logout = async () => {

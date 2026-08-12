@@ -47,6 +47,9 @@ export default function MartCheckout() {
   const total = subtotal + MART_DELIVERY_FEE + SERVICE_PROCESSING_FEE;
   const orderId = React.useMemo(() => `CD-MART-${Math.floor(10000 + Math.random() * 90000)}`, []);
 
+  const hasFashionItems = items.some(item => ['Apparel', 'Accessories', 'Footwear', 'Merch'].includes(item.category));
+  const isWalletDisabled = (isFemaleHostelSelected && !femaleHostelAgreement) || isWalletPaying || hasFashionItems;
+
   useEffect(() => {
     if (items.length === 0) {
       navigate('/mart');
@@ -527,7 +530,7 @@ export default function MartCheckout() {
                   amount={total} 
                   selectedMethod={paymentMethod} 
                   onSelect={setPaymentMethod} 
-                  disabled={isFemaleHostelSelected && !femaleHostelAgreement || isWalletPaying} 
+                  disabled={isWalletDisabled} 
                 />
               </div>
 
@@ -535,7 +538,7 @@ export default function MartCheckout() {
                 variant="primary" 
                 className={`w-full py-4 text-lg text-white flex items-center justify-center gap-2 shadow-xl ${paymentMethod === 'WALLET' ? 'bg-[#10B981] hover:bg-[#059669] shadow-[#10B981]/20' : 'bg-primary hover:bg-primary/90 shadow-primary/20'}`}
                 onClick={handlePay}
-                disabled={(isFemaleHostelSelected && !femaleHostelAgreement) || isWalletPaying}
+                disabled={isWalletDisabled}
               >
                 {isWalletPaying ? (
                   <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</>

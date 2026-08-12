@@ -8,11 +8,14 @@ export function GlobalCart() {
   const location = useLocation();
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
-  // Hide global cart on the actual cart, checkout, profile, and food pages to avoid duplicate UI/clutter
+  // Only show on shopping hubs to prevent clutter
+  const showPaths = ['/mart', '/fashion', '/gadgets'];
   const hidePaths = ['/cart', '/checkout', '/profile', '/plate-builder', '/cafeteria'];
+  
+  const isShoppingPath = showPaths.some(path => location.pathname.startsWith(path));
   const isHiddenPath = hidePaths.some(path => location.pathname.includes(path)) || location.pathname === '/';
   
-  if (isHiddenPath) {
+  if (!isShoppingPath || isHiddenPath) {
     return null;
   }
 

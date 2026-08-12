@@ -1,6 +1,7 @@
 import { Logo } from '../components/design-system/Logo';
 import Footer from '../components/Footer';
 import SEO from '../components/SEO';
+import { Link } from 'react-router';
 
 export default function LearnMore() {
   return (
@@ -49,7 +50,7 @@ export default function LearnMore() {
           <section>
             <h2 className="text-2xl font-semibold mt-8 mb-4 text-secondary">Getting Started</h2>
             <p>
-              Simply visit <a href="/" className="underline">calebdeck.com</a>, browse
+              Simply visit <Link to="/" className="underline">calebdeck.com</Link>, browse
               cafeteria menus, build your plate and checkout—no login or account required.
             </p>
           </section>

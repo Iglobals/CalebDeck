@@ -156,7 +156,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       <SEO
         title="CalebDeck — Smart Campus Food, Grocery & Digital Services | Caleb University"
-        description="CalebDeck is the smart campus platform for Caleb University. Order cafeteria food, shop groceries on CalebDeck Mart, and buy cheap student data with CalebNet."
+        description="CalebDeck is the smart campus platform for Caleb University. Order cafeteria food, shop groceries on CalebDeck Mart, explore CalebDeck Fashion, and buy cheap student data with CalebNet."
         canonical="https://calebdeck.com/"
         jsonLd={{
           '@type': 'LocalBusiness',
@@ -169,7 +169,7 @@ export default function LandingPage() {
           geo: { '@type': 'GeoCoordinates', latitude: 6.6433, longitude: 3.6593 },
           parentOrganization: { '@id': 'https://iglobalstech.com.ng/#organization' },
           sameAs: ['https://x.com/iglobalstechinc'],
-          description: 'Smart campus food delivery, grocery, and digital services for Caleb University students. A product of IGLOBALS TECHNOLOGY.'
+          description: 'Smart campus food delivery, grocery, exclusive fashion, and digital services for Caleb University students. A product of IGLOBALS TECHNOLOGY.'
         }}
       />
 
@@ -205,6 +205,9 @@ export default function LandingPage() {
               </Link>
               <Link to="/mart" className="text-sm font-bold text-[#10B981] hover:text-[#059669] transition-colors px-1 xl:px-2 py-1 whitespace-nowrap">
                 Mart
+              </Link>
+              <Link to="/fashion" className="text-sm font-bold text-[#F97316] hover:text-[#EA580C] transition-colors px-1 xl:px-2 py-1 whitespace-nowrap">
+                Fashion
               </Link>
               <Link to="/calebnet" className="text-sm font-bold text-blue-500 hover:text-blue-600 transition-colors px-1 xl:px-2 py-1 whitespace-nowrap">
                 CalebNet
@@ -254,7 +257,7 @@ export default function LandingPage() {
               without stress.
             </h1>
             <p className="text-base sm:text-xl text-muted-foreground leading-relaxed max-w-lg">
-              Order meals, snacks, essentials, and other campus needs through CalebDeck, then meet your rider at your hostel area or assigned pickup point.
+              Order meals, groceries, exclusive campus fashion, and other campus needs through CalebDeck, then meet your rider at your hostel area.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
               <Link to="/cafeteria">
@@ -319,7 +322,7 @@ export default function LandingPage() {
 
       {/* Services Section */}
       <section className="py-16 md:py-24 max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
           <Link to="/cafeteria" className="group">
             <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl h-full ${isAuth ? 'bg-card border-border hover:border-[#FCD34D]/50' : (studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#FCD34D]/20' : 'bg-amber-50/50 border-amber-200')}`}>
               <div className="w-16 h-16 rounded-2xl bg-[#FCD34D]/20 flex items-center justify-center mb-6">
@@ -339,6 +342,17 @@ export default function LandingPage() {
               <h3 className={`text-2xl font-bold mb-3 ${isAuth ? 'text-foreground' : (studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900')}`}>CalebDeck Mart</h3>
               <p className={`text-lg mb-6 ${isAuth ? 'text-muted-foreground' : (studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600')}`}>Groceries, snacks, drinks, and essentials delivered around campus when you need them.</p>
               <span className="text-[#10B981] font-bold flex items-center gap-2 group-hover:gap-4 transition-all">Shop Mart <ArrowRight className="w-5 h-5" /></span>
+            </div>
+          </Link>
+
+          <Link to="/fashion" className="group">
+            <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl h-full ${isAuth ? 'bg-card border-border hover:border-[#F97316]/50' : (studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#F97316]/20' : 'bg-orange-50/50 border-orange-200')}`}>
+              <div className="w-16 h-16 rounded-2xl bg-[#F97316]/20 flex items-center justify-center mb-6">
+                <Shirt className="w-8 h-8 text-[#F97316]" />
+              </div>
+              <h3 className={`text-2xl font-bold mb-3 ${isAuth ? 'text-foreground' : (studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900')}`}>CalebDeck Fashion</h3>
+              <p className={`text-lg mb-6 ${isAuth ? 'text-muted-foreground' : (studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600')}`}>Exclusive i-CON only campus merch, apparel, and style from top student brands.</p>
+              <span className="text-[#F97316] font-bold flex items-center gap-2 group-hover:gap-4 transition-all">Explore <ArrowRight className="w-5 h-5" /></span>
             </div>
           </Link>
 
