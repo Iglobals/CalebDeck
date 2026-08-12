@@ -16,6 +16,57 @@ export default function FashionPDP() {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
 
+  const FALLBACK_ITEMS: FashionItem[] = [
+    {
+      id: 'f1',
+      name: 'Caleb Classic Heavyweight Hoodie',
+      brand: 'Caleb Originals',
+      brandColor: '#7C3AED',
+      category: 'Apparel',
+      price: 18500,
+      inStock: true,
+      imageUrl: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=600&auto=format&fit=crop',
+      description: 'Premium heavyweight cotton blend hoodie with embroidered Caleb logo.',
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'f2',
+      name: 'Campus Vibe Tote Bag',
+      brand: 'Urban Dept',
+      brandColor: '#F97316',
+      category: 'Accessories',
+      price: 4500,
+      inStock: true,
+      imageUrl: 'https://images.unsplash.com/photo-1597589827317-4c6d6e0a90bd?q=80&w=600&auto=format&fit=crop',
+      description: 'Durable canvas tote bag perfect for carrying laptops and books.',
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'f3',
+      name: 'Retro High-Top Sneakers',
+      brand: 'Kicks NG',
+      brandColor: '#10B981',
+      category: 'Footwear',
+      price: 32000,
+      inStock: false,
+      imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop',
+      description: 'Vintage styled high-tops with premium cushioning.',
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'f4',
+      name: 'Essential Graphic Tee',
+      brand: 'Caleb Originals',
+      brandColor: '#7C3AED',
+      category: 'Apparel',
+      price: 7500,
+      inStock: true,
+      imageUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=600&auto=format&fit=crop',
+      description: '100% cotton graphic tee with minimalist front design.',
+      createdAt: new Date().toISOString()
+    }
+  ];
+
   const { items: cartItems, addItem, totalItems } = useMartCart();
 
   useEffect(() => {
@@ -28,9 +79,12 @@ export default function FashionPDP() {
     const unsubscribeItems = subscribeToFashionItems((fetchedItems, isFromCache, error) => {
       if (error) {
         setLoading(false);
+        const fallback = FALLBACK_ITEMS.find(i => i.id === id);
+        setItem(fallback || null);
         return;
       }
-      const found = fetchedItems.find(i => i.id === id);
+      const dataToSearch = fetchedItems.length > 0 ? fetchedItems : FALLBACK_ITEMS;
+      const found = dataToSearch.find(i => i.id === id);
       setItem(found || null);
       setLoading(false);
     });

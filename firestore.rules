@@ -29,6 +29,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ─── Fashion Inventory ───
+    match /fashion_inventory/{itemId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // ─── Combo Packs ───
     match /combo_packs/{comboId} {
       allow read: if true;
