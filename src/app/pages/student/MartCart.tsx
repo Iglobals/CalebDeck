@@ -89,42 +89,47 @@ export default function MartCart() {
         <div className="bg-card border-2 border-border rounded-3xl overflow-hidden mb-8">
           <ul className="divide-y divide-border">
             {items.map(item => (
-              <li key={item.id} className="p-4 sm:p-6 flex items-center gap-4 sm:gap-6">
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-muted/30 p-2 flex-shrink-0 flex items-center justify-center">
-                  <ImageWithFallback src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+              <li key={item.id} className="p-4 sm:p-6 flex items-center gap-4 sm:gap-6 bg-card">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-muted/50 p-2 flex-shrink-0 flex items-center justify-center">
+                  <ImageWithFallback src={item.imageUrl} alt={item.name} className="w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal" />
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-[#10B981] uppercase mb-1">{item.category}</p>
-                  <h3 className="font-bold text-foreground text-sm sm:text-lg mb-1 truncate">{item.name}</h3>
-                  <p className="font-black text-lg">₦{item.price}</p>
-                </div>
-
-                <div className="flex flex-col items-end gap-3">
-                  <button 
-                    onClick={() => removeItem(item.id)}
-                    className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                    aria-label={`Remove ${item.name} from cart`}
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
+                  <h3 className="font-bold text-foreground text-sm sm:text-base leading-tight mb-1 truncate">{item.name}</h3>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {item.category} {item.quantity > 1 ? `(x${item.quantity})` : ''}
+                  </p>
                   
-                  <div className="flex items-center bg-muted rounded-full p-1 border border-border">
+                  {/* Quantity Stepper for Mart/Cart */}
+                  <div className="flex items-center gap-3 bg-muted/50 rounded-full px-1 py-1 w-max">
                     <button 
                       onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                      className="w-8 h-8 flex items-center justify-center rounded-full bg-background hover:bg-background/80 transition-colors shadow-sm"
+                      className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-background transition-colors"
                       aria-label={`Reduce ${item.name} quantity`}
                     >
-                      <Minus className="w-4 h-4" />
+                      <Minus className="w-3 h-3" />
                     </button>
-                    <span className="w-8 text-center font-bold text-sm">{item.quantity}</span>
+                    <span className="w-4 text-center font-semibold text-xs">{item.quantity}</span>
                     <button 
                       onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                      className="w-8 h-8 flex items-center justify-center rounded-full bg-background hover:bg-background/80 transition-colors shadow-sm"
+                      className="w-6 h-6 flex items-center justify-center rounded-full bg-background shadow-sm hover:bg-background/80 transition-colors"
                       aria-label={`Increase ${item.name} quantity`}
                     >
-                      <Plus className="w-4 h-4" />
+                      <Plus className="w-3 h-3" />
                     </button>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                  <button 
+                    onClick={() => removeItem(item.id)}
+                    className="p-1 text-muted-foreground hover:text-red-500 transition-colors"
+                    aria-label={`Remove ${item.name} from cart`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  <div className="bg-foreground text-background font-bold px-3 py-1.5 rounded-full text-xs sm:text-sm">
+                    ₦{(item.price * item.quantity).toLocaleString()}
                   </div>
                 </div>
               </li>

@@ -11,6 +11,9 @@ export interface FashionItem {
   category: string;
   inStock: boolean;
   description?: string;
+  sizes?: string[];
+  colors?: string[];
+  thumbnails?: string[];
   createdAt: any;
 }
 

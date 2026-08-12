@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { Button } from '../../components/design-system/Button';
-import { ArrowLeft, ShoppingBag, Plus, Minus, Shirt, ArrowRight, ShieldCheck, Truck } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Plus, Minus } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { useAuth } from '../../../context/AuthContext';
 import SEO from '../../components/SEO';
 import { useMartCart } from '../../../context/MartCartContext';
 import { subscribeToFashionItems, FashionItem } from '../../../services/fashion';
+import { toast } from 'sonner';
 
 export default function FashionPDP() {
   const { id } = useParams<{ id: string }>();
@@ -15,29 +16,41 @@ export default function FashionPDP() {
   const [item, setItem] = useState<FashionItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
+  const [selectedSize, setSelectedSize] = useState<string>('');
+  const [selectedColor, setSelectedColor] = useState<string>('');
+  const [activeThumbnail, setActiveThumbnail] = useState<string>('');
 
   const FALLBACK_ITEMS: FashionItem[] = [
     {
       id: 'f1',
-      name: 'Caleb Classic Heavyweight Hoodie',
+      name: "Men's Pullover Hoodie",
       brand: 'Caleb Originals',
-      brandColor: '#7C3AED',
+      brandColor: '#FDBA74', // Match the orange bg from inspo
       category: 'Apparel',
-      price: 18500,
+      price: 19900,
       inStock: true,
       imageUrl: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=600&auto=format&fit=crop',
-      description: 'Premium heavyweight cotton blend hoodie with embroidered Caleb logo.',
+      thumbnails: [
+        'https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=600&auto=format&fit=crop',
+        'https://images.unsplash.com/photo-1578587018452-892bacefd3f2?q=80&w=600&auto=format&fit=crop',
+        'https://images.unsplash.com/photo-1556821832-75d117e0ecfa?q=80&w=600&auto=format&fit=crop'
+      ],
+      sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'],
+      colors: ['#F59E0B', '#000000', '#3B82F6', '#93C5FD'],
+      description: 'Crafted with premium materials, these pullovers are designed to keep you warm and stylish all season long. Features a relaxed fit and dropped shoulders for maximum comfort.',
       createdAt: new Date().toISOString()
     },
     {
       id: 'f2',
       name: 'Campus Vibe Tote Bag',
       brand: 'Urban Dept',
-      brandColor: '#F97316',
-      category: 'Accessories',
+      brandColor: '#E2E8F0', 
+      category: 'Bags',
       price: 4500,
       inStock: true,
       imageUrl: 'https://images.unsplash.com/photo-1597589827317-4c6d6e0a90bd?q=80&w=600&auto=format&fit=crop',
+      sizes: ['One Size'],
+      colors: ['#E2E8F0', '#1E293B'],
       description: 'Durable canvas tote bag perfect for carrying laptops and books.',
       createdAt: new Date().toISOString()
     },
@@ -45,11 +58,13 @@ export default function FashionPDP() {
       id: 'f3',
       name: 'Retro High-Top Sneakers',
       brand: 'Kicks NG',
-      brandColor: '#10B981',
-      category: 'Footwear',
+      brandColor: '#A7F3D0', 
+      category: 'Shoes',
       price: 32000,
       inStock: false,
       imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop',
+      sizes: ['40', '41', '42', '43', '44', '45'],
+      colors: ['#10B981', '#FFFFFF'],
       description: 'Vintage styled high-tops with premium cushioning.',
       createdAt: new Date().toISOString()
     },
@@ -57,17 +72,19 @@ export default function FashionPDP() {
       id: 'f4',
       name: 'Essential Graphic Tee',
       brand: 'Caleb Originals',
-      brandColor: '#7C3AED',
-      category: 'Apparel',
+      brandColor: '#DDD6FE', 
+      category: 'Shirts',
       price: 7500,
       inStock: true,
       imageUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=600&auto=format&fit=crop',
+      sizes: ['S', 'M', 'L', 'XL'],
+      colors: ['#7C3AED', '#FFFFFF', '#000000'],
       description: '100% cotton graphic tee with minimalist front design.',
       createdAt: new Date().toISOString()
     }
   ];
 
-  const { items: cartItems, addItem, totalItems } = useMartCart();
+  const { items: cartItems, addItem, updateQuantity, totalItems } = useMartCart();
 
   useEffect(() => {
     if (!user) {
@@ -75,7 +92,6 @@ export default function FashionPDP() {
       return;
     }
     
-    // In a real app we'd fetch just this item, but for now reuse the subscription
     const unsubscribeItems = subscribeToFashionItems((fetchedItems, isFromCache, error) => {
       if (error) {
         setLoading(false);
@@ -89,35 +105,48 @@ export default function FashionPDP() {
       setLoading(false);
     });
 
-    return () => {
-      unsubscribeItems();
-    };
+    return () => unsubscribeItems();
   }, [id, user]);
+
+  useEffect(() => {
+    if (item) {
+      if (item.sizes && item.sizes.length > 0) setSelectedSize(item.sizes[0]);
+      if (item.colors && item.colors.length > 0) setSelectedColor(item.colors[0]);
+      setActiveThumbnail(item.imageUrl);
+    }
+  }, [item]);
 
   const handleAddToCart = () => {
     if (!item || !item.inStock) return;
     
-    // The cart context currently only adds 1 at a time using addItem, but wait, useMartCart doesn't have addItem with quantity?
-    // Let's add multiple times or we can just use the existing logic for MartCartContext
-    // The existing MartCartContext addItem doesn't take quantity, but let's check it.
-    // I will call addItem 'quantity' times for now if it doesn't support quantity param, or if it does...
-    // Actually `updateQuantity` takes the absolute quantity, I can use that after adding!
+    if (item.sizes && !selectedSize) {
+      toast.error('Please select a size');
+      return;
+    }
     
     const existing = cartItems.find(i => i.id === item.id);
     if (!existing) {
+      // Create a unique cart item ID by appending size/color if needed, but for now just use item.id
+      // In a real app we would want variants as separate cart items.
       addItem({
         id: item.id,
-        name: item.name,
+        name: `${item.name} ${selectedSize ? `(${selectedSize})` : ''}`,
         price: item.price,
         imageUrl: item.imageUrl,
         category: item.category
       });
-      // wait, addItem might take time to reflect in cartItems. 
-      // If it doesn't support quantity, users can just add 1 by 1 or we modify context.
+      toast.success('Added to bag');
+      
+      // If quantity > 1, we should update it immediately
+      if (quantity > 1) {
+        // Since addItem might be async state, we ideally pass quantity to addItem.
+        // For this demo, we just rely on single adds or a modified context.
+        setTimeout(() => updateQuantity(item.id, quantity), 100);
+      }
+    } else {
+      updateQuantity(item.id, existing.quantity + quantity);
+      toast.success('Cart updated');
     }
-    
-    // For simplicity, let's just use addItem for 1, and assume we'll fix the context if needed.
-    // Or let's trigger a toast
   };
 
   const handleBuyNow = () => {
@@ -128,7 +157,7 @@ export default function FashionPDP() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-[#7C3AED]/20 border-t-[#7C3AED] rounded-full animate-spin"></div>
+        <div className="w-10 h-10 border-4 border-amber-300 border-t-amber-500 rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -136,135 +165,187 @@ export default function FashionPDP() {
   if (!item) {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 text-center">
-        <Shirt className="w-16 h-16 text-muted-foreground mb-4 opacity-50" />
         <h2 className="text-2xl font-bold mb-2">Product Not Found</h2>
-        <p className="text-muted-foreground mb-6">This item might have been removed or doesn't exist.</p>
         <Button variant="primary" onClick={() => navigate('/fashion')}>Back to Fashion</Button>
       </div>
     );
   }
 
+  // Define images array including the main image and thumbnails
+  const allImages = item.thumbnails?.length ? [item.imageUrl, ...item.thumbnails.filter(t => t !== item.imageUrl)] : [item.imageUrl];
+
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-300 pb-32">
+    <div className="min-h-screen bg-background text-foreground md:bg-muted/10 selection:bg-amber-500/30">
       <SEO
-        title={`${item.name} | CalebDeck Fashion`}
-        description={item.description || `Buy ${item.name} on CalebDeck Fashion`}
+        title={`${item.name} | Fashion`}
+        description={item.description || `Buy ${item.name}`}
         canonical={`https://calebdeck.com/fashion/product/${item.id}`}
         image={item.imageUrl}
       />
 
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm transition-colors duration-300">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+      {/* Hero Image Section (Fixed for Mobile, Standard for Desktop) */}
+      <div 
+        className="fixed md:static top-0 left-0 right-0 h-[55vh] md:h-auto md:w-1/2 md:float-left md:sticky md:top-0 transition-colors"
+        style={{ backgroundColor: item.brandColor || '#FDBA74' }}
+      >
+        {/* Transparent Header */}
+        <header className="absolute top-0 left-0 right-0 z-40 px-4 py-4 sm:px-6 flex items-center justify-between">
           <button 
             onClick={() => navigate('/fashion')}
-            className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors flex items-center gap-2 font-bold"
+            className="w-10 h-10 bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/50 transition-colors"
           >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="hidden sm:inline">Back</span>
+            <ArrowLeft className="w-5 h-5 text-black" />
           </button>
           
-          <Link to="/mart/cart" className="relative p-2 text-foreground/80 hover:text-primary transition-colors">
-            <ShoppingBag className="w-6 h-6" />
+          <span className="font-bold text-black/80">Details</span>
+          
+          <Link to="/mart/cart" className="relative w-10 h-10 bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/50 transition-colors">
+            <ShoppingBag className="w-5 h-5 text-black" />
             {totalItems > 0 && (
-              <span className="absolute top-0 right-0 w-5 h-5 bg-[#F97316] text-white text-xs font-bold rounded-full flex items-center justify-center translate-x-1 -translate-y-1 shadow-sm">
-                {totalItems > 99 ? '99+' : totalItems}
+              <span className="absolute top-0 right-0 w-4 h-4 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                {totalItems}
               </span>
             )}
           </Link>
+        </header>
+
+        {/* Main Image */}
+        <div className="absolute inset-0 flex items-center justify-center pt-16 pb-12 px-12 md:relative md:h-[100vh]">
+          <ImageWithFallback
+            src={activeThumbnail}
+            alt={item.name}
+            className="w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal drop-shadow-2xl transition-all duration-300"
+          />
         </div>
-      </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-        <div className="grid md:grid-cols-2 gap-8 md:gap-12">
-          
-          {/* Image Section */}
-          <div className="relative aspect-[4/5] md:aspect-square bg-muted/30 rounded-3xl overflow-hidden border border-border">
-            <ImageWithFallback
-              src={item.imageUrl}
-              alt={item.name}
-              className="w-full h-full object-cover"
-            />
-            {/* Brand Badge */}
-            <div className="absolute top-4 left-4 px-3 py-1.5 bg-background/90 backdrop-blur-md rounded-lg border border-border flex items-center gap-2 shadow-sm">
-              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.brandColor || '#F97316' }}></div>
-              <span className="text-xs font-bold uppercase tracking-wider">{item.brand}</span>
-            </div>
-            {!item.inStock && (
-              <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center">
-                <span className="bg-background font-black px-6 py-3 border-2 text-foreground text-sm uppercase tracking-widest rounded-xl shadow-xl">Out of Stock</span>
-              </div>
-            )}
-          </div>
-
-          {/* Details Section */}
-          <div className="flex flex-col">
-            <div className="mb-6">
-              <p className="text-xs font-black text-[#7C3AED] uppercase tracking-[0.2em] mb-2">{item.category}</p>
-              <h1 className="text-3xl md:text-4xl font-black leading-tight mb-2">{item.name}</h1>
-              <p className="text-3xl font-black text-[#F97316]">₦{item.price.toLocaleString()}</p>
-            </div>
-
-            <div className="prose prose-sm dark:prose-invert mb-8 text-muted-foreground">
-              <p>{item.description || 'No description available for this item. Exclusive i-CON merch.'}</p>
-            </div>
-            
-            {/* Value Props */}
-            <div className="flex flex-col gap-3 mb-8 py-6 border-y border-border">
-              <div className="flex items-center gap-3 text-sm font-bold">
-                <ShieldCheck className="w-5 h-5 text-[#10B981]" />
-                <span>Verified Campus Brand</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm font-bold">
-                <Truck className="w-5 h-5 text-[#7C3AED]" />
-                <span>Direct Hostel Delivery Available</span>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="mt-auto space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center justify-between border-2 border-border rounded-2xl p-1 bg-card">
-                  <button 
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    disabled={quantity <= 1 || !item.inStock}
-                    className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-muted disabled:opacity-50 transition-colors"
-                  >
-                    <Minus className="w-4 h-4" />
-                  </button>
-                  <span className="w-12 text-center font-bold text-lg">{quantity}</span>
-                  <button 
-                    onClick={() => setQuantity(quantity + 1)}
-                    disabled={!item.inStock}
-                    className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-muted disabled:opacity-50 transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-                
-                <Button 
-                  onClick={handleAddToCart}
-                  disabled={!item.inStock}
-                  variant="secondary"
-                  className="flex-1 h-14 rounded-2xl border-2 border-[#7C3AED] text-[#7C3AED] hover:bg-[#7C3AED]/10 font-bold"
-                >
-                  Add to Cart
-                </Button>
-              </div>
-
-              <Button 
-                onClick={handleBuyNow}
-                disabled={!item.inStock}
-                variant="primary"
-                className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#7C3AED] to-[#F97316] hover:opacity-90 border-none font-bold text-white shadow-lg shadow-[#F97316]/20"
+        {/* Vertical Thumbnails (Right Side) */}
+        {allImages.length > 1 && (
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-20">
+            {allImages.slice(0, 4).map((thumb, idx) => (
+              <button
+                key={idx}
+                onClick={() => setActiveThumbnail(thumb)}
+                className={`w-12 h-12 rounded-xl bg-white/40 backdrop-blur-md overflow-hidden border-2 transition-all ${
+                  activeThumbnail === thumb ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:bg-white/60'
+                }`}
               >
-                Buy Now <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-            </div>
-            
+                <ImageWithFallback src={thumb} alt={`Thumbnail ${idx}`} className="w-full h-full object-cover mix-blend-multiply" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Sheet / Content Side */}
+      <div className="relative z-10 mt-[50vh] md:mt-0 md:ml-[50%] bg-card rounded-t-[32px] md:rounded-none min-h-[50vh] px-6 pt-8 pb-32 shadow-[0_-8px_30px_rgb(0,0,0,0.05)] md:shadow-none">
+        
+        {/* Header Row: Title & Stepper */}
+        <div className="flex justify-between items-start gap-4 mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold leading-tight max-w-[70%]">{item.name}</h1>
+          
+          <div className="flex items-center justify-between bg-muted/50 rounded-full px-1 py-1 shrink-0">
+            <button 
+              onClick={() => setQuantity(Math.max(1, quantity - 1))}
+              disabled={quantity <= 1 || !item.inStock}
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
+            >
+              <Minus className="w-4 h-4" />
+            </button>
+            <span className="w-8 text-center font-semibold text-sm">
+              {quantity < 10 ? `0${quantity}` : quantity}
+            </span>
+            <button 
+              onClick={() => setQuantity(quantity + 1)}
+              disabled={!item.inStock}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-amber-200 text-amber-900 hover:bg-amber-300 disabled:opacity-50 transition-colors shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
           </div>
         </div>
-      </main>
+
+        {/* Price Row */}
+        <div className="mb-8">
+          <p className="text-muted-foreground text-sm mb-1">From:</p>
+          <p className="text-2xl font-bold">₦{item.price.toLocaleString()}</p>
+        </div>
+
+        {/* Color Selection (Circles) */}
+        {item.colors && item.colors.length > 0 && (
+          <div className="mb-8">
+            <p className="font-semibold mb-3">Select Color</p>
+            <div className="flex gap-3">
+              {item.colors.map(color => (
+                <button
+                  key={color}
+                  onClick={() => setSelectedColor(color)}
+                  className={`w-10 h-10 rounded-full border-[3px] transition-all flex items-center justify-center ${
+                    selectedColor === color ? 'border-primary scale-110 shadow-sm' : 'border-transparent shadow-sm'
+                  }`}
+                  style={{ backgroundColor: color }}
+                  aria-label={`Select color ${color}`}
+                >
+                  {/* Inner ring for selected state to look like inspo */}
+                  {selectedColor === color && (
+                    <span className="w-8 h-8 rounded-full border-2 border-background mix-blend-difference" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Size Selection (Pills) */}
+        {item.sizes && item.sizes.length > 0 && (
+          <div className="mb-8">
+            <p className="font-semibold mb-3">Select Size</p>
+            <div className="flex flex-wrap gap-2">
+              {item.sizes.map(size => (
+                <button
+                  key={size}
+                  onClick={() => setSelectedSize(size)}
+                  className={`px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 ${
+                    selectedSize === size
+                      ? 'bg-amber-300 text-amber-900 shadow-sm scale-105'
+                      : 'bg-muted/50 text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Description */}
+        <div className="mb-8">
+          <p className="font-semibold mb-2">Description</p>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            {item.description || 'Premium exclusive fashion item.'}
+          </p>
+        </div>
+      </div>
+
+      {/* Sticky Bottom Actions */}
+      <div className="fixed bottom-0 left-0 right-0 md:left-[50%] bg-card/95 backdrop-blur-xl border-t border-border px-6 py-4 z-40 flex items-center gap-4">
+        <Button 
+          onClick={handleAddToCart}
+          disabled={!item.inStock}
+          variant="secondary"
+          className="flex-1 h-14 rounded-full border-2 border-muted bg-transparent text-foreground hover:bg-muted font-bold"
+        >
+          Add to Cart
+        </Button>
+        <Button 
+          onClick={handleBuyNow}
+          disabled={!item.inStock}
+          variant="primary"
+          className="flex-1 h-14 rounded-full bg-amber-300 hover:bg-amber-400 text-amber-900 border-none font-bold shadow-sm"
+        >
+          Buy Now
+        </Button>
+      </div>
+
     </div>
   );
 }
