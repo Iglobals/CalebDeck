@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { Logo } from '../../components/design-system/Logo';
 import { Button } from '../../components/design-system/Button';
 import { Card } from '../../components/design-system/Card';
-import { Clock, CheckCircle, Truck, Star, ArrowRight, Smartphone, Share, PlusSquare, MoreVertical, HelpCircle, MessageCircle, Utensils, ShoppingBag, X, Bike, Banknote, GraduationCap, Wifi } from 'lucide-react';
+import { Clock, CheckCircle, Truck, Star, ArrowRight, Smartphone, Share, PlusSquare, MoreVertical, HelpCircle, MessageCircle, Utensils, ShoppingBag, X, Bike, Banknote, GraduationCap, Wifi, Shirt } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
