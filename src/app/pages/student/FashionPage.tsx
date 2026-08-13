@@ -7,6 +7,7 @@ import { useAuth } from '../../../context/AuthContext';
 import SEO from '../../components/SEO';
 import { useMartCart } from '../../../context/MartCartContext';
 import { subscribeToFashionItems, FashionItem } from '../../../services/fashion';
+import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 
 const CATEGORIES = ['Trending', 'Shoes', 'Bags', 'Shirts', 'Apparel'];
 
@@ -19,6 +20,7 @@ export default function FashionPage() {
   const [priceRange, setPriceRange] = useState({ min: 0, max: 100000 });
   const [items, setItems] = useState<FashionItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
 
   const FALLBACK_ITEMS: FashionItem[] = [
     {
@@ -102,7 +104,14 @@ export default function FashionPage() {
       setLoading(false);
     });
 
-    return () => unsubscribeItems();
+    const unsubscribeSettings = subscribeToPlatformSettings((settings) => {
+      setPlatformSettings(settings);
+    });
+
+    return () => {
+      unsubscribeItems();
+      unsubscribeSettings();
+    };
   }, [user]);
 
   const filteredItems = items.filter(item => {
@@ -132,6 +141,19 @@ export default function FashionPage() {
 
   if (!user) return null;
 
+  const isDev = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const currentHour = new Date().getHours();
+  const openingHour = platformSettings?.fashionOpeningHour ?? 0;
+  const closingHour = platformSettings?.fashionClosingHour ?? 24;
+  const isOutOfHours = currentHour < openingHour || currentHour >= closingHour;
+  const isMaintenance = platformSettings?.isFashionAcceptingOrders === false || platformSettings?.isFashionComingSoon === true;
+  const isFashionClosed = !!platformSettings && (isOutOfHours || isMaintenance) && !isDev;
+  const fashionClosedMessage = platformSettings?.isFashionComingSoon === true
+    ? 'CalebDeck Fashion is launching soon! Get ready for exclusive campus merch and premium apparel.'
+    : platformSettings?.isFashionAcceptingOrders === false
+      ? (platformSettings?.fashionClosedMessage || 'CalebDeck Fashion is currently closed for restocking. Check back shortly.')
+      : `CalebDeck Fashion follows operating hours: ${openingHour}:00 to ${closingHour}:00.`;
+
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300 pb-24">
       <SEO
@@ -139,6 +161,31 @@ export default function FashionPage() {
         description="Exclusive campus merch, apparel, and style."
         canonical="https://calebdeck.com/fashion"
       />
+
+      {isFashionClosed && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
+          <div className="max-w-md w-full bg-card border border-border rounded-3xl p-8 text-center shadow-2xl animate-fade-in-up">
+            <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Shirt className="w-10 h-10 text-amber-500" />
+            </div>
+            <h2 className="text-2xl font-bold text-foreground mb-4">
+              {platformSettings?.isFashionComingSoon ? 'Coming Soon' : 'Fashion is Closed'}
+            </h2>
+            <p className="text-muted-foreground mb-8 text-lg">
+              {fashionClosedMessage}
+            </p>
+            <div className="space-y-3">
+              <Button 
+                variant="primary" 
+                className="w-full h-14 rounded-2xl text-lg font-bold bg-[#FDBA74] text-black hover:bg-[#F97316] border-none"
+                onClick={() => navigate('/')}
+              >
+                Return Home
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md pt-4 pb-2 px-4 sm:px-6">
