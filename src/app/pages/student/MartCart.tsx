@@ -48,7 +48,7 @@ export default function MartCart() {
         </div>
         <h1 className="text-2xl font-bold mb-2">Your cart is empty</h1>
         <p className="max-w-md text-muted-foreground mb-8">Add snacks, drinks, groceries, or hostel essentials from CalebDeck Mart and review them here before checkout.</p>
-        <Link to="/mart">
+        <Link to="/mart" replace>
           <Button variant="primary" className="px-8 py-3 rounded-xl bg-[#10B981] hover:bg-[#059669]">
             Start Shopping
           </Button>

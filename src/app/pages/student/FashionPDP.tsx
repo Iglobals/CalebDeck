@@ -135,7 +135,8 @@ export default function FashionPDP() {
         name: `${item.name} ${selectedSize ? `(${selectedSize})` : ''}`,
         price: item.price,
         imageUrl: item.imageUrl,
-        category: item.category
+        category: item.category,
+        productType: 'FASHION'
       });
       toast.success('Added to bag');
       
@@ -177,7 +178,7 @@ export default function FashionPDP() {
   const allImages = item.thumbnails?.length ? [item.imageUrl, ...item.thumbnails.filter(t => t !== item.imageUrl)] : [item.imageUrl];
 
   return (
-    <div className="min-h-screen bg-background text-foreground md:bg-muted/10 selection:bg-amber-500/30">
+    <div className="h-[100dvh] w-full overflow-hidden relative bg-background text-foreground md:bg-muted/10 selection:bg-amber-500/30">
       <SEO
         title={`${item.name} | Fashion`}
         description={item.description || `Buy ${item.name}`}
@@ -187,11 +188,11 @@ export default function FashionPDP() {
 
       {/* Hero Image Section (Fixed for Mobile, Standard for Desktop) */}
       <div 
-        className="fixed md:static top-0 left-0 right-0 h-[55vh] md:h-auto md:w-1/2 md:float-left md:sticky md:top-0 transition-colors"
+        className="absolute top-0 left-0 right-0 h-[55dvh] md:h-[100dvh] md:w-1/2 transition-colors"
         style={{ backgroundColor: item.brandColor || '#FDBA74' }}
       >
         {/* Transparent Header */}
-        <header className="absolute top-0 left-0 right-0 z-40 px-4 py-4 sm:px-6 flex items-center justify-between">
+        <header className="absolute top-[env(safe-area-inset-top)] left-0 right-0 z-40 px-4 pt-4 sm:px-6 flex items-center justify-between">
           <button 
             onClick={() => navigate('/fashion')}
             className="w-10 h-10 bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/50 transition-colors"
@@ -238,8 +239,8 @@ export default function FashionPDP() {
         )}
       </div>
 
-      {/* Bottom Sheet / Content Side */}
-      <div className="relative z-10 mt-[50vh] md:mt-0 md:ml-[50%] bg-card rounded-t-[32px] md:rounded-none px-6 pt-8 pb-24 shadow-[0_-8px_30px_rgb(0,0,0,0.05)] md:shadow-none">
+      {/* Bottom Sheet / Content Side (Scrollable) */}
+      <div className="absolute bottom-0 left-0 right-0 h-[52dvh] md:h-[100dvh] md:left-[50%] md:w-1/2 bg-card rounded-t-[32px] md:rounded-none px-6 pt-8 pb-32 overflow-y-auto shadow-[0_-8px_30px_rgb(0,0,0,0.05)] md:shadow-none z-10">
         
         {/* Header Row: Title & Stepper */}
         <div className="flex justify-between items-start gap-4 mb-2">
@@ -328,24 +329,28 @@ export default function FashionPDP() {
         </div>
       </div>
 
-      {/* Sticky Bottom Actions */}
-      <div className="fixed bottom-0 left-0 right-0 md:left-[50%] bg-card/95 backdrop-blur-xl border-t border-border px-6 py-4 z-40 flex items-center gap-4">
-        <Button 
-          onClick={handleAddToCart}
-          disabled={!item.inStock}
-          variant="secondary"
-          className="flex-1 h-14 rounded-full border-2 border-muted bg-transparent text-foreground hover:bg-muted font-bold"
-        >
-          Add to Cart
-        </Button>
-        <Button 
-          onClick={handleBuyNow}
-          disabled={!item.inStock}
-          variant="primary"
-          className="flex-1 h-14 rounded-full bg-amber-300 hover:bg-amber-400 text-amber-900 border-none font-bold shadow-sm"
-        >
-          Buy Now
-        </Button>
+      {/* Sticky Bottom Actions - Floating Glass Pill */}
+      <div className="absolute bottom-0 left-0 right-0 md:left-[50%] z-40 pb-[env(safe-area-inset-bottom)] pointer-events-none">
+        <div className="px-6 mb-4 sm:mb-6 pointer-events-auto">
+          <div className="flex items-center gap-2 bg-white/70 dark:bg-black/70 backdrop-blur-xl border border-white/40 dark:border-white/10 p-2 rounded-[2rem] shadow-xl">
+            <Button 
+              onClick={handleAddToCart}
+              disabled={!item.inStock}
+              variant="secondary"
+              className="flex-1 h-14 rounded-full bg-transparent text-foreground hover:bg-black/5 dark:hover:bg-white/5 font-bold border-none"
+            >
+              Add to Cart
+            </Button>
+            <Button 
+              onClick={handleBuyNow}
+              disabled={!item.inStock}
+              variant="primary"
+              className="flex-1 h-14 rounded-full bg-[#FDBA74] hover:bg-[#F97316] text-black border-none font-bold shadow-sm"
+            >
+              Buy Now
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Cart Overlay Slide-up */}
@@ -359,18 +364,29 @@ export default function FashionPDP() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drag Handle (Mobile) */}
-            <div className="w-12 h-1.5 bg-muted-foreground/20 rounded-full mx-auto mt-4 mb-2 sm:hidden" />
+            <div 
+              className="w-12 h-1.5 bg-muted-foreground/20 rounded-full mx-auto mt-4 mb-2 sm:hidden cursor-pointer" 
+              onClick={() => setShowCartOverlay(false)}
+            />
 
             {/* Overlay Header */}
             <div className="flex items-center justify-between px-6 pt-2 pb-6">
               <h2 className="text-xl font-bold">My Cart</h2>
-              <Button 
-                variant="secondary" 
-                onClick={() => navigate('/fashion/checkout')} 
-                className="h-10 px-4 rounded-xl text-sm font-semibold bg-white dark:bg-background border border-border/50 shadow-sm hover:bg-muted"
-              >
-                <ShoppingBag className="w-4 h-4 mr-2" /> Add to Checkout
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="secondary" 
+                  onClick={() => navigate('/fashion/checkout')} 
+                  className="h-10 px-4 rounded-xl text-sm font-semibold bg-white dark:bg-background border border-border/50 shadow-sm hover:bg-muted hidden sm:flex items-center"
+                >
+                  <ShoppingBag className="w-4 h-4 mr-2" /> Checkout
+                </Button>
+                <button 
+                  onClick={() => setShowCartOverlay(false)}
+                  className="w-10 h-10 bg-muted/50 rounded-full flex items-center justify-center hover:bg-muted"
+                >
+                  <span className="font-bold text-lg leading-none">&times;</span>
+                </button>
+              </div>
             </div>
             
             {/* Cart Items List */}

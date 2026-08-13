@@ -559,6 +559,12 @@ export interface PlatformSettings {
     instantDeliveryEstimateMax?: number;
     recommendedDeliveryType?: 'INSTANT' | 'BATCH';
     allowFutureBatchPreorders?: boolean;
+    // Fashion Settings
+    fashionOpeningHour?: number;
+    fashionClosingHour?: number;
+    isFashionAcceptingOrders?: boolean;
+    isFashionComingSoon?: boolean;
+    fashionClosedMessage?: string;
     [key: string]: any;
 }
 
@@ -590,13 +596,19 @@ export const subscribeToPlatformSettings = (callback: (settings: PlatformSetting
             if (data.instantOverloadBehavior === undefined) data.instantOverloadBehavior = 'WARN';
             if (data.recommendedDeliveryType === undefined) data.recommendedDeliveryType = 'INSTANT';
             if (data.allowFutureBatchPreorders === undefined) data.allowFutureBatchPreorders = false;
+            
+            if (data.fashionOpeningHour === undefined) data.fashionOpeningHour = 0;
+            if (data.fashionClosingHour === undefined) data.fashionClosingHour = 24;
+            if (data.isFashionAcceptingOrders === undefined) data.isFashionAcceptingOrders = true;
+            if (data.isFashionComingSoon === undefined) data.isFashionComingSoon = false;
+            
             callback(data);
         } else {
-            callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18 });
+            callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18, fashionOpeningHour: 0, fashionClosingHour: 24, isFashionAcceptingOrders: true, isFashionComingSoon: false });
         }
     }, (error) => {
         console.error('subscribeToPlatformSettings error:', error);
-        callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18 });
+        callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18, fashionOpeningHour: 0, fashionClosingHour: 24, isFashionAcceptingOrders: true, isFashionComingSoon: false });
     });
 };
 

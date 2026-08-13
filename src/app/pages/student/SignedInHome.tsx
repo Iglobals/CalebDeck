@@ -125,29 +125,29 @@ export function SignedInHome() {
   return (
     <div className="min-h-screen bg-background text-foreground pb-32">
       {/* Top Header Section */}
-      <header className="px-6 pt-12 pb-6 flex items-center justify-between">
+      <header className="px-6 pt-[max(3rem,env(safe-area-inset-top))] pb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black">{getGreeting()}</h1>
-          <p className="text-3xl font-black text-primary">{displayName}</p>
+          <p className="text-3xl font-black text-primary truncate max-w-[200px]">{displayName}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center shadow-sm overflow-hidden border-2 border-border shrink-0">
-            {user?.avatar ? (
-              <span className="text-3xl leading-none">{user.avatar}</span>
-            ) : user?.photoURL ? (
-              <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-xl font-black">{displayName.charAt(0)}</span>
-            )}
-          </div>
-          <Link to="/mart/cart" className="relative p-2 rounded-full hover:bg-muted transition-colors">
+        <div className="flex items-center justify-end gap-4">
+          <Link to="/mart/cart" className="relative rounded-full hover:bg-muted transition-colors">
             <ShoppingBag className="w-6 h-6" />
             {cartItems.reduce((sum, item) => sum + item.quantity, 0) > 0 && (
-              <span className="absolute top-0 right-0 w-4 h-4 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+              <span className="absolute top-0 right-0 w-4 h-4 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center translate-x-1.5 -translate-y-1.5">
                 {cartItems.reduce((sum, item) => sum + item.quantity, 0)}
               </span>
             )}
           </Link>
+          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center shadow-sm overflow-hidden border-2 border-border shrink-0">
+            {user?.avatar ? (
+              <span className="text-2xl leading-none">{user.avatar}</span>
+            ) : user?.photoURL ? (
+              <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-lg font-black">{displayName.charAt(0)}</span>
+            )}
+          </div>
         </div>
       </header>
 

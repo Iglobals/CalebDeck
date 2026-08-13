@@ -74,9 +74,17 @@ export default function MartCheckout() {
   const currentHour = new Date().getHours();
   const openingHour = platformSettings?.systemOpeningHour ?? 10;
   const closingHour = platformSettings?.systemClosingHour ?? 18;
-  const isOutOfHours = currentHour < openingHour || currentHour >= closingHour; 
-  const isMaintenance = platformSettings?.isAcceptingOrders === false || platformSettings?.isMartComingSoon === true || platformSettings?.isMartAcceptingOrders === false;
-  const isClosed = !!platformSettings && (isOutOfHours || isMaintenance) && !isDev;
+  const hasMartItems = items.some(item => item.productType === 'MART' || !item.productType);
+  
+  const martClosed = hasMartItems && !!platformSettings && (
+    currentHour < openingHour || 
+    currentHour >= closingHour || 
+    platformSettings?.isAcceptingOrders === false || 
+    platformSettings?.isMartComingSoon === true || 
+    platformSettings?.isMartAcceptingOrders === false
+  ) && !isDev;
+
+  const isClosed = martClosed;
   const martClosedMessage = platformSettings?.isMartComingSoon === true || platformSettings?.isMartAcceptingOrders === false
     ? (platformSettings?.martClosedMessage || 'CalebDeck Mart is currently closed for restocking. Fresh items will be available soon.')
     : platformSettings?.isAcceptingOrders === false

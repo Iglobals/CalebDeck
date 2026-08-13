@@ -70,14 +70,23 @@ export default function FashionCheckout() {
   }, []);
 
   const currentHour = new Date().getHours();
-  const openingHour = platformSettings?.systemOpeningHour ?? 10;
-  const closingHour = platformSettings?.systemClosingHour ?? 18;
-  const isOutOfHours = currentHour < openingHour || currentHour >= closingHour; 
-  const isMaintenance = platformSettings?.isAcceptingOrders === false; // Assuming fashion uses global lock
-  const isClosed = !!platformSettings && (isOutOfHours || isMaintenance) && !isDev;
-  const closedMessage = platformSettings?.isAcceptingOrders === false
-      ? (platformSettings?.globalClosedMessage || 'CalebDeck is temporarily paused while we make a quick operational update. Please check back shortly.')
-      : `CalebDeck Fashion follows CalebDeck operating hours: ${openingHour}:00 to ${closingHour}:00.`;
+  const openingHour = platformSettings?.fashionOpeningHour ?? 0;
+  const closingHour = platformSettings?.fashionClosingHour ?? 24;
+  const hasFashionItems = items.some(item => item.productType === 'FASHION');
+  
+  const fashionClosed = hasFashionItems && !!platformSettings && (
+    currentHour < openingHour || 
+    currentHour >= closingHour || 
+    platformSettings?.isFashionAcceptingOrders === false || 
+    platformSettings?.isFashionComingSoon === true
+  ) && !isDev;
+
+  const isClosed = fashionClosed;
+  const closedMessage = platformSettings?.isFashionComingSoon === true
+    ? (platformSettings?.fashionClosedMessage || 'CalebDeck Fashion is launching soon! Stay tuned.')
+    : platformSettings?.isFashionAcceptingOrders === false
+      ? (platformSettings?.fashionClosedMessage || 'CalebDeck Fashion is temporarily paused. Please check back shortly.')
+      : `CalebDeck Fashion follows operating hours: ${openingHour}:00 to ${closingHour}:00.`;
 
   const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
 
