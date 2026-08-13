@@ -35,7 +35,7 @@ const PROMO_SLIDES = [
 ];
 
 export function SignedInHome() {
-  const { user, userData } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -132,8 +132,8 @@ export function SignedInHome() {
         </div>
         <div className="flex items-center gap-3">
           <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center shadow-sm overflow-hidden border-2 border-border shrink-0">
-            {userData?.avatar ? (
-              <span className="text-3xl leading-none">{userData.avatar}</span>
+            {user?.avatar ? (
+              <span className="text-3xl leading-none">{user.avatar}</span>
             ) : user?.photoURL ? (
               <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
             ) : (
