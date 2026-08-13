@@ -10,11 +10,12 @@ import { useAuth } from '../../../context/AuthContext';
 import SEO from '../../components/SEO';
 import { submitReview } from '../../../services/db';
 import { toast } from 'react-toastify';
+import { ThemeToggle } from '../../components/ThemeToggle';
 import { PaperBagHamburger } from '../../components/design-system/PaperBagHamburger';
 import { SignedInHome } from './SignedInHome';
 
 export default function LandingPage() {
-  const { studentTheme } = useTheme();
+  const { studentTheme, toggleStudentTheme } = useTheme();
   const { user } = useAuth();
   const isAuth = !!user;
   const navigate = useNavigate();
@@ -153,7 +154,8 @@ export default function LandingPage() {
 
 
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-300 relative">
+      <ThemeToggle theme={studentTheme} onToggle={toggleStudentTheme} variant="floating" />
       <SEO
         title="CalebDeck — Smart Campus Food, Grocery, Fashion & Digital Services | Caleb University"
         description="CalebDeck is the smart campus platform for Caleb University. Order cafeteria food, shop groceries on CalebDeck Mart, explore CalebDeck Fashion, CalebDeck Gadgets, CalebDeck Business, and buy cheap student data with CalebNet."
