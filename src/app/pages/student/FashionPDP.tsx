@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { Button } from '../../components/design-system/Button';
 import { ArrowLeft, ShoppingBag, Plus, Minus } from 'lucide-react';
@@ -22,6 +22,18 @@ export default function FashionPDP() {
   const [activeThumbnail, setActiveThumbnail] = useState<string>('');
   const [showCartOverlay, setShowCartOverlay] = useState(false);
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+  
+  // Animation states
+  const cartIconRef = useRef<HTMLAnchorElement>(null);
+  const [flyingItem, setFlyingItem] = useState<{
+    imageUrl: string;
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+    active: boolean;
+  } | null>(null);
+  const [isAdded, setIsAdded] = useState(false);
 
   const FALLBACK_ITEMS: FashionItem[] = [
     {
@@ -145,24 +157,44 @@ export default function FashionPDP() {
         price: item.price,
         imageUrl: item.imageUrl,
         category: item.category,
-        productType: 'FASHION'
+        productType: 'FASHION',
+        quantity: quantity // Assuming the context supports a quantity param, otherwise it adds 1 and we update
       });
-      toast.success('Added to bag');
       
-      // If quantity > 1, we should update it immediately
+      // Update quantity if greater than 1
       if (quantity > 1) {
-        // Since addItem might be async state, we ideally pass quantity to addItem.
-        // For this demo, we just rely on single adds or a modified context.
         setTimeout(() => updateQuantity(item.id, quantity), 100);
       }
     } else {
       updateQuantity(item.id, existing.quantity + quantity);
-      toast.success('Cart updated');
+    }
+    
+    setIsAdded(true);
+    setTimeout(() => setIsAdded(false), 1500);
+
+    // Trigger Flying Animation
+    const button = document.activeElement as HTMLElement;
+    if (button && cartIconRef.current && item) {
+      const buttonRect = button.getBoundingClientRect();
+      const cartRect = cartIconRef.current.getBoundingClientRect();
+      
+      setFlyingItem({
+        imageUrl: item.imageUrl,
+        startX: buttonRect.left + buttonRect.width / 2,
+        startY: buttonRect.top + buttonRect.height / 2,
+        endX: cartRect.left + cartRect.width / 2,
+        endY: cartRect.top + cartRect.height / 2,
+        active: false
+      });
+
+      requestAnimationFrame(() => {
+        setFlyingItem(current => current ? { ...current, active: true } : current);
+        window.setTimeout(() => setFlyingItem(null), 720);
+      });
     }
   };
 
   const handleBuyNow = () => {
-    handleAddToCart();
     setShowCartOverlay(true);
   };
 
@@ -208,6 +240,23 @@ export default function FashionPDP() {
         image={item.imageUrl}
       />
 
+      {flyingItem && (
+        <img
+          src={flyingItem.imageUrl}
+          alt=""
+          aria-hidden="true"
+          className="fixed z-[100] w-14 h-14 rounded-2xl object-contain bg-card border border-border shadow-2xl pointer-events-none transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
+          style={{
+            left: flyingItem.active ? flyingItem.endX : flyingItem.startX,
+            top: flyingItem.active ? flyingItem.endY : flyingItem.startY,
+            transform: flyingItem.active
+              ? 'translate(-50%, -50%) scale(0.25) rotate(12deg)'
+              : 'translate(-50%, -50%) scale(1)',
+            opacity: flyingItem.active ? 0.1 : 1
+          }}
+        />
+      )}
+
       {isFashionClosed && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
           <div className="max-w-md w-full bg-card border border-border rounded-3xl p-8 text-center shadow-2xl animate-fade-in-up">
@@ -249,7 +298,7 @@ export default function FashionPDP() {
           
           <span className="font-bold text-black/80">Details</span>
           
-          <Link to="/mart/cart" className="relative w-10 h-10 bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/50 transition-colors">
+          <Link to="/mart/cart" ref={cartIconRef} className="relative w-10 h-10 bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/50 transition-colors">
             <ShoppingBag className="w-5 h-5 text-black" />
             {totalItems > 0 && (
               <span className="absolute top-0 right-0 w-4 h-4 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
@@ -380,11 +429,11 @@ export default function FashionPDP() {
           <div className="flex items-center gap-2 bg-white/70 dark:bg-black/70 backdrop-blur-xl border border-white/40 dark:border-white/10 p-2 rounded-[2rem] shadow-xl">
             <Button 
               onClick={handleAddToCart}
-              disabled={!item.inStock}
+              disabled={!item.inStock || isAdded}
               variant="secondary"
-              className="flex-1 h-14 rounded-full bg-transparent text-foreground hover:bg-black/5 dark:hover:bg-white/5 font-bold border-none"
+              className={`flex-1 h-14 rounded-full font-bold border-none transition-colors ${isAdded ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-transparent text-foreground hover:bg-black/5 dark:hover:bg-white/5'}`}
             >
-              Add to Cart
+              {isAdded ? 'Added! ✓' : 'Add to Cart'}
             </Button>
             <Button 
               onClick={handleBuyNow}
@@ -425,12 +474,6 @@ export default function FashionPDP() {
                 >
                   <ShoppingBag className="w-4 h-4 mr-2" /> Checkout
                 </Button>
-                <button 
-                  onClick={() => setShowCartOverlay(false)}
-                  className="w-10 h-10 bg-muted/50 rounded-full flex items-center justify-center hover:bg-muted"
-                >
-                  <span className="font-bold text-lg leading-none">&times;</span>
-                </button>
               </div>
             </div>
             
@@ -441,14 +484,6 @@ export default function FashionPDP() {
               ) : (
                 cartItems.map(cartItem => (
                   <div key={cartItem.id} className="relative flex gap-4 items-center bg-white dark:bg-background p-3 rounded-[20px] shadow-sm border border-border/30">
-                    <button 
-                      onClick={() => removeItem(cartItem.id)} 
-                      className="absolute -top-2 -right-2 w-6 h-6 bg-white dark:bg-card border border-border/50 rounded-full flex items-center justify-center text-muted-foreground hover:text-red-500 shadow-sm z-10 transition-colors"
-                      aria-label="Remove item"
-                    >
-                      <Minus className="w-3 h-3 rotate-45" />
-                    </button>
-
                     <div className="w-20 h-20 rounded-[16px] p-2 flex-shrink-0" style={{ backgroundColor: item?.brandColor || '#FDBA74' }}>
                       <ImageWithFallback src={cartItem.imageUrl} alt={cartItem.name} className="w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal" />
                     </div>
@@ -458,8 +493,17 @@ export default function FashionPDP() {
                       <p className="text-xs text-muted-foreground mt-1">Size {selectedSize || 'N/A'}, {selectedColor || 'Default'}</p>
                     </div>
                     
-                    <div className="bg-black dark:bg-white text-white dark:text-black font-bold px-4 py-2 rounded-full text-xs shadow-md shrink-0">
-                      ${Math.floor(cartItem.price / 100)} {/* Mocking USD price for visual parity with inspo, real price in summary */}
+                    <div className="flex flex-col items-end justify-between h-full py-1 shrink-0">
+                      <button 
+                        onClick={() => removeItem(cartItem.id)} 
+                        className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-red-500 bg-muted/30 hover:bg-red-50 rounded-full transition-colors mb-2"
+                        aria-label="Remove item"
+                      >
+                        <span className="text-xs font-bold leading-none">&times;</span>
+                      </button>
+                      <div className="bg-black dark:bg-white text-white dark:text-black font-bold px-4 py-1.5 rounded-full text-xs shadow-md">
+                        ${Math.floor(cartItem.price / 100)} {/* Mocking USD price for visual parity with inspo */}
+                      </div>
                     </div>
                   </div>
                 ))

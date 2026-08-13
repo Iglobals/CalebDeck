@@ -155,8 +155,8 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       <SEO
-        title="CalebDeck — Smart Campus Food, Grocery & Digital Services | Caleb University"
-        description="CalebDeck is the smart campus platform for Caleb University. Order cafeteria food, shop groceries on CalebDeck Mart, explore CalebDeck Fashion, and buy cheap student data with CalebNet."
+        title="CalebDeck — Smart Campus Food, Grocery, Fashion & Digital Services | Caleb University"
+        description="CalebDeck is the smart campus platform for Caleb University. Order cafeteria food, shop groceries on CalebDeck Mart, explore CalebDeck Fashion, CalebDeck Gadgets, CalebDeck Business, and buy cheap student data with CalebNet."
         canonical="https://calebdeck.com/"
         jsonLd={{
           '@type': 'LocalBusiness',
@@ -169,7 +169,18 @@ export default function LandingPage() {
           geo: { '@type': 'GeoCoordinates', latitude: 6.6433, longitude: 3.6593 },
           parentOrganization: { '@id': 'https://iglobalstech.com.ng/#organization' },
           sameAs: ['https://x.com/iglobalstechinc'],
-          description: 'Smart campus food delivery, grocery, exclusive fashion, and digital services for Caleb University students. A product of IGLOBALS TECHNOLOGY.'
+          description: 'Smart campus food delivery, grocery, exclusive fashion, gadgets, business services, and digital services for Caleb University students. A product of IGLOBALS TECHNOLOGY.',
+          hasOfferCatalog: {
+            '@type': 'OfferCatalog',
+            name: 'CalebDeck Services',
+            itemListElement: [
+              { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'CalebDeck Mart' } },
+              { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'CalebDeck Fashion' } },
+              { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'CalebDeck Gadgets' } },
+              { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'CalebDeck Business' } },
+              { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'CalebNet' } }
+            ]
+          }
         }}
       />
 
@@ -615,6 +626,9 @@ export default function LandingPage() {
               </div>
               <div className="flex flex-wrap justify-center gap-6 sm:gap-10 text-sm font-semibold uppercase tracking-wider">
                 <Link to="/calebdeck-mart" className="text-muted-foreground hover:text-[#10B981] transition-colors">CalebDeck Mart</Link>
+                <Link to="/fashion" className="text-muted-foreground hover:text-[#F97316] transition-colors">Fashion</Link>
+                <Link to="/gadgets" className="text-muted-foreground hover:text-blue-400 transition-colors">Gadgets</Link>
+                <Link to="/business" className="text-muted-foreground hover:text-purple-400 transition-colors">Business</Link>
                 <Link to="/calebnet-info" className="text-muted-foreground hover:text-blue-500 transition-colors">CalebNet</Link>
                 <Link to="/privacy" className="text-muted-foreground hover:text-secondary transition-colors">Privacy</Link>
                 <Link to="/terms" className="text-muted-foreground hover:text-secondary transition-colors">Terms</Link>
