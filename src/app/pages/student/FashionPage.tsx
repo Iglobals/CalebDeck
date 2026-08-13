@@ -245,10 +245,10 @@ export default function FashionPage() {
             {filteredItems.map((item) => {
               return (
                 <Link to={`/fashion/product/${item.id}`} key={item.id} className="block group">
-                  <div className="bg-card rounded-[32px] p-4 shadow-sm border border-border/50 transition-all hover:shadow-md">
+                  <div className="bg-[#F8F9FA] dark:bg-[#1C1C1C] rounded-[32px] p-2 sm:p-2.5 shadow-sm border border-border/50 transition-all hover:shadow-md flex flex-col gap-2">
                     {/* Image Area */}
                     <div 
-                      className="relative aspect-square rounded-[24px] overflow-hidden mb-4 flex items-center justify-center p-4 transition-colors"
+                      className="relative aspect-square rounded-[24px] overflow-hidden flex items-center justify-center p-4 transition-colors"
                       style={{ backgroundColor: item.brandColor || '#FDBA74' }}
                     >
                       <ImageWithFallback 
@@ -264,14 +264,14 @@ export default function FashionPage() {
                     </div>
 
                     {/* Details Area */}
-                    <div className="flex justify-between items-start gap-4 px-2">
+                    <div className="flex justify-between items-start gap-2 bg-card p-4 rounded-[24px] shadow-sm border border-border/20">
                       <div className="flex-1">
                         <h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight mb-1">{item.name}</h3>
-                        <p className="text-xs text-muted-foreground">{item.category}</p>
+                        <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{item.category}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-xs text-muted-foreground mb-0.5">Price</p>
-                        <p className="font-bold text-sm sm:text-base">₦{item.price.toLocaleString()}</p>
+                        <p className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider font-bold">Price</p>
+                        <p className="font-black text-sm sm:text-base text-primary">₦{item.price.toLocaleString()}</p>
                       </div>
                     </div>
                   </div>

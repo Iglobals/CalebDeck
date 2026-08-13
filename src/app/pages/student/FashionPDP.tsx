@@ -178,7 +178,7 @@ export default function FashionPDP() {
   const allImages = item.thumbnails?.length ? [item.imageUrl, ...item.thumbnails.filter(t => t !== item.imageUrl)] : [item.imageUrl];
 
   return (
-    <div className="h-[100dvh] w-full overflow-hidden relative bg-background text-foreground md:bg-muted/10 selection:bg-amber-500/30">
+    <div className="fixed inset-0 w-full overflow-hidden bg-[#F5F5F5] dark:bg-[#121212] text-foreground selection:bg-amber-500/30">
       <SEO
         title={`${item.name} | Fashion`}
         description={item.description || `Buy ${item.name}`}
@@ -188,7 +188,7 @@ export default function FashionPDP() {
 
       {/* Hero Image Section (Fixed for Mobile, Standard for Desktop) */}
       <div 
-        className="absolute top-0 left-0 right-0 h-[55dvh] md:h-[100dvh] md:w-1/2 transition-colors rounded-b-[32px] md:rounded-b-none shadow-sm z-0"
+        className="absolute top-0 left-0 right-0 h-[52dvh] md:h-[100dvh] md:w-1/2 transition-colors rounded-b-[40px] md:rounded-b-none shadow-sm z-0"
         style={{ backgroundColor: item.brandColor || '#FDBA74' }}
       >
         {/* Transparent Header */}
@@ -240,7 +240,7 @@ export default function FashionPDP() {
       </div>
 
       {/* Bottom Sheet / Content Side (Scrollable) */}
-      <div className="absolute bottom-0 left-0 right-0 h-[52dvh] md:h-[100dvh] md:left-[50%] md:w-1/2 bg-card rounded-t-[32px] md:rounded-none px-6 pt-8 pb-32 overflow-y-auto shadow-[0_-8px_30px_rgb(0,0,0,0.05)] md:shadow-none z-10">
+      <div className="absolute top-[53.5dvh] bottom-0 left-0 right-0 md:top-0 md:h-[100dvh] md:left-[50%] md:w-1/2 bg-card rounded-t-[40px] md:rounded-none px-6 pt-8 pb-32 overflow-y-auto shadow-[0_-8px_30px_rgb(0,0,0,0.05)] md:shadow-none z-10">
         
         {/* Header Row: Title & Stepper */}
         <div className="flex justify-between items-start gap-4 mb-2">
