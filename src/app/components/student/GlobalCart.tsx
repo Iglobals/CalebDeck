@@ -20,7 +20,7 @@ export function GlobalCart() {
   }
 
   return (
-    <div className="fixed top-4 right-4 z-50">
+    <div className="fixed top-[max(1rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))] z-50">
       <Link 
         id="global-cart"
         to="/mart/cart" 

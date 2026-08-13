@@ -24,6 +24,11 @@ const CLOSED_MESSAGES = {
     'Mart orders are paused while inventory is being updated. Please check back shortly.',
     'The Mart is taking a quick break to restock and organize available items.'
   ],
+  fashion: [
+    'CalebDeck Fashion is currently closed. New collections are dropping soon!',
+    'Fashion orders are paused. Please check back shortly.',
+    'Fashion is taking a quick break to restock styles.'
+  ],
   calebNet: [
     'CalebNet is temporarily unavailable while we update plans and provider availability.',
     'Data and airtime purchases are paused for a quick service check. Please try again shortly.',
@@ -35,6 +40,7 @@ const DEFAULT_MESSAGES = {
   global: CLOSED_MESSAGES.global[0],
   food: CLOSED_MESSAGES.food[0],
   mart: CLOSED_MESSAGES.mart[0],
+  fashion: CLOSED_MESSAGES.fashion[0],
   calebNet: CLOSED_MESSAGES.calebNet[0]
 };
 
@@ -46,16 +52,22 @@ export default function AdminSettings() {
   const [globalMessage, setGlobalMessage] = useState(DEFAULT_MESSAGES.global);
   const [foodMessage, setFoodMessage] = useState(DEFAULT_MESSAGES.food);
   const [martMessage, setMartMessage] = useState(DEFAULT_MESSAGES.mart);
+  const [fashionMessage, setFashionMessage] = useState(DEFAULT_MESSAGES.fashion);
   const [calebNetMessage, setCalebNetMessage] = useState(DEFAULT_MESSAGES.calebNet);
+  const [fashionOpenHour, setFashionOpenHour] = useState<string>('0');
+  const [fashionCloseHour, setFashionCloseHour] = useState<string>('24');
 
   useEffect(() => {
     const unsub = subscribeToPlatformSettings((data) => {
       setPlatformSettings(data);
       if (data.systemOpeningHour !== undefined) setOpeningHour(data.systemOpeningHour.toString());
       if (data.systemClosingHour !== undefined) setClosingHour(data.systemClosingHour.toString());
+      if (data.fashionOpeningHour !== undefined) setFashionOpenHour(data.fashionOpeningHour.toString());
+      if (data.fashionClosingHour !== undefined) setFashionCloseHour(data.fashionClosingHour.toString());
       setGlobalMessage(data.globalClosedMessage || DEFAULT_MESSAGES.global);
       setFoodMessage(data.foodOrderingClosedMessage || DEFAULT_MESSAGES.food);
       setMartMessage(data.martClosedMessage || DEFAULT_MESSAGES.mart);
+      setFashionMessage(data.fashionClosedMessage || DEFAULT_MESSAGES.fashion);
       setCalebNetMessage(data.calebNetClosedMessage || DEFAULT_MESSAGES.calebNet);
     });
     return () => unsub();
@@ -65,6 +77,8 @@ export default function AdminSettings() {
   const isAcceptingOrders = platformSettings?.isAcceptingOrders !== false; // defaults to true
   const isFoodOrderingClosed = platformSettings?.isFoodOrderingClosed === true;
   const isMartComingSoon = platformSettings?.isMartComingSoon === true;
+  const isFashionAcceptingOrders = platformSettings?.isFashionAcceptingOrders !== false;
+  const isFashionComingSoon = platformSettings?.isFashionComingSoon === true;
   const isCalebNetComingSoon = platformSettings?.isCalebNetComingSoon !== false; // defaults to true
   const isIPizzaComingSoon = platformSettings?.isIPizzaComingSoon !== false; // defaults to true
 
@@ -116,12 +130,36 @@ export default function AdminSettings() {
     }
   };
 
+  const handleToggleFashion = async () => {
+    if (!confirm(`Are you sure you want to ${isFashionAcceptingOrders ? 'CLOSE' : 'OPEN'} Fashion?`)) return;
+    try {
+      await updatePlatformSettings({
+        isFashionAcceptingOrders: !isFashionAcceptingOrders,
+        fashionClosedMessage: fashionMessage.trim() || DEFAULT_MESSAGES.fashion
+      });
+    } catch (err) {
+      console.error('Failed to update Fashion maintenance mode:', err);
+    }
+  };
+
+  const handleToggleFashionComingSoon = async () => {
+    if (!confirm(`Are you sure you want to ${isFashionComingSoon ? 'LAUNCH' : 'SET COMING SOON FOR'} Fashion?`)) return;
+    try {
+      await updatePlatformSettings({
+        isFashionComingSoon: !isFashionComingSoon
+      });
+    } catch (err) {
+      console.error('Failed to update Fashion coming soon mode:', err);
+    }
+  };
+
   const saveClosedMessages = async () => {
     try {
       await updatePlatformSettings({
         globalClosedMessage: globalMessage.trim() || DEFAULT_MESSAGES.global,
         foodOrderingClosedMessage: foodMessage.trim() || DEFAULT_MESSAGES.food,
         martClosedMessage: martMessage.trim() || DEFAULT_MESSAGES.mart,
+        fashionClosedMessage: fashionMessage.trim() || DEFAULT_MESSAGES.fashion,
         calebNetClosedMessage: calebNetMessage.trim() || DEFAULT_MESSAGES.calebNet
       });
       alert('Closed messages saved successfully.');
@@ -184,13 +222,19 @@ export default function AdminSettings() {
   const handleUpdateHours = async () => {
     const open = parseInt(openingHour);
     const close = parseInt(closingHour);
-    if (isNaN(open) || isNaN(close) || open < 0 || open > 23 || close < 0 || close > 23) {
-      alert('Please enter valid hours between 0 and 23.');
+    const fOpen = parseInt(fashionOpenHour);
+    const fClose = parseInt(fashionCloseHour);
+    if (isNaN(open) || isNaN(close) || open < 0 || open > 23 || close < 0 || close > 23 ||
+        isNaN(fOpen) || isNaN(fClose) || fOpen < 0 || fOpen > 23 || fClose < 0 || fClose > 24) {
+      alert('Please enter valid hours.');
       return;
     }
-    if (!confirm(`Are you sure you want to update operating hours to ${open}:00 - ${close}:00?`)) return;
+    if (!confirm(`Are you sure you want to update operating hours?`)) return;
     try {
-      await updatePlatformSettings({ systemOpeningHour: open, systemClosingHour: close });
+      await updatePlatformSettings({ 
+        systemOpeningHour: open, systemClosingHour: close,
+        fashionOpeningHour: fOpen, fashionClosingHour: fClose
+      });
       alert('Operating hours updated successfully.');
     } catch (err) {
       console.error('Failed to update operating hours:', err);
@@ -348,6 +392,54 @@ export default function AdminSettings() {
             </Button>
           </Card>
 
+          {/* CalebDeck Fashion Toggle */}
+          <Card className={`p-6 border-l-4 ${isFashionAcceptingOrders ? (isFashionComingSoon ? 'border-l-yellow-500' : 'border-l-green-500') : 'border-l-red-500'}`}>
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className={`p-3 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                  <Store className={`w-6 h-6 ${isFashionAcceptingOrders ? (isFashionComingSoon ? 'text-yellow-500' : 'text-green-500') : 'text-red-500'}`} />
+                </div>
+                <div>
+                  <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>CalebDeck Fashion</h3>
+                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Fashion Availability</p>
+                </div>
+              </div>
+            </div>
+            <div className="mb-6">
+              {isFashionAcceptingOrders ? (
+                isFashionComingSoon ? (
+                  <Badge className="bg-yellow-100 text-yellow-700 mb-2">Coming Soon Gate</Badge>
+                ) : (
+                  <Badge className="bg-green-100 text-green-700 mb-2">Fashion Open</Badge>
+                )
+              ) : (
+                <Badge className="bg-red-100 text-red-700 mb-2">Fashion Closed</Badge>
+              )}
+              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                {isFashionAcceptingOrders 
+                  ? (isFashionComingSoon ? 'Fashion shows Coming Soon overlay.' : 'Fashion is open for orders.')
+                  : 'Fashion is completely closed.'}
+              </p>
+              {messageTools(fashionMessage, setFashionMessage, CLOSED_MESSAGES.fashion)}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant={!isFashionAcceptingOrders ? "primary" : "danger"}
+                className="flex-1"
+                onClick={handleToggleFashion}
+              >
+                {!isFashionAcceptingOrders ? 'Open' : 'Close'}
+              </Button>
+              <Button
+                variant={isFashionComingSoon ? "primary" : "outline"}
+                className="flex-1"
+                onClick={handleToggleFashionComingSoon}
+              >
+                {isFashionComingSoon ? 'Launch' : 'Set Coming Soon'}
+              </Button>
+            </div>
+          </Card>
+
           {/* CalebNet Toggle */}
           <Card className={`p-6 border-l-4 ${!isCalebNetComingSoon ? 'border-l-green-500' : 'border-l-blue-500'}`}>
             <div className="flex items-start justify-between mb-4">
@@ -462,6 +554,31 @@ export default function AdminSettings() {
               <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                 Set to 0 and 24 to keep the system open 24/7. Current schedule is from {platformSettings?.systemOpeningHour ?? 10}:00 to {platformSettings?.systemClosingHour ?? 18}:00.
               </p>
+            </div>
+            <div className="mb-6 space-y-3 pt-4 border-t">
+              <h4 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Fashion Hours</h4>
+              <div>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Fashion Opening Hour</label>
+                <input 
+                  type="number" min="0" max="23"
+                  value={fashionOpenHour}
+                  onChange={(e) => setFashionOpenHour(e.target.value)}
+                  className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                    isDark ? 'bg-[#2A2A2A] border-[#333333] text-white placeholder-gray-500' : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400'
+                  }`}
+                />
+              </div>
+              <div>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Fashion Closing Hour</label>
+                <input 
+                  type="number" min="0" max="24"
+                  value={fashionCloseHour}
+                  onChange={(e) => setFashionCloseHour(e.target.value)}
+                  className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                    isDark ? 'bg-[#2A2A2A] border-[#333333] text-white placeholder-gray-500' : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400'
+                  }`}
+                />
+              </div>
             </div>
             <Button
               variant="primary"

@@ -188,7 +188,7 @@ export default function FashionPDP() {
 
       {/* Hero Image Section (Fixed for Mobile, Standard for Desktop) */}
       <div 
-        className="absolute top-0 left-0 right-0 h-[55dvh] md:h-[100dvh] md:w-1/2 transition-colors"
+        className="absolute top-0 left-0 right-0 h-[55dvh] md:h-[100dvh] md:w-1/2 transition-colors rounded-b-[32px] md:rounded-b-none shadow-sm z-0"
         style={{ backgroundColor: item.brandColor || '#FDBA74' }}
       >
         {/* Transparent Header */}
@@ -217,7 +217,7 @@ export default function FashionPDP() {
           <ImageWithFallback
             src={activeThumbnail}
             alt={item.name}
-            className="w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal drop-shadow-2xl transition-all duration-300"
+            className="w-full h-full object-contain mix-blend-multiply drop-shadow-2xl transition-all duration-300"
           />
         </div>
 
@@ -267,36 +267,34 @@ export default function FashionPDP() {
           </div>
         </div>
 
-        {/* Price Row */}
-        <div className="mb-8">
-          <p className="text-muted-foreground text-sm mb-1">From:</p>
-          <p className="text-2xl font-bold">₦{item.price.toLocaleString()}</p>
-        </div>
+        {/* Price & Color Row */}
+        <div className="flex justify-between items-end mb-8">
+          <div>
+            <p className="text-muted-foreground text-sm mb-1">From:</p>
+            <p className="text-2xl sm:text-3xl font-bold">₦{item.price.toLocaleString()}</p>
+          </div>
 
-        {/* Color Selection (Circles) */}
-        {item.colors && item.colors.length > 0 && (
-          <div className="mb-8">
-            <p className="font-semibold mb-3">Select Color</p>
-            <div className="flex gap-3">
+          {/* Color Selection (Circles) */}
+          {item.colors && item.colors.length > 0 && (
+            <div className="flex gap-2">
               {item.colors.map(color => (
                 <button
                   key={color}
                   onClick={() => setSelectedColor(color)}
-                  className={`w-10 h-10 rounded-full border-[3px] transition-all flex items-center justify-center ${
+                  className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full border-[3px] transition-all flex items-center justify-center ${
                     selectedColor === color ? 'border-primary scale-110 shadow-sm' : 'border-transparent shadow-sm'
                   }`}
                   style={{ backgroundColor: color }}
                   aria-label={`Select color ${color}`}
                 >
-                  {/* Inner ring for selected state to look like inspo */}
                   {selectedColor === color && (
-                    <span className="w-8 h-8 rounded-full border-2 border-background mix-blend-difference" />
+                    <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 border-background mix-blend-difference" />
                   )}
                 </button>
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Size Selection (Pills) */}
         {item.sizes && item.sizes.length > 0 && (

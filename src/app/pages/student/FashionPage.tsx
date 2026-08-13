@@ -254,7 +254,7 @@ export default function FashionPage() {
                       <ImageWithFallback 
                         src={item.imageUrl} 
                         alt={item.name}
-                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-700 mix-blend-multiply dark:mix-blend-normal"
+                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-700 mix-blend-multiply"
                       />
                       {!item.inStock && (
                         <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] flex items-center justify-center">

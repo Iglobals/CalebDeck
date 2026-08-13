@@ -119,7 +119,8 @@ export function SignedInHome() {
     return cartItems.find(i => i.id === itemId)?.quantity || 0;
   };
 
-  const displayName = user?.displayNameFromProfile || user?.fullName?.split(' ')[0] || user?.email?.split('@')[0] || 'Student';
+  const rawName = user?.displayNameFromProfile || user?.fullName || user?.email?.split('@')[0] || 'Student';
+  const displayName = rawName.split(' ')[0];
   const money = (amount: number) => `₦${amount.toLocaleString()}`;
 
   return (
