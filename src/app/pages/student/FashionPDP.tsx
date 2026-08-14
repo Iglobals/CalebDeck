@@ -157,8 +157,7 @@ export default function FashionPDP() {
         price: item.price,
         imageUrl: item.imageUrl,
         category: item.category,
-        productType: 'FASHION',
-        quantity: quantity // Assuming the context supports a quantity param, otherwise it adds 1 and we update
+        productType: 'fashion'
       });
       
       // Update quantity if greater than 1
@@ -282,23 +281,26 @@ export default function FashionPDP() {
         </div>
       )}
 
-      {/* Hero Image Section (Fixed for Mobile, Standard for Desktop) */}
+      {/* Top Card: Hero Image Section (Fixed, Stacked Container 1) */}
       <div 
-        className="absolute top-0 left-0 right-0 h-[52dvh] md:h-[100dvh] md:w-1/2 transition-colors rounded-b-[40px] md:rounded-b-none shadow-sm z-0"
+        className="absolute top-0 left-0 right-0 h-[46dvh] md:h-[100dvh] md:w-1/2 transition-colors rounded-b-[32px] md:rounded-b-none shadow-md z-0 overflow-hidden"
         style={{ backgroundColor: item.brandColor || '#FDBA74' }}
       >
-        {/* Transparent Header */}
-        <header className="absolute top-[env(safe-area-inset-top)] left-0 right-0 z-40 px-4 pt-4 sm:px-6 flex items-center justify-between">
+        {/* Transparent Header with Safe Area Top */}
+        <header 
+          className="absolute top-0 left-0 right-0 z-40 px-4 sm:px-6 flex items-center justify-between"
+          style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
+        >
           <button 
             onClick={() => navigate('/fashion')}
-            className="w-10 h-10 bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/50 transition-colors"
+            className="w-10 h-10 bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/50 transition-colors shadow-sm"
           >
             <ArrowLeft className="w-5 h-5 text-black" />
           </button>
           
           <span className="font-bold text-black/80">Details</span>
           
-          <Link to="/mart/cart" ref={cartIconRef} className="relative w-10 h-10 bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/50 transition-colors">
+          <Link to="/mart/cart" ref={cartIconRef} className="relative w-10 h-10 bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/50 transition-colors shadow-sm">
             <ShoppingBag className="w-5 h-5 text-black" />
             {totalItems > 0 && (
               <span className="absolute top-0 right-0 w-4 h-4 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
@@ -335,8 +337,9 @@ export default function FashionPDP() {
         )}
       </div>
 
-      {/* Bottom Sheet / Content Side (Scrollable) */}
-      <div className="absolute top-[53.5dvh] bottom-0 left-0 right-0 md:top-0 md:h-[100dvh] md:left-[50%] md:w-1/2 bg-card rounded-t-[40px] md:rounded-none px-6 pt-8 pb-32 overflow-y-auto shadow-[0_-8px_30px_rgb(0,0,0,0.05)] md:shadow-none z-10">
+      {/* Bottom Card: Info Panel (Stacked Container 2 - Fixed position, internal scroll only) */}
+      <div className="absolute top-[48dvh] bottom-0 left-0 right-0 md:top-0 md:h-[100dvh] md:left-[50%] md:w-1/2 bg-card border-t border-border/60 rounded-t-[32px] md:rounded-none shadow-[0_-10px_30px_rgba(0,0,0,0.08)] md:shadow-none flex flex-col z-10 overflow-hidden">
+        <div className="flex-1 overflow-y-auto px-6 pt-8 pb-32 space-y-6">
         
         {/* Header Row: Title & Stepper */}
         <div className="flex justify-between items-start gap-4 mb-2">
@@ -422,9 +425,13 @@ export default function FashionPDP() {
           </p>
         </div>
       </div>
+    </div>
 
-      {/* Sticky Bottom Actions - Floating Glass Pill */}
-      <div className="absolute bottom-0 left-0 right-0 md:left-[50%] z-40 pb-[env(safe-area-inset-bottom)] pointer-events-none">
+      {/* Sticky Bottom Actions - Floating Glass Pill with Safe Area Bottom */}
+      <div 
+        className="absolute bottom-0 left-0 right-0 md:left-[50%] z-40 pointer-events-none"
+        style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+      >
         <div className="px-6 mb-4 sm:mb-6 pointer-events-auto">
           <div className="flex items-center gap-2 bg-white/70 dark:bg-black/70 backdrop-blur-xl border border-white/40 dark:border-white/10 p-2 rounded-[2rem] shadow-xl">
             <Button 

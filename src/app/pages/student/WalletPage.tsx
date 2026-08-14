@@ -141,7 +141,11 @@ export default function WalletPage() {
 
     return (
         <div className="min-h-screen bg-background text-foreground transition-colors duration-300 pb-24">
-            <SEO title="My Wallet - CalebDeck" robots="noindex,follow" />
+            <SEO 
+                title="My Wallet - CalebDeck" 
+                description="Manage your CalebDeck i-CON wallet balance, review transaction history, and perform instant top-ups." 
+                robots="noindex,follow" 
+            />
             
             <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">

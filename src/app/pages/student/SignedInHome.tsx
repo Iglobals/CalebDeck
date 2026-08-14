@@ -29,9 +29,36 @@ const LOCAL_BUSINESSES = [
 ];
 
 const PROMO_SLIDES = [
-  { id: 'slide1', bgClass: 'bg-primary' },
-  { id: 'slide2', bgClass: 'bg-primary/90' },
-  { id: 'slide3', bgClass: 'bg-primary/80' }
+  { 
+    id: 'slide-mart',
+    badge: 'Mart Live',
+    title: 'CalebDeck Mart',
+    tagline: 'Groceries and essentials delivered straight to your hostel.',
+    gradient: 'from-[#047857] via-[#10B981] to-[#022c22]',
+    logoUrl: '/avaters/calebdeck-business-logo-transparent.png',
+    link: '/mart',
+    buttonText: 'Shop Mart'
+  },
+  { 
+    id: 'slide-fashion',
+    badge: 'Fashion Drops',
+    title: 'CalebDeck Fashion',
+    tagline: 'Exclusive campus merch, hoodies & trendsetting apparel.',
+    gradient: 'from-[#6D28D9] via-[#8B5CF6] to-[#2e1065]',
+    logoUrl: '/avaters/calebdeck-fashion-logo-transparent.png',
+    link: '/fashion',
+    buttonText: 'Explore Styles'
+  },
+  { 
+    id: 'slide-calebnet',
+    badge: 'Campus Data',
+    title: 'CalebNet Instant Topup',
+    tagline: 'Discounted mobile data for MTN, Glo & Airtel from your wallet.',
+    gradient: 'from-[#1D4ED8] via-[#3B82F6] to-[#172554]',
+    logoUrl: '/avaters/calebdeck-business-logo-transparent.png',
+    link: '/calebnet',
+    buttonText: 'Buy Data'
+  }
 ];
 
 export function SignedInHome() {
@@ -189,27 +216,48 @@ export function SignedInHome() {
         </div>
 
         {/* Promo Carousel */}
-        <div className={`relative rounded-[2rem] overflow-hidden ${PROMO_SLIDES[currentSlide].bgClass} text-primary-foreground p-8 shadow-xl transition-colors duration-500`}>
-          {/* Placeholder for the real product photo background - currently just uses the color class above */}
-          <div className="absolute inset-0 bg-black/10 z-0"></div>
-          
-          <div className="relative z-10 max-w-[70%]">
-            <Badge variant="gray" className="bg-white/20 text-white font-bold border-none mb-3 backdrop-blur-md">New!</Badge>
-            <h2 className="text-2xl font-black mb-2 leading-tight">CalebDeck Mart is live!</h2>
-            <p className="font-bold opacity-90 mb-4 text-sm">Groceries and essentials delivered to your hostel.</p>
-            <Link to="/mart">
-              <Button variant="secondary" className="bg-background text-foreground hover:bg-muted border-none font-bold rounded-xl text-xs py-2 px-4 h-auto shadow-md">Shop Now</Button>
-            </Link>
-          </div>
-          <ShoppingBag className="absolute right-6 top-1/2 -translate-y-1/2 w-32 h-32 text-black/10 pointer-events-none z-0" />
-          
-          {/* Carousel indicators */}
-          <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
-            {PROMO_SLIDES.map((_, idx) => (
-              <div key={idx} className={`w-2 h-2 rounded-full transition-all ${idx === currentSlide ? 'bg-white w-4' : 'bg-white/50'}`}></div>
-            ))}
-          </div>
-        </div>
+        {(() => {
+          const activeSlide = PROMO_SLIDES[currentSlide];
+          return (
+            <div className={`relative rounded-[2rem] overflow-hidden bg-gradient-to-r ${activeSlide.gradient} text-white p-8 shadow-xl transition-all duration-700 min-h-[190px] flex items-center`}>
+              {/* Solid left gradient fading into logo on right */}
+              <div className="relative z-10 max-w-[65%]">
+                <Badge variant="gray" className="bg-white/20 text-white font-bold border-none mb-3 backdrop-blur-md">
+                  {activeSlide.badge}
+                </Badge>
+                <h2 className="text-2xl font-black mb-2 leading-tight drop-shadow-sm">{activeSlide.title}</h2>
+                <p className="font-medium text-white/90 mb-4 text-xs sm:text-sm leading-relaxed">{activeSlide.tagline}</p>
+                <Link to={activeSlide.link}>
+                  <Button variant="secondary" className="bg-white text-gray-900 hover:bg-gray-100 border-none font-bold rounded-xl text-xs py-2.5 px-5 h-auto shadow-lg">
+                    {activeSlide.buttonText}
+                  </Button>
+                </Link>
+              </div>
+
+              {/* Right Side Transparent Brand Asset */}
+              <div className="absolute right-[-10px] top-1/2 -translate-y-1/2 w-48 h-48 opacity-25 dark:opacity-35 pointer-events-none z-0 transition-opacity duration-700">
+                <img 
+                  src={activeSlide.logoUrl} 
+                  alt="" 
+                  aria-hidden="true"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              
+              {/* Carousel indicators */}
+              <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
+                {PROMO_SLIDES.map((_, idx) => (
+                  <button 
+                    key={idx} 
+                    onClick={() => setCurrentSlide(idx)}
+                    className={`h-2 rounded-full transition-all ${idx === currentSlide ? 'bg-white w-6' : 'bg-white/40 w-2'}`}
+                    aria-label={`Go to slide ${idx + 1}`}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Cross-Product Preview Cards */}
         <div>

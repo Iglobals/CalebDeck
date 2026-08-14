@@ -7,7 +7,7 @@ export interface CartItem {
   quantity: number;
   imageUrl: string;
   category: string;
-  productType?: 'MART' | 'FASHION';
+  productType?: 'mart' | 'fashion' | 'gadgets' | 'food' | 'MART' | 'FASHION';
 }
 
 interface MartCartContextType {

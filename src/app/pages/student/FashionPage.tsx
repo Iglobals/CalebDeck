@@ -187,19 +187,37 @@ export default function FashionPage() {
         </div>
       )}
 
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md pt-4 pb-2 px-4 sm:px-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      {/* Header with Purple Gradient & Logo Watermark Zone */}
+      <header className="relative bg-gradient-to-b from-purple-900/10 via-purple-600/5 to-transparent border-b border-border/40 backdrop-blur-md pb-4 px-4 sm:px-6 overflow-hidden" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
+        {/* Subtle Watermark Logo */}
+        <img 
+          src="/avaters/calebdeck-fashion-logo-transparent.png" 
+          alt="" 
+          aria-hidden="true"
+          className="absolute -right-6 -top-6 w-48 h-48 opacity-10 dark:opacity-20 pointer-events-none select-none object-contain"
+        />
+
+        <div className="max-w-7xl mx-auto flex items-center justify-between relative z-10">
           <button 
             onClick={() => navigate('/')}
-            className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors"
+            className="p-2 -ml-2 rounded-full hover:bg-muted/80 transition-colors"
           >
             <ArrowLeft className="w-6 h-6" />
           </button>
           
-          <h1 className="text-xl font-bold">Fashion</h1>
+          <div className="flex items-center gap-2">
+            <img src="/avaters/calebdeck-fashion-logo-transparent.png" alt="Fashion Logo" className="w-6 h-6 object-contain" />
+            <h1 className="text-xl font-black tracking-tight">Fashion</h1>
+          </div>
           
-          <div className="w-10"></div> {/* Spacer to keep title centered */}
+          <Link to="/mart/cart" className="relative p-2 rounded-full hover:bg-muted/80 transition-colors">
+            <ShoppingBag className="w-6 h-6" />
+            {totalItems > 0 && (
+              <span className="absolute top-0 right-0 w-4 h-4 bg-purple-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                {totalItems}
+              </span>
+            )}
+          </Link>
         </div>
       </header>
 

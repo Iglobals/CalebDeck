@@ -34,33 +34,23 @@ export default function MartCart() {
       ? (platformSettings?.globalClosedMessage || 'CalebDeck is temporarily paused while we make a quick operational update. Please check back shortly.')
       : `CalebDeck Mart checkout is currently closed. Operating hours are ${openingHour}:00 to ${closingHour}:00.`;
 
-  if (items.length === 0) {
-    return (
-      <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 text-center">
-        <SEO
-          title="Your Cart - CalebDeck Mart"
-          description="Review your CalebDeck Mart cart before checking out for hostel delivery on Caleb University campus."
-          canonical="https://calebdeck.com/mart/cart"
-          robots="noindex,follow"
-        />
-        <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-6">
-          <ShoppingBag className="w-12 h-12 text-muted-foreground" />
-        </div>
-        <h1 className="text-2xl font-bold mb-2">Your cart is empty</h1>
-        <p className="max-w-md text-muted-foreground mb-8">Add snacks, drinks, groceries, or hostel essentials from CalebDeck Mart and review them here before checkout.</p>
-        <Link to="/mart" replace>
-          <Button variant="primary" className="px-8 py-3 rounded-xl bg-[#10B981] hover:bg-[#059669]">
-            Start Shopping
-          </Button>
-        </Link>
-      </div>
-    );
-  }
+  const fashionOpeningHour = platformSettings?.fashionOpeningHour ?? 0;
+  const fashionClosingHour = platformSettings?.fashionClosingHour ?? 24;
+  const isFashionOutOfHours = currentHour < fashionOpeningHour || currentHour >= fashionClosingHour;
+  const isFashionClosed = !!platformSettings && (isFashionOutOfHours || platformSettings?.isFashionAcceptingOrders === false || platformSettings?.isFashionComingSoon === true) && !isDev;
 
-  const hasFashionItems = items.some(item => ['Apparel', 'Accessories', 'Footwear', 'Merch'].includes(item.category));
-  const hasMartItems = items.some(item => !['Apparel', 'Accessories', 'Footwear', 'Merch'].includes(item.category));
-  
-  // If it's exclusively fashion, route to fashion checkout
+  const fashionItemsInCart = items.filter(item => item.productType === 'fashion' || ['Apparel', 'Accessories', 'Footwear', 'Merch'].includes(item.category));
+  const martItemsInCart = items.filter(item => item.productType === 'mart' || (!['Apparel', 'Accessories', 'Footwear', 'Merch'].includes(item.category) && item.productType !== 'fashion'));
+
+  const hasFashionItems = fashionItemsInCart.length > 0;
+  const hasMartItems = martItemsInCart.length > 0;
+
+  // Determine if checkout is blocked for the active items
+  const isMartItemsBlocked = hasMartItems && isMartClosed;
+  const isFashionItemsBlocked = hasFashionItems && isFashionClosed;
+  const isCheckoutBlocked = (hasMartItems && isMartItemsBlocked) || (hasFashionItems && isFashionItemsBlocked) || (isMartClosed && isFashionClosed);
+
+  // Default route to fashion checkout if only fashion items exist
   const checkoutRoute = (hasFashionItems && !hasMartItems) ? '/fashion/checkout' : '/mart/checkout';
 
   const total = subtotal + MART_DELIVERY_FEE;
@@ -88,52 +78,64 @@ export default function MartCart() {
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
         <div className="bg-card border-2 border-border rounded-3xl overflow-hidden mb-8">
           <ul className="divide-y divide-border">
-            {items.map(item => (
-              <li key={item.id} className="p-4 sm:p-6 flex items-center gap-4 sm:gap-6 bg-card">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-muted/50 p-2 flex-shrink-0 flex items-center justify-center">
-                  <ImageWithFallback src={item.imageUrl} alt={item.name} className="w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal" />
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-foreground text-sm sm:text-base leading-tight mb-1 truncate">{item.name}</h3>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    {item.category} {item.quantity > 1 ? `(x${item.quantity})` : ''}
-                  </p>
+            {items.map(item => {
+              const isItemFashion = item.productType === 'fashion' || ['Apparel', 'Accessories', 'Footwear', 'Merch'].includes(item.category);
+              const isItemClosed = isItemFashion ? isFashionClosed : isMartClosed;
+              
+              return (
+                <li key={item.id} className={`p-4 sm:p-6 flex items-center gap-4 sm:gap-6 ${isItemClosed ? 'bg-amber-500/5' : 'bg-card'}`}>
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-muted/50 p-2 flex-shrink-0 flex items-center justify-center">
+                    <ImageWithFallback src={item.imageUrl} alt={item.name} className="w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal" />
+                  </div>
                   
-                  {/* Quantity Stepper for Mart/Cart */}
-                  <div className="flex items-center gap-3 bg-muted/50 rounded-full px-1 py-1 w-max">
-                    <button 
-                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                      className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-background transition-colors"
-                      aria-label={`Reduce ${item.name} quantity`}
-                    >
-                      <Minus className="w-3 h-3" />
-                    </button>
-                    <span className="w-4 text-center font-semibold text-xs">{item.quantity}</span>
-                    <button 
-                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                      className="w-6 h-6 flex items-center justify-center rounded-full bg-background shadow-sm hover:bg-background/80 transition-colors"
-                      aria-label={`Increase ${item.name} quantity`}
-                    >
-                      <Plus className="w-3 h-3" />
-                    </button>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-foreground text-sm sm:text-base leading-tight truncate">{item.name}</h3>
+                      {isItemClosed && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                          {isItemFashion ? 'Fashion Closed' : 'Mart Closed'}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      {item.category} {item.quantity > 1 ? `(x${item.quantity})` : ''}
+                    </p>
+                    
+                    {/* Quantity Stepper for Mart/Cart */}
+                    <div className="flex items-center gap-3 bg-muted/50 rounded-full px-1 py-1 w-max">
+                      <button 
+                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-background transition-colors"
+                        aria-label={`Reduce ${item.name} quantity`}
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <span className="w-4 text-center font-semibold text-xs">{item.quantity}</span>
+                      <button 
+                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        className="w-6 h-6 flex items-center justify-center rounded-full bg-background shadow-sm hover:bg-background/80 transition-colors"
+                        aria-label={`Increase ${item.name} quantity`}
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex flex-col items-end gap-2 shrink-0">
-                  <button 
-                    onClick={() => removeItem(item.id)}
-                    className="p-1 text-muted-foreground hover:text-red-500 transition-colors"
-                    aria-label={`Remove ${item.name} from cart`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                  <div className="bg-foreground text-background font-bold px-3 py-1.5 rounded-full text-xs sm:text-sm">
-                    ₦{(item.price * item.quantity).toLocaleString()}
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <button 
+                      onClick={() => removeItem(item.id)}
+                      className="p-1 text-muted-foreground hover:text-red-500 transition-colors"
+                      aria-label={`Remove ${item.name} from cart`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                    <div className="bg-foreground text-background font-bold px-3 py-1.5 rounded-full text-xs sm:text-sm">
+                      ₦{(item.price * item.quantity).toLocaleString()}
+                    </div>
                   </div>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         </div>
 
@@ -143,24 +145,24 @@ export default function MartCart() {
           
           <div className="flex justify-between text-muted-foreground">
             <span>Subtotal</span>
-            <span className="font-medium text-foreground">₦{subtotal}</span>
+            <span className="font-medium text-foreground">₦{subtotal.toLocaleString()}</span>
           </div>
           
           <div className="flex justify-between text-muted-foreground">
-            <span>Delivery Fee (Mart)</span>
-            <span className="font-medium text-foreground">₦{MART_DELIVERY_FEE}</span>
+            <span>Delivery Fee</span>
+            <span className="font-medium text-foreground">₦{MART_DELIVERY_FEE.toLocaleString()}</span>
           </div>
           
           <div className="border-t border-border pt-4 mt-4">
             <div className="flex justify-between items-center">
               <span className="font-bold text-lg">Total</span>
-              <span className="font-black text-2xl text-[#10B981]">₦{total}</span>
+              <span className="font-black text-2xl text-[#10B981]">₦{total.toLocaleString()}</span>
             </div>
           </div>
         </div>
 
         <div className="mt-8">
-          {isMartClosed && (
+          {hasMartItems && isMartClosed && (
             <div className="mb-4 p-4 rounded-2xl bg-amber-500/10 border-2 border-amber-500/20 text-amber-700 dark:text-amber-300 flex gap-3">
               <Clock className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <p className="text-sm font-semibold leading-relaxed">
@@ -168,12 +170,12 @@ export default function MartCart() {
               </p>
             </div>
           )}
-          <Link to={isMartClosed ? "#" : checkoutRoute} onClick={(event) => {
-            if (isMartClosed) {
+          <Link to={isCheckoutBlocked ? "#" : checkoutRoute} onClick={(event) => {
+            if (isCheckoutBlocked) {
               event.preventDefault();
             }
           }}>
-            <Button variant="primary" disabled={isMartClosed} className="w-full py-5 text-lg rounded-2xl shadow-xl shadow-[#10B981]/20 bg-[#10B981] hover:bg-[#059669] disabled:opacity-60 disabled:cursor-not-allowed">
+            <Button variant="primary" disabled={isCheckoutBlocked} className="w-full py-5 text-lg rounded-2xl shadow-xl shadow-[#10B981]/20 bg-[#10B981] hover:bg-[#059669] disabled:opacity-60 disabled:cursor-not-allowed">
               Proceed to Checkout
             </Button>
           </Link>
