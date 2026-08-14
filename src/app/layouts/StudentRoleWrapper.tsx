@@ -39,9 +39,8 @@ export default function StudentRoleWrapper() {
                         {user && 
                          !location.pathname.startsWith('/calebnet') && 
                          !location.pathname.startsWith('/mart/cart') &&
-                         !location.pathname.startsWith('/fashion/product') &&
+                         !location.pathname.startsWith('/fashion') &&
                          !location.pathname.startsWith('/checkout') &&
-                         !location.pathname.startsWith('/fashion/checkout') && 
                          <GlobalCart />}
                     </MaintenanceGate>
                 </BatchTimerProvider>

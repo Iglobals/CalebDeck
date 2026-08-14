@@ -9,6 +9,7 @@ import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 import { useMartCart } from '../../../context/MartCartContext';
 import { subscribeToMartItems, MartItem } from '../../../services/mart';
+import { subscribeToFashionItems, FashionItem } from '../../../services/fashion';
 
 const STATIC_CALEBNET_PRODUCTS = [
   { id: 'calebnet-mtn-1gb', type: 'CalebNet', name: 'MTN 1GB SME (30 Days)', price: 280, path: '/calebnet', disabled: false, icon: 'wifi', network: 'MTN' },
@@ -16,12 +17,6 @@ const STATIC_CALEBNET_PRODUCTS = [
   { id: 'calebnet-glo-1gb', type: 'CalebNet', name: 'GLO 1GB (30 Days)', price: 250, path: '/calebnet', disabled: false, icon: 'wifi', network: 'GLO' },
   { id: 'calebnet-glo-2gb', type: 'CalebNet', name: 'GLO 2GB (30 Days)', price: 500, path: '/calebnet', disabled: false, icon: 'wifi', network: 'GLO' }
 ];
-
-const FASHION_PLACEHOLDERS = [
-  { id: 'fashion-tee', type: 'Fashion', name: 'Caleb Classic Tee', price: 6500, path: '/fashion', disabled: true, image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=200&auto=format&fit=crop' },
-  { id: 'fashion-hoodie', type: 'Fashion', name: 'Caleb Premium Hoodie', price: 12000, path: '/fashion', disabled: true, image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=200&auto=format&fit=crop' }
-];
-
 
 const LOCAL_BUSINESSES = [
   { id: 'b1', name: 'TechHub Gadgets', category: 'Accessories', rating: '4.8', image: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=200&auto=format&fit=crop' },
@@ -68,6 +63,7 @@ export function SignedInHome() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const { items: cartItems, addItem, updateQuantity } = useMartCart();
   const [exploreMartItems, setExploreMartItems] = useState<any[]>([]);
+  const [exploreFashionItems, setExploreFashionItems] = useState<any[]>([]);
 
   useEffect(() => {
     const unsubSettings = subscribeToPlatformSettings(setPlatformSettings);
@@ -76,6 +72,7 @@ export function SignedInHome() {
       setExploreMartItems(items.filter(i => i.inStock).slice(0, 4).map(item => ({
         id: item.id,
         type: 'Mart',
+        productType: 'mart',
         name: item.name,
         price: item.price,
         path: '/mart',
@@ -84,9 +81,26 @@ export function SignedInHome() {
         category: item.category
       })));
     });
+
+    const unsubFashion = subscribeToFashionItems((items) => {
+      setExploreFashionItems(items.filter(i => i.inStock).slice(0, 4).map(item => ({
+        id: item.id,
+        type: 'Fashion',
+        productType: 'fashion',
+        name: item.name,
+        price: item.price,
+        path: `/fashion/product/${item.id}`,
+        disabled: false,
+        image: item.imageUrl,
+        category: item.category || 'Fashion',
+        brandColor: item.brandColor
+      })));
+    });
+
     return () => {
       unsubSettings();
       unsubMart();
+      unsubFashion();
     };
   }, []);
 
@@ -263,29 +277,50 @@ export function SignedInHome() {
         <div>
           <h3 className="text-lg font-black mb-4">Explore CalebDeck</h3>
           <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar -mx-6 px-6">
-            {[...exploreMartItems, ...STATIC_CALEBNET_PRODUCTS, ...FASHION_PLACEHOLDERS].map((product) => {
-              if (product.type === 'Mart') {
+            {[...exploreMartItems, ...exploreFashionItems, ...STATIC_CALEBNET_PRODUCTS].map((product) => {
+              if (product.type === 'Mart' || product.type === 'Fashion') {
                 const qty = getCartQuantity(product.id);
+                const isFashion = product.type === 'Fashion';
+                const badgeBg = isFashion ? 'bg-purple-600/90 text-white' : 'bg-background/90 text-foreground';
+                const buttonBg = isFashion ? 'bg-purple-600 hover:bg-purple-700' : 'bg-[#10B981] hover:bg-[#059669]';
+
                 return (
                   <div key={product.id} className="flex flex-col min-w-[140px] max-w-[140px] group relative">
-                    <div className="w-full aspect-square rounded-2xl bg-muted mb-3 overflow-hidden border border-border shadow-sm squircle relative flex items-center justify-center group-hover:shadow-md transition-shadow">
-                      <img src={product.image} alt={product.name} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
-                      <div className="absolute top-2 left-2 bg-background/90 backdrop-blur text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-border">
+                    <Link 
+                      to={product.path}
+                      className="w-full aspect-square rounded-2xl bg-muted mb-3 overflow-hidden border border-border shadow-sm squircle relative flex items-center justify-center group-hover:shadow-md transition-shadow cursor-pointer"
+                      style={product.brandColor ? { backgroundColor: product.brandColor } : undefined}
+                    >
+                      <ImageWithFallback 
+                        src={product.image} 
+                        alt={product.name} 
+                        className={`w-full h-full object-contain p-2 opacity-90 group-hover:opacity-100 transition-opacity ${isFashion ? 'mix-blend-multiply dark:mix-blend-normal' : 'object-cover'}`} 
+                      />
+                      <div className={`absolute top-2 left-2 backdrop-blur text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-border/50 ${badgeBg}`}>
                         {product.type}
                       </div>
                       {qty > 0 && (
-                        <div className="absolute top-2 right-2 bg-[#10B981] text-white text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full shadow-lg border-2 border-background animate-in zoom-in z-10">
+                        <div className={`absolute top-2 right-2 text-white text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full shadow-lg border-2 border-background animate-in zoom-in z-10 ${isFashion ? 'bg-purple-600' : 'bg-[#10B981]'}`}>
                           {qty}
                         </div>
                       )}
-                    </div>
-                    <h4 className="text-sm font-bold truncate leading-tight mb-1">{product.name}</h4>
+                    </Link>
+                    <Link to={product.path} className="text-sm font-bold truncate leading-tight mb-1 hover:text-primary transition-colors">
+                      {product.name}
+                    </Link>
                     <p className="text-primary font-black text-sm mb-2">{money(product.price)}</p>
                     
                     {qty === 0 ? (
                       <button
-                        onClick={() => addItem({ id: product.id, name: product.name, price: product.price, imageUrl: product.image, category: 'Groceries' })}
-                        className="w-full h-8 rounded-xl bg-[#10B981] text-white hover:bg-[#059669] transition-all flex items-center justify-center gap-1 shadow-sm font-black uppercase tracking-wider text-[10px]"
+                        onClick={() => addItem({ 
+                          id: product.id, 
+                          name: product.name, 
+                          price: product.price, 
+                          imageUrl: product.image, 
+                          category: product.category || 'General',
+                          productType: product.productType || (isFashion ? 'fashion' : 'mart')
+                        })}
+                        className={`w-full h-8 rounded-xl text-white transition-all flex items-center justify-center gap-1 shadow-sm font-black uppercase tracking-wider text-[10px] ${buttonBg}`}
                       >
                         <Plus className="w-3 h-3" /> Add
                       </button>
@@ -300,7 +335,7 @@ export function SignedInHome() {
                         <span className="font-bold text-sm">{qty}</span>
                         <button
                           onClick={() => updateQuantity(product.id, qty + 1)}
-                          className="w-8 h-8 rounded-lg bg-[#10B981] text-white transition-colors flex items-center justify-center"
+                          className={`w-8 h-8 rounded-lg text-white transition-colors flex items-center justify-center ${buttonBg}`}
                         >
                           <Plus className="w-3 h-3" />
                         </button>
