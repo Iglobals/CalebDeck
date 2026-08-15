@@ -11,11 +11,13 @@ import {
   Eye,
   EyeOff,
   Shirt,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
 import { subscribeToFashionItems, FashionItem, addFashionItem, updateFashionItem, deleteFashionItem } from '../../../services/fashion';
 import { useTheme } from '../../../context/ThemeContext';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
+import { removeBackgroundML } from '../../../utils/imageUtils';
 
 const CATEGORIES = ['All', 'Apparel', 'Accessories', 'Footwear', 'Merch'];
 
@@ -40,6 +42,7 @@ export default function AdminFashion() {
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [processingImage, setProcessingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { adminTheme } = useTheme();
 
@@ -57,7 +60,7 @@ export default function AdminFashion() {
     return matchesSearch && matchesCategory;
   });
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) { 
@@ -65,11 +68,22 @@ export default function AdminFashion() {
       return; 
     }
     
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setFormData(prev => ({ ...prev, imageUrl: ev.target?.result as string }));
-    };
-    reader.readAsDataURL(file);
+    setProcessingImage(true);
+    try {
+      // Automatically remove background for clean catalog presentation
+      const transparentDataUrl = await removeBackgroundML(file);
+      setFormData(prev => ({ ...prev, imageUrl: transparentDataUrl }));
+    } catch (err) {
+      console.error('Background removal failed, using original image:', err);
+      // Fallback to raw image if processing fails
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setFormData(prev => ({ ...prev, imageUrl: ev.target?.result as string }));
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setProcessingImage(false);
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -262,8 +276,13 @@ export default function AdminFashion() {
                       variant="outline" 
                       className="w-full flex items-center justify-center gap-2"
                       onClick={() => fileInputRef.current?.click()}
+                      disabled={processingImage}
                     >
-                      <Upload className="w-4 h-4" /> {formData.imageUrl ? 'Change Image' : 'Upload Image'}
+                      {processingImage ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> Removing Background...</>
+                      ) : (
+                        <><Upload className="w-4 h-4" /> {formData.imageUrl ? 'Change Image' : 'Upload Image'}</>
+                      )}
                     </Button>
                   </div>
                   {formData.imageUrl && (
@@ -366,7 +385,7 @@ export default function AdminFashion() {
 
                 <div className="pt-4 border-t border-border flex justify-end gap-3 sticky bottom-0 bg-card py-2">
                   <Button type="button" variant="ghost" onClick={() => setIsAdding(false)}>Cancel</Button>
-                  <Button type="submit" variant="primary" disabled={saving || !formData.imageUrl} className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white min-w-[120px]">
+                  <Button type="submit" variant="primary" disabled={saving || processingImage || !formData.imageUrl} className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white min-w-[120px]">
                     {saving ? 'Saving...' : 'Save Item'}
                   </Button>
                 </div>
