@@ -524,6 +524,55 @@ export const migrateMainToBase = async (): Promise<number> => {
 };
 
 // ─── Platform Settings ───
+export interface PromoSlide {
+    id: string;
+    badge: string;
+    title: string;
+    tagline: string;
+    gradient?: string;
+    bgImage?: string;
+    logoUrl?: string;
+    link: string;
+    buttonText: string;
+    isActive?: boolean;
+}
+
+export const DEFAULT_PROMO_SLIDES: PromoSlide[] = [
+    { 
+        id: 'slide-mart',
+        badge: 'Mart Live',
+        title: 'CalebDeck Mart',
+        tagline: 'Groceries and essentials delivered straight to your hostel.',
+        gradient: 'from-[#047857] via-[#10B981] to-[#022c22]',
+        logoUrl: '/avaters/calebdeck-business-logo-transparent.png',
+        link: '/mart',
+        buttonText: 'Shop Mart',
+        isActive: true
+    },
+    { 
+        id: 'slide-fashion',
+        badge: 'Fashion Drops',
+        title: 'CalebDeck Fashion',
+        tagline: 'Exclusive campus merch, hoodies & trendsetting apparel.',
+        gradient: 'from-[#6D28D9] via-[#8B5CF6] to-[#2e1065]',
+        logoUrl: '/avaters/calebdeck-fashion-logo-transparent.png',
+        link: '/fashion',
+        buttonText: 'Explore Styles',
+        isActive: true
+    },
+    { 
+        id: 'slide-calebnet',
+        badge: 'Campus Data',
+        title: 'CalebNet Instant Topup',
+        tagline: 'Discounted mobile data for MTN, Glo & Airtel from your wallet.',
+        gradient: 'from-[#1D4ED8] via-[#3B82F6] to-[#172554]',
+        logoUrl: '/avaters/calebdeck-business-logo-transparent.png',
+        link: '/calebnet',
+        buttonText: 'Buy Data',
+        isActive: true
+    }
+];
+
 export interface PlatformSettings {
     riderRatePerDelivery: number;
     comboRatePerDelivery?: number;
@@ -565,6 +614,8 @@ export interface PlatformSettings {
     isFashionAcceptingOrders?: boolean;
     isFashionComingSoon?: boolean;
     fashionClosedMessage?: string;
+    // Promo Banners
+    promoSlides?: PromoSlide[];
     [key: string]: any;
 }
 
@@ -572,10 +623,14 @@ export const getPlatformSettings = async (): Promise<PlatformSettings> => {
     const settingsRef = doc(db, 'settings', 'platform');
     const snapshot = await getDoc(settingsRef);
     if (snapshot.exists()) {
-        return snapshot.data() as PlatformSettings;
+        const data = snapshot.data() as PlatformSettings;
+        if (!data.promoSlides || data.promoSlides.length === 0) {
+            data.promoSlides = DEFAULT_PROMO_SLIDES;
+        }
+        return data;
     }
     // Default settings
-    return { riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18 };
+    return { riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18, promoSlides: DEFAULT_PROMO_SLIDES };
 };
 
 export const subscribeToPlatformSettings = (callback: (settings: PlatformSettings) => void) => {
@@ -602,13 +657,17 @@ export const subscribeToPlatformSettings = (callback: (settings: PlatformSetting
             if (data.isFashionAcceptingOrders === undefined) data.isFashionAcceptingOrders = true;
             if (data.isFashionComingSoon === undefined) data.isFashionComingSoon = false;
             
+            if (!data.promoSlides || data.promoSlides.length === 0) {
+                data.promoSlides = DEFAULT_PROMO_SLIDES;
+            }
+
             callback(data);
         } else {
-            callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18, fashionOpeningHour: 0, fashionClosingHour: 24, isFashionAcceptingOrders: true, isFashionComingSoon: false });
+            callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18, fashionOpeningHour: 0, fashionClosingHour: 24, isFashionAcceptingOrders: true, isFashionComingSoon: false, promoSlides: DEFAULT_PROMO_SLIDES });
         }
     }, (error) => {
         console.error('subscribeToPlatformSettings error:', error);
-        callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18, fashionOpeningHour: 0, fashionClosingHour: 24, isFashionAcceptingOrders: true, isFashionComingSoon: false });
+        callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18, fashionOpeningHour: 0, fashionClosingHour: 24, isFashionAcceptingOrders: true, isFashionComingSoon: false, promoSlides: DEFAULT_PROMO_SLIDES });
     });
 };
 

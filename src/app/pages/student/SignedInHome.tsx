@@ -231,9 +231,23 @@ export function SignedInHome() {
 
         {/* Promo Carousel */}
         {(() => {
-          const activeSlide = PROMO_SLIDES[currentSlide];
+          const rawSlides = (platformSettings?.promoSlides && platformSettings.promoSlides.length > 0) 
+            ? platformSettings.promoSlides 
+            : PROMO_SLIDES;
+          const slides = rawSlides.filter(s => s.isActive !== false);
+          const activeSlides = slides.length > 0 ? slides : PROMO_SLIDES;
+          const slideIndex = currentSlide % activeSlides.length;
+          const activeSlide = activeSlides[slideIndex] || activeSlides[0];
+          const bgGradient = activeSlide.gradient || 'from-[#6D28D9] via-[#8B5CF6] to-[#2e1065]';
+
           return (
-            <div className={`relative rounded-[2rem] overflow-hidden bg-gradient-to-r ${activeSlide.gradient} text-white p-8 shadow-xl transition-all duration-700 min-h-[190px] flex items-center`}>
+            <div className={`relative rounded-[2rem] overflow-hidden bg-gradient-to-r ${bgGradient} text-white p-8 shadow-xl transition-all duration-700 min-h-[190px] flex items-center`}>
+              {activeSlide.bgImage && (
+                <div 
+                  className="absolute inset-0 bg-cover bg-center opacity-30 z-0" 
+                  style={{ backgroundImage: `url(${activeSlide.bgImage})` }} 
+                />
+              )}
               {/* Solid left gradient fading into logo on right */}
               <div className="relative z-10 max-w-[65%]">
                 <Badge variant="gray" className="bg-white/20 text-white font-bold border-none mb-3 backdrop-blur-md">
@@ -241,34 +255,38 @@ export function SignedInHome() {
                 </Badge>
                 <h2 className="text-2xl font-black mb-2 leading-tight drop-shadow-sm">{activeSlide.title}</h2>
                 <p className="font-medium text-white/90 mb-4 text-xs sm:text-sm leading-relaxed">{activeSlide.tagline}</p>
-                <Link to={activeSlide.link}>
+                <Link to={activeSlide.link || '/'}>
                   <Button variant="secondary" className="bg-white text-gray-900 hover:bg-gray-100 border-none font-bold rounded-xl text-xs py-2.5 px-5 h-auto shadow-lg">
-                    {activeSlide.buttonText}
+                    {activeSlide.buttonText || 'Explore'}
                   </Button>
                 </Link>
               </div>
 
               {/* Right Side Transparent Brand Asset */}
-              <div className="absolute right-[-10px] top-1/2 -translate-y-1/2 w-48 h-48 opacity-25 dark:opacity-35 pointer-events-none z-0 transition-opacity duration-700">
-                <img 
-                  src={activeSlide.logoUrl} 
-                  alt="" 
-                  aria-hidden="true"
-                  className="w-full h-full object-contain"
-                />
-              </div>
+              {activeSlide.logoUrl && (
+                <div className="absolute right-[-10px] top-1/2 -translate-y-1/2 w-48 h-48 opacity-25 dark:opacity-35 pointer-events-none z-0 transition-opacity duration-700">
+                  <img 
+                    src={activeSlide.logoUrl} 
+                    alt="" 
+                    aria-hidden="true"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              )}
               
               {/* Carousel indicators */}
-              <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
-                {PROMO_SLIDES.map((_, idx) => (
-                  <button 
-                    key={idx} 
-                    onClick={() => setCurrentSlide(idx)}
-                    className={`h-2 rounded-full transition-all ${idx === currentSlide ? 'bg-white w-6' : 'bg-white/40 w-2'}`}
-                    aria-label={`Go to slide ${idx + 1}`}
-                  />
-                ))}
-              </div>
+              {activeSlides.length > 1 && (
+                <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
+                  {activeSlides.map((_, idx) => (
+                    <button 
+                      key={idx} 
+                      onClick={() => setCurrentSlide(idx)}
+                      className={`h-2 rounded-full transition-all ${idx === slideIndex ? 'bg-white w-6' : 'bg-white/40 w-2'}`}
+                      aria-label={`Go to slide ${idx + 1}`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           );
         })()}

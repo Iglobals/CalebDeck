@@ -479,6 +479,56 @@ export default function CalebNet() {
   };
   const initializeFunding = usePaystackPayment(fundingConfig as any);
 
+  const verifyFunding = async (reference: string) => {
+    if (!user) return;
+    const token = await user.getIdToken();
+    const response = await fetch('/api/wallet/verify-funding', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ reference }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Wallet funding failed');
+    setWalletBalance(Number(data.balance || 0));
+    toast.success(`Wallet funded. New balance: ₦${Number(data.balance).toLocaleString()}`);
+  };
+
+  const handleFundWallet = () => {
+    const amountNum = Number(fundAmount);
+    if (!amountNum || amountNum < 100) return toast.error('Minimum funding amount is ₦100');
+    
+    setWalletLoading(true);
+    initializeFunding({
+      onSuccess: () => {
+        toast.loading('Verifying your payment...', { toastId: 'verify-funding' });
+        verifyFunding(fundingReference)
+          .then(() => setFundingReference(createFundingReference()))
+          .catch(() => toast.error('Funding verification delayed. Check back in a few minutes.'))
+          .finally(() => {
+            toast.dismiss('verify-funding');
+            setWalletLoading(false);
+          });
+      },
+      onClose: () => {
+        setWalletLoading(false);
+      },
+    } as any);
+  };
+
+  const refreshWallet = async () => {
+    if (!user) return;
+    setWalletLoading(true);
+    try {
+      const snap = await getDoc(doc(db, 'users', user.uid));
+      if (snap.exists()) setWalletBalance(Number(snap.data().walletBalance || 0));
+      toast.success('Wallet balance refreshed');
+    } catch {
+      toast.error('Failed to refresh wallet');
+    } finally {
+      setWalletLoading(false);
+    }
+  };
+
   const handlePhone = (value: string) => setPhoneNumber(value.replace(/[^0-9]/g, '').slice(0, 11));
 
   const handleTransactionPhone = (value: string) => {
@@ -1080,7 +1130,7 @@ export default function CalebNet() {
 
       {infoModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setInfoModalOpen(false)}>
-          <Card className="w-full max-w-sm border-[#7C3AED]/20 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <Card className="w-full max-w-sm border-[#7C3AED]/20 shadow-2xl" onClick={(e: any) => { e.stopPropagation(); }}>
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="rounded-full bg-[#7C3AED]/10 p-2 text-[#7C3AED]"><Info className="h-5 w-5" /></div>

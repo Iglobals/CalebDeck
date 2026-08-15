@@ -4,8 +4,8 @@ import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
-import { Settings, ShieldAlert, Store, Pizza, Clock, Wifi, Utensils, MessageSquare } from 'lucide-react';
-import { subscribeToPlatformSettings, updatePlatformSettings, PlatformSettings } from '../../../services/db';
+import { Settings, ShieldAlert, Store, Pizza, Clock, Wifi, Utensils, MessageSquare, Plus, Trash2, Edit3, ArrowUp, ArrowDown, Image as ImageIcon, Sparkles, Check, X } from 'lucide-react';
+import { subscribeToPlatformSettings, updatePlatformSettings, PlatformSettings, PromoSlide, DEFAULT_PROMO_SLIDES } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 
 const CLOSED_MESSAGES = {
@@ -44,6 +44,15 @@ const DEFAULT_MESSAGES = {
   calebNet: CLOSED_MESSAGES.calebNet[0]
 };
 
+const GRADIENT_PRESETS = [
+  { name: 'Emerald Mart', value: 'from-[#047857] via-[#10B981] to-[#022c22]' },
+  { name: 'Purple Fashion', value: 'from-[#6D28D9] via-[#8B5CF6] to-[#2e1065]' },
+  { name: 'Royal Blue CalebNet', value: 'from-[#1D4ED8] via-[#3B82F6] to-[#172554]' },
+  { name: 'Sunset Amber', value: 'from-[#D97706] via-[#F59E0B] to-[#451A03]' },
+  { name: 'Rose Red', value: 'from-[#BE123C] via-[#F43F5E] to-[#4C0519]' },
+  { name: 'Dark Obsidian', value: 'from-[#1F2937] via-[#374151] to-[#111827]' },
+];
+
 export default function AdminSettings() {
   const { adminTheme } = useTheme();
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
@@ -57,6 +66,26 @@ export default function AdminSettings() {
   const [fashionOpenHour, setFashionOpenHour] = useState<string>('0');
   const [fashionCloseHour, setFashionCloseHour] = useState<string>('24');
 
+  // Promo Banners State
+  const [promoSlides, setPromoSlides] = useState<PromoSlide[]>([]);
+  const [editingSlideId, setEditingSlideId] = useState<string | null>(null);
+  const [isAddingSlide, setIsAddingSlide] = useState(false);
+  const [savingPromos, setSavingPromos] = useState(false);
+
+  const createEmptySlide = (): PromoSlide => ({
+    id: `slide-${Date.now()}`,
+    badge: 'EXCLUSIVE',
+    title: 'New Announcement',
+    tagline: 'Special update or promotion for CalebDeck students.',
+    gradient: 'from-[#6D28D9] via-[#8B5CF6] to-[#2e1065]',
+    logoUrl: '/avaters/calebdeck-business-logo-transparent.png',
+    link: '/mart',
+    buttonText: 'Check It Out',
+    isActive: true
+  });
+
+  const [slideDraft, setSlideDraft] = useState<PromoSlide>(createEmptySlide());
+
   useEffect(() => {
     const unsub = subscribeToPlatformSettings((data) => {
       setPlatformSettings(data);
@@ -69,6 +98,7 @@ export default function AdminSettings() {
       setMartMessage(data.martClosedMessage || DEFAULT_MESSAGES.mart);
       setFashionMessage(data.fashionClosedMessage || DEFAULT_MESSAGES.fashion);
       setCalebNetMessage(data.calebNetClosedMessage || DEFAULT_MESSAGES.calebNet);
+      setPromoSlides(data.promoSlides || DEFAULT_PROMO_SLIDES);
     });
     return () => unsub();
   }, []);
@@ -209,6 +239,68 @@ export default function AdminSettings() {
       </div>
     </div>
   );
+
+  const handleSavePromoSlidesToDB = async (slides: PromoSlide[]) => {
+    setSavingPromos(true);
+    try {
+      await updatePlatformSettings({ promoSlides: slides });
+      setPromoSlides(slides);
+    } catch (err) {
+      console.error('Failed to save promo slides:', err);
+      alert('Failed to save promo slides.');
+    } finally {
+      setSavingPromos(false);
+    }
+  };
+
+  const handleToggleSlideActive = (id: string) => {
+    const updated = promoSlides.map(s => s.id === id ? { ...s, isActive: !(s.isActive !== false) } : s);
+    handleSavePromoSlidesToDB(updated);
+  };
+
+  const handleDeleteSlide = (id: string) => {
+    if (!confirm('Are you sure you want to delete this promo slide?')) return;
+    const updated = promoSlides.filter(s => s.id !== id);
+    handleSavePromoSlidesToDB(updated);
+  };
+
+  const handleMoveSlide = (index: number, direction: 'up' | 'down') => {
+    const targetIdx = direction === 'up' ? index - 1 : index + 1;
+    if (targetIdx < 0 || targetIdx >= promoSlides.length) return;
+    const updated = [...promoSlides];
+    const temp = updated[index];
+    updated[index] = updated[targetIdx];
+    updated[targetIdx] = temp;
+    handleSavePromoSlidesToDB(updated);
+  };
+
+  const handleOpenAddSlide = () => {
+    setSlideDraft(createEmptySlide());
+    setEditingSlideId(null);
+    setIsAddingSlide(true);
+  };
+
+  const handleOpenEditSlide = (slide: PromoSlide) => {
+    setSlideDraft({ ...slide });
+    setEditingSlideId(slide.id);
+    setIsAddingSlide(true);
+  };
+
+  const handleSaveSlideDraft = () => {
+    if (!slideDraft.title.trim()) {
+      alert('Please enter a banner title.');
+      return;
+    }
+    let updated: PromoSlide[];
+    if (editingSlideId) {
+      updated = promoSlides.map(s => s.id === editingSlideId ? slideDraft : s);
+    } else {
+      updated = [...promoSlides, slideDraft];
+    }
+    handleSavePromoSlidesToDB(updated);
+    setIsAddingSlide(false);
+    setEditingSlideId(null);
+  };
 
   const handleToggleIPizza = async () => {
     if (!confirm(`Are you sure you want to ${isIPizzaComingSoon ? 'OPEN' : 'CLOSE'} iPizza?`)) return;
@@ -590,7 +682,265 @@ export default function AdminSettings() {
           </Card>
 
         </div>
+
+        {/* Promo Banner & Carousel Manager */}
+        <div className="mt-10">
+          <Card className="p-6 md:p-8 border-l-4 border-l-purple-500 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center space-x-3">
+                <div className={`p-3 rounded-2xl ${isDark ? 'bg-purple-900/40 text-purple-400' : 'bg-purple-100 text-purple-600'}`}>
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className={`text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>Homepage Promo Banners</h2>
+                  <p className={`text-xs sm:text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Manage the hero carousel slides displayed on the student homepage</p>
+                </div>
+              </div>
+              <Button onClick={handleOpenAddSlide} variant="primary" className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white flex items-center justify-center gap-2">
+                <Plus className="w-4 h-4" /> Add Promo Slide
+              </Button>
+            </div>
+
+            {promoSlides.length === 0 ? (
+              <div className="p-8 text-center border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl">
+                <p className="text-gray-500 text-sm">No custom promo slides configured yet. Default slides are being displayed.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {promoSlides.map((slide, idx) => {
+                  const isActive = slide.isActive !== false;
+                  return (
+                    <div key={slide.id || idx} className={`relative rounded-3xl border overflow-hidden transition-all flex flex-col justify-between ${isDark ? 'bg-[#1E1E1E] border-gray-800' : 'bg-white border-gray-200 shadow-sm'}`}>
+                      
+                      {/* Live Visual Mini Banner Preview */}
+                      <div className={`p-5 relative overflow-hidden bg-gradient-to-r ${slide.gradient || 'from-[#6D28D9] to-[#8B5CF6]'} text-white min-h-[140px] flex flex-col justify-between`}>
+                        {slide.bgImage && (
+                          <div className="absolute inset-0 bg-cover bg-center opacity-30 z-0" style={{ backgroundImage: `url(${slide.bgImage})` }} />
+                        )}
+                        <div className="relative z-10 flex items-center justify-between">
+                          <span className="px-2.5 py-1 rounded-full bg-white/20 text-[10px] font-black uppercase tracking-wider backdrop-blur-md">
+                            {slide.badge || 'PROMO'}
+                          </span>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-emerald-500 text-white' : 'bg-gray-800/80 text-gray-300'}`}>
+                            {isActive ? 'Active' : 'Disabled'}
+                          </span>
+                        </div>
+                        <div className="relative z-10 mt-3">
+                          <h4 className="font-black text-lg leading-tight truncate">{slide.title}</h4>
+                          <p className="text-xs text-white/90 line-clamp-2 mt-1">{slide.tagline}</p>
+                        </div>
+                        {slide.logoUrl && (
+                          <img src={slide.logoUrl} alt="" className="absolute right-[-10px] bottom-[-10px] w-28 h-28 opacity-20 pointer-events-none object-contain" />
+                        )}
+                      </div>
+
+                      {/* Controls Footer */}
+                      <div className="p-4 flex items-center justify-between gap-2 border-t border-gray-100 dark:border-gray-800">
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleMoveSlide(idx, 'up')}
+                            disabled={idx === 0}
+                            className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-muted text-gray-600 dark:text-gray-300 disabled:opacity-30"
+                            title="Move Up"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveSlide(idx, 'down')}
+                            disabled={idx === promoSlides.length - 1}
+                            className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-muted text-gray-600 dark:text-gray-300 disabled:opacity-30"
+                            title="Move Down"
+                          >
+                            <ArrowDown className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Button
+                            onClick={() => handleToggleSlideActive(slide.id)}
+                            variant="outline"
+                            className={`py-1 px-3 text-xs font-bold rounded-xl ${isActive ? 'border-amber-500 text-amber-500 hover:bg-amber-500/10' : 'border-emerald-500 text-emerald-500 hover:bg-emerald-500/10'}`}
+                          >
+                            {isActive ? 'Disable' : 'Enable'}
+                          </Button>
+                          <button
+                            onClick={() => handleOpenEditSlide(slide)}
+                            className="p-2 rounded-xl bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 font-bold text-xs flex items-center gap-1 transition-colors"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" /> Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSlide(slide.id)}
+                            className="p-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 font-bold text-xs transition-colors"
+                            title="Delete Slide"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        </div>
+
       </div>
+
+      {/* Add / Edit Promo Slide Modal */}
+      {isAddingSlide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className={`relative w-full max-w-xl rounded-3xl p-6 sm:p-8 shadow-2xl border ${isDark ? 'bg-[#1C1C1E] border-gray-800 text-white' : 'bg-white border-gray-200 text-gray-900'} max-h-[90vh] overflow-y-auto`}>
+            
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 dark:border-gray-800">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-500">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <h3 className="text-xl font-black">{editingSlideId ? 'Edit Promo Banner' : 'Create New Promo Banner'}</h3>
+              </div>
+              <button onClick={() => setIsAddingSlide(false)} className="p-2 rounded-full hover:bg-muted text-gray-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              
+              {/* Badge & Title */}
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Badge Text</label>
+                  <input
+                    type="text"
+                    value={slideDraft.badge}
+                    onChange={(e) => setSlideDraft(prev => ({ ...prev, badge: e.target.value }))}
+                    placeholder="e.g. Mart Live, Special Offer"
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-semibold outline-none focus:ring-2 focus:ring-[#7C3AED] ${isDark ? 'bg-[#2A2A2A] border-gray-700' : 'bg-gray-50 border-gray-200'}`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Banner Title</label>
+                  <input
+                    type="text"
+                    value={slideDraft.title}
+                    onChange={(e) => setSlideDraft(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="e.g. CalebDeck Mart"
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-semibold outline-none focus:ring-2 focus:ring-[#7C3AED] ${isDark ? 'bg-[#2A2A2A] border-gray-700' : 'bg-gray-50 border-gray-200'}`}
+                  />
+                </div>
+              </div>
+
+              {/* Tagline */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Tagline / Description</label>
+                <textarea
+                  rows={2}
+                  value={slideDraft.tagline}
+                  onChange={(e) => setSlideDraft(prev => ({ ...prev, tagline: e.target.value }))}
+                  placeholder="e.g. Groceries and essentials delivered straight to your hostel."
+                  className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-medium outline-none focus:ring-2 focus:ring-[#7C3AED] ${isDark ? 'bg-[#2A2A2A] border-gray-700' : 'bg-gray-50 border-gray-200'}`}
+                />
+              </div>
+
+              {/* Link & Button Text */}
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Target Route Link</label>
+                  <input
+                    type="text"
+                    value={slideDraft.link}
+                    onChange={(e) => setSlideDraft(prev => ({ ...prev, link: e.target.value }))}
+                    placeholder="e.g. /mart, /fashion, /calebnet"
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-semibold outline-none focus:ring-2 focus:ring-[#7C3AED] ${isDark ? 'bg-[#2A2A2A] border-gray-700' : 'bg-gray-50 border-gray-200'}`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Button Label</label>
+                  <input
+                    type="text"
+                    value={slideDraft.buttonText}
+                    onChange={(e) => setSlideDraft(prev => ({ ...prev, buttonText: e.target.value }))}
+                    placeholder="e.g. Shop Mart"
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-semibold outline-none focus:ring-2 focus:ring-[#7C3AED] ${isDark ? 'bg-[#2A2A2A] border-gray-700' : 'bg-gray-50 border-gray-200'}`}
+                  />
+                </div>
+              </div>
+
+              {/* Gradient Preset */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-2 opacity-70">Color Theme Gradient</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
+                  {GRADIENT_PRESETS.map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => setSlideDraft(prev => ({ ...prev, gradient: preset.value }))}
+                      className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between transition-all ${slideDraft.gradient === preset.value ? 'border-[#7C3AED] bg-[#7C3AED]/10 text-[#7C3AED]' : 'border-gray-200 dark:border-gray-700 hover:border-gray-400'}`}
+                    >
+                      <span>{preset.name}</span>
+                      <div className={`w-4 h-4 rounded-full bg-gradient-to-r ${preset.value}`} />
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  value={slideDraft.gradient || ''}
+                  onChange={(e) => setSlideDraft(prev => ({ ...prev, gradient: e.target.value }))}
+                  placeholder="Or custom Tailwind gradient classes (from-... via-... to-...)"
+                  className={`w-full px-3 py-2 rounded-xl border text-xs font-mono outline-none ${isDark ? 'bg-[#2A2A2A] border-gray-700' : 'bg-gray-50 border-gray-200'}`}
+                />
+              </div>
+
+              {/* Logo Asset URL */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Brand Logo / Image Overlay URL (Optional)</label>
+                <input
+                  type="text"
+                  value={slideDraft.logoUrl || ''}
+                  onChange={(e) => setSlideDraft(prev => ({ ...prev, logoUrl: e.target.value }))}
+                  placeholder="e.g. /avaters/calebdeck-business-logo-transparent.png"
+                  className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-semibold outline-none focus:ring-2 focus:ring-[#7C3AED] ${isDark ? 'bg-[#2A2A2A] border-gray-700' : 'bg-gray-50 border-gray-200'}`}
+                />
+              </div>
+
+              {/* Live Card Preview */}
+              <div className="pt-3 border-t border-gray-200 dark:border-gray-800">
+                <p className="text-xs font-bold uppercase tracking-wider mb-2 opacity-70">Live Preview</p>
+                <div className={`relative rounded-2xl overflow-hidden bg-gradient-to-r ${slideDraft.gradient || 'from-[#6D28D9] to-[#8B5CF6]'} text-white p-5 shadow-lg flex items-center min-h-[140px]`}>
+                  <div className="relative z-10 max-w-[70%]">
+                    <span className="px-2.5 py-1 rounded-full bg-white/20 text-[10px] font-bold uppercase mb-2 inline-block">
+                      {slideDraft.badge || 'BADGE'}
+                    </span>
+                    <h4 className="text-xl font-black mb-1">{slideDraft.title || 'Title'}</h4>
+                    <p className="text-xs text-white/90 mb-3 line-clamp-2">{slideDraft.tagline || 'Tagline'}</p>
+                    <span className="bg-white text-gray-900 px-4 py-1.5 rounded-lg text-xs font-bold inline-block">
+                      {slideDraft.buttonText || 'Button'}
+                    </span>
+                  </div>
+                  {slideDraft.logoUrl && (
+                    <img src={slideDraft.logoUrl} alt="" className="absolute right-[-10px] top-1/2 -translate-y-1/2 w-32 h-32 opacity-25 pointer-events-none object-contain" />
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            <div className="mt-8 flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-800">
+              <Button onClick={() => setIsAddingSlide(false)} variant="outline" className="rounded-xl px-5">
+                Cancel
+              </Button>
+              <Button onClick={handleSaveSlideDraft} disabled={savingPromos} variant="primary" className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-xl px-6 font-bold">
+                {editingSlideId ? 'Save Changes' : 'Create Banner'}
+              </Button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </AdminLayout>
   );
 }

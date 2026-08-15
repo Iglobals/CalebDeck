@@ -283,8 +283,8 @@ export function PaperBagHamburger() {
               key={link.label}
               {...hrefProp}
               onClick={() => setIsOpen(false)}
-              className={`flex items-center gap-3 px-5 py-3.5 rounded-2xl border bg-card shadow-2xl font-semibold transition-colors whitespace-nowrap opacity-0 transform -translate-y-3 
-                ${link.highlight ? 'bg-[#7C3AED] border-[#7C3AED] text-white hover:bg-[#6D28D9]' : 'border-border text-foreground hover:bg-muted'}
+              className={`flex items-center gap-3 px-5 py-3.5 rounded-2xl border shadow-2xl font-semibold transition-colors whitespace-nowrap opacity-0 transform -translate-y-3 
+                ${link.highlight ? 'bg-[#7C3AED] border-[#7C3AED] text-white hover:bg-[#6D28D9] font-bold' : 'bg-card border-border text-foreground hover:bg-muted'}
                 ${isOpen && !isClosing ? "visible-anim" : ""} 
                 ${isClosing ? "hiding-anim" : ""} 
                 ${!isOpen && !isClosing ? "hidden" : ""}`}
