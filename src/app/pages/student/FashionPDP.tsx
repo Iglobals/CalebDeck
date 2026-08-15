@@ -151,9 +151,10 @@ export default function FashionPDP() {
     if (!existing) {
       // Create a unique cart item ID by appending size/color if needed, but for now just use item.id
       // In a real app we would want variants as separate cart items.
+      const variantText = [selectedSize, selectedColor].filter(Boolean).join(', ');
       addItem({
         id: item.id,
-        name: `${item.name} ${selectedSize ? `(${selectedSize})` : ''}`,
+        name: `${item.name}${variantText ? ` (${variantText})` : ''}`,
         price: item.price,
         imageUrl: item.imageUrl,
         category: item.category,
@@ -497,7 +498,13 @@ export default function FashionPDP() {
                     
                     <div className="flex-1 min-w-0 pr-2">
                       <h3 className="font-bold text-sm leading-tight text-foreground">{cartItem.name}</h3>
-                      <p className="text-xs text-muted-foreground mt-1">Size {selectedSize || 'N/A'}, {selectedColor || 'Default'}</p>
+                      {(selectedSize || selectedColor) && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {selectedSize ? `Size ${selectedSize}` : ''}
+                          {selectedSize && selectedColor ? ', ' : ''}
+                          {selectedColor ? selectedColor : ''}
+                        </p>
+                      )}
                     </div>
                     
                     <div className="flex flex-col items-end justify-between h-full py-1 shrink-0">

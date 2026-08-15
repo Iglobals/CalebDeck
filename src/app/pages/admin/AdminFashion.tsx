@@ -37,7 +37,9 @@ export default function AdminFashion() {
     category: 'Apparel',
     imageUrl: '',
     description: '',
-    inStock: true
+    inStock: true,
+    sizesInput: '',
+    colors: [] as string[]
   });
   
   const [loading, setLoading] = useState(true);
@@ -100,7 +102,9 @@ export default function AdminFashion() {
         price: Number(formData.price),
         category: formData.category,
         imageUrl: formData.imageUrl,
-        inStock: formData.inStock
+        inStock: formData.inStock,
+        sizes: formData.sizesInput ? formData.sizesInput.split(',').map(s => s.trim()).filter(s => s !== '') : [],
+        colors: formData.colors
       };
 
       if (editingItem) {
@@ -111,7 +115,7 @@ export default function AdminFashion() {
       
       setIsAdding(false);
       setEditingItem(null);
-      setFormData({ name: '', brand: '', brandColor: '#F97316', description: '', price: '', category: 'Apparel', imageUrl: '', inStock: true });
+      setFormData({ name: '', brand: '', brandColor: '#F97316', description: '', price: '', category: 'Apparel', imageUrl: '', inStock: true, sizesInput: '', colors: [] });
     } catch (err) {
       console.error("Error saving fashion item", err);
       alert("Failed to save item. Check console.");
@@ -129,7 +133,9 @@ export default function AdminFashion() {
       price: item.price.toString(),
       category: item.category,
       imageUrl: item.imageUrl || '',
-      inStock: item.inStock
+      inStock: item.inStock,
+      sizesInput: item.sizes ? item.sizes.join(', ') : '',
+      colors: item.colors || []
     });
     setEditingItem(item);
     setIsAdding(true);
@@ -172,7 +178,7 @@ export default function AdminFashion() {
             variant="primary" 
             onClick={() => {
               setEditingItem(null);
-              setFormData({ name: '', brand: '', brandColor: '#F97316', description: '', price: '', category: 'Apparel', imageUrl: '', inStock: true });
+              setFormData({ name: '', brand: '', brandColor: '#F97316', description: '', price: '', category: 'Apparel', imageUrl: '', inStock: true, sizesInput: '', colors: [] });
               setIsAdding(true);
             }}
             className="flex items-center gap-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
@@ -357,6 +363,56 @@ export default function AdminFashion() {
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Available Sizes</label>
+                    <input
+                      type="text"
+                      value={formData.sizesInput}
+                      onChange={e => setFormData({...formData, sizesInput: e.target.value})}
+                      placeholder="e.g. S, M, L, XL (Comma separated)"
+                      className={`w-full px-4 py-3 rounded-xl border-2 outline-none ${
+                        isDark ? 'border-[#333333] bg-[#2A2A2A] focus:border-[#7C3AED]' : 'border-gray-200 focus:border-[#7C3AED]/50'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label className="flex text-sm font-semibold mb-2 items-center justify-between">
+                      Available Colors
+                      <button type="button" onClick={() => setFormData({...formData, colors: [...formData.colors, '#000000']})} className="text-[#7C3AED] hover:text-[#6D28D9] text-xs font-bold flex items-center">
+                        <Plus className="w-3 h-3 mr-1"/> Add Color
+                      </button>
+                    </label>
+                    <div className="flex flex-wrap gap-2 items-center h-12">
+                      {formData.colors.map((color, idx) => (
+                        <div key={idx} className="relative flex items-center group">
+                          <input
+                            type="color"
+                            value={color}
+                            onChange={(e) => {
+                              const newColors = [...formData.colors];
+                              newColors[idx] = e.target.value;
+                              setFormData({...formData, colors: newColors});
+                            }}
+                            className="w-10 h-10 p-1 rounded-xl cursor-pointer"
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => {
+                              const newColors = formData.colors.filter((_, i) => i !== idx);
+                              setFormData({...formData, colors: newColors});
+                            }} 
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                      {formData.colors.length === 0 && <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>No specific colors</span>}
+                    </div>
                   </div>
                 </div>
 
