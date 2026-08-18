@@ -84,7 +84,7 @@ export const router = createBrowserRouter([
           { path: "checkout", Component: Checkout },
           { path: "order-success", Component: OrderSuccess },
           { path: "mart", Component: MartPage },
-          { path: "mart/cart", Component: MartCart },
+          { path: "cart", Component: MartCart },
           { path: "mart/checkout", Component: MartCheckout },
           { path: "fashion", lazy: () => import("./pages/student/FashionPage").then(m => ({ Component: m.default })) },
           { path: "fashion/product/:id", lazy: () => import("./pages/student/FashionPDP").then(m => ({ Component: m.default })) },

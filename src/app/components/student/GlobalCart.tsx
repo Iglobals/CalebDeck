@@ -23,7 +23,7 @@ export function GlobalCart() {
     <div className="fixed top-[max(1rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))] z-50">
       <Link 
         id="global-cart"
-        to="/mart/cart" 
+        to="/cart" 
         className="relative flex items-center justify-center w-12 h-12 bg-card border border-border shadow-md rounded-xl hover:bg-muted/50 transition-colors"
         aria-label={`Open Cart with ${totalItems} items`}
       >

@@ -223,7 +223,7 @@ export default function FashionPage() {
             <h1 className="text-xl font-black tracking-tight">Fashion</h1>
           </div>
           
-          <Link to="/mart/cart" className="relative p-2 rounded-full hover:bg-muted/80 transition-colors">
+          <Link to="/cart" className="relative p-2 rounded-full hover:bg-muted/80 transition-colors">
             <ShoppingBag className="w-6 h-6" />
             {totalItems > 0 && (
               <span className="absolute top-0 right-0 w-4 h-4 bg-purple-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">

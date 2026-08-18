@@ -452,7 +452,7 @@ export default function MartPage() {
       {totalItems > 0 && (
         <div className="fixed bottom-6 left-0 right-0 px-4 z-40 animate-in slide-in-from-bottom-8">
           <div className="max-w-md mx-auto">
-            <Link to="/mart/cart">
+            <Link to="/cart">
               <Button variant="primary" className="w-full py-4 rounded-2xl shadow-2xl flex items-center justify-between px-6 bg-[#10B981] hover:bg-[#059669] text-white">
                 <span className="bg-white/20 px-3 py-1 rounded-lg font-bold">{totalItems} {totalItems === 1 ? 'item' : 'items'}</span>
                 <span className="font-bold flex items-center gap-2">View Cart <ArrowLeft className="w-5 h-5 rotate-180" /></span>

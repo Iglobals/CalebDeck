@@ -314,7 +314,7 @@ export default function FashionPDP() {
           
           <span className="font-bold text-black/80">Details</span>
           
-          <Link to="/mart/cart" ref={cartIconRef} className="relative w-10 h-10 bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/50 transition-colors shadow-sm">
+          <Link to="/cart" ref={cartIconRef} className="relative w-10 h-10 bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/50 transition-colors shadow-sm">
             <ShoppingBag className="w-5 h-5 text-black" />
             {totalItems > 0 && (
               <span className="absolute top-0 right-0 w-4 h-4 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">

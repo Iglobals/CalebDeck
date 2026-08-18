@@ -38,7 +38,7 @@ export default function StudentRoleWrapper() {
                         <GuestBanner />
                         {user && 
                          !location.pathname.startsWith('/calebnet') && 
-                         !location.pathname.startsWith('/mart/cart') &&
+                         !location.pathname.startsWith('/cart') &&
                          !location.pathname.startsWith('/fashion') &&
                          !location.pathname.startsWith('/checkout') &&
                          <GlobalCart />}

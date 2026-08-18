@@ -173,7 +173,7 @@ export function SignedInHome() {
           <p className="text-3xl font-black text-primary truncate max-w-[200px]">{displayName}</p>
         </div>
         <div className="flex items-center justify-end gap-4">
-          <Link to="/mart/cart" className="relative rounded-full hover:bg-muted transition-colors">
+          <Link to="/cart" className="relative rounded-full hover:bg-muted transition-colors">
             <ShoppingBag className="w-6 h-6" />
             {cartItems.reduce((sum, item) => sum + item.quantity, 0) > 0 && (
               <span className="absolute top-0 right-0 w-4 h-4 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center translate-x-1.5 -translate-y-1.5">

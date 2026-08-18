@@ -60,7 +60,7 @@ export default function MartCart() {
       <SEO
         title={`Cart (${totalItems}) - CalebDeck Mart`}
         description="Review your CalebDeck Mart items, delivery fee, and checkout total before placing your campus essentials order."
-        canonical="https://calebdeck.com/mart/cart"
+        canonical="https://calebdeck.com/cart"
         robots="noindex,follow"
       />
 
@@ -76,7 +76,27 @@ export default function MartCart() {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-        <div className="bg-card border-2 border-border rounded-3xl overflow-hidden mb-8">
+        {items.length === 0 ? (
+          <div className="bg-card border-2 border-border rounded-3xl p-12 flex flex-col items-center justify-center text-center">
+            <div className="w-24 h-24 bg-muted/50 rounded-full flex items-center justify-center mb-6">
+              <ShoppingBag className="w-12 h-12 text-muted-foreground" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Your cart is empty</h2>
+            <p className="text-muted-foreground mb-8 max-w-sm">
+              Looks like you haven't added anything to your cart yet. Discover campus essentials and exclusive fashion items.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 w-full max-w-sm">
+              <Button variant="secondary" onClick={() => navigate('/mart')} className="flex-1 py-4 rounded-2xl">
+                Shop Mart
+              </Button>
+              <Button variant="primary" onClick={() => navigate('/fashion')} className="flex-1 py-4 rounded-2xl bg-[#FDBA74] text-black hover:bg-[#F97316] border-none">
+                Shop Fashion
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="bg-card border-2 border-border rounded-3xl overflow-hidden mb-8">
           <ul className="divide-y divide-border">
             {items.map(item => {
               const isItemFashion = item.productType === 'fashion' || ['Apparel', 'Accessories', 'Footwear', 'Merch'].includes(item.category);
@@ -196,6 +216,8 @@ export default function MartCart() {
             </Button>
           </Link>
         </div>
+        </>
+        )}
       </main>
     </div>
   );
