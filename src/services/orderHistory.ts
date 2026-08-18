@@ -10,7 +10,7 @@ const MAX_ORDERS = 50;
 export interface OrderHistoryEntry {
   id: string;                // Firestore document ID (paymentReference)
   orderId: string;           // Human-readable order ID (CD-12345, CD-MART-12345)
-  type: 'food' | 'combo' | 'mart' | 'calebnet';
+  type: 'food' | 'combo' | 'mart' | 'calebnet' | 'fashion';
   summary: string;           // e.g. "3 plates from Old Cafeteria" or "MTN 2GB Data"
   total: number;
   status: string;
@@ -125,6 +125,23 @@ export function buildCalebNetEntry(data: {
     summary,
     total: data.amount,
     status: 'PROCESSING',
+    createdAt: new Date().toISOString()
+  };
+}
+
+/** Build entry from fashion order success state */
+export function buildFashionOrderEntry(orderState: any): OrderHistoryEntry {
+  const itemCount = orderState.items?.length || 0;
+  const totalQty = orderState.items?.reduce((sum: number, i: any) => sum + (i.quantity || 1), 0) || 0;
+  
+  return {
+    id: orderState.firestoreOrderId || orderState.paymentReference || orderState.orderId,
+    orderId: orderState.orderId,
+    type: 'fashion',
+    summary: `${totalQty} item${totalQty !== 1 ? 's' : ''} from CalebDeck Fashion`,
+    total: orderState.total || orderState.totalAmount || 0,
+    status: orderState.status || 'ORDER_PLACED',
+    hostelName: orderState.hostelName || orderState.hostel,
     createdAt: new Date().toISOString()
   };
 }

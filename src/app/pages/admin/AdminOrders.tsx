@@ -17,13 +17,13 @@ import {
     Zap,
     AlertTriangle
 } from 'lucide-react';
-import { subscribeToAllOrders, subscribeToHostels, Hostel, subscribeToRiders, Rider, dispatchBatch, markOrderRefunded, orderMatchesHostel, subscribeTodayBatchDays, FoodBatchDay } from '../../../services/db';
+import { subscribeToAllOrders, subscribeToHostels, Hostel, subscribeToRiders, Rider, dispatchBatch, markOrderRefunded, orderMatchesHostel, subscribeTodayBatchDays, advanceFashionBatch, FoodBatchDay } from '../../../services/db';
 import { formatDistanceToNow } from 'date-fns';
 import { useTheme } from '../../../context/ThemeContext';
 import { BatchOrderInfo, resolveOrderBatchInfo } from '../../components/BatchOrderInfo';
 
 type AdminOrdersProps = {
-    orderType?: 'food' | 'mart';
+    orderType?: 'food' | 'mart' | 'fashion';
     title?: string;
 };
 
@@ -97,11 +97,12 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
     );
 
     const today = new Date().toLocaleDateString();
-    const visibleStatuses = ['PENDING_PAYMENT', 'PAID', 'OUT_FOR_DELIVERY', 'ON_THE_WAY', 'PREPARING', 'DELIVERED', 'FAILED', 'CANCELLED', 'REFUNDED'];
+    const visibleStatuses = ['PENDING_PAYMENT', 'PAID', 'OUT_FOR_DELIVERY', 'ON_THE_WAY', 'PREPARING', 'DELIVERED', 'FAILED', 'CANCELLED', 'REFUNDED', 'CONSOLIDATING', 'PROCUREMENT', 'ARRIVING_AT_CAMPUS', 'READY_FOR_DELIVERY'];
 
     const todayOrders = orders.filter(o => {
-        if (orderType === 'food' && o.type === 'mart') return false;
+        if (orderType === 'food' && (o.type === 'mart' || o.type === 'fashion')) return false;
         if (orderType === 'mart' && o.type !== 'mart') return false;
+        if (orderType === 'fashion' && o.type !== 'fashion') return false;
         if (o.status === 'TRASHED' || !visibleStatuses.includes(o.status)) return false;
         
         // Treat old PENDING_PAYMENT as failed
@@ -111,7 +112,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
             if (ageInMinutes > 30) return false;
         }
 
-        if (!d || d.toLocaleDateString() !== today) return false;
+        if (orderType !== 'fashion' && (!d || d.toLocaleDateString() !== today)) return false;
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
             if (!(
@@ -140,10 +141,11 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
     });
 
     const failedOrders = orders.filter(o => {
-        if (orderType === 'food' && o.type === 'mart') return false;
+        if (orderType === 'food' && (o.type === 'mart' || o.type === 'fashion')) return false;
         if (orderType === 'mart' && o.type !== 'mart') return false;
+        if (orderType === 'fashion' && o.type !== 'fashion') return false;
         const d = parseDate(o.createdAt);
-        if (!d || d.toLocaleDateString() !== today) return false;
+        if (orderType !== 'fashion' && (!d || d.toLocaleDateString() !== today)) return false;
         
         if (o.status === 'FAILED' || o.status === 'CANCELLED') return true;
         if (o.status === 'PENDING_PAYMENT') {
@@ -165,7 +167,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
     const handleDispatch = async (hostel: Hostel, paidOrders: any[], isEmergency: boolean) => {
         if (dispatching) return;
 
-        const dispatchableOrders = paidOrders.filter(o => o.status === 'PAID' && !o.batchId && !o.assignedRiderId);
+        const dispatchableOrders = paidOrders.filter(o => (o.status === 'PAID' || (orderType === 'fashion' && o.status === 'READY_FOR_DELIVERY')) && !o.batchId && !o.assignedRiderId);
         if (!dispatchableOrders.length) return;
 
         if (isEmergency) {
@@ -198,7 +200,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
     const handleEmergencyDispatchSubmit = async (rider: Rider) => {
         if (!emergencyDispatch || dispatching) return;
         const { hostel, orders: paidOrders } = emergencyDispatch;
-        const dispatchableOrders = paidOrders.filter(o => o.status === 'PAID' && !o.batchId && !o.assignedRiderId);
+        const dispatchableOrders = paidOrders.filter(o => (o.status === 'PAID' || (orderType === 'fashion' && o.status === 'READY_FOR_DELIVERY')) && !o.batchId && !o.assignedRiderId);
         if (!dispatchableOrders.length) {
             setEmergencyDispatch(null);
             return;
@@ -227,6 +229,10 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
             DELIVERED: { variant: 'green', label: 'Delivered' },
             REFUNDED: { variant: 'red', label: 'Refunded' },
             CANCELLED: { variant: 'gray', label: 'Cancelled' },
+            CONSOLIDATING: { variant: 'purple', label: 'Consolidating' },
+            PROCUREMENT: { variant: 'amber', label: 'Procurement' },
+            ARRIVING_AT_CAMPUS: { variant: 'purple', label: 'Arriving at Campus' },
+            READY_FOR_DELIVERY: { variant: 'green', label: 'Ready for Delivery' },
         };
         let s = map[status];
         if (status === 'PENDING_PAYMENT') {
@@ -481,12 +487,59 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                         ))}
                     </div>
 
+                    {orderType === 'fashion' && (
+                        <div className={`mt-6 p-6 rounded-2xl border ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'} shadow-sm`}>
+                            <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Fashion Batch Pipeline</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <Button 
+                                    onClick={() => advanceFashionBatch('PAID', 'CONSOLIDATING')}
+                                    disabled={todayOrders.filter(o => o.status === 'PAID').length === 0}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center text-center h-24"
+                                >
+                                    <span className="text-sm">Close & Consolidate</span>
+                                    <span className="text-xl font-black mt-1">{todayOrders.filter(o => o.status === 'PAID').length}</span>
+                                    <span className="text-[10px] opacity-75 uppercase tracking-widest mt-1">Pending</span>
+                                </Button>
+                                
+                                <Button 
+                                    onClick={() => advanceFashionBatch('CONSOLIDATING', 'PROCUREMENT')}
+                                    disabled={todayOrders.filter(o => o.status === 'CONSOLIDATING').length === 0}
+                                    className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center text-center h-24"
+                                >
+                                    <span className="text-sm">Procure Items</span>
+                                    <span className="text-xl font-black mt-1">{todayOrders.filter(o => o.status === 'CONSOLIDATING').length}</span>
+                                    <span className="text-[10px] opacity-75 uppercase tracking-widest mt-1">Consolidating</span>
+                                </Button>
+                                
+                                <Button 
+                                    onClick={() => advanceFashionBatch('PROCUREMENT', 'ARRIVING_AT_CAMPUS')}
+                                    disabled={todayOrders.filter(o => o.status === 'PROCUREMENT').length === 0}
+                                    className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center text-center h-24"
+                                >
+                                    <span className="text-sm">Ship to Campus</span>
+                                    <span className="text-xl font-black mt-1">{todayOrders.filter(o => o.status === 'PROCUREMENT').length}</span>
+                                    <span className="text-[10px] opacity-75 uppercase tracking-widest mt-1">In Procurement</span>
+                                </Button>
+                                
+                                <Button 
+                                    onClick={() => advanceFashionBatch('ARRIVING_AT_CAMPUS', 'READY_FOR_DELIVERY')}
+                                    disabled={todayOrders.filter(o => o.status === 'ARRIVING_AT_CAMPUS').length === 0}
+                                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center text-center h-24"
+                                >
+                                    <span className="text-sm">Arrived & Ready</span>
+                                    <span className="text-xl font-black mt-1">{todayOrders.filter(o => o.status === 'ARRIVING_AT_CAMPUS').length}</span>
+                                    <span className="text-[10px] opacity-75 uppercase tracking-widest mt-1">In Transit</span>
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Hostel Groups */}
                     {hostelGroups.length > 0 ? (
                         <div className="space-y-4">
                             {hostelGroups.map(({ hostel, orders: hostelOrders }) => {
                                 const isExpanded = expandedHostels.has(hostel.id);
-                                const paidCount = hostelOrders.filter(o => o.status === 'PAID').length;
+                                const paidCount = hostelOrders.filter(o => o.status === 'PAID' || (orderType === 'fashion' && o.status === 'READY_FOR_DELIVERY')).length;
                                 const outCount = hostelOrders.filter(o => o.status === 'OUT_FOR_DELIVERY').length;
                                 const otwCount = hostelOrders.filter(o => o.status === 'ON_THE_WAY').length;
                                 const deliveredCount = hostelOrders.filter(o => o.status === 'DELIVERED').length;

@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Button } from '../../components/design-system/Button';
-import { Search, ShoppingBag, Plus, Minus, ArrowLeft, Shirt, SlidersHorizontal } from 'lucide-react';
+import { Search, ShoppingBag, Plus, Minus, ArrowLeft, Shirt, SlidersHorizontal, Clock, CalendarClock } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { useAuth } from '../../../context/AuthContext';
 import SEO from '../../components/SEO';
 import { useMartCart } from '../../../context/MartCartContext';
 import { subscribeToFashionItems, FashionItem } from '../../../services/fashion';
 import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
+import { getFashionBatchState, formatFashionCountdown, formatArrivalDate, DEFAULT_FASHION_BATCH_CONFIG } from '../../../services/fashionBatch';
+import type { FashionBatchState } from '../../../services/fashionBatch';
 
 const CATEGORIES = ['Trending', 'Shoes', 'Bags', 'Shirts', 'Apparel'];
 
@@ -21,6 +23,7 @@ export default function FashionPage() {
   const [items, setItems] = useState<FashionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+  const [batchState, setBatchState] = useState<FashionBatchState | null>(null);
 
   const FALLBACK_ITEMS: FashionItem[] = [
     {
@@ -113,6 +116,16 @@ export default function FashionPage() {
       unsubscribeSettings();
     };
   }, [user]);
+
+  // Batch countdown — updates every 60s (no seconds digit, no anxiety)
+  useEffect(() => {
+    const config = platformSettings?.fashionBatchConfig || DEFAULT_FASHION_BATCH_CONFIG;
+    setBatchState(getFashionBatchState(config));
+    const interval = setInterval(() => {
+      setBatchState(getFashionBatchState(config));
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [platformSettings]);
 
   const filteredItems = items.filter(item => {
     const matchesCategory = activeCategory === 'Trending' || item.category === activeCategory;
@@ -292,6 +305,47 @@ export default function FashionPage() {
           )}
         </div>
 
+        {/* Batch Countdown Card */}
+        {batchState && (
+          <div className="mb-6 rounded-[24px] border border-secondary/20 bg-secondary/5 p-5 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-secondary/10 flex items-center justify-center flex-shrink-0">
+                <CalendarClock className="w-5 h-5 text-secondary" />
+              </div>
+              <div className="flex-1">
+                {batchState.isOpen ? (
+                  <>
+                    <p className="text-sm font-bold text-foreground">
+                      Order by Thursday to join this week's batch
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Closes in <span className="font-bold text-secondary">{formatFashionCountdown(batchState)}</span>
+                      {' · '}
+                      Arrives <span className="font-semibold">{formatArrivalDate(batchState.expectedArrivalDate)}</span>
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-bold text-foreground">
+                      This week's batch is closed
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Next batch opens <span className="font-semibold">{batchState.nextOpenDate.toLocaleDateString('en-US', { weekday: 'long' })}</span>
+                      {' · '}
+                      Orders arrive <span className="font-semibold">{formatArrivalDate(batchState.expectedArrivalDate)}</span>
+                    </p>
+                  </>
+                )}
+              </div>
+              {batchState.isOpen && batchState.isClosingSoon && (
+                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 whitespace-nowrap">
+                  Closing Soon
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Product Grid */}
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 animate-pulse">
@@ -321,10 +375,20 @@ export default function FashionPage() {
                         alt={item.name}
                         className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-700 mix-blend-multiply"
                       />
-                      {!item.inStock && (
+                    {!item.inStock && (
                         <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] flex items-center justify-center">
                           <span className="bg-background font-bold px-4 py-2 text-xs uppercase tracking-wider rounded-full">Out of Stock</span>
                         </div>
+                      )}
+                      {item.inStock && batchState && !batchState.isOpen && !batchState.isGracePeriod && (
+                        <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] flex items-center justify-center">
+                          <span className="bg-background font-bold px-4 py-2 text-xs uppercase tracking-wider rounded-full">Next Batch</span>
+                        </div>
+                      )}
+                      {item.inStock && batchState && batchState.isClosingSoon && batchState.isOpen && (
+                        <span className="absolute top-3 left-3 text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-400 text-amber-900 shadow-sm z-10">
+                          Closing Soon
+                        </span>
                       )}
                     </div>
 

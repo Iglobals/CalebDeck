@@ -7,6 +7,7 @@ import { Badge } from '../../components/design-system/Badge';
 import { Settings, ShieldAlert, Store, Pizza, Clock, Wifi, Utensils, MessageSquare, Plus, Trash2, Edit3, ArrowUp, ArrowDown, Image as ImageIcon, Sparkles, Check, X } from 'lucide-react';
 import { subscribeToPlatformSettings, updatePlatformSettings, PlatformSettings, PromoSlide, DEFAULT_PROMO_SLIDES } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
+import { FashionBatchConfig, DEFAULT_FASHION_BATCH_CONFIG } from '../../../services/fashionBatch';
 
 const CLOSED_MESSAGES = {
   global: [
@@ -72,6 +73,9 @@ export default function AdminSettings() {
   const [isAddingSlide, setIsAddingSlide] = useState(false);
   const [savingPromos, setSavingPromos] = useState(false);
 
+  // Fashion Batch State
+  const [fashionBatchConfig, setFashionBatchConfig] = useState<FashionBatchConfig>(DEFAULT_FASHION_BATCH_CONFIG);
+
   const createEmptySlide = (): PromoSlide => ({
     id: `slide-${Date.now()}`,
     badge: 'EXCLUSIVE',
@@ -99,6 +103,7 @@ export default function AdminSettings() {
       setFashionMessage(data.fashionClosedMessage || DEFAULT_MESSAGES.fashion);
       setCalebNetMessage(data.calebNetClosedMessage || DEFAULT_MESSAGES.calebNet);
       setPromoSlides(data.promoSlides || DEFAULT_PROMO_SLIDES);
+      if (data.fashionBatchConfig) setFashionBatchConfig(data.fashionBatchConfig);
     });
     return () => unsub();
   }, []);
@@ -330,6 +335,18 @@ export default function AdminSettings() {
       alert('Operating hours updated successfully.');
     } catch (err) {
       console.error('Failed to update operating hours:', err);
+    }
+  };
+
+  const handleUpdateFashionBatch = async () => {
+    try {
+      await updatePlatformSettings({
+        fashionBatchConfig
+      });
+      alert('Fashion batch schedule updated successfully.');
+    } catch (err) {
+      console.error('Failed to update fashion batch schedule:', err);
+      alert('Failed to update fashion batch schedule.');
     }
   };
 
@@ -678,6 +695,139 @@ export default function AdminSettings() {
               onClick={handleUpdateHours}
             >
               Save Hours
+            </Button>
+          </Card>
+
+          {/* Fashion Batch Schedule Configuration */}
+          <Card className={`p-6 border-l-4 border-l-purple-500`}>
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className={`p-3 rounded-xl ${isDark ? 'bg-purple-900/40 text-purple-400' : 'bg-purple-100 text-purple-600'}`}>
+                  <Clock className={`w-6 h-6`} />
+                </div>
+                <div>
+                  <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Fashion Batch Schedule</h3>
+                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Weekly Ordering Cycle</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mb-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Order Window Opens (Day)</label>
+                  <select 
+                    value={fashionBatchConfig.orderWindowOpenDay}
+                    onChange={(e) => setFashionBatchConfig({ ...fashionBatchConfig, orderWindowOpenDay: Number(e.target.value) })}
+                    className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                      isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
+                    }`}
+                  >
+                    <option value={1}>Monday</option>
+                    <option value={2}>Tuesday</option>
+                    <option value={3}>Wednesday</option>
+                    <option value={4}>Thursday</option>
+                    <option value={5}>Friday</option>
+                    <option value={6}>Saturday</option>
+                    <option value={7}>Sunday</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Order Window Closes (Day)</label>
+                  <select 
+                    value={fashionBatchConfig.orderWindowCloseDay}
+                    onChange={(e) => setFashionBatchConfig({ ...fashionBatchConfig, orderWindowCloseDay: Number(e.target.value) })}
+                    className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                      isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
+                    }`}
+                  >
+                    <option value={1}>Monday</option>
+                    <option value={2}>Tuesday</option>
+                    <option value={3}>Wednesday</option>
+                    <option value={4}>Thursday</option>
+                    <option value={5}>Friday</option>
+                    <option value={6}>Saturday</option>
+                    <option value={7}>Sunday</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Closing Hour (0-23)</label>
+                <input 
+                  type="number" min="0" max="23"
+                  value={fashionBatchConfig.orderWindowCloseHour}
+                  onChange={(e) => setFashionBatchConfig({ ...fashionBatchConfig, orderWindowCloseHour: Number(e.target.value) })}
+                  className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                    isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
+                  }`}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
+                <div>
+                  <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Arrival Day</label>
+                  <select 
+                    value={fashionBatchConfig.arrivalDay}
+                    onChange={(e) => setFashionBatchConfig({ ...fashionBatchConfig, arrivalDay: Number(e.target.value) })}
+                    className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                      isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
+                    }`}
+                  >
+                    <option value={1}>Monday</option>
+                    <option value={2}>Tuesday</option>
+                    <option value={3}>Wednesday</option>
+                    <option value={4}>Thursday</option>
+                    <option value={5}>Friday</option>
+                    <option value={6}>Saturday</option>
+                    <option value={7}>Sunday</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Delivery Starts</label>
+                  <select 
+                    value={fashionBatchConfig.deliveryStartDay}
+                    onChange={(e) => setFashionBatchConfig({ ...fashionBatchConfig, deliveryStartDay: Number(e.target.value) })}
+                    className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                      isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
+                    }`}
+                  >
+                    <option value={1}>Monday</option>
+                    <option value={2}>Tuesday</option>
+                    <option value={3}>Wednesday</option>
+                    <option value={4}>Thursday</option>
+                    <option value={5}>Friday</option>
+                    <option value={6}>Saturday</option>
+                    <option value={7}>Sunday</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Delivery Ends</label>
+                  <select 
+                    value={fashionBatchConfig.deliveryEndDay}
+                    onChange={(e) => setFashionBatchConfig({ ...fashionBatchConfig, deliveryEndDay: Number(e.target.value) })}
+                    className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                      isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
+                    }`}
+                  >
+                    <option value={1}>Monday</option>
+                    <option value={2}>Tuesday</option>
+                    <option value={3}>Wednesday</option>
+                    <option value={4}>Thursday</option>
+                    <option value={5}>Friday</option>
+                    <option value={6}>Saturday</option>
+                    <option value={7}>Sunday</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              variant="primary"
+              className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
+              onClick={handleUpdateFashionBatch}
+            >
+              Save Schedule
             </Button>
           </Card>
 

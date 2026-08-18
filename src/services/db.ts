@@ -360,7 +360,7 @@ export const dispatchBatch = async (hostelId: string, hostelName: string, rider:
             .filter(({ snapshot }) => {
                 if (!snapshot.exists()) return false;
                 const data = snapshot.data();
-                return data.status === 'PAID' && !data.batchId && !data.assignedRiderId;
+                return (data.status === 'PAID' || data.status === 'READY_FOR_DELIVERY') && !data.batchId && !data.assignedRiderId;
             });
 
         if (eligibleOrders.length === 0) return null;
@@ -614,10 +614,33 @@ export interface PlatformSettings {
     isFashionAcceptingOrders?: boolean;
     isFashionComingSoon?: boolean;
     fashionClosedMessage?: string;
+    // Fashion Batch System
+    fashionBatchConfig?: {
+      orderWindowOpenDay: number;
+      orderWindowCloseDay: number;
+      orderWindowCloseHour: number;
+      arrivalDay: number;
+      deliveryStartDay: number;
+      deliveryEndDay: number;
+    };
     // Promo Banners
     promoSlides?: PromoSlide[];
     [key: string]: any;
 }
+
+export const FASHION_ORDER_STATUSES = [
+  'ORDER_PLACED',
+  'BATCH_ACTIVE',
+  'BATCH_CLOSED',
+  'CONSOLIDATED',
+  'PROCUREMENT_IN_PROGRESS',
+  'ARRIVING_AT_CAMPUS',
+  'READY_FOR_DELIVERY',
+  'OUT_FOR_DELIVERY',
+  'DELIVERED'
+] as const;
+
+export type FashionOrderStatus = typeof FASHION_ORDER_STATUSES[number];
 
 export const getPlatformSettings = async (): Promise<PlatformSettings> => {
     const settingsRef = doc(db, 'settings', 'platform');
@@ -1251,4 +1274,29 @@ export const subscribeTodayBatchDays = (callback: (days: FoodBatchDay[]) => void
 export const updateBatchDayStatus = async (batchDayId: string, status: FoodBatchDay['status']) => {
     const ref = doc(db, 'food_batch_days', batchDayId);
     await updateDoc(ref, { status, updatedAt: serverTimestamp() });
+};
+
+
+export const advanceFashionBatch = async (currentStatus: string, nextStatus: string) => {
+    try {
+        const ordersRef = collection(db, 'orders');
+        const q = query(ordersRef, where('type', '==', 'fashion'), where('status', '==', currentStatus));
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) return 0;
+        
+        const batch = writeBatch(db);
+        snapshot.docs.forEach(docSnap => {
+            batch.update(docSnap.ref, { 
+                status: nextStatus,
+                updatedAt: serverTimestamp()
+            });
+        });
+        
+        await batch.commit();
+        return snapshot.size;
+    } catch (err) {
+        console.error('Failed to advance fashion batch', err);
+        throw err;
+    }
 };

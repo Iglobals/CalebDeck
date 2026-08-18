@@ -3,6 +3,16 @@
 
 ---
 
+## Status as of this update — check this before planning anything
+
+- **Auth backend (ICA ↔ Firebase):** done and confirmed live — real users have signed in via ICA in production. Do not rebuild login/callback routes, PKCE, token exchange, or Firebase user resolution.
+- **Signed-in i-CON experience** (banner, profile, checkout auto-fill, theme, 5-tab nav, Home screen): built, through multiple rounds of review fixes. Wallet is live in Mart's checkout; Food and Fashion are being wired in next.
+- **CalebDeck Fashion:** foundations are live (catalog, PDP, admin inventory) — currently being refined, not started from scratch. As of this update, Fashion's real operating model (weekly batch fulfillment, not instant delivery) is now specced in Section 5 — this is a genuine addition to what's already built, not a redo.
+- **CalebDeck Coins and Ambassadors:** confirmed on the roadmap, explicitly later-phase — not started, not this sprint.
+- **This summary is a guide, not a guarantee.** If anything here conflicts with what the actual codebase shows, trust the codebase. Before starting any work session, verify against the live code what's already implemented — don't treat this document as an undone todo list just because it describes the full target state. A fresh read of this doc is not a substitute for checking what's already shipped.
+
+---
+
 ## 0. Read this before touching anything
 
 CalebDeck is **live in production with real users right now**. Everything below is additive on top of a working system — not a rewrite, not a refactor pass. Treat every existing flow as load-bearing until proven otherwise.
@@ -243,6 +253,9 @@ UI/UX:
 **Cart:** a shared cart across Mart, Fashion, and (later) Gadgets — not one product's cart. Lives as a persistent icon in the top bar with an item-count badge, not a 6th tab. Adding a sixth destination to the bottom nav breaks the 5-tab ceiling this was deliberately designed around; don't do it even though a cart icon feels like it belongs in the nav at first glance.
 - **Scope it to shoppable surfaces only** — Home, Mart, Fashion, and later Gadgets. It has no reason to appear on CalebNet or i-CON/Wallet, and needs to be pulled from the Wallet page specifically, where it's currently showing — that's a fix against what's actually built, not new guidance.
 - On Home, it sits well-aligned beside the avatar in the header — that placement isn't landing correctly in the current build, confirm it's actually fixed rather than just moved.
+- **Every cart item needs to carry which product it belongs to** (`productType: 'mart' | 'fashion' | 'gadgets'`), and checkout eligibility needs to check *that specific item's* product state — not one blanket rule. Right now the cart applies Mart's open/closed hours to the entire cart regardless of contents, so a Fashion item becomes unpurchasable whenever Mart happens to be closed. This is a real bug, not an edge case — fix the data model (tag on add-to-cart) and the checkout gate (evaluate per line item, block only the items actually affected) together.
+
+**Safe area / notch handling — real device bug, not cosmetic.** Screenshots on an iPhone 13 show the back button and cart icon colliding with the status bar/notch area on the PDP specifically, while the same elements render cleanly on Android. This is the standard PWA safe-area problem: add `viewport-fit=cover` to the viewport meta tag if it's not already there, and use `env(safe-area-inset-top)` / `env(safe-area-inset-bottom)` (with a sensible fallback, e.g. `max(1rem, env(safe-area-inset-top))`) on anything positioned relative to the viewport edges — especially floating icons over full-bleed images like the PDP hero, which are the most likely spot to have hardcoded offsets that skip this. Audit beyond just the one page that happened to get screenshotted; anywhere else uses the same absolute-positioning pattern will have the same bug.
 
 **This five-tab structure is complete as specified — don't add a sixth for CalebDeck Business.** Business is a new product on the roadmap, not yet built (see the note at the end of Section 5) — its customer-facing footprint, if any, isn't confirmed yet. Nothing about it should be designed or built until that's resolved.
 
@@ -256,7 +269,9 @@ UI/UX:
 1. Greeting header — "Good afternoon, [name]" with a small tappable avatar. Must compute morning/afternoon/evening from the actual current time, not render statically — this was wrong in the first build.
 2. An "at a glance" row — CalebNet wallet balance, and if there's a live order, its status inline (e.g. "Jollof + drinks · arriving in 12 min"). This is the single highest-value thing on the screen — surfacing it immediately instead of making someone dig for it.
 3. Search, full-width, rounded.
-4. Promo/hero banner — a **carousel**, not a static block, rotating through real CalebDeck products with their actual photos as the background. Whatever text/CTA sits on top must stay visually constant across every slide (same scrim treatment, same single accent-colored button) even though the photo underneath changes — otherwise this just relocates the competing-colors problem into clashing photo tones.
+4. Promo/hero banner — a **carousel** across CalebDeck Mart, Fashion, and Business (Gadgets joins once it exists). Each slide: a solid brand-color gradient filling the left side, fading to transparent toward the right, with that product's logo sitting on the right so it reads as emerging *from* the color rather than placed on top of it. This needs a transparent-background version of each logo — the ones on hand are on black backgrounds — composited under a gradient overlay that's opaque color on the left and fully transparent by the time it reaches the logo.
+   - **Colors:** Mart keeps whatever it already uses. Fashion leans purple, its primary. Business leans orange instead, even though it shares the same two-color palette as Fashion — inverting the emphasis is what keeps the two slides from reading as near-duplicates back to back in the same carousel.
+   - **Admin-configurable, not hardcoded.** A settings page to add, edit, and remove slides — product, color, logo, and a description/tagline per slide — the same pattern as inventory management elsewhere. Nothing here should be baked into the code.
 5. Real preview cards for Mart and Fashion — actual products with real images, not nav-icon links. Home is still Food-first, but the other products need genuine discovery here, not just a door to their own tab.
 6. Food vendor grid. Tapping a vendor card routes straight into that vendor's page — no intermediate "see all" list in between. This was a real UX bug in the first build, not a preference.
 7. Once CalebDeck Business has approved listings: its products display inline here too, same card treatment as the vendor grid, for food-adjacent vendors specifically — non-food Business listings surface on Fashion or Gadgets instead, matched to what they actually sell, not funneled onto Home regardless of category.
@@ -294,21 +309,50 @@ Apply all of this to the i-CON account area, CalebDeck Fashion, and — once the
 
 ## 5. Phase 3 — CalebDeck Fashion (new product)
 
-Fashion doesn't exist yet — this is a from-scratch build, styled using the same signed-in token system as Section 4, functionally consistent with the rest of the ecosystem. **i-CON-only** — no guest browsing or buying here, see Section 3 for why.
+Fashion doesn't exist yet as a full system — the catalog/PDP/admin shell is built; this phase layers in how it actually operates. **i-CON-only** — no guest browsing or buying here, see Section 3 for why.
 
-**Brand identity:** Fashion has its own two-color identity — purple as primary (main CTAs, active states, price emphasis), orange as secondary (badges, an active wishlist heart, sale tags). Two colors with clearly separated jobs, not competing for the same one — same discipline as the sitewide "one accent color" rule, just scoped to what Fashion's own logo actually establishes.
+**The operating model is fundamentally different from Mart — this changes more than it looks like at first.** Fashion is not instant/on-demand. Vendors submit inventory through WhatsApp for Calebdeck's manual review and approval — they never self-list — and approved products fulfil on a **weekly batch**, not on-demand delivery:
+- **Order window:** Monday through Thursday.
+- **Batch close:** Thursday.
+- **Procurement/consolidation:** after close, Calebdeck coordinates sourcing from vendors for the whole week's orders at once, rather than moving each order individually.
+- **Campus arrival:** Friday.
+- **Customer delivery:** Friday through Saturday.
 
-**Per-vendor brand color, designed properly now rather than deferred:** Fashion's shell — nav, catalog, filters, PDP structure — stays exactly as speced everywhere, purple/orange baseline, never changes per vendor. When someone's viewing a specific brand's storefront within Fashion, that brand's own color shows up in exactly one contained place — a header banner or a "Shop [Brand]" button — never the price text, never every button, never the background. Same restraint rule as glass: one deliberate surface, not a full re-theme. No brand color set → falls back to purple/orange, never an undefined state.
+This is a deliberate cost/logistics decision, not a limitation to hide — the UI needs to *communicate* it clearly rather than let someone assume Fashion behaves like Mart.
 
-- **Data model:** inspect CalebDeck Mart's existing Firestore schema and reuse its patterns for products, cart, and orders wherever it fits, adjusted for fashion-specific attributes (size, color/variant, brand). Don't invent a parallel system where Mart's already solved the same problem.
-- **Admin:** Fashion gets its own admin page mirroring what Mart's admin already does — add items, edit, mark sold out. No hardcoded placeholder data anywhere in the app. Since there's no real inventory yet, seed the database through that same admin page using Unsplash image URLs to see how it actually looks populated — real admin usage later uploads real photos through the identical flow, nothing rebuilt when real inventory arrives.
-- **Catalog page** — no greeting header, that's redundant with Home. Search bar + Filter button, standard price-range filter, category pills. Product grid: photo, wishlist heart top-right, name, price, and a **brand tag on every card** — the entire point of Fashion is displaying other people's brands, not CalebDeck's own, so this isn't optional the way it might be for a single-brand store.
-- **Product page:** hero image with thumbnail strip, brand name shown prominently near the title (tappable through to more from that brand), quantity stepper, color and size selectors, expandable description, bottom bar split into **Add to Cart** and **Buy Now** rather than one button — a build-a-cart path and a skip-straight-through path.
-- **Add to cart:** a lightweight slide-up preview drawer after tapping "Add to Cart" — what's in the cart so far, dismiss and keep browsing, or a "View Full Cart" link through to the *same* shared cart described in Section 4 (Mart/Fashion/Gadgets). Not a second, separate cart.
-- **Checkout:** reuses the shared cart/checkout infrastructure. Since every Fashion customer is signed in by definition, its payment selector always shows Wallet/Card — no guest-fallback branching needed, unlike Mart's. Paystack-only until the wallet pilot extends past Mart (see Section 3); wire in the same `PaymentSelector` component built for Mart rather than rebuilding it.
-- Ties into Phase 2's `productsUsed`, connected-products list, and order history exactly like Mart does.
+**Brand identity:** purple as primary (main CTAs, active states, price emphasis), orange as secondary (badges, an active wishlist heart, sale tags, and batch-status accents). Two colors with clearly separated jobs, not competing for the same one.
 
-**CalebDeck Business — refined, not fully resolved yet.** Not a full shoppable product line like Mart or Fashion — closer to a visibility/advertising service for campus vendors, showcasing their products rather than necessarily running full checkout through CalebDeck for them. The application/approval flow still isn't specced. What *is* settled: display as real cards (photo, product info, vendor name/tagline) inline wherever matches category — food-adjacent on Home under the section now labeled **"Campus Brand"** (renamed from "Local Businesses"), clothing-adjacent on Fashion, electronics-adjacent on Gadgets once that exists. Whether those cards lead to an actual CalebDeck checkout or just vendor contact/visibility is still open — don't build either path yet, this needs its own dedicated pass.
+**Per-vendor brand color:** Fashion's shell — nav, catalog, filters, PDP structure — stays exactly as speced everywhere, purple/orange baseline, never changes per vendor. A specific brand's own color shows up in exactly one contained place when browsing their storefront — a header banner or a "Shop [Brand]" button — never the price text, never every button, never the background. No brand color set → falls back to purple/orange.
+
+**Batch countdown — designed, not just functional:**
+- Lives on the catalog page, below the search/filter row, above the product grid — a dedicated card, not a popup or an interruption.
+- Large day:hour:minute digits (skip seconds — a ticking counter causes constant re-renders and reads as anxious, not premium), same squircle/elevation treatment as everything else, purple accent.
+- Plain-language line underneath: "Order by Thursday to join this week's batch." Once closed: "This week's batch is closed — next batch opens Monday."
+- **Avoid the generic e-commerce urgency cliché** — no red digits, no flashing. This is information, communicated calmly, not a pressure tactic.
+
+**Batch-aware product states — reuse existing visual patterns, don't invent new ones:**
+- **Available:** normal card, full color, Add to Cart/Buy Now active.
+- **Batch closing soon:** small amber badge, same slot as an existing sale/new badge — still orderable.
+- **Batch closed / Next batch:** reuse the exact dimmed-card-plus-status-label treatment already built for closed food vendors ("Old Cafeteria — Closed") — same pattern, different label, not a new visual language.
+- **Sold out:** reuse whatever Mart's inventory system already does for this.
+
+**Order status, end to end:** Order Placed → Batch Active → Batch Closed → Order Consolidated → Procurement in Progress → Arriving at Caleb University → Ready for Delivery → Out for Delivery → Delivered. Shown as a vertical stepper on the order detail view within Order History — accent-filled for completed stages, muted for upcoming, same icon/squircle language as the rest of the app. This is a Fashion-specific addition to Order History, not a redesign of how Food or Mart orders display there.
+
+**Delivery timing must be stated plainly at the point of purchase**, not left implicit. Near Add to Cart/Buy Now on the PDP: a short line like "Joins this week's batch — arrives [date]." Getting this wrong is a trust problem, not a UI nitpick — someone expecting Mart-speed delivery and getting a week-later batch delivery instead is a support ticket waiting to happen.
+
+- **Data model:** inspect CalebDeck Mart's existing Firestore schema and reuse its patterns for products, cart, and orders wherever it fits, adjusted for fashion-specific attributes (size, color/variant, brand, and now batch/order-status fields). Don't invent a parallel system where Mart's already solved the same problem.
+- **Admin:** beyond add/edit/mark sold out, Fashion's admin now also needs batch schedule configuration (which days the window runs, when it closes — not a simple daily-hours toggle, since the cycle is weekly) and the ability to advance an order through the status pipeline as procurement actually happens. No hardcoded placeholder data — seed via the same admin flow using Unsplash URLs for now.
+- **Product photos need actual background removal**, not just placement on a colored card — see the transparent-PNG requirement already in this doc; applies here regardless of the batch system.
+- **Catalog page** — no greeting header, redundant with Home. Search bar + Filter, price-range filter, category pills, the countdown card described above, then the product grid: photo, wishlist heart, name, price, brand tag on every card (Fashion displays other people's brands, this isn't optional), batch-state badge where relevant. Header zone through the search bar carries the purple-gradient-plus-faded-logo watermark, kept subtle enough that the controls on top stay fully legible.
+- **Product page:** hero image with thumbnail strip, brand name near the title (tappable through to more from that brand), quantity stepper, color/size selectors, expandable description, the delivery-timing line, bottom bar split into Add to Cart / Buy Now.
+  - Image area and info panel are two visually separate fixed containers with their own meeting rounded corners — not one shared surface, not a draggable sheet. Only the info panel's content scrolls internally.
+- **Add to cart:** lightweight slide-up preview drawer, feeding the *same* shared cart as Mart/Gadgets — not a second cart.
+- **Checkout:** shared cart/checkout infrastructure. Every Fashion customer is signed in by definition, so the payment selector always shows Wallet/Card, no guest-fallback branching. Paystack-only until wallet extends past Mart.
+- Ties into `productsUsed`, connected-products, and order history like Mart does — plus the batch-status stepper above, which is Fashion-specific.
+
+**CalebDeck Business — now with real mechanics, not just a placement principle.** Vendors submit through WhatsApp — there's no in-app application form to build. Calebdeck reviews and approves manually; on approval, a vendor gets a permanent, sequential Vendor ID (`CBDK-V-000001` format) and each approved product its own Product ID (`CBDK-P-000001`), tied back to its vendor. This makes Business's near-term engineering scope admin-side, not public-facing: a tool to manually enter an approved vendor (auto-assigning the next Vendor ID), manually enter their approved products (auto-assigning Product IDs), and the customer-facing display already speced — real cards, category-matched placement, no extra click, food-adjacent on Home under "Campus Brand," clothing-adjacent on Fashion, electronics-adjacent on Gadgets once it exists. Whether cards lead to an actual CalebDeck checkout or just vendor visibility/contact is still open.
+
+**Also on the roadmap, confirmed but not this phase: Calebdeck Coins and Calebdeck Ambassadors.** Coins is a separate rewards/loyalty currency — earned through activity, redeemable across products — and must never be conflated with the Wallet already built (Wallet is real money via Paystack; Coins is earned points, a different system entirely). Ambassadors is a student referral/distribution program with trackable referral codes. Both are explicitly later-phase per the product roadmap (Fashion, then Business, then Coins, then Ambassadors) — don't start building either until they get their own dedicated design pass.
 
 **CalebDeck Gadgets** — still not designed, and its navigation placement is genuinely undecided (it can't be a 6th tab any more than Business can). It still needs to exist on the landing page and in SEO content now regardless of build status — see below.
 

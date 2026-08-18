@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { Button } from '../../components/design-system/Button';
-import { ArrowLeft, ShoppingBag, Plus, Minus } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Plus, Minus, CalendarClock } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { useAuth } from '../../../context/AuthContext';
 import SEO from '../../components/SEO';
@@ -9,6 +9,8 @@ import { useMartCart } from '../../../context/MartCartContext';
 import { subscribeToFashionItems, FashionItem } from '../../../services/fashion';
 import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 import { toast } from 'sonner';
+import { getFashionBatchState, isFashionCheckoutAllowed, formatArrivalDate, DEFAULT_FASHION_BATCH_CONFIG } from '../../../services/fashionBatch';
+import type { FashionBatchState } from '../../../services/fashionBatch';
 
 export default function FashionPDP() {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +24,7 @@ export default function FashionPDP() {
   const [activeThumbnail, setActiveThumbnail] = useState<string>('');
   const [showCartOverlay, setShowCartOverlay] = useState(false);
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+  const [batchState, setBatchState] = useState<FashionBatchState | null>(null);
   
   // Animation states
   const cartIconRef = useRef<HTMLAnchorElement>(null);
@@ -130,6 +133,16 @@ export default function FashionPDP() {
       unsubscribeSettings();
     };
   }, [id, user]);
+
+  // Batch state for delivery timing
+  useEffect(() => {
+    const config = platformSettings?.fashionBatchConfig || DEFAULT_FASHION_BATCH_CONFIG;
+    setBatchState(getFashionBatchState(config));
+    const interval = setInterval(() => {
+      setBatchState(getFashionBatchState(config));
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [platformSettings]);
 
   useEffect(() => {
     if (item) {
@@ -428,28 +441,44 @@ export default function FashionPDP() {
       </div>
     </div>
 
-      {/* Sticky Bottom Actions - Floating Glass Pill with Safe Area Bottom */}
+      {/* Delivery Timing + Sticky Bottom Actions */}
       <div 
         className="absolute bottom-0 left-0 right-0 md:left-[50%] z-40 pointer-events-none"
         style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
       >
-        <div className="px-6 mb-4 sm:mb-6 pointer-events-auto">
+        <div className="px-6 mb-4 sm:mb-6 pointer-events-auto space-y-2">
+          {/* Delivery timing line */}
+          {batchState && (
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground bg-white/60 dark:bg-black/60 backdrop-blur-md rounded-full px-4 py-2">
+              <CalendarClock className="w-3.5 h-3.5 text-secondary flex-shrink-0" />
+              {batchState.isOpen || batchState.isGracePeriod ? (
+                <span>
+                  Joins this week's batch — arrives <strong>{formatArrivalDate(batchState.expectedArrivalDate)}</strong>
+                </span>
+              ) : (
+                <span>
+                  Next batch opens <strong>{batchState.nextOpenDate.toLocaleDateString('en-US', { weekday: 'long' })}</strong> — orders arrive <strong>{formatArrivalDate(batchState.expectedArrivalDate)}</strong>
+                </span>
+              )}
+            </div>
+          )}
+          {/* Action buttons */}
           <div className="flex items-center gap-2 bg-white/70 dark:bg-black/70 backdrop-blur-xl border border-white/40 dark:border-white/10 p-2 rounded-[2rem] shadow-xl">
             <Button 
               onClick={handleAddToCart}
-              disabled={!item.inStock || isAdded}
+              disabled={!item.inStock || isAdded || (batchState ? !batchState.isOpen && !batchState.isGracePeriod : false)}
               variant="secondary"
               className={`flex-1 h-14 rounded-full font-bold border-none transition-colors ${isAdded ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-transparent text-foreground hover:bg-black/5 dark:hover:bg-white/5'}`}
             >
-              {isAdded ? 'Added! ✓' : 'Add to Cart'}
+              {isAdded ? 'Added! ✓' : batchState && !batchState.isOpen && !batchState.isGracePeriod ? 'Batch Closed' : 'Add to Cart'}
             </Button>
             <Button 
               onClick={handleBuyNow}
-              disabled={!item.inStock}
+              disabled={!item.inStock || (batchState ? !batchState.isOpen && !batchState.isGracePeriod : false)}
               variant="primary"
               className="flex-1 h-14 rounded-full bg-[#FDBA74] hover:bg-[#F97316] text-black border-none font-bold shadow-sm"
             >
-              Buy Now
+              {batchState && !batchState.isOpen && !batchState.isGracePeriod ? 'Next Batch' : 'Buy Now'}
             </Button>
           </div>
         </div>

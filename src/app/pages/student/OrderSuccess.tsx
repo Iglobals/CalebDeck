@@ -9,10 +9,12 @@ import { CheckCircle, MapPin, Clock, Phone, Sparkles, RefreshCw, AlertCircle, Ti
 import { useTheme } from '../../../context/ThemeContext';
 import { subscribeToOrderStatus, getRiderById, getHostelById, Rider, getOrderById, submitReview, subscribeToPlatformSettings } from '../../../services/db';
 import { trackOrderTracked } from '../../../services/analytics';
-import { saveOrderToHistory, buildFoodOrderEntry, buildMartOrderEntry, buildCalebNetEntry } from '../../../services/orderHistory';
+import { saveOrderToHistory, buildFoodOrderEntry, buildMartOrderEntry, buildCalebNetEntry, buildFashionOrderEntry } from '../../../services/orderHistory';
 import SEO from '../../components/SEO';
 import { BatchTimeline } from '../../components/BatchTimeline';
 import { formatBatchTime } from '../../../context/BatchTimerContext';
+import { FashionOrderStepper } from '../../components/FashionOrderStepper';
+import { FASHION_ORDER_STATUSES } from '../../../services/db';
 
 const TRACKING_STEPS = ['Received', 'Out for Delivery', 'On The Way', 'Delivered'];
 const MASS_COMM_PICKUP_HOSTELS = ['mary', 'mary hall', 'rebecca', 'rebecca hall', 'esme', 'esme hall', 'mercy', 'mercy hall', 'deborah', 'deborah hall'];
@@ -88,6 +90,8 @@ export default function OrderSuccess() {
             planName: s.planName,
             reference: s.firestoreOrderId || s.paymentReference || s.orderId || `cn_${Date.now()}`
           }));
+        } else if (s.orderType === 'FASHION' || s.orderType === 'fashion' || s.cafeteria === 'CalebDeck Fashion') {
+          saveOrderToHistory(buildFashionOrderEntry(s));
         } else if (s.orderType === 'mart' || s.type === 'mart' || s.cafeteria === 'CalebDeck Mart') {
           saveOrderToHistory(buildMartOrderEntry(s));
         } else {
@@ -221,6 +225,9 @@ export default function OrderSuccess() {
   const estimatedTime = 25 - (currentStep * 6);
   const isPaymentIssue = ['PENDING_PAYMENT', 'FAILED', 'PENDING_CONFIRMATION'].includes(orderStatus);
   const retryPath = orderData.orderType === 'mart' || orderData.type === 'mart' || cafeteria === 'CalebDeck Mart' ? '/mart' : '/cafeteria';
+  const isFashionOrder = orderData.orderType === 'FASHION' || orderData.orderType === 'fashion' || orderData.cafeteria === 'CalebDeck Fashion';
+  // Map fashion status to the FASHION_ORDER_STATUSES index
+  const fashionStatusIndex = isFashionOrder ? FASHION_ORDER_STATUSES.indexOf(orderStatus as any) : -1;
 
   if (isPaymentIssue) {
     const isFailed = orderStatus === 'FAILED';
@@ -468,10 +475,16 @@ export default function OrderSuccess() {
           )}
         </div>
 
-        {/* Progress Stepper */}
-        <div className="mb-16 px-4">
-          <ProgressStepper steps={TRACKING_STEPS} currentStep={currentStep} />
-        </div>
+        {/* Progress Stepper — Fashion gets the vertical 9-step, food/mart get horizontal 4-step */}
+        {isFashionOrder ? (
+          <div className="mb-16">
+            <FashionOrderStepper currentStatus={orderStatus} />
+          </div>
+        ) : (
+          <div className="mb-16 px-4">
+            <ProgressStepper steps={TRACKING_STEPS} currentStep={currentStep} />
+          </div>
+        )}
 
         {/* Info Cards */}
         <div className="grid md:grid-cols-2 gap-8 mb-12">

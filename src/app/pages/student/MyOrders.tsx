@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { ArrowLeft, Package, ShoppingBag, Utensils, Wifi, Trash2, Clock, ChevronRight, Smartphone, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Package, ShoppingBag, Utensils, Wifi, Trash2, Clock, ChevronRight, Smartphone, RotateCcw, Shirt } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import { Logo } from '../../components/design-system/Logo';
 import { Button } from '../../components/design-system/Button';
@@ -40,6 +40,13 @@ const typeConfig: Record<string, { icon: React.ReactNode; color: string; bgColor
     bgColor: 'rgba(59,130,246,0.15)',
     borderColor: 'rgba(59,130,246,0.25)',
     label: 'CalebNet'
+  },
+  fashion: {
+    icon: <Shirt className="w-5 h-5" />,
+    color: 'var(--secondary, #7C3AED)',
+    bgColor: 'rgba(124,58,237,0.15)',
+    borderColor: 'rgba(124,58,237,0.25)',
+    label: 'Fashion'
   }
 };
 
@@ -62,7 +69,7 @@ function formatDate(iso: string): string {
   }
 }
 
-type FilterType = 'all' | 'food' | 'combo' | 'mart' | 'calebnet';
+type FilterType = 'all' | 'food' | 'combo' | 'mart' | 'calebnet' | 'fashion';
 
 export default function MyOrders() {
   const navigate = useNavigate();
@@ -129,6 +136,7 @@ export default function MyOrders() {
     { key: 'all', label: 'All', color: '#A78BFA' },
     { key: 'food', label: 'Food', color: '#FCD34D' },
     { key: 'mart', label: 'Mart', color: '#10B981' },
+    { key: 'fashion', label: 'Fashion', color: '#7C3AED' },
     { key: 'calebnet', label: 'CalebNet', color: '#3B82F6' }
   ];
 

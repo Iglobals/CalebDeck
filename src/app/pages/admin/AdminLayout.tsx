@@ -41,7 +41,7 @@ const SEARCHABLE_ITEMS = [
     { label: 'Order History', keywords: ['history', 'past', 'old', 'receipt', 'date', 'archive', 'delete', 'trash', 'recover'], path: '/admin/history', icon: '📋' },
     { label: 'CalebNet', keywords: ['calebnet', 'clubkonnect', 'nellobyte', 'airtime', 'data', 'recharge', 'topup'], path: '/admin/calebnet', icon: '📶' },
     { label: 'Fashion Inventory', keywords: ['fashion', 'clothes', 'shoes', 'apparel', 'merch', 'brand', 'clothing'], path: '/admin/fashion', icon: '👕' },
-    { label: 'Fashion Inventory', keywords: ['fashion', 'clothes', 'shoes', 'apparel', 'merch', 'brand', 'clothing'], path: '/admin/fashion', icon: '👕' },
+    { label: 'Fashion Orders', keywords: ['fashion', 'orders', 'batch', 'delivery'], path: '/admin/fashion/orders', icon: '🛍️' },
 ];
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {

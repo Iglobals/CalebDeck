@@ -40,6 +40,7 @@ const AdminReviews = lazy(() => import("./pages/admin/AdminReviews"));
 const AdminMartInventory = lazy(() => import("./pages/admin/AdminMartInventory"));
 const AdminMartOrders = lazy(() => import("./pages/admin/AdminMartOrders"));
 const AdminFashion = lazy(() => import("./pages/admin/AdminFashion"));
+const AdminFashionOrders = lazy(() => import("./pages/admin/AdminFashionOrders"));
 
 // --- Lazy Load Rider Pages ---
 const RiderLogin = lazy(() => import("./pages/rider/RiderLogin"));
@@ -116,6 +117,7 @@ export const router = createBrowserRouter([
           { path: "mart/inventory", Component: AdminMartInventory },
           { path: "mart/orders", Component: AdminMartOrders },
           { path: "fashion", lazy: () => import("./pages/admin/AdminFashion").then(m => ({ Component: m.default })) },
+          { path: "fashion/orders", Component: AdminFashionOrders },
           { path: "calebnet", lazy: () => import('./pages/admin/AdminCalebNet').then(m => ({ Component: m.default })) },
           { path: "batches", lazy: () => import('./pages/admin/AdminBatchManager').then(m => ({ Component: m.default })) },
         ]
