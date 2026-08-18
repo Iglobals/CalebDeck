@@ -160,26 +160,26 @@ export default function FashionPDP() {
       return;
     }
     
-    const existing = cartItems.find(i => i.id === item.id);
+    const cartItemId = `${item.id}-${selectedSize || 'nosize'}-${selectedColor?.replace('#', '') || 'nocolor'}`;
+    const existing = cartItems.find(i => i.id === cartItemId);
     if (!existing) {
-      // Create a unique cart item ID by appending size/color if needed, but for now just use item.id
-      // In a real app we would want variants as separate cart items.
-      const variantText = [selectedSize, selectedColor].filter(Boolean).join(', ');
       addItem({
-        id: item.id,
-        name: `${item.name}${variantText ? ` (${variantText})` : ''}`,
+        id: cartItemId,
+        name: item.name,
         price: item.price,
         imageUrl: item.imageUrl,
         category: item.category,
-        productType: 'fashion'
+        productType: 'fashion',
+        size: selectedSize,
+        color: selectedColor
       });
       
       // Update quantity if greater than 1
       if (quantity > 1) {
-        setTimeout(() => updateQuantity(item.id, quantity), 100);
+        setTimeout(() => updateQuantity(cartItemId, quantity), 100);
       }
     } else {
-      updateQuantity(item.id, existing.quantity + quantity);
+      updateQuantity(cartItemId, existing.quantity + quantity);
     }
     
     setIsAdded(true);
@@ -527,12 +527,19 @@ export default function FashionPDP() {
                     
                     <div className="flex-1 min-w-0 pr-2">
                       <h3 className="font-bold text-sm leading-tight text-foreground">{cartItem.name}</h3>
-                      {(selectedSize || selectedColor) && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {selectedSize ? `Size ${selectedSize}` : ''}
-                          {selectedSize && selectedColor ? ', ' : ''}
-                          {selectedColor ? selectedColor : ''}
-                        </p>
+                      {(cartItem.size || cartItem.color) && (
+                        <div className="flex items-center gap-2 mt-1">
+                          {cartItem.size && <span className="text-xs text-muted-foreground font-semibold px-1.5 py-0.5 bg-muted rounded-md">{cartItem.size}</span>}
+                          {cartItem.color && (
+                            <div className="flex items-center gap-1">
+                              {cartItem.color.startsWith('#') ? (
+                                <span className="w-3.5 h-3.5 rounded-full border border-border shadow-sm" style={{ backgroundColor: cartItem.color }} title={cartItem.color} />
+                              ) : (
+                                <span className="text-xs text-muted-foreground">{cartItem.color}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                     

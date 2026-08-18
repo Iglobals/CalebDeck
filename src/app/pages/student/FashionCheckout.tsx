@@ -13,6 +13,7 @@ import { Button } from '../../components/design-system/Button';
 import { Card } from '../../components/design-system/Card';
 import SEO from '../../components/SEO';
 import { Loader2 } from 'lucide-react';
+import { getHexColorName } from '../../../utils/formatColor';
 
 const FEMALE_HOSTEL_IDS = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'];
 
@@ -110,7 +111,7 @@ export default function FashionCheckout() {
       femaleHostelAgreement,
       items: items.map(i => ({
         id: i.id,
-        name: i.name,
+        name: i.name + (i.size || i.color ? ` (${[i.size, getHexColorName(i.color || '')].filter(Boolean).join(', ')})` : ''),
         price: i.price,
         quantity: i.quantity,
         category: i.category
@@ -141,7 +142,7 @@ export default function FashionCheckout() {
       orderType: 'FASHION',
       items: items.map(i => ({
         id: i.id,
-        name: i.name,
+        name: i.name + (i.size || i.color ? ` (${[i.size, getHexColorName(i.color || '')].filter(Boolean).join(', ')})` : ''),
         price: i.price,
         quantity: i.quantity,
         category: i.category
@@ -289,7 +290,7 @@ export default function FashionCheckout() {
       orderType: 'FASHION',
       items: items.map(i => ({
         id: i.id,
-        name: i.name,
+        name: i.name + (i.size || i.color ? ` (${[i.size, getHexColorName(i.color || '')].filter(Boolean).join(', ')})` : ''),
         price: i.price,
         quantity: i.quantity,
         category: i.category
@@ -442,7 +443,12 @@ export default function FashionCheckout() {
               <div className="space-y-3 mb-6 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                 {items.map(item => (
                   <div key={item.id} className="flex justify-between text-sm">
-                    <span className="text-muted-foreground truncate pr-2">{item.quantity}x {item.name}</span>
+                    <span className="text-muted-foreground truncate pr-2">
+                      {item.quantity}x {item.name}
+                      {(item.size || item.color) && (
+                        <span className="opacity-75"> ({[item.size, getHexColorName(item.color || '')].filter(Boolean).join(', ')})</span>
+                      )}
+                    </span>
                     <span className="font-medium shrink-0">₦{item.price * item.quantity}</span>
                   </div>
                 ))}
@@ -517,3 +523,4 @@ export default function FashionCheckout() {
     </div>
   );
 }
+

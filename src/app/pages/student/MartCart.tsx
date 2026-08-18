@@ -97,9 +97,25 @@ export default function MartCart() {
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      {item.category} {item.quantity > 1 ? `(x${item.quantity})` : ''}
-                    </p>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-2">
+                      <p className="text-xs text-muted-foreground">
+                        {item.category} {item.quantity > 1 ? `(x${item.quantity})` : ''}
+                      </p>
+                      {(item.size || item.color) && (
+                        <div className="flex items-center gap-1.5 sm:ml-2">
+                          {item.size && <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 bg-muted rounded-md text-muted-foreground">{item.size}</span>}
+                          {item.color && (
+                            <div className="flex items-center">
+                              {item.color.startsWith('#') ? (
+                                <span className="w-3.5 h-3.5 rounded-full border border-border shadow-sm" style={{ backgroundColor: item.color }} title={item.color} />
+                              ) : (
+                                <span className="text-[10px] uppercase font-bold text-muted-foreground">{item.color}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     
                     {/* Quantity Stepper for Mart/Cart */}
                     <div className="flex items-center gap-3 bg-muted/50 rounded-full px-1 py-1 w-max">

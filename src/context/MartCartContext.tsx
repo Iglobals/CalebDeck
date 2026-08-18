@@ -8,6 +8,8 @@ export interface CartItem {
   imageUrl: string;
   category: string;
   productType?: 'mart' | 'fashion' | 'gadgets' | 'food' | 'MART' | 'FASHION';
+  size?: string;
+  color?: string;
 }
 
 interface MartCartContextType {
