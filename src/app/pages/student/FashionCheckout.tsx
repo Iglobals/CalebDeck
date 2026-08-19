@@ -38,7 +38,7 @@ export default function FashionCheckout() {
 
   const selectedHostel = hostels.find(h => h.id === formData.hostel);
   const isFemaleHostelSelected = FEMALE_HOSTEL_IDS.includes((formData.hostel || '').toLowerCase());
-  const FASHION_DELIVERY_FEE = 1500; // Adjust as needed
+  const FASHION_DELIVERY_FEE = 1500; // Batch fulfillment delivery fee
   const isDev = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   const SERVICE_PROCESSING_FEE = 300;
@@ -273,7 +273,15 @@ export default function FashionCheckout() {
       return toast.info('Please accept the female hostel delivery agreement before payment.');
     }
 
-    if (isClosed) {
+    const currentLiveHour = new Date().getHours();
+    const liveClosed = hasFashionItems && !!platformSettings && (
+      currentLiveHour < (platformSettings?.fashionOpeningHour ?? 0) || 
+      currentLiveHour >= (platformSettings?.fashionClosingHour ?? 24) || 
+      platformSettings?.isFashionAcceptingOrders === false || 
+      platformSettings?.isFashionComingSoon === true
+    ) && !isDev;
+
+    if (isClosed || liveClosed) {
       toast.error(closedMessage);
       return;
     }

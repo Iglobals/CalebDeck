@@ -297,8 +297,7 @@ export default function FashionPDP() {
 
       {/* Top Card: Hero Image Section (Fixed, Stacked Container 1) */}
       <div 
-        className="absolute top-0 left-0 right-0 h-[46dvh] md:h-[100dvh] md:w-1/2 transition-colors rounded-b-[32px] md:rounded-b-none shadow-md z-0 overflow-hidden"
-        style={{ backgroundColor: item.brandColor || '#FDBA74' }}
+        className="absolute top-0 left-0 right-0 h-[46dvh] md:h-[100dvh] md:w-1/2 transition-colors rounded-b-[32px] md:rounded-b-none shadow-md z-0 overflow-hidden bg-muted/20"
       >
         {/* Transparent Header with Safe Area Top */}
         <header 
@@ -476,7 +475,8 @@ export default function FashionPDP() {
               onClick={handleBuyNow}
               disabled={!item.inStock || (batchState ? !batchState.isOpen && !batchState.isGracePeriod : false)}
               variant="primary"
-              className="flex-1 h-14 rounded-full bg-[#FDBA74] hover:bg-[#F97316] text-black border-none font-bold shadow-sm"
+              className="flex-1 h-14 rounded-full text-black border-none font-bold shadow-sm transition-transform hover:scale-[1.02]"
+              style={{ backgroundColor: item.brandColor || '#FDBA74' }}
             >
               {batchState && !batchState.isOpen && !batchState.isGracePeriod ? 'Next Batch' : 'Buy Now'}
             </Button>
@@ -581,7 +581,8 @@ export default function FashionPDP() {
                 
                 <Button 
                   onClick={() => navigate('/fashion/checkout')}
-                  className="w-full h-14 rounded-2xl bg-[#FDBA74] hover:bg-[#F97316] text-black border-none font-bold text-base shadow-sm transition-colors mt-2"
+                  className="w-full h-14 rounded-2xl text-black border-none font-bold text-base shadow-sm transition-transform hover:scale-[1.02] mt-2"
+                  style={{ backgroundColor: item?.brandColor || '#FDBA74' }}
                 >
                   Checkout
                 </Button>

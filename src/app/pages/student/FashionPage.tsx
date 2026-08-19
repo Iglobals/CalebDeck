@@ -244,7 +244,7 @@ export default function FashionPage() {
               onClick={() => setActiveCategory(category)}
               className={`whitespace-nowrap px-6 py-3 rounded-full text-sm font-semibold transition-all duration-300 ${
                 activeCategory === category
-                  ? 'bg-amber-300 text-amber-900 shadow-sm'
+                  ? 'bg-purple-600 text-white shadow-sm'
                   : 'bg-muted/50 text-foreground hover:bg-muted'
               }`}
             >
@@ -270,7 +270,7 @@ export default function FashionPage() {
             </div>
             <button 
               onClick={() => setShowFilters(!showFilters)}
-              className={`p-4 rounded-3xl flex items-center justify-center transition-colors ${showFilters ? 'bg-amber-300 text-amber-900' : 'bg-card text-foreground shadow-sm'}`}
+              className={`p-4 rounded-3xl flex items-center justify-center transition-colors ${showFilters ? 'bg-purple-600 text-white' : 'bg-card text-foreground shadow-sm'}`}
             >
               <SlidersHorizontal className="w-5 h-5" />
             </button>
@@ -367,9 +367,11 @@ export default function FashionPage() {
                   <div className="bg-[#F8F9FA] dark:bg-[#1C1C1C] rounded-[32px] p-2 sm:p-2.5 shadow-sm border border-border/50 transition-all hover:shadow-md flex flex-col gap-2">
                     {/* Image Area */}
                     <div 
-                      className="relative aspect-square rounded-[24px] overflow-hidden flex items-center justify-center p-4 transition-colors"
-                      style={{ backgroundColor: item.brandColor || '#FDBA74' }}
+                      className="relative aspect-square rounded-[24px] overflow-hidden flex items-center justify-center p-4 transition-colors bg-muted/20"
                     >
+                      <div className="absolute top-3 right-3 text-[10px] font-bold px-3 py-1 rounded-full text-black shadow-sm z-10" style={{ backgroundColor: item.brandColor || '#FDBA74' }}>
+                        {item.brand}
+                      </div>
                       <ImageWithFallback 
                         src={item.imageUrl} 
                         alt={item.name}
