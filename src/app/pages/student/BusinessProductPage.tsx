@@ -82,98 +82,106 @@ export default function BusinessProductPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-300 pb-24">
+    <div className="fixed inset-0 w-full overflow-hidden bg-[#F5F5F5] dark:bg-[#121212] text-foreground selection:bg-primary/30">
       <SEO 
         title={`${product.name} by ${product.vendorBusinessName} | CalebDeck Campus Brand`} 
         description={`Get ${product.name} from ${product.vendorBusinessName} on CalebDeck Campus Brand.`} 
       />
 
-      {/* Header */}
-      <header className="sticky top-0 bg-background/90 backdrop-blur-md z-40 border-b border-border">
-        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+      {/* Top Card: Hero Image Section */}
+      <div 
+        className="absolute top-0 left-0 right-0 h-[46dvh] md:h-[100dvh] md:w-1/2 transition-colors rounded-b-[32px] md:rounded-b-none shadow-md z-0 overflow-hidden bg-muted/20"
+      >
+        <header 
+          className="absolute top-0 left-0 right-0 z-40 px-4 sm:px-6 flex items-center justify-between"
+          style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
+        >
           <button 
-            onClick={() => navigate(-1)} 
-            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted transition-colors"
+            onClick={() => navigate(-1)}
+            className="w-10 h-10 bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/50 transition-colors shadow-sm"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className="w-5 h-5 text-black" />
           </button>
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-full text-xs font-bold uppercase tracking-wider">
+          
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/30 backdrop-blur-md rounded-full text-xs font-bold uppercase tracking-wider text-black shadow-sm">
             <Store className="w-3.5 h-3.5" /> Campus Brand
           </div>
-        </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-        <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-start">
           
-          {/* Product Image */}
-          <div className={`aspect-square rounded-[2rem] sm:rounded-[3rem] overflow-hidden flex items-center justify-center p-8 sm:p-12 border-2 shadow-sm ${isDark ? 'bg-[#1A1A1A] border-[#333333]' : 'bg-gray-50 border-gray-100'}`}>
-            <ImageWithFallback 
-              src={product.imageUrl} 
-              alt={product.name} 
-              className="w-full h-full object-contain drop-shadow-xl" 
-            />
+          <div className="w-10 h-10" /> {/* Spacer */}
+        </header>
+
+        <div className="absolute inset-0 flex items-center justify-center pt-16 pb-12 px-12 md:relative md:h-[100vh]">
+          <ImageWithFallback
+            src={product.imageUrl}
+            alt={product.name}
+            className="w-full h-full object-contain drop-shadow-2xl transition-all duration-300"
+          />
+        </div>
+      </div>
+
+      {/* Bottom Card: Info Panel */}
+      <div className="absolute top-[48dvh] bottom-0 left-0 right-0 md:top-0 md:h-[100dvh] md:left-[50%] md:w-1/2 bg-card border-t border-border/60 rounded-t-[32px] md:rounded-none shadow-[0_-10px_30px_rgba(0,0,0,0.08)] md:shadow-none flex flex-col z-10 overflow-hidden">
+        <div className="flex-1 overflow-y-auto px-6 pt-8 pb-40 space-y-6">
+          <div className="flex justify-between items-start gap-4 mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold leading-tight max-w-[85%]">{product.name}</h1>
           </div>
 
-          {/* Product Info */}
-          <div className="space-y-8">
+          <div className="flex justify-between items-end mb-8">
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-xs font-black uppercase tracking-widest text-muted-foreground px-2 py-0.5 bg-muted rounded-full">
-                  {product.category}
-                </span>
-                {!product.inStock && (
-                  <span className="text-xs font-black uppercase tracking-widest text-red-500 px-2 py-0.5 bg-red-500/10 rounded-full border border-red-500/20">
-                    Out of Stock
-                  </span>
-                )}
+              <p className="text-muted-foreground text-sm mb-1">Price:</p>
+              <p className="text-2xl sm:text-3xl font-bold text-primary">₦{product.price.toLocaleString()}</p>
+            </div>
+            <span className="text-xs font-black uppercase tracking-widest text-muted-foreground px-3 py-1.5 bg-muted rounded-full">
+              {product.category}
+            </span>
+          </div>
+
+          <div className="mb-8">
+            <p className="font-semibold mb-2">Description</p>
+            <p className="text-muted-foreground text-sm leading-relaxed whitespace-pre-line">
+              {product.description || 'No description provided.'}
+            </p>
+          </div>
+
+          <div className="mb-8">
+            <p className="text-sm font-bold text-muted-foreground mb-3">Sold By</p>
+            <Card className="p-4 flex items-center gap-4 border-border shadow-sm squircle">
+              <div className="w-14 h-14 rounded-2xl bg-muted border border-border flex items-center justify-center overflow-hidden shrink-0">
+                <Store className="w-6 h-6 text-muted-foreground/50" />
               </div>
-              <h1 className="text-3xl sm:text-4xl font-black leading-tight mb-2">{product.name}</h1>
-              <p className="text-2xl font-black text-orange-500 mb-6">₦{product.price.toLocaleString()}</p>
-              
-              <div className="prose prose-sm dark:prose-invert text-muted-foreground">
-                <p className="whitespace-pre-line leading-relaxed">{product.description}</p>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-black text-lg truncate">{product.vendorBusinessName}</h3>
+                <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
+                  <ShieldCheck className="w-4 h-4 text-green-500" /> Approved Vendor
+                </p>
               </div>
-            </div>
-
-            <div className="h-px w-full bg-border"></div>
-
-            {/* Vendor Card */}
-            <div>
-              <p className="text-sm font-bold text-muted-foreground mb-3">Sold By</p>
-              <Card className="p-4 flex items-center gap-4 border-border shadow-sm squircle">
-                <div className="w-14 h-14 rounded-2xl bg-muted border border-border flex items-center justify-center overflow-hidden shrink-0">
-                  <Store className="w-6 h-6 text-muted-foreground/50" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-lg truncate">{product.vendorBusinessName}</h3>
-                  <p className="text-sm text-muted-foreground flex items-center gap-1">
-                    <ShieldCheck className="w-4 h-4 text-green-500" /> Approved Vendor
-                  </p>
-                </div>
-              </Card>
-            </div>
-
-            {/* CTA */}
-            <div className="pt-2">
-              <Button 
-                variant="primary" 
-                size="lg" 
-                className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white py-4 shadow-lg shadow-[#25D366]/20 font-bold"
-                onClick={handleChatWithVendor}
-                disabled={!product.inStock}
-              >
-                <MessageCircle className="w-5 h-5 mr-2" />
-                {product.inStock ? 'Chat with Vendor to Buy' : 'Currently Unavailable'}
-              </Button>
-              <p className="text-center text-xs text-muted-foreground mt-4 leading-relaxed max-w-xs mx-auto">
-                Tapping this will open WhatsApp to message the vendor directly. CalebDeck does not process payments for this item.
-              </p>
-            </div>
-
+            </Card>
           </div>
         </div>
-      </main>
+      </div>
+
+      {/* Sticky Bottom Actions */}
+      <div 
+        className="absolute bottom-0 left-0 right-0 md:left-[50%] z-40 pointer-events-none"
+        style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+      >
+        <div className="px-6 mb-4 sm:mb-6 pointer-events-auto space-y-2 flex flex-col items-center">
+          <div className="text-[10px] text-muted-foreground bg-white/60 dark:bg-black/60 backdrop-blur-md rounded-full px-4 py-1.5 shadow-sm text-center">
+            CalebDeck does not process payments for this item.
+          </div>
+          <div className="w-full flex items-center gap-2 bg-white/70 dark:bg-black/70 backdrop-blur-xl border border-white/40 dark:border-white/10 p-2 rounded-[2rem] shadow-xl">
+            <Button 
+              onClick={handleChatWithVendor}
+              disabled={!product.inStock}
+              variant="primary"
+              className="flex-1 h-14 rounded-full text-white bg-[#25D366] hover:bg-[#128C7E] border-none font-bold shadow-sm transition-transform hover:scale-[1.02]"
+            >
+              <MessageCircle className="w-5 h-5 mr-2" />
+              {product.inStock ? 'Chat with Vendor to Buy' : 'Currently Unavailable'}
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

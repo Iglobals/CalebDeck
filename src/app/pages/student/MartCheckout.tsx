@@ -538,7 +538,8 @@ export default function MartCheckout() {
                   amount={total} 
                   selectedMethod={paymentMethod} 
                   onSelect={setPaymentMethod} 
-                  disabled={isWalletDisabled} 
+                  disabled={!formData.fullName.trim() || !formData.phone.trim() || !formData.hostel || (isFemaleHostelSelected && !femaleHostelAgreement)}
+                  walletDisabled={isWalletDisabled} 
                 />
               </div>
 

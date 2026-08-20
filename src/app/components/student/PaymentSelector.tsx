@@ -9,15 +9,16 @@ interface PaymentSelectorProps {
   selectedMethod: PaymentMethod;
   onSelect: (method: PaymentMethod) => void;
   disabled?: boolean;
+  walletDisabled?: boolean;
 }
 
-export function PaymentSelector({ amount, selectedMethod, onSelect, disabled }: PaymentSelectorProps) {
+export function PaymentSelector({ amount, selectedMethod, onSelect, disabled, walletDisabled }: PaymentSelectorProps) {
   const { user } = useAuth();
   const walletBalance = Number(user?.walletBalance || 0);
   const isInsufficient = walletBalance < amount;
 
   const handleWalletSelect = () => {
-    if (disabled || isInsufficient) return;
+    if (disabled || walletDisabled || isInsufficient) return;
     onSelect('WALLET');
   };
 
@@ -63,13 +64,13 @@ export function PaymentSelector({ amount, selectedMethod, onSelect, disabled }: 
         {/* Ecosystem Wallet */}
         <button
           type="button"
-          disabled={disabled || isInsufficient}
+          disabled={disabled || walletDisabled || isInsufficient}
           onClick={handleWalletSelect}
           className={`relative flex w-full items-center justify-between rounded-xl border-2 p-4 text-left transition-all ${
             selectedMethod === 'WALLET'
               ? 'border-[#10B981] bg-[#10B981]/5 shadow-sm'
               : 'border-border bg-card'
-          } ${(disabled || isInsufficient) ? 'opacity-60 cursor-not-allowed' : 'hover:border-[#10B981]/50'}`}
+          } ${(disabled || walletDisabled || isInsufficient) ? 'opacity-60 cursor-not-allowed' : 'hover:border-[#10B981]/50'}`}
         >
           <div className="flex items-center gap-4">
             <div className={`flex h-10 w-10 items-center justify-center rounded-full ${selectedMethod === 'WALLET' ? 'bg-[#10B981] text-white' : 'bg-muted text-muted-foreground'}`}>

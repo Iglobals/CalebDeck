@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useTheme } from '../../../context/ThemeContext';
+import { useAuth } from '../../../context/AuthContext';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
-import { Store, ArrowRight, MessageCircle, Lock, Loader2, Sparkles, TrendingUp, Users } from 'lucide-react';
+import { Store, ArrowRight, ArrowLeft, MessageCircle, Lock, Loader2, TrendingUp, Users } from 'lucide-react';
 import SEO from '../../components/SEO';
 import { ThemeToggle } from '../../components/ThemeToggle';
 import { Logo } from '../../components/design-system/Logo';
+import { PaperBagHamburger } from '../../components/design-system/PaperBagHamburger';
 import { Link } from 'react-router';
 
 export default function BusinessPage() {
   const { studentTheme, toggleStudentTheme } = useTheme();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const isDark = studentTheme === 'dark';
 
@@ -86,16 +89,25 @@ I would like to onboard my business to CalebDeck.`;
         description="Grow your campus business by reaching every student on CalebDeck. List your products on the Campus Brand section." 
       />
 
-      {/* Navigation (Simplified) */}
+      {/* Navigation */}
       <nav className="sticky top-0 bg-background/95 backdrop-blur-md z-50 border-b border-border transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <Link to="/">
-            <Logo size="md" />
-          </Link>
           <div className="flex items-center gap-4">
-            <Link to="/" className="text-sm font-bold hover:text-primary transition-colors">
-              Back to CalebDeck
+            {user && (
+              <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted transition-colors">
+                <ArrowLeft className="w-6 h-6" />
+              </button>
+            )}
+            <Link to="/">
+              <Logo size="md" />
             </Link>
+          </div>
+          <div className="flex items-center gap-4">
+            {!user && (
+              <Link to="/" className="text-sm font-bold hover:text-primary transition-colors">
+                Back to CalebDeck
+              </Link>
+            )}
           </div>
         </div>
       </nav>
