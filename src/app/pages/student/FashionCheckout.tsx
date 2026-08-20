@@ -515,7 +515,7 @@ export default function FashionCheckout() {
                 variant="primary" 
                 className="w-full py-4 text-lg text-white flex items-center justify-center gap-2 shadow-xl bg-gradient-to-r from-[#7C3AED] to-[#F97316] hover:opacity-90 border-none font-bold shadow-[#F97316]/20"
                 onClick={handlePay}
-                disabled={(isFemaleHostelSelected && !femaleHostelAgreement)}
+                disabled={!formData.fullName.trim() || !formData.phone.trim() || !formData.hostel || (isFemaleHostelSelected && !femaleHostelAgreement)}
               >
                 <CreditCard className="w-5 h-5" /> Pay ₦{total}
               </Button>

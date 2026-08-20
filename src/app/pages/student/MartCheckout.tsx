@@ -547,7 +547,7 @@ export default function MartCheckout() {
                 variant="primary" 
                 className={`w-full py-4 text-lg text-white flex items-center justify-center gap-2 shadow-xl ${paymentMethod === 'WALLET' ? 'bg-[#10B981] hover:bg-[#059669] shadow-[#10B981]/20' : 'bg-primary hover:bg-primary/90 shadow-primary/20'}`}
                 onClick={handlePay}
-                disabled={isWalletDisabled}
+                disabled={!formData.fullName.trim() || !formData.phone.trim() || !formData.hostel || (isFemaleHostelSelected && !femaleHostelAgreement) || (paymentMethod === 'WALLET' && isWalletDisabled)}
               >
                 {isWalletPaying ? (
                   <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</>

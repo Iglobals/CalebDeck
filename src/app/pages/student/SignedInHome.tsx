@@ -11,6 +11,7 @@ import { useMartCart } from '../../../context/MartCartContext';
 import { subscribeToMartItems, MartItem } from '../../../services/mart';
 import { subscribeToFashionItems, FashionItem } from '../../../services/fashion';
 import { subscribeToActiveBusinessProducts, BusinessProduct } from '../../../services/business';
+import { Logo } from '../../components/design-system/Logo';
 
 const STATIC_CALEBNET_PRODUCTS = [
   { id: 'calebnet-mtn-1gb', type: 'CalebNet', name: 'MTN 1GB SME (30 Days)', price: 280, path: '/calebnet', disabled: false, icon: 'wifi', network: 'MTN' },
