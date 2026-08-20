@@ -302,8 +302,11 @@ export function SignedInHome() {
           <h3 className="text-lg font-black mb-4">Explore CalebDeck</h3>
           <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar -mx-6 px-6">
             <Link to="/business" className="flex flex-col min-w-[140px] max-w-[140px] group">
-              <div className="w-full aspect-square rounded-2xl bg-primary/10 border-primary/20 mb-3 overflow-hidden border shadow-sm squircle flex items-center justify-center group-hover:shadow-md group-hover:bg-primary/20 transition-all">
-                <Logo size="sm" className="opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300" />
+              <div className="w-full aspect-square rounded-2xl bg-primary/10 border-primary/20 mb-3 overflow-hidden border shadow-sm squircle flex flex-col items-center justify-center group-hover:shadow-md group-hover:bg-primary/20 transition-all">
+                <div className="flex flex-col items-center justify-center opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300">
+                  <Logo size="sm" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-primary mt-0.5">Business</span>
+                </div>
               </div>
               <h4 className="text-sm font-bold truncate leading-tight mb-1 group-hover:text-primary transition-colors">Campus Brands</h4>
               <p className="text-[10px] text-muted-foreground font-bold mb-2 uppercase tracking-wider">Vendors</p>
