@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { Logo } from '../../components/design-system/Logo';
 import { Button } from '../../components/design-system/Button';
 import { Card } from '../../components/design-system/Card';
-import { Clock, CheckCircle, Truck, Star, ArrowRight, Smartphone, Share, PlusSquare, MoreVertical, HelpCircle, MessageCircle, Utensils, ShoppingBag, X, Bike, Banknote, GraduationCap, Wifi, Shirt } from 'lucide-react';
+import { Clock, CheckCircle, Truck, Star, ArrowRight, Smartphone, Share, PlusSquare, MoreVertical, HelpCircle, MessageCircle, Utensils, ShoppingBag, X, Bike, Banknote, GraduationCap, Wifi, Shirt, Store } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -289,6 +289,11 @@ export default function LandingPage() {
                   CalebNet Top-Up <Wifi className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
+              <Link to="/business">
+                <Button variant="secondary" size="lg" className="w-full sm:w-auto border-purple-500 text-purple-500 hover:bg-purple-500/10">
+                  Campus Brands <Store className="w-5 h-5 ml-2" />
+                </Button>
+              </Link>
             </div>
             <div className="flex items-center gap-4 sm:gap-6 pt-4">
               <div className="text-center">
@@ -335,7 +340,7 @@ export default function LandingPage() {
 
       {/* Services Section */}
       <section className="py-16 md:py-24 max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-8">
           <Link to="/cafeteria" className="group">
             <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl h-full ${isAuth ? 'bg-card border-border hover:border-[#FCD34D]/50' : (studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#FCD34D]/20' : 'bg-amber-50/50 border-amber-200')}`}>
               <div className="w-16 h-16 rounded-2xl bg-[#FCD34D]/20 flex items-center justify-center mb-6">
@@ -377,6 +382,17 @@ export default function LandingPage() {
               <h3 className={`text-2xl font-bold mb-3 ${isAuth ? 'text-foreground' : (studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900')}`}>CalebNet</h3>
               <p className={`text-lg mb-6 ${isAuth ? 'text-muted-foreground' : (studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600')}`}>Instant data and airtime top-up for MTN, Airtel, Glo, and 9Mobile directly from CalebDeck.</p>
               <span className="text-blue-500 font-bold flex items-center gap-2 group-hover:gap-4 transition-all">Top Up <ArrowRight className="w-5 h-5" /></span>
+            </div>
+          </Link>
+
+          <Link to="/business" className="group">
+            <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl h-full ${isAuth ? 'bg-card border-border hover:border-purple-500/50' : (studentTheme === 'dark' ? 'bg-[#1A1A1A] border-purple-500/20' : 'bg-purple-50/50 border-purple-200')}`}>
+              <div className="w-16 h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center mb-6">
+                <Store className="w-8 h-8 text-purple-500" />
+              </div>
+              <h3 className={`text-2xl font-bold mb-3 ${isAuth ? 'text-foreground' : (studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900')}`}>Campus Brands</h3>
+              <p className={`text-lg mb-6 ${isAuth ? 'text-muted-foreground' : (studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600')}`}>Explore products from trusted campus vendors. Connect and chat directly with them.</p>
+              <span className="text-purple-500 font-bold flex items-center gap-2 group-hover:gap-4 transition-all">Explore <ArrowRight className="w-5 h-5" /></span>
             </div>
           </Link>
         </div>

@@ -274,7 +274,7 @@ UI/UX:
    - **Admin-configurable, not hardcoded.** A settings page to add, edit, and remove slides — product, color, logo, and a description/tagline per slide — the same pattern as inventory management elsewhere. Nothing here should be baked into the code.
 5. Real preview cards for Mart and Fashion — actual products with real images, not nav-icon links. Home is still Food-first, but the other products need genuine discovery here, not just a door to their own tab.
 6. Food vendor grid. Tapping a vendor card routes straight into that vendor's page — no intermediate "see all" list in between. This was a real UX bug in the first build, not a preference.
-7. Once CalebDeck Business has approved listings: its products display inline here too, same card treatment as the vendor grid, for food-adjacent vendors specifically — non-food Business listings surface on Fashion or Gadgets instead, matched to what they actually sell, not funneled onto Home regardless of category.
+7. Once CalebDeck Business has approved listings: real cards under a "Campus Brand" section — photo, description, vendor name. These are non-competing categories only (perfume, jewelry, accessories, and similar — never food, fashion, or gadgets, since CalebDeck already operates those itself), and they never distribute into Home's food grid, Fashion's catalog, or Gadgets — Campus Brand is their only home, full detail in Section 5.
 
 **Visual language:**
 - **Foundation, not a new brand.** Pull CalebDeck's existing color tokens and logo treatment as the base — this should feel like CalebDeck leveling up, not a different product bolted on.
@@ -350,25 +350,33 @@ This is a deliberate cost/logistics decision, not a limitation to hide — the U
 - **Checkout:** shared cart/checkout infrastructure. Every Fashion customer is signed in by definition, so the payment selector always shows Wallet/Card, no guest-fallback branching. Paystack-only until wallet extends past Mart.
 - Ties into `productsUsed`, connected-products, and order history like Mart does — plus the batch-status stepper above, which is Fashion-specific.
 
-**CalebDeck Business — now fully specced, ready to build.**
+**CalebDeck Business — corrected: connection-only, non-competing categories, no CalebDeck payment.**
 
-Vendors submit through WhatsApp — there's no in-app application form to build for the submission itself, only a form that *hands off* to WhatsApp. On approval, a vendor gets a permanent, sequential Vendor ID (`CBDK-V-000001`), and each approved product its own Product ID (`CBDK-P-000001`), tied back to its vendor.
+Business exists specifically for categories CalebDeck doesn't already operate in — not food (that's the core product), not fashion/clothing (its own vertical), not gadgets/electronics (same). Realistically: perfume, watches, jewelry, press-on nails, and similar small campus businesses. Vendors submit through WhatsApp — no in-app application form for the submission itself, only a form that hands off to WhatsApp. On approval, a vendor gets a permanent Vendor ID (`CBDK-V-000001`), each approved product its own Product ID (`CBDK-P-000001`).
+
+**CalebDeck never touches the transaction.** Products never distribute into Home, Fashion, or Gadgets — they live only in the Campus Brand section. Tapping a product opens a dedicated Business product page (photo, description, vendor info) with a single **"Chat with Vendor"** button in place of any cart/checkout — no Add to Cart, no price-driven interaction beyond what helps the customer describe what they want. That button opens WhatsApp to the *vendor's own number* (from their contact info, not CalebDeck's), with the product and a starting order message pre-filled. CalebDeck is the connector, not the payment processor, here — this also simplifies the build: no wiring into the shared cart, wallet, or Paystack for Business at all.
+
+**Metrics, since CalebDeck can't see the actual sale:** the one thing CalebDeck's own system *can* reliably measure is how many people were referred to a vendor — log every "Chat with Vendor" tap as an event (vendor, product, timestamp, and the i-CON if signed in) before the WhatsApp handoff fires. This becomes two things: an aggregate view for admin (how much value CalebDeck is actually driving for vendors — useful for the subscription pitch itself), and a count on each vendor's own dashboard ("X people reached out this month") — which gives vendors a concrete reason to see the subscription as worth renewing, not just a number they take on faith.
 
 **Business is subscription-based, monthly.** When a vendor's subscription lapses, their products stop appearing automatically — not manually toggled off by admin each time. Implement this as a query-time check (filter out any vendor whose subscription end date has passed whenever fetching products for display) rather than relying solely on a scheduled job — a query-time check can't silently fail to run the way a cron job can. **Hide expired vendors' products, don't delete them** — if they renew, everything comes back without redoing the upload.
 
 **The Business page itself:**
 1. **Info page** — what CalebDeck Business is, in plain marketing language.
-2. **"Get Started" button** → a form: vendor/business name, what they sell, and a **structured category field** (not freeform — Food, Fashion, Gadgets, Other), since this is what drives where their approved products actually display later (Home, Fashion, or Gadgets, per the category-matched placement already speced). Add contact info and the subscription plan they're choosing.
-3. **Submit hands off to WhatsApp, not a server.** Build a `wa.me` link with the form's contents pre-filled as the message text, pointed at +234 807 255 0635, and redirect there on submit — no backend endpoint needed for the submission itself.
+2. **"Get Started" button** → a form: vendor/business name, what they sell (freeform, or a light category/tag like perfume/jewelry/accessories — for filtering *within* Campus Brand, not for routing anywhere else), contact info, subscription plan they're choosing. Plan names/pricing aren't finalized yet — build the form with a generic plan selector for now, populated from whatever admin configures, not hardcoded names.
+3. **Submit hands off to WhatsApp, not a server.** Build a `wa.me` link with the form's contents pre-filled as the message text, pointed at +234 807 255 0635 (CalebDeck's own number, for onboarding — distinct from each vendor's own number used later for Chat with Vendor), and redirect there on submit.
 4. **A separate "Access your vendor dashboard" button**, below Get Started — for already-approved vendors. They enter a code, generated by admin when the vendor's account is created after WhatsApp approval, to reach their dashboard.
-5. **Vendor dashboard:** subscription status, and which of their products are currently live on CalebDeck — a read view into the same data admin manages, not a separate vendor-editable copy.
+5. **Vendor dashboard:** subscription status, their referral count (see Metrics above), and which of their products are currently live on CalebDeck — a read view into the same data admin manages, not a separate vendor-editable copy.
 
 **Vendor dashboard access is a separate, lightweight auth mechanism from i-CON/ICA — vendors aren't students, don't force them through that system.** The access code should still be treated like a real credential: long enough to not be guessable, validated server-side, rate-limited on attempts — not a client-side string match. Admin should be able to regenerate a vendor's code if they lose it.
 
 **Admin needs, to make the whole loop work:**
-- Onboard a vendor manually (after WhatsApp approval) — assigns the Vendor ID, sets the subscription plan/dates, generates the access code.
-- Add/edit/remove a vendor's products, assigning Product IDs — and **this must be a real, connected data flow**: the moment admin adds a product, it appears in the customer-facing vendor section; the moment admin removes one, it disappears. Not two disconnected lists that happen to usually agree.
-- See vendor status (active/expired) at a glance.
+- Onboard a vendor manually (after WhatsApp approval) — assigns the Vendor ID, sets the subscription plan/dates, generates the access code, records their own WhatsApp number for the Chat with Vendor button.
+- Add/edit/remove a vendor's products, assigning Product IDs — and **this must be a real, connected data flow**: the moment admin adds a product, it appears in Campus Brand; the moment admin removes one, it disappears. Not two disconnected lists that happen to usually agree.
+- See vendor status (active/expired) and referral counts at a glance.
+
+**Entry point on the customer-facing side:** Campus Brand stays on Home — not because it's food-adjacent (it isn't, by design), but because Home is the highest-traffic page and this deserves real visibility as its own distinct, ecosystem-wide feature rather than a sub-section attached to any one vertical. The promo carousel can still carry a slide too, just not as the only touchpoint — a sliding carousel is easy to miss.
+
+**Worth adding, not explicitly asked for but a natural gap:** a notification when a vendor's subscription is approaching expiry, so it doesn't just silently vanish on them one day — matches the tone of the other Business notifications already speced. Renewal itself, for now, is presumably the same WhatsApp-plus-admin-manual-update process as everything else here, since there's no in-app payment flow described for this anywhere — flag it back if an automated renewal flow is actually wanted instead.
 
 **Entry point on the customer-facing side:** put it in the same section that already displays approved vendor products ("Campus Brand" and wherever else Business products surface), not only in the promo carousel — a sliding carousel slide is easy to miss; sitting right next to other vendors' products, in context, is the deliberate version of the same idea. The carousel slide can still exist as one more touchpoint, just not the only one.
 

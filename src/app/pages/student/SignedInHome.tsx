@@ -10,6 +10,7 @@ import { subscribeToPlatformSettings, PlatformSettings } from '../../../services
 import { useMartCart } from '../../../context/MartCartContext';
 import { subscribeToMartItems, MartItem } from '../../../services/mart';
 import { subscribeToFashionItems, FashionItem } from '../../../services/fashion';
+import { subscribeToActiveBusinessProducts, BusinessProduct } from '../../../services/business';
 
 const STATIC_CALEBNET_PRODUCTS = [
   { id: 'calebnet-mtn-1gb', type: 'CalebNet', name: 'MTN 1GB SME (30 Days)', price: 280, path: '/calebnet', disabled: false, icon: 'wifi', network: 'MTN' },
@@ -18,10 +19,6 @@ const STATIC_CALEBNET_PRODUCTS = [
   { id: 'calebnet-glo-2gb', type: 'CalebNet', name: 'GLO 2GB (30 Days)', price: 500, path: '/calebnet', disabled: false, icon: 'wifi', network: 'GLO' }
 ];
 
-const LOCAL_BUSINESSES = [
-  { id: 'b1', name: 'TechHub Gadgets', category: 'Accessories', rating: '4.8', image: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=200&auto=format&fit=crop' },
-  { id: 'b2', name: 'Sweet Treats Bakery', category: 'Food & Pastries', rating: '4.9', image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=200&auto=format&fit=crop' },
-];
 
 const PROMO_SLIDES = [
   { 
@@ -64,6 +61,7 @@ export function SignedInHome() {
   const { items: cartItems, addItem, updateQuantity } = useMartCart();
   const [exploreMartItems, setExploreMartItems] = useState<any[]>([]);
   const [exploreFashionItems, setExploreFashionItems] = useState<any[]>([]);
+  const [exploreBusinessItems, setExploreBusinessItems] = useState<BusinessProduct[]>([]);
 
   useEffect(() => {
     const unsubSettings = subscribeToPlatformSettings(setPlatformSettings);
@@ -97,10 +95,17 @@ export function SignedInHome() {
       })));
     });
 
+    const unsubBusiness = subscribeToActiveBusinessProducts((items) => {
+      // Pick random up to 6 products for the homepage
+      const shuffled = [...items].sort(() => 0.5 - Math.random());
+      setExploreBusinessItems(shuffled.slice(0, 6));
+    });
+
     return () => {
       unsubSettings();
       unsubMart();
       unsubFashion();
+      unsubBusiness();
     };
   }, []);
 
@@ -295,6 +300,17 @@ export function SignedInHome() {
         <div>
           <h3 className="text-lg font-black mb-4">Explore CalebDeck</h3>
           <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar -mx-6 px-6">
+            <Link to="/business" className="flex flex-col min-w-[140px] max-w-[140px] group">
+              <div className="w-full aspect-square rounded-2xl bg-primary/10 border-primary/20 mb-3 overflow-hidden border shadow-sm squircle flex items-center justify-center group-hover:shadow-md group-hover:bg-primary/20 transition-all">
+                <Store className="w-12 h-12 text-primary opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300" />
+              </div>
+              <h4 className="text-sm font-bold truncate leading-tight mb-1 group-hover:text-primary transition-colors">Campus Brands</h4>
+              <p className="text-[10px] text-muted-foreground font-bold mb-2 uppercase tracking-wider">Vendors</p>
+              
+              <div className="w-full h-8 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all flex items-center justify-center shadow-sm font-black uppercase tracking-wider text-[10px]">
+                Explore
+              </div>
+            </Link>
             {[...exploreMartItems, ...exploreFashionItems, ...STATIC_CALEBNET_PRODUCTS].map((product) => {
               if (product.type === 'Mart' || product.type === 'Fashion') {
                 const qty = getCartQuantity(product.id);
@@ -441,31 +457,29 @@ export function SignedInHome() {
         </div>
 
         {/* CalebDeck Campus Brand */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-black">Campus Brand</h3>
+        {exploreBusinessItems.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-black">Campus Brand</h3>
+            </div>
+            <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar -mx-6 px-6">
+              {exploreBusinessItems.map((product) => (
+                <Link to={`/business/product/${product.id}`} key={product.id}>
+                  <Card className="min-w-[240px] p-3 flex items-center gap-3 border-border shadow-sm squircle group hover:border-orange-500/30 transition-colors">
+                    <div className="w-16 h-16 rounded-xl bg-muted shrink-0 overflow-hidden flex items-center justify-center border border-border group-hover:border-orange-500/30">
+                      <ImageWithFallback src={product.imageUrl} alt={product.name} className="w-full h-full object-contain" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-sm font-black truncate group-hover:text-orange-500 transition-colors">{product.name}</h4>
+                      <p className="text-[10px] text-muted-foreground font-bold mt-0.5 truncate">{product.vendorBusinessName}</p>
+                      <p className="text-sm font-black text-orange-500 mt-1">{money(product.price)}</p>
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
           </div>
-          <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar -mx-6 px-6">
-            {LOCAL_BUSINESSES.map((business) => (
-              <Card 
-                key={business.id} 
-                className="min-w-[240px] p-3 flex items-center gap-3 border-border shadow-sm squircle opacity-80"
-              >
-                <div className="w-16 h-16 rounded-xl bg-muted shrink-0 overflow-hidden flex items-center justify-center border border-border">
-                  <img src={business.image} alt={business.name} className="w-full h-full object-cover" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h4 className="text-sm font-black truncate">{business.name}</h4>
-                  <p className="text-[10px] text-muted-foreground font-bold mt-0.5">{business.category}</p>
-                  <div className="flex items-center gap-1 mt-1 text-primary">
-                    <span className="text-xs font-black">★</span>
-                    <span className="text-xs font-bold">{business.rating}</span>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
+        )}
 
       </main>
     </div>

@@ -94,6 +94,9 @@ export const router = createBrowserRouter([
           { path: "my-orders", lazy: () => import("./pages/student/MyOrders").then(m => ({ Component: m.default })) },
           { path: "profile", lazy: () => import("./pages/student/Profile").then(m => ({ Component: m.default })) },
           { path: "wallet", lazy: () => import("./pages/student/WalletPage").then(m => ({ Component: m.default })) },
+          { path: "business", lazy: () => import("./pages/student/BusinessPage").then(m => ({ Component: m.default })) },
+          { path: "business/product/:id", lazy: () => import("./pages/student/BusinessProductPage").then(m => ({ Component: m.default })) },
+          { path: "business/dashboard", lazy: () => import("./pages/student/VendorDashboard").then(m => ({ Component: m.default })) },
         ]
       },
 
@@ -120,6 +123,7 @@ export const router = createBrowserRouter([
           { path: "fashion/orders", Component: AdminFashionOrders },
           { path: "calebnet", lazy: () => import('./pages/admin/AdminCalebNet').then(m => ({ Component: m.default })) },
           { path: "batches", lazy: () => import('./pages/admin/AdminBatchManager').then(m => ({ Component: m.default })) },
+          { path: "business", lazy: () => import('./pages/admin/AdminBusiness').then(m => ({ Component: m.default })) },
         ]
       },
 

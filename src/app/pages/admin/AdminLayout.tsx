@@ -42,6 +42,7 @@ const SEARCHABLE_ITEMS = [
     { label: 'CalebNet', keywords: ['calebnet', 'clubkonnect', 'nellobyte', 'airtime', 'data', 'recharge', 'topup'], path: '/admin/calebnet', icon: '📶' },
     { label: 'Fashion Inventory', keywords: ['fashion', 'clothes', 'shoes', 'apparel', 'merch', 'brand', 'clothing'], path: '/admin/fashion', icon: '👕' },
     { label: 'Fashion Orders', keywords: ['fashion', 'orders', 'batch', 'delivery'], path: '/admin/fashion/orders', icon: '🛍️' },
+    { label: 'Business Vendors', keywords: ['business', 'vendor', 'subscription', 'campus brand', 'referral'], path: '/admin/business', icon: '🏪' },
 ];
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
@@ -69,6 +70,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
         { id: 'mart-orders', path: '/admin/mart/orders', icon: <Store className="w-5 h-5" />, label: 'Mart Orders' },
         { id: 'mart-inventory', path: '/admin/mart/inventory', icon: <Package className="w-5 h-5" />, label: 'Mart Inventory' },
         { id: 'fashion-inventory', path: '/admin/fashion', icon: <Shirt className="w-5 h-5" />, label: 'Fashion Inventory' },
+        { id: 'business', path: '/admin/business', icon: <Store className="w-5 h-5" />, label: 'Business Vendors' },
         { id: 'calebnet', path: '/admin/calebnet', icon: <Bell className="w-5 h-5" />, label: 'CalebNet' },
         { id: 'menu', path: '/admin/menu', icon: <UtensilsCrossed className="w-5 h-5" />, label: 'Menu Management' },
         { id: 'riders', path: '/admin/riders', icon: <Users className="w-5 h-5" />, label: 'Riders' },
