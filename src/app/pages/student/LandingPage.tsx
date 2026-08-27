@@ -157,7 +157,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300 relative">
       <ThemeToggle theme={studentTheme} onToggle={toggleStudentTheme} variant="floating" />
       <SEO
-        title="CalebDeck — Smart Campus Food, Grocery, Fashion & Digital Services | Caleb University"
+        title="CalebDeck — EVERYTHING CAMPUS | Caleb University"
         description="CalebDeck is the smart campus platform for Caleb University. Order cafeteria food, shop groceries on CalebDeck Mart, explore CalebDeck Fashion, CalebDeck Gadgets, CalebDeck Business, and buy cheap student data with CalebNet."
         canonical="https://calebdeck.com/"
         jsonLd={{
