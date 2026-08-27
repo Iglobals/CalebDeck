@@ -14,7 +14,8 @@ const HIDDEN_ROUTE_PREFIXES = [
   '/wallet',
   '/my-orders',
   '/fashion/product',
-  '/fashion/checkout'
+  '/fashion/checkout',
+  '/business/product'
 ];
 
 const navItems = [

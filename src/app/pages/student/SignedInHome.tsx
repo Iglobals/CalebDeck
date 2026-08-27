@@ -63,6 +63,9 @@ export function SignedInHome() {
   const [exploreMartItems, setExploreMartItems] = useState<any[]>([]);
   const [exploreFashionItems, setExploreFashionItems] = useState<any[]>([]);
   const [exploreBusinessItems, setExploreBusinessItems] = useState<BusinessProduct[]>([]);
+  const [loadingMart, setLoadingMart] = useState(true);
+  const [loadingFashion, setLoadingFashion] = useState(true);
+  const [loadingBusiness, setLoadingBusiness] = useState(true);
 
   useEffect(() => {
     const unsubSettings = subscribeToPlatformSettings(setPlatformSettings);
@@ -79,6 +82,7 @@ export function SignedInHome() {
         image: item.imageUrl,
         category: item.category
       })));
+      setLoadingMart(false);
     });
 
     const unsubFashion = subscribeToFashionItems((items) => {
@@ -94,12 +98,14 @@ export function SignedInHome() {
         category: item.category || 'Fashion',
         brandColor: item.brandColor
       })));
+      setLoadingFashion(false);
     });
 
     const unsubBusiness = subscribeToActiveBusinessProducts((items) => {
       // Pick random up to 6 products for the homepage
       const shuffled = [...items].sort(() => 0.5 - Math.random());
       setExploreBusinessItems(shuffled.slice(0, 6));
+      setLoadingBusiness(false);
     });
 
     return () => {
@@ -316,6 +322,14 @@ export function SignedInHome() {
                 Explore
               </div>
             </Link>
+            {(loadingMart || loadingFashion) && [...Array(3)].map((_, i) => (
+              <div key={`skel-explore-${i}`} className="flex flex-col min-w-[140px] max-w-[140px] animate-pulse">
+                <div className="w-full aspect-square rounded-2xl bg-muted mb-3 squircle" />
+                <div className="h-3 bg-muted rounded-full w-3/4 mb-2" />
+                <div className="h-3 bg-muted rounded-full w-1/2 mb-2" />
+                <div className="h-8 bg-muted rounded-xl w-full" />
+              </div>
+            ))}
             {[...exploreMartItems, ...exploreFashionItems, ...STATIC_CALEBNET_PRODUCTS].map((product) => {
               if (product.type === 'Mart' || product.type === 'Fashion') {
                 const qty = getCartQuantity(product.id);
@@ -462,26 +476,41 @@ export function SignedInHome() {
         </div>
 
         {/* CalebDeck Campus Brand */}
-        {exploreBusinessItems.length > 0 && (
+        {/* Campus Brand Section — show skeleton while loading, then content or nothing */}
+        {(loadingBusiness || exploreBusinessItems.length > 0) && (
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-black">Campus Brand</h3>
             </div>
             <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar -mx-6 px-6">
-              {exploreBusinessItems.map((product) => (
-                <Link to={`/business/product/${product.id}`} key={product.id}>
-                  <Card className="min-w-[240px] p-3 flex items-center gap-3 border-border shadow-sm squircle group hover:border-orange-500/30 transition-colors">
-                    <div className="w-16 h-16 rounded-xl bg-muted shrink-0 overflow-hidden flex items-center justify-center border border-border group-hover:border-orange-500/30">
-                      <ImageWithFallback src={product.imageUrl} alt={product.name} className="w-full h-full object-contain" />
+              {loadingBusiness ? (
+                // Skeleton loaders
+                [...Array(3)].map((_, i) => (
+                  <div key={`skel-biz-${i}`} className="min-w-[240px] p-3 flex items-center gap-3 rounded-2xl border border-border bg-card animate-pulse">
+                    <div className="w-16 h-16 rounded-xl bg-muted shrink-0" />
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="h-3.5 bg-muted rounded-full w-3/4" />
+                      <div className="h-2.5 bg-muted rounded-full w-1/2" />
+                      <div className="h-3.5 bg-muted rounded-full w-1/3" />
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <h4 className="text-sm font-black truncate group-hover:text-orange-500 transition-colors">{product.name}</h4>
-                      <p className="text-[10px] text-muted-foreground font-bold mt-0.5 truncate">{product.vendorBusinessName}</p>
-                      <p className="text-sm font-black text-orange-500 mt-1">{money(product.price)}</p>
-                    </div>
-                  </Card>
-                </Link>
-              ))}
+                  </div>
+                ))
+              ) : (
+                exploreBusinessItems.map((product) => (
+                  <Link to={`/business/product/${product.id}`} key={product.id}>
+                    <Card className="min-w-[240px] p-3 flex items-center gap-3 border-border shadow-sm squircle group hover:border-orange-500/30 transition-colors">
+                      <div className="w-16 h-16 rounded-xl bg-muted shrink-0 overflow-hidden flex items-center justify-center border border-border group-hover:border-orange-500/30">
+                        <ImageWithFallback src={product.imageUrl} alt={product.name} className="w-full h-full object-contain" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-sm font-black truncate group-hover:text-orange-500 transition-colors">{product.name}</h4>
+                        <p className="text-[10px] text-muted-foreground font-bold mt-0.5 truncate">{product.vendorBusinessName}</p>
+                        <p className="text-sm font-black text-orange-500 mt-1">{money(product.price)}</p>
+                      </div>
+                    </Card>
+                  </Link>
+                ))
+              )}
             </div>
           </div>
         )}
