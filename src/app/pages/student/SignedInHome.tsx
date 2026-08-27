@@ -68,8 +68,15 @@ export function SignedInHome() {
   const [loadingBusiness, setLoadingBusiness] = useState(true);
 
   useEffect(() => {
-    const unsubSettings = subscribeToPlatformSettings(setPlatformSettings);
+    const t0 = performance.now();
+    console.log('[perf] SignedInHome: starting all Firestore listeners');
+
+    const unsubSettings = subscribeToPlatformSettings((s) => {
+      console.log(`[perf] platformSettings arrived in ${(performance.now() - t0).toFixed(0)}ms`);
+      setPlatformSettings(s);
+    });
     const unsubMart = subscribeToMartItems((items) => {
+      console.log(`[perf] martItems arrived in ${(performance.now() - t0).toFixed(0)}ms (${items.length} items)`);
       // Pick top 4 in-stock items
       setExploreMartItems(items.filter(i => i.inStock).slice(0, 4).map(item => ({
         id: item.id,
@@ -86,6 +93,7 @@ export function SignedInHome() {
     });
 
     const unsubFashion = subscribeToFashionItems((items) => {
+      console.log(`[perf] fashionItems arrived in ${(performance.now() - t0).toFixed(0)}ms (${items.length} items)`);
       setExploreFashionItems(items.filter(i => i.inStock).slice(0, 4).map(item => ({
         id: item.id,
         type: 'Fashion',
@@ -102,6 +110,7 @@ export function SignedInHome() {
     });
 
     const unsubBusiness = subscribeToActiveBusinessProducts((items) => {
+      console.log(`[perf] businessProducts arrived in ${(performance.now() - t0).toFixed(0)}ms (${items.length} items)`);
       // Pick random up to 6 products for the homepage
       const shuffled = [...items].sort(() => 0.5 - Math.random());
       setExploreBusinessItems(shuffled.slice(0, 6));

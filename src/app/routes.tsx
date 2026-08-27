@@ -97,6 +97,7 @@ export const router = createBrowserRouter([
           { path: "business", lazy: () => import("./pages/student/BusinessPage").then(m => ({ Component: m.default })) },
           { path: "business/product/:id", lazy: () => import("./pages/student/BusinessProductPage").then(m => ({ Component: m.default })) },
           { path: "business/dashboard", lazy: () => import("./pages/student/VendorDashboard").then(m => ({ Component: m.default })) },
+          { path: "business/activate/:token", lazy: () => import("./pages/student/VendorActivation").then(m => ({ Component: m.default })) },
         ]
       },
 

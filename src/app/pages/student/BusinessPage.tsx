@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -22,13 +22,26 @@ export default function BusinessPage() {
   const [categoryTag, setCategoryTag] = useState('');
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
-  const [plan, setPlan] = useState('Monthly Basic');
+  const [plan, setPlan] = useState('Monthly Plan (₦2,999/month)');
 
   const [accessCode, setAccessCode] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState('');
 
   const ONBOARDING_PHONE = '2348072550635'; // CalebDeck Business onboarding line
+
+  // Persistent vendor login: auto-redirect if already logged in
+  useEffect(() => {
+    const storedVendor = localStorage.getItem('calebdeck_vendor');
+    if (storedVendor) {
+      try {
+        JSON.parse(storedVendor); // validate JSON
+        navigate('/business/dashboard', { replace: true });
+      } catch {
+        localStorage.removeItem('calebdeck_vendor');
+      }
+    }
+  }, [navigate]);
 
   const handleApply = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +71,7 @@ I would like to onboard my business to CalebDeck.`;
     setAuthError('');
 
     try {
-      const response = await fetch('/api/vendor-auth', {
+      const response = await fetch('/api/business/vendor-auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: accessCode })
@@ -70,8 +83,8 @@ I would like to onboard my business to CalebDeck.`;
         throw new Error(result.error || 'Authentication failed');
       }
 
-      // Store in session storage
-      sessionStorage.setItem('calebdeck_vendor', JSON.stringify(result.data.vendor));
+      // Store in localStorage for persistent login
+      localStorage.setItem('calebdeck_vendor', JSON.stringify(result.data.vendor));
       navigate('/business/dashboard');
 
     } catch (err: any) {
@@ -225,9 +238,8 @@ I would like to onboard my business to CalebDeck.`;
                   onChange={e => setPlan(e.target.value)}
                   className={`w-full px-4 py-3 rounded-xl border-2 outline-none transition-all ${isDark ? 'border-[#333333] bg-[#2A2A2A] focus:border-primary' : 'border-gray-200 bg-gray-50 focus:border-primary/50'}`}
                 >
-                  <option value="Monthly Basic">Monthly Basic</option>
-                  <option value="Quarterly Pro">Quarterly Pro</option>
-                  <option value="Semester Enterprise">Semester Enterprise</option>
+                  <option value="Monthly Plan (₦2,999/month)">Monthly Plan — ₦2,999/month</option>
+                  <option value="Yearly Plan (₦24,999/year)">Yearly Plan — ₦24,999/year</option>
                 </select>
               </div>
 

@@ -1,4 +1,4 @@
-import { collection, onSnapshot, query, doc, updateDoc, addDoc, serverTimestamp, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, updateDoc, addDoc, serverTimestamp, setDoc, deleteDoc, limit } from 'firebase/firestore';
 import { db } from './firebase';
 
 export interface FashionItem {
@@ -20,7 +20,7 @@ export interface FashionItem {
 export const subscribeToFashionItems = (
   callback: (items: FashionItem[], isFromCache: boolean, error?: Error) => void
 ) => {
-  const q = query(collection(db, 'fashion_inventory'));
+  const q = query(collection(db, 'fashion_inventory'), limit(50));
   
   return onSnapshot(
     q,

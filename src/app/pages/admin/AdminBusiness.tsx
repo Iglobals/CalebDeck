@@ -42,7 +42,7 @@ export default function AdminBusiness() {
   // Forms
   const [vendorForm, setVendorForm] = useState({
     businessName: '', description: '', category: '', contactName: '', contactPhone: '', contactEmail: '',
-    subscriptionPlan: 'Monthly Basic', startDate: '', endDate: '', imageUrl: ''
+    subscriptionPlan: 'Monthly Plan (₦2,999/month)', startDate: '', endDate: '', imageUrl: ''
   });
   
   const [productForm, setProductForm] = useState({
@@ -113,12 +113,20 @@ export default function AdminBusiness() {
       if (editingVendor) {
         await updateBusinessVendor(editingVendor.id, data);
       } else {
-        const code = generateAccessCode();
-        await addBusinessVendor({ ...data, accessCode: code, accessCodePlain: code });
-        setGeneratedCode(code); // Show just once
+        // Generate a unique activation token (NOT an access code — code comes after payment)
+        const activationToken = crypto.randomUUID();
+        await addBusinessVendor({ 
+          ...data, 
+          accessCode: '', 
+          accessCodePlain: '',
+          activationToken,
+          status: 'PENDING_PAYMENT'
+        } as any);
+        // Show the activation link for admin to send to vendor
+        setGeneratedCode(`${window.location.origin}/business/activate/${activationToken}`);
       }
       
-      if (editingVendor) setIsVendorModalOpen(false); // keep open if new to show code
+      if (editingVendor) setIsVendorModalOpen(false); // keep open if new to show activation link
       setEditingVendor(null);
     } catch (err) {
       console.error("Error saving vendor", err);
@@ -131,9 +139,31 @@ export default function AdminBusiness() {
   const handleRegenerateCode = async (vendorId: string) => {
     if (window.confirm('Are you sure? This will log the vendor out everywhere immediately.')) {
       const newCode = generateAccessCode();
-      await updateBusinessVendor(vendorId, { accessCode: newCode, accessCodePlain: newCode });
+      await updateBusinessVendor(vendorId, { accessCode: newCode, accessCodePlain: newCode } as any);
       setGeneratedCode(newCode);
     }
+  };
+
+  const handleManualActivate = async (vendorId: string) => {
+    if (!window.confirm('Force-activate this vendor WITHOUT payment? This will be flagged as MANUAL_OVERRIDE in the audit trail.')) return;
+    const code = generateAccessCode();
+    const now = new Date();
+    const vendorDoc = vendors.find(v => v.id === vendorId);
+    const plan = vendorDoc?.subscriptionPlan || 'Monthly Plan (₦2,999/month)';
+    const isYearly = plan.toLowerCase().includes('year');
+    const endDate = new Date(now.getTime() + (isYearly ? 365 : 30) * 24 * 60 * 60 * 1000);
+
+    await updateBusinessVendor(vendorId, {
+      status: 'ACTIVE',
+      accessCode: code,
+      accessCodePlain: code,
+      subscriptionStartDate: Timestamp.fromDate(now),
+      subscriptionEndDate: Timestamp.fromDate(endDate),
+      activatedAt: Timestamp.now(),
+      activationMethod: 'MANUAL_OVERRIDE'
+    } as any);
+    setGeneratedCode(code);
+    setIsVendorModalOpen(true);
   };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
@@ -188,7 +218,7 @@ export default function AdminBusiness() {
       const nextMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
       setVendorForm({
         businessName: '', description: '', category: '', contactName: '', contactPhone: '', contactEmail: '',
-        subscriptionPlan: 'Monthly Basic', startDate: now.toISOString().split('T')[0], endDate: nextMonth.toISOString().split('T')[0], imageUrl: ''
+        subscriptionPlan: 'Monthly Plan (₦2,999/month)', startDate: now.toISOString().split('T')[0], endDate: nextMonth.toISOString().split('T')[0], imageUrl: ''
       });
       setEditingVendor(null);
     }
@@ -211,7 +241,8 @@ export default function AdminBusiness() {
   };
 
   const getVendorStatus = (v: BusinessVendor) => {
-    const end = v.subscriptionEndDate?.toDate ? v.subscriptionEndDate.toDate() : new Date(v.subscriptionEndDate._seconds * 1000);
+    if ((v as any).status === 'PENDING_PAYMENT') return 'pending';
+    const end = v.subscriptionEndDate?.toDate ? v.subscriptionEndDate.toDate() : (v.subscriptionEndDate?._seconds ? new Date(v.subscriptionEndDate._seconds * 1000) : new Date(v.subscriptionEndDate));
     return end > new Date() ? 'active' : 'expired';
   };
 
@@ -319,8 +350,8 @@ export default function AdminBusiness() {
                         <p className="text-xs font-mono text-muted-foreground">{vendor.vendorId}</p>
                       </div>
                     </div>
-                    <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${status === 'active' ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'}`}>
-                      {status}
+                    <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${status === 'active' ? 'bg-green-500/10 text-green-600' : status === 'pending' ? 'bg-yellow-500/10 text-yellow-600' : 'bg-red-500/10 text-red-600'}`}>
+                      {status === 'pending' ? 'Awaiting Payment' : status}
                     </span>
                   </div>
                   
@@ -336,9 +367,16 @@ export default function AdminBusiness() {
                   </div>
                   
                   <div className="mt-auto pt-4 border-t border-border flex justify-between gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => sendRenewalReminder(vendor)} className="text-muted-foreground hover:text-green-500 p-2">
-                      <MessageCircle className="w-4 h-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => sendRenewalReminder(vendor)} className="text-muted-foreground hover:text-green-500 p-2">
+                        <MessageCircle className="w-4 h-4" />
+                      </Button>
+                      {status === 'pending' && (
+                        <Button variant="ghost" size="sm" onClick={() => handleManualActivate(vendor.id)} className="text-yellow-600 hover:bg-yellow-500/10 p-2" title="Force activate without payment">
+                          <Key className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                     <div className="flex gap-2">
                       <Button variant="ghost" size="sm" onClick={() => openVendorModal(vendor)} className="text-blue-500 p-2">
                         <Pencil className="w-4 h-4" />
@@ -412,8 +450,12 @@ export default function AdminBusiness() {
                   <div className="w-16 h-16 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Key className="w-8 h-8" />
                   </div>
-                  <h3 className="text-2xl font-black">Access Code Generated</h3>
-                  <p className="text-muted-foreground max-w-sm mx-auto">Copy this code and send it to the vendor. You will not be able to see it again.</p>
+                  <h3 className="text-2xl font-black">{generatedCode.startsWith('http') ? 'Vendor Activation Link' : 'Access Code Generated'}</h3>
+                  <p className="text-muted-foreground max-w-sm mx-auto">
+                    {generatedCode.startsWith('http')
+                      ? 'Send this link to the vendor. Their access code will be generated after they pay.'
+                      : 'Copy this code and send it to the vendor. You will not be able to see it again.'}
+                  </p>
                   
                   <div className="flex items-center justify-center gap-3 mt-6">
                     <code className="text-2xl font-mono tracking-widest bg-muted px-6 py-4 rounded-xl border border-border">

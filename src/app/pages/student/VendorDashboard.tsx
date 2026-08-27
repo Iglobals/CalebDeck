@@ -12,13 +12,14 @@ import {
   Package,
   AlertCircle,
   CheckCircle2,
-  Clock
+  Clock,
+  CreditCard,
+  Loader2
 } from 'lucide-react';
 import { 
   BusinessVendor, 
   BusinessProduct, 
-  subscribeToBusinessProducts, 
-  subscribeToVendorReferrals 
+  subscribeToBusinessProducts
 } from '../../../services/business';
 import { Logo } from '../../components/design-system/Logo';
 
@@ -32,8 +33,8 @@ export default function VendorDashboard() {
   const [referralCount, setReferralCount] = useState(0);
 
   useEffect(() => {
-    // Check session storage for vendor auth
-    const storedVendor = sessionStorage.getItem('calebdeck_vendor');
+    // Check localStorage for vendor auth
+    const storedVendor = localStorage.getItem('calebdeck_vendor');
     if (!storedVendor) {
       navigate('/business');
       return;
@@ -41,10 +42,9 @@ export default function VendorDashboard() {
     
     try {
       const parsedVendor = JSON.parse(storedVendor);
-      // Convert string timestamps back if needed, or handle directly
       setVendor(parsedVendor);
     } catch (e) {
-      sessionStorage.removeItem('calebdeck_vendor');
+      localStorage.removeItem('calebdeck_vendor');
       navigate('/business');
     }
   }, [navigate]);
@@ -57,27 +57,97 @@ export default function VendorDashboard() {
       setProducts(allProducts.filter(p => p.vendorId === vendor.id));
     });
 
-    // Subscribe to referrals to get the count
-    const unsubReferrals = subscribeToVendorReferrals(vendor.id, (refs) => {
-      // Filter for this month
-      const now = new Date();
-      const thisMonth = refs.filter(r => {
-        if (!r.timestamp) return false;
-        const refDate = r.timestamp.toDate ? r.timestamp.toDate() : new Date(r.timestamp._seconds * 1000);
-        return refDate.getMonth() === now.getMonth() && refDate.getFullYear() === now.getFullYear();
-      });
-      setReferralCount(thisMonth.length);
-    });
+    // Fetch referrals via server-side API (Firestore rules keep this admin-only)
+    const fetchReferrals = async () => {
+      try {
+        const res = await fetch(`/api/business/get-vendor-referrals`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ vendorId: vendor.id })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setReferralCount(data.count ?? 0);
+        }
+      } catch (e) {
+        console.error('[VendorDashboard] Failed to fetch referrals:', e);
+      }
+    };
+    fetchReferrals();
 
     return () => {
       unsubProducts();
-      unsubReferrals();
     };
   }, [vendor?.id]);
 
   const handleLogout = () => {
-    sessionStorage.removeItem('calebdeck_vendor');
+    localStorage.removeItem('calebdeck_vendor');
     navigate('/business');
+  };
+
+  // Renewal state
+  const [renewPlan, setRenewPlan] = useState('Monthly Plan (₦2,999/month)');
+  const [renewing, setRenewing] = useState(false);
+  const [renewSuccess, setRenewSuccess] = useState(false);
+
+  const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '';
+
+  const handleRenew = () => {
+    if (!vendor || !PAYSTACK_PUBLIC_KEY) return;
+    setRenewing(true);
+
+    const isYearly = renewPlan.toLowerCase().includes('year');
+    const amount = (isYearly ? 24999 : 2999) * 100;
+
+    const handler = (window as any).PaystackPop?.setup({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: (vendor as any).contactEmail || `${vendor.id}@vendor.calebdeck.com`,
+      amount,
+      currency: 'NGN',
+      ref: `CBDK-RENEW-${vendor.id.slice(0, 8)}-${Date.now()}`,
+      metadata: {
+        custom_fields: [
+          { display_name: 'Business Name', variable_name: 'business_name', value: vendor.businessName },
+          { display_name: 'Plan', variable_name: 'plan', value: renewPlan },
+          { display_name: 'Type', variable_name: 'type', value: 'VENDOR_RENEWAL' }
+        ]
+      },
+      callback: async (response: { reference: string }) => {
+        try {
+          const res = await fetch('/api/business/renew-subscription', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              vendorDocId: vendor.id,
+              reference: response.reference,
+              plan: renewPlan
+            })
+          });
+          const result = await res.json();
+          if (!res.ok) throw new Error(result.error);
+          setRenewSuccess(true);
+          // Refresh vendor data in localStorage
+          const updated = { ...vendor, subscriptionEndDate: result.subscriptionEndDate, subscriptionPlan: result.plan, status: 'ACTIVE' };
+          localStorage.setItem('calebdeck_vendor', JSON.stringify(updated));
+          setVendor(updated as any);
+        } catch (e: any) {
+          alert(e.message || 'Renewal failed. Contact support.');
+        } finally {
+          setRenewing(false);
+        }
+      },
+      onClose: () => setRenewing(false)
+    });
+
+    if (handler) {
+      handler.openIframe();
+    } else {
+      const script = document.createElement('script');
+      script.src = 'https://js.paystack.co/v2/inline.js';
+      script.onload = () => handleRenew();
+      document.head.appendChild(script);
+      setRenewing(false);
+    }
   };
 
   if (!vendor) return <div className="min-h-screen bg-background"></div>;
@@ -140,10 +210,33 @@ export default function VendorDashboard() {
                 {daysRemaining} days remaining
               </p>
             ) : (
-              <p className="text-sm text-red-500 font-bold flex items-center gap-1.5 mt-4">
-                <AlertCircle className="w-4 h-4" />
-                Plan expired. Products hidden.
-              </p>
+              <div className="mt-4 space-y-3">
+                <p className="text-sm text-red-500 font-bold flex items-center gap-1.5">
+                  <AlertCircle className="w-4 h-4" />
+                  Plan expired. Products hidden.
+                </p>
+                <div className="pt-3 border-t border-border space-y-2">
+                  <select
+                    value={renewPlan}
+                    onChange={(e) => setRenewPlan(e.target.value)}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background font-bold"
+                  >
+                    <option value="Monthly Plan (₦2,999/month)">Monthly — ₦2,999/month</option>
+                    <option value="Yearly Plan (₦24,999/year)">Yearly — ₦24,999/year</option>
+                  </select>
+                  <button
+                    onClick={handleRenew}
+                    disabled={renewing}
+                    className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-black text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+                  >
+                    {renewing ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
+                    ) : (
+                      <><CreditCard className="w-4 h-4" /> Renew Now</>
+                    )}
+                  </button>
+                </div>
+              </div>
             )}
           </Card>
 

@@ -232,6 +232,11 @@ service cloud.firestore {
       allow read, write: if false; // Server-only access via Admin SDK
     }
 
+    match /vendor_subscription_payments/{paymentId} {
+      allow read: if isAdmin();       // Admin can view payment audit trail
+      allow write: if false;          // Server-only (Admin SDK) creates these
+    }
+
     // ─── Default deny ───
     match /{document=**} {
       allow read, write: if false;
