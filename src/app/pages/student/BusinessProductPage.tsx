@@ -32,22 +32,20 @@ export default function BusinessProductPage() {
     return () => unsub();
   }, [id]);
 
-  const handleChatWithVendor = async () => {
+  const handleChatWithVendor = () => {
     if (!product) return;
 
-    // 1. Log the referral tap in Firestore
-    try {
-      await logReferralTap(
-        product.vendorId,
-        product.id,
-        product.name,
-        product.vendorBusinessName,
-        user?.uid
-      );
-    } catch (e) {
+    // 1. Log the referral tap in Firestore (Fire and forget, do NOT await)
+    // Awaiting here causes iOS PWAs to lose the user gesture token, blocking the WhatsApp redirect.
+    logReferralTap(
+      product.vendorId,
+      product.id,
+      product.name,
+      product.vendorBusinessName,
+      user?.uid
+    ).catch(e => {
       console.error('Failed to log referral tap', e);
-      // Don't block the user if logging fails
-    }
+    });
 
     // 2. Open WhatsApp to the vendor's own number
     const message = `Hi! I saw your ${product.name} (₦${product.price.toLocaleString()}) on CalebDeck. I'm interested in buying it.`;
@@ -59,7 +57,8 @@ export default function BusinessProductPage() {
       phone = '234' + phone.substring(1);
     }
 
-    window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+    // Use window.location.href instead of window.open for iOS PWAs to reliably trigger the deep link
+    window.location.href = `https://wa.me/${phone}?text=${encodedMessage}`;
   };
 
   if (loading) {
