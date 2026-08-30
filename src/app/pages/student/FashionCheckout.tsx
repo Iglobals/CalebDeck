@@ -50,6 +50,9 @@ export default function FashionCheckout() {
       window.location.href = `/api/auth/login?return_to=${encodeURIComponent(window.location.origin + '/fashion/checkout')}`;
       return;
     }
+    // Don't redirect if we're in the middle of processing a payment —
+    // clearCart() empties items before navigate('/order-success') fires
+    if (paymentProcessingRef.current) return;
     if (items.length === 0) {
       navigate('/fashion');
     }

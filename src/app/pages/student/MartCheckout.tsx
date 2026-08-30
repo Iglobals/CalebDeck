@@ -51,6 +51,9 @@ export default function MartCheckout() {
   const isWalletDisabled = (isFemaleHostelSelected && !femaleHostelAgreement) || isWalletPaying || hasFashionItems;
 
   useEffect(() => {
+    // Don't redirect if we're in the middle of processing a payment —
+    // clearCart() empties items before navigate('/order-success') fires
+    if (paymentProcessingRef.current) return;
     if (items.length === 0) {
       navigate('/mart');
     }
