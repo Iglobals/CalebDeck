@@ -315,7 +315,10 @@ export default function FashionCheckout() {
       body: JSON.stringify({ reference: paymentRef.current, orderData: preSaveData })
     }).catch(err => console.warn('[FashionCheckout] Pre-save failed (non-blocking):', err));
 
-    initializePayment({ onSuccess, onClose } as any);
+    initializePayment({
+      onSuccess: (reference: any) => void onSuccess(reference),
+      onClose: () => onClose()
+    });
   };
 
   if (isClosed) {

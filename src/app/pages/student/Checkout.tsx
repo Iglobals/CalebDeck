@@ -645,7 +645,10 @@ if (isPremiumHostel) {
       return;
     }
 
-    initializePayment({ onSuccess: onSuccess as any, onClose: () => { onClose(); setIsSubmitting(false); } });
+    initializePayment({ 
+      onSuccess: (reference: any) => void onSuccess(reference), 
+      onClose: () => { onClose(); setIsSubmitting(false); } 
+    });
   };
 
   const canSubmit = formData.fullName && formData.phone && formData.hostel && orderTotal && !calculating && !isClosed && !isSubmitting && (!isFemaleHostelSelected || femaleHostelAgreement);

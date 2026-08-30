@@ -15,7 +15,9 @@ import {
     Package,
     RotateCcw,
     Zap,
-    AlertTriangle
+    AlertTriangle,
+    Wallet,
+    CreditCard
 } from 'lucide-react';
 import { subscribeToAllOrders, subscribeToHostels, Hostel, subscribeToRiders, Rider, dispatchBatch, markOrderRefunded, orderMatchesHostel, subscribeTodayBatchDays, advanceFashionBatch, FoodBatchDay } from '../../../services/db';
 import { formatDistanceToNow } from 'date-fns';
@@ -629,6 +631,11 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                                     ) : (
                                                                         <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-[#7C3AED]/30 flex items-center gap-1"><Package className="w-3 h-3" /> {resolveOrderBatchInfo(order, batchDays)?.batchName || 'Scheduled Batch'}</Badge>
                                                                     )}
+                                                                    {order.paymentMethod === 'WALLET' ? (
+                                                                        <Badge variant="green" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-green-500/30 flex items-center gap-1"><Wallet className="w-3 h-3" /> Wallet</Badge>
+                                                                    ) : order.paymentMethod === 'PAYSTACK' ? (
+                                                                        <Badge variant="blue" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-blue-500/30 flex items-center gap-1"><CreditCard className="w-3 h-3" /> Paystack</Badge>
+                                                                    ) : null}
                                                                     <span className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                                                                         {' - '}{order.type === 'combo' ? `${order.quantity || 1} combos` : `${order.plates?.length || 0} plates`}
                                                                     </span>
@@ -675,6 +682,11 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                     ) : (
                                                         <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-[#7C3AED]/30 ml-2 mt-1 flex items-center gap-1"><Package className="w-3 h-3" /> {resolveOrderBatchInfo(order, batchDays)?.batchName || 'Scheduled Batch'}</Badge>
                                                     )}
+                                                    {order.paymentMethod === 'WALLET' ? (
+                                                        <Badge variant="green" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-green-500/30 ml-2 mt-1 flex items-center gap-1"><Wallet className="w-3 h-3" /> Wallet</Badge>
+                                                    ) : order.paymentMethod === 'PAYSTACK' ? (
+                                                        <Badge variant="blue" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-blue-500/30 ml-2 mt-1 flex items-center gap-1"><CreditCard className="w-3 h-3" /> Paystack</Badge>
+                                                    ) : null}
                                                 </div>
                                                 <div className="flex items-center gap-3">
                                                     <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{getOrderAmount(order).toLocaleString()}</span>
@@ -711,6 +723,11 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                             ) : (
                                                                 <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-[#7C3AED]/30 flex items-center gap-1"><Package className="w-3 h-3" /></Badge>
                                                             )}
+                                                            {order.paymentMethod === 'WALLET' ? (
+                                                                <Badge variant="green" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-green-500/30 flex items-center gap-1"><Wallet className="w-3 h-3" /></Badge>
+                                                            ) : order.paymentMethod === 'PAYSTACK' ? (
+                                                                <Badge variant="blue" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-blue-500/30 flex items-center gap-1"><CreditCard className="w-3 h-3" /></Badge>
+                                                            ) : null}
                                                         </div>
                                                     </div>
                                                     {getStatusBadge(order.status)}
@@ -761,6 +778,11 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                             ) : (
                                                 <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-[#7C3AED]/30 shrink-0 flex items-center gap-1"><Package className="w-3 h-3" /> {resolveOrderBatchInfo(selectedOrder, batchDays)?.batchName || 'Scheduled Batch'}</Badge>
                                             )}
+                                            {selectedOrder.paymentMethod === 'WALLET' ? (
+                                                <Badge variant="green" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-green-500/30 shrink-0 flex items-center gap-1"><Wallet className="w-3 h-3" /> Wallet</Badge>
+                                            ) : selectedOrder.paymentMethod === 'PAYSTACK' ? (
+                                                <Badge variant="blue" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-blue-500/30 shrink-0 flex items-center gap-1"><CreditCard className="w-3 h-3" /> Paystack</Badge>
+                                            ) : null}
                                         </div>
                                     </div>
                                 </div>

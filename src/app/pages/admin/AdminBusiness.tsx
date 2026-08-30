@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
@@ -60,6 +60,19 @@ export default function AdminBusiness() {
     const now = new Date();
     return refDate.getMonth() === now.getMonth() && refDate.getFullYear() === now.getFullYear();
   });
+
+  // Pre-compute vendor cross-reference maps to avoid O(N×M) in the render loop
+  const refsByVendor = useMemo(() => {
+    const map = new Map<string, number>();
+    thisMonthReferrals.forEach(r => map.set(r.vendorId, (map.get(r.vendorId) || 0) + 1));
+    return map;
+  }, [thisMonthReferrals]);
+
+  const prodsByVendor = useMemo(() => {
+    const map = new Map<string, number>();
+    products.forEach(p => map.set(p.vendorId, (map.get(p.vendorId) || 0) + 1));
+    return map;
+  }, [products]);
 
   useEffect(() => {
     const unsubVendors = subscribeToBusinessVendors((v) => { setVendors(v); setLoading(false); });
@@ -335,8 +348,8 @@ export default function AdminBusiness() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {vendors.filter(v => v.businessName.toLowerCase().includes(searchQuery.toLowerCase())).map(vendor => {
               const status = getVendorStatus(vendor);
-              const refs = thisMonthReferrals.filter(r => r.vendorId === vendor.id).length;
-              const prodCount = products.filter(p => p.vendorId === vendor.id).length;
+              const refs = refsByVendor.get(vendor.id) || 0;
+              const prodCount = prodsByVendor.get(vendor.id) || 0;
               
               return (
                 <Card key={vendor.id} className={`p-5 flex flex-col border-2 shadow-sm ${status === 'expired' ? (isDark ? 'border-red-900/50 bg-red-900/10' : 'border-red-200 bg-red-50') : (isDark ? 'border-[#333333]' : 'border-gray-200')}`}>

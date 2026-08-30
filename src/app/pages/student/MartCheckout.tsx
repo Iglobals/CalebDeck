@@ -361,7 +361,10 @@ export default function MartCheckout() {
       body: JSON.stringify({ reference: paymentRef.current, orderData: preSaveData })
     }).catch(err => console.warn('[MartCheckout] Pre-save failed (non-blocking):', err));
 
-    initializePayment({ onSuccess, onClose } as any);
+    initializePayment({
+      onSuccess: (reference: any) => void onSuccess(reference),
+      onClose: () => onClose()
+    });
   };
 
   if (isClosed) {

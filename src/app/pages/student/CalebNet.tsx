@@ -499,7 +499,7 @@ export default function CalebNet() {
     
     setWalletLoading(true);
     initializeFunding({
-      onSuccess: () => {
+      onSuccess: (reference: any) => { void (async () => {
         toast.loading('Verifying your payment...', { toastId: 'verify-funding' });
         verifyFunding(fundingReference)
           .then(() => setFundingReference(createFundingReference()))
@@ -508,11 +508,11 @@ export default function CalebNet() {
             toast.dismiss('verify-funding');
             setWalletLoading(false);
           });
-      },
+      })(); },
       onClose: () => {
         setWalletLoading(false);
       },
-    } as any);
+    });
   };
 
   const refreshWallet = async () => {

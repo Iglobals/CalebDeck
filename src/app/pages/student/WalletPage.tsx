@@ -87,7 +87,7 @@ export default function WalletPage() {
         
         setWalletLoading(true);
         initializeFunding({
-            onSuccess: () => {
+            onSuccess: (reference: any) => { void (async () => {
                 toast.loading('Verifying your payment...', { toastId: 'verify-funding' });
                 verifyFunding(fundingReference)
                     .then(() => setFundingReference(createFundingReference()))
@@ -96,11 +96,11 @@ export default function WalletPage() {
                         toast.dismiss('verify-funding');
                         setWalletLoading(false);
                     });
-            },
+            })(); },
             onClose: () => {
                 setWalletLoading(false);
             },
-        } as any);
+        });
     };
 
     const refreshWallet = async () => {

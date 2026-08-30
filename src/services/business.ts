@@ -1,5 +1,6 @@
 import { collection, onSnapshot, doc, updateDoc, addDoc, serverTimestamp, setDoc, deleteDoc, getDocs, query, orderBy, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
+import { perfTracker } from '../utils/perfTracker';
 
 export interface BusinessVendor {
   id: string;
@@ -48,7 +49,9 @@ export interface BusinessReferral {
 // Subscribe to all vendors (Admin)
 export const subscribeToBusinessVendors = (callback: (vendors: BusinessVendor[]) => void) => {
   const q = query(collection(db, 'business_vendors'), orderBy('createdAt', 'desc'));
+  const t0 = performance.now();
   return onSnapshot(q, (snapshot) => {
+    perfTracker.logQuery('business_vendors (subscribeAll)', performance.now() - t0, 'subscribeToBusinessVendors');
     const vendors = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BusinessVendor));
     callback(vendors);
   });
@@ -57,7 +60,9 @@ export const subscribeToBusinessVendors = (callback: (vendors: BusinessVendor[])
 // Subscribe to all products (Admin)
 export const subscribeToBusinessProducts = (callback: (products: BusinessProduct[]) => void) => {
   const q = query(collection(db, 'business_products'), orderBy('createdAt', 'desc'));
+  const t0 = performance.now();
   return onSnapshot(q, (snapshot) => {
+    perfTracker.logQuery('business_products (subscribeAll)', performance.now() - t0, 'subscribeToBusinessProducts');
     const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BusinessProduct));
     callback(products);
   });
@@ -112,7 +117,9 @@ export const generateAccessCode = () => {
 };
 
 export const getNextVendorId = async (): Promise<string> => {
+  const t0 = performance.now();
   const snapshot = await getDocs(collection(db, 'business_vendors'));
+  perfTracker.logQuery('business_vendors (full scan for ID)', performance.now() - t0, 'getNextVendorId');
   let maxId = 0;
   snapshot.forEach(doc => {
     const data = doc.data();
@@ -126,7 +133,9 @@ export const getNextVendorId = async (): Promise<string> => {
 };
 
 export const getNextProductId = async (): Promise<string> => {
+  const t0 = performance.now();
   const snapshot = await getDocs(collection(db, 'business_products'));
+  perfTracker.logQuery('business_products (full scan for ID)', performance.now() - t0, 'getNextProductId');
   let maxId = 0;
   snapshot.forEach(doc => {
     const data = doc.data();
