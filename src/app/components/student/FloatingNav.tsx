@@ -30,7 +30,7 @@ export function FloatingNav() {
   const { user } = useAuth();
   const location = useLocation();
 
-  if (!user) return null;
+  if (!user?.icaSub) return null;
 
   const isProductPage = HIDDEN_ROUTE_PREFIXES.some(
     prefix => location.pathname === prefix || location.pathname.startsWith(prefix + '/')

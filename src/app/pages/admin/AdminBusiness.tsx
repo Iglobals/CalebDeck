@@ -5,7 +5,7 @@ import { Button } from '../../components/design-system/Button';
 import { 
   Search, Plus, Trash2, Pencil, Upload, 
   X, Loader2, Store, CalendarDays, TrendingUp,
-  AlertCircle, Key, Copy, MessageCircle, Package, EyeOff
+  AlertCircle, Key, Copy, MessageCircle, Package, EyeOff, CheckCircle2
 } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
@@ -149,6 +149,7 @@ export default function AdminBusiness() {
     }
   };
 
+  const [copied, setCopied] = useState(false);
   const handleRegenerateCode = async (vendorId: string) => {
     if (window.confirm('Are you sure? This will log the vendor out everywhere immediately.')) {
       const newCode = generateAccessCode();
@@ -345,6 +346,22 @@ export default function AdminBusiness() {
 
         {/* Vendors Tab */}
         {activeTab === 'vendors' && (
+          loading ? (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3, 4, 5, 6].map(i => (
+                <Card key={i} className={`p-5 border-2 animate-pulse ${isDark ? 'border-[#333333]' : 'border-gray-200'}`}>
+                  <div className="flex gap-4 items-start">
+                    <div className="w-16 h-16 rounded-xl bg-muted shrink-0" />
+                    <div className="flex-1 space-y-3 py-1">
+                      <div className="h-5 bg-muted rounded w-3/4" />
+                      <div className="h-4 bg-muted rounded w-1/2" />
+                      <div className="h-3 bg-muted rounded w-1/3 mt-4" />
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {vendors.filter(v => v.businessName.toLowerCase().includes(searchQuery.toLowerCase())).map(vendor => {
               const status = getVendorStatus(vendor);
@@ -403,6 +420,7 @@ export default function AdminBusiness() {
               );
             })}
           </div>
+          )
         )}
 
         {/* Products Tab */}
@@ -471,11 +489,16 @@ export default function AdminBusiness() {
                   </p>
                   
                   <div className="flex items-center justify-center gap-3 mt-6">
-                    <code className="text-2xl font-mono tracking-widest bg-muted px-6 py-4 rounded-xl border border-border">
+                    <code className={`font-mono tracking-widest bg-muted px-4 py-4 rounded-xl border border-border block overflow-hidden text-ellipsis ${generatedCode.startsWith('http') ? 'text-sm sm:text-base w-full max-w-[250px] sm:max-w-xs' : 'text-2xl'}`}>
                       {generatedCode}
                     </code>
-                    <Button variant="secondary" onClick={() => navigator.clipboard.writeText(generatedCode)} className="h-16 w-16">
-                      <Copy className="w-5 h-5" />
+                    <Button variant="secondary" onClick={() => {
+                        navigator.clipboard.writeText(generatedCode);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                    }} className="h-14 px-4 font-bold shrink-0 text-sm relative">
+                      {copied ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5" />}
+                      {copied && <span className="absolute -top-6 text-xs text-green-500 font-bold">Copied!</span>}
                     </Button>
                   </div>
                   
@@ -523,11 +546,14 @@ export default function AdminBusiness() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4 p-4 rounded-xl border-2 border-orange-500/20 bg-orange-500/5">
-                    <div className="col-span-3 font-bold text-sm text-orange-500">Subscription Setup</div>
-                    <div className="col-span-3">
+                  <div className="grid grid-cols-2 gap-4 p-4 rounded-xl border-2 border-orange-500/20 bg-orange-500/5">
+                    <div className="col-span-2 font-bold text-sm text-orange-500">Subscription Setup</div>
+                    <div className="col-span-2">
                       <label className="block text-xs font-semibold mb-2">Plan Name</label>
-                      <input required value={vendorForm.subscriptionPlan} onChange={e => setVendorForm({...vendorForm, subscriptionPlan: e.target.value})} className={`w-full px-4 py-3 rounded-xl border-2 outline-none ${isDark ? 'border-[#333333] bg-[#2A2A2A]' : 'border-gray-200'}`} />
+                      <select required value={vendorForm.subscriptionPlan} onChange={e => setVendorForm({...vendorForm, subscriptionPlan: e.target.value})} className={`w-full px-4 py-3 rounded-xl border-2 outline-none ${isDark ? 'border-[#333333] bg-[#2A2A2A]' : 'border-gray-200'}`}>
+                        <option value="Monthly Plan (₦2,999/month)">Monthly Plan (₦2,999/month)</option>
+                        <option value="Yearly Plan (₦24,999/year)">Yearly Plan (₦24,999/year)</option>
+                      </select>
                     </div>
                     <div className="col-span-1">
                       <label className="block text-xs font-semibold mb-2">Start Date</label>

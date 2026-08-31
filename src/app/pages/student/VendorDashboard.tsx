@@ -31,6 +31,7 @@ export default function VendorDashboard() {
   const [vendor, setVendor] = useState<BusinessVendor | null>(null);
   const [products, setProducts] = useState<BusinessProduct[]>([]);
   const [referralCount, setReferralCount] = useState(0);
+  const [productReferrals, setProductReferrals] = useState<Record<string, number>>({});
 
   useEffect(() => {
     // Check localStorage for vendor auth
@@ -68,6 +69,7 @@ export default function VendorDashboard() {
         if (res.ok) {
           const data = await res.json();
           setReferralCount(data.count ?? 0);
+          setProductReferrals(data.productCounts ?? {});
         }
       } catch (e) {
         console.error('[VendorDashboard] Failed to fetch referrals:', e);
@@ -306,10 +308,16 @@ export default function VendorDashboard() {
                       </div>
                     )}
                   </div>
-                  <div className="p-4 flex-1 flex flex-col bg-card border-t border-border/50">
+                  <div className="p-4 flex-1 flex flex-col bg-card border-t border-border/50 relative">
                     <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">{product.category}</span>
                     <h4 className="font-bold text-sm mb-2 line-clamp-2">{product.name}</h4>
-                    <p className="text-orange-500 font-black mt-auto">₦{product.price.toLocaleString()}</p>
+                    <div className="flex items-end justify-between mt-auto">
+                      <p className="text-orange-500 font-black">₦{product.price.toLocaleString()}</p>
+                      <div className="flex flex-col items-end">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">Referrals</span>
+                        <span className="text-sm font-black text-orange-500">{productReferrals[product.id] || 0}</span>
+                      </div>
+                    </div>
                   </div>
                 </Card>
               ))}

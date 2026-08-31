@@ -67,7 +67,7 @@ export default function WalletPage() {
         };
     }, [user?.uid]);
 
-    const verifyFunding = async (reference: string) => {
+    const verifyFunding = async (reference: string, attempts = 0): Promise<void> => {
         if (!user) return;
         const token = await user.getIdToken();
         const response = await fetch('/api/wallet/verify-funding', {
@@ -76,10 +76,43 @@ export default function WalletPage() {
             body: JSON.stringify({ reference }),
         });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Wallet funding failed');
+        
+        if (!response.ok) {
+            if (attempts < 2) {
+                // Retry after 3 seconds
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                return verifyFunding(reference, attempts + 1);
+            }
+            throw new Error(data.error || 'Wallet funding failed');
+        }
+        
         setWalletBalance(Number(data.balance || 0));
         toast.success(`Wallet funded. New balance: ₦${Number(data.balance).toLocaleString()}`);
     };
+
+    useEffect(() => {
+        const searchParams = new URLSearchParams(location.search);
+        const ref = searchParams.get('reference') || searchParams.get('trxref');
+        if (ref && user?.uid) {
+            if (sessionStorage.getItem(`wallet_verified_${ref}`)) return;
+            sessionStorage.setItem(`wallet_verified_${ref}`, 'true');
+            
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+            
+            toast.loading('Verifying your payment...', { toastId: 'verify-funding' });
+            setWalletLoading(true);
+            verifyFunding(ref)
+                .catch((e) => {
+                    console.error(e);
+                    toast.error('Funding verification delayed. Check back in a few minutes.');
+                })
+                .finally(() => {
+                    toast.dismiss('verify-funding');
+                    setWalletLoading(false);
+                });
+        }
+    }, [location.search, user?.uid]);
 
     const handleFundWallet = () => {
         const amount = Number(fundAmount);

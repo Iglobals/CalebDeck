@@ -21,7 +21,7 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const supportWhatsapp = 'https://wa.me/2348072550635';
 
-  if (isAuth) {
+  if (isAuth && user?.icaSub) {
     return <SignedInHome />;
   }
 
@@ -225,7 +225,7 @@ export default function LandingPage() {
               <Link to="/calebnet" className="text-sm font-bold text-blue-500 hover:text-blue-600 transition-colors px-1 xl:px-2 py-1 whitespace-nowrap">
                 CalebNet
               </Link>
-              {user ? (
+              {user?.icaSub ? (
                 <Link to="/profile" className="text-sm font-bold text-[#7C3AED] hover:text-[#6D28D9] transition-colors px-1 xl:px-2 py-1 whitespace-nowrap flex items-center gap-1.5 bg-[#7C3AED]/10 rounded-lg">
                   i-CON Profile
                 </Link>

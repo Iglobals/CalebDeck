@@ -479,7 +479,7 @@ export default function CalebNet() {
   };
   const initializeFunding = usePaystackPayment(fundingConfig as any);
 
-  const verifyFunding = async (reference: string) => {
+  const verifyFunding = async (reference: string, attempts = 0): Promise<void> => {
     if (!user) return;
     const token = await user.getIdToken();
     const response = await fetch('/api/wallet/verify-funding', {
@@ -488,10 +488,42 @@ export default function CalebNet() {
       body: JSON.stringify({ reference }),
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Wallet funding failed');
+    
+    if (!response.ok) {
+      if (attempts < 2) {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        return verifyFunding(reference, attempts + 1);
+      }
+      throw new Error(data.error || 'Wallet funding failed');
+    }
+    
     setWalletBalance(Number(data.balance || 0));
     toast.success(`Wallet funded. New balance: ₦${Number(data.balance).toLocaleString()}`);
   };
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const ref = searchParams.get('reference') || searchParams.get('trxref');
+    if (ref && user?.uid) {
+      if (sessionStorage.getItem(`wallet_verified_${ref}`)) return;
+      sessionStorage.setItem(`wallet_verified_${ref}`, 'true');
+      
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+      
+      toast.loading('Verifying your payment...', { toastId: 'verify-funding' });
+      setWalletLoading(true);
+      verifyFunding(ref)
+        .catch((e) => {
+          console.error(e);
+          toast.error('Funding verification delayed. Check back in a few minutes.');
+        })
+        .finally(() => {
+          toast.dismiss('verify-funding');
+          setWalletLoading(false);
+        });
+    }
+  }, [location.search, user?.uid]);
 
   const handleFundWallet = () => {
     const amountNum = Number(fundAmount);
@@ -717,9 +749,9 @@ export default function CalebNet() {
                   <span className="text-[10px] sm:text-xs font-bold text-[#7C3AED] leading-none">{money(walletBalance)}</span>
                 </div>
               </div>
-              <div className="w-8 h-8 rounded-full bg-[#7C3AED]/20 border border-[#7C3AED]/40 flex items-center justify-center text-xs font-black text-[#7C3AED]">
+              <button onClick={() => setProfilePanelOpen(true)} className="w-8 h-8 rounded-full bg-[#7C3AED]/20 border border-[#7C3AED]/40 flex items-center justify-center text-xs font-black text-[#7C3AED] hover:bg-[#7C3AED]/30 transition-colors">
                 {(studentProfile.displayName || 'Student').charAt(0).toUpperCase()}
-              </div>
+              </button>
             </div>
           ) : (
             <Logo size="sm" />
@@ -968,7 +1000,7 @@ export default function CalebNet() {
                 </div>
                 {insufficientBalance && <p className="mb-3 rounded-xl bg-red-500/10 p-3 text-sm font-bold text-red-500">Insufficient wallet balance. Fund wallet to continue.</p>}
                 {insufficientBalance ? (
-                  <Button onClick={() => navigate('/wallet', { state: { prefillAmount: Math.max(100, currentAmount - walletBalance) } })} className="w-full py-4 bg-amber-500 hover:bg-amber-600 border-none text-white">
+                  <Button onClick={() => user?.icaSub ? navigate('/wallet', { state: { prefillAmount: Math.max(100, currentAmount - walletBalance) } }) : setProfilePanelOpen(true)} className="w-full py-4 bg-amber-500 hover:bg-amber-600 border-none text-white">
                     <CreditCard className="h-5 w-5" />
                     Top up ₦{Math.max(100, currentAmount - walletBalance)} to continue
                   </Button>
@@ -995,7 +1027,31 @@ export default function CalebNet() {
             </div>
           </aside>
 
-
+          {/* Wallet Activity for non-i-CON mobile users */}
+          {!user?.icaSub && (
+            <div className="lg:hidden w-full mt-2 space-y-4 col-span-full">
+              <h3 className="text-lg font-black text-[#7C3AED] px-1">Wallet Activity</h3>
+              <Card className="p-4 space-y-3 border-border bg-card shadow-sm">
+                {walletTransactions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No wallet activity yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {walletTransactions.slice(0, 5).map((item) => (
+                      <div key={item.id} className="flex items-center justify-between rounded-xl bg-muted/40 p-3 text-sm border border-border">
+                        <div>
+                          <p className="font-black truncate max-w-[200px]">{item.purpose?.replace(/_/g, ' ') || item.type}</p>
+                          <p className="text-[10px] uppercase font-bold text-muted-foreground">{item.status}</p>
+                        </div>
+                        <p className={`font-black whitespace-nowrap ${item.type === 'debit' ? 'text-red-500' : 'text-green-600'}`}>
+                          {item.type === 'debit' ? '-' : '+'}{money(item.amount)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            </div>
+          )}
         </main>
       )}
 
@@ -1144,6 +1200,8 @@ export default function CalebNet() {
                   </Button>
                 </div>
               )}
+
+
 
               {/* Sign Out */}
               <button

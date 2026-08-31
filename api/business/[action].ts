@@ -137,10 +137,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             const refsSnap = await db.collection('business_referrals')
                 .where('vendorId', '==', vendorId)
-                .where('timestamp', '>=', startOfMonth)
                 .get();
 
-            return res.status(200).json({ count: refsSnap.size });
+            const productCounts: Record<string, number> = {};
+            let count = 0;
+            refsSnap.docs.forEach(doc => {
+                const data = doc.data();
+                const ts = data.timestamp?.toDate ? data.timestamp.toDate() : new Date(data.timestamp);
+                if (ts >= startOfMonth) {
+                    count++;
+                    if (data.productId) {
+                        productCounts[data.productId] = (productCounts[data.productId] || 0) + 1;
+                    }
+                }
+            });
+
+            return res.status(200).json({ count, productCounts });
         } catch (error: any) {
             console.error('[business/get-vendor-referrals]', error);
             return res.status(500).json({ error: 'Failed to fetch referrals' });
