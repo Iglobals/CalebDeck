@@ -48,7 +48,8 @@ export default function MartCart() {
   // Determine if checkout is blocked for the active items
   const isMartItemsBlocked = hasMartItems && isMartClosed;
   const isFashionItemsBlocked = hasFashionItems && isFashionClosed;
-  const isCheckoutBlocked = (hasMartItems && isMartItemsBlocked) || (hasFashionItems && isFashionItemsBlocked) || (isMartClosed && isFashionClosed);
+  const isMixedCart = hasMartItems && hasFashionItems;
+  const isCheckoutBlocked = isMixedCart || (hasMartItems && isMartItemsBlocked) || (hasFashionItems && isFashionItemsBlocked) || (isMartClosed && isFashionClosed);
 
   // Default route to fashion checkout if only fashion items exist
   const checkoutRoute = (hasFashionItems && !hasMartItems) ? '/fashion/checkout' : '/mart/checkout';
@@ -198,7 +199,15 @@ export default function MartCart() {
         </div>
 
         <div className="mt-8">
-          {hasMartItems && isMartClosed && (
+          {isMixedCart && (
+            <div className="mb-4 p-4 rounded-2xl bg-red-500/10 border-2 border-red-500/20 text-red-700 dark:text-red-400 flex gap-3">
+              <ShoppingBag className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <p className="text-sm font-semibold leading-relaxed">
+                Your cart contains both instant-delivery Mart items and weekly-batch Fashion items. Please check out Mart and Fashion items separately to track their different delivery timelines.
+              </p>
+            </div>
+          )}
+          {hasMartItems && isMartClosed && !isMixedCart && (
             <div className="mb-4 p-4 rounded-2xl bg-amber-500/10 border-2 border-amber-500/20 text-amber-700 dark:text-amber-300 flex gap-3">
               <Clock className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <p className="text-sm font-semibold leading-relaxed">

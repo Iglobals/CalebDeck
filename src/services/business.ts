@@ -75,8 +75,12 @@ export const subscribeToActiveBusinessProducts = (callback: (products: BusinessP
   
   let currentVendors: BusinessVendor[] = [];
   let currentProducts: BusinessProduct[] = [];
+  let vendorsLoaded = false;
+  let productsLoaded = false;
 
   const updateActiveProducts = () => {
+    if (!vendorsLoaded || !productsLoaded) return;
+    
     const now = new Date();
     // Filter to vendors whose subscription is active
     const activeVendorIds = new Set(
@@ -92,11 +96,13 @@ export const subscribeToActiveBusinessProducts = (callback: (products: BusinessP
 
   const unsubVendors = onSnapshot(vendorsQ, (snapshot) => {
     currentVendors = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BusinessVendor));
+    vendorsLoaded = true;
     updateActiveProducts();
   });
 
   const unsubProducts = onSnapshot(productsQ, (snapshot) => {
     currentProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BusinessProduct));
+    productsLoaded = true;
     updateActiveProducts();
   });
 

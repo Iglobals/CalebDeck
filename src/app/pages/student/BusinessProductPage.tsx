@@ -80,6 +80,8 @@ export default function BusinessProductPage() {
     );
   }
 
+  const isCalebDeckOriginal = product.vendorBusinessName.toLowerCase() === 'calebdeck originals';
+
   return (
     <div className="fixed inset-0 w-full overflow-hidden bg-[#F5F5F5] dark:bg-[#121212] text-foreground selection:bg-primary/30">
       <SEO 
@@ -171,12 +173,18 @@ export default function BusinessProductPage() {
           <div className="w-full flex items-center gap-2 bg-white/70 dark:bg-black/70 backdrop-blur-xl border border-white/40 dark:border-white/10 p-2 rounded-[2rem] shadow-xl">
             <Button 
               onClick={handleChatWithVendor}
-              disabled={!product.inStock}
+              disabled={!product.inStock || (!product.vendorPhone && !isCalebDeckOriginal)}
               variant="primary"
-              className="flex-1 h-14 rounded-full text-white bg-[#25D366] hover:bg-[#128C7E] border-none font-bold shadow-sm transition-transform hover:scale-[1.02]"
+              className={`flex-1 h-14 rounded-full text-white border-none font-bold shadow-sm transition-transform hover:scale-[1.02] ${
+                isCalebDeckOriginal
+                  ? 'bg-[#F97316] hover:bg-[#EA580C] text-white shadow-orange-500/20'
+                  : 'bg-[#25D366] hover:bg-[#128C7E]'
+              }`}
             >
               <MessageCircle className="w-5 h-5 mr-2" />
-              {product.inStock ? 'Chat with Vendor to Buy' : 'Currently Unavailable'}
+              {product.inStock 
+                ? (isCalebDeckOriginal ? 'Contact to Buy' : 'Chat with Vendor to Buy') 
+                : 'Currently Unavailable'}
             </Button>
           </div>
         </div>

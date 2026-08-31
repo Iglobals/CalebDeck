@@ -172,7 +172,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const vendorData = vendorDoc.data();
 
             // Check if already active (prevent double-payment)
-            if (vendorData.status === 'ACTIVE' && vendorData.accessCode) {
+            if (vendorData.status === 'ACTIVE') {
                 return res.status(400).json({ error: 'This vendor is already activated' });
             }
 

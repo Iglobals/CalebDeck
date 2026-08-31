@@ -89,7 +89,7 @@ export default function WalletPage() {
         initializeFunding({
             onSuccess: (reference: any) => { void (async () => {
                 toast.loading('Verifying your payment...', { toastId: 'verify-funding' });
-                verifyFunding(fundingReference)
+                verifyFunding(reference.reference || fundingReference)
                     .then(() => setFundingReference(createFundingReference()))
                     .catch(() => toast.error('Funding verification delayed. Check back in a few minutes.'))
                     .finally(() => {

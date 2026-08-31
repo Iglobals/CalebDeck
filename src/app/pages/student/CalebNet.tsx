@@ -501,7 +501,7 @@ export default function CalebNet() {
     initializeFunding({
       onSuccess: (reference: any) => { void (async () => {
         toast.loading('Verifying your payment...', { toastId: 'verify-funding' });
-        verifyFunding(fundingReference)
+        verifyFunding(reference.reference || fundingReference)
           .then(() => setFundingReference(createFundingReference()))
           .catch(() => toast.error('Funding verification delayed. Check back in a few minutes.'))
           .finally(() => {
@@ -918,12 +918,35 @@ export default function CalebNet() {
                   Edit Profile
                 </Link>
               </div>
-              <Link to="/wallet" className="block">
-                <Button className="w-full">
-                  <CreditCard className="h-5 w-5" />
-                  Manage Wallet
-                </Button>
-              </Link>
+              {user?.icaSub ? (
+                <Link to="/wallet" className="block">
+                  <Button className="w-full">
+                    <CreditCard className="h-5 w-5" />
+                    Manage Wallet
+                  </Button>
+                </Link>
+              ) : (
+                <div className="pt-2">
+                  <h3 className="text-lg font-black mb-3 text-[#7C3AED]">Wallet Activity</h3>
+                  {walletTransactions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No wallet activity yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {walletTransactions.slice(0, 5).map((item) => (
+                        <div key={item.id} className="flex items-center justify-between rounded-xl bg-background/50 p-3 text-sm border border-border">
+                          <div>
+                            <p className="font-black truncate max-w-[150px]">{item.purpose?.replace(/_/g, ' ') || item.type}</p>
+                            <p className="text-[10px] uppercase font-bold text-muted-foreground">{item.status}</p>
+                          </div>
+                          <p className={`font-black whitespace-nowrap ${item.type === 'debit' ? 'text-red-500' : 'text-green-600'}`}>
+                            {item.type === 'debit' ? '-' : '+'}{money(item.amount)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </Card>
 
             <div className="space-y-5 lg:sticky lg:top-24">
@@ -1087,28 +1110,40 @@ export default function CalebNet() {
               </div>
 
               {/* Fund Wallet (compact) */}
-              <div className="space-y-3 border-t border-border pt-5 mb-5">
-                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Fund Wallet</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {FUNDING_PRESETS.map((preset) => (
-                    <button key={preset} type="button" onClick={() => setFundAmount(preset)} className={`rounded-xl border px-2 py-2 text-xs font-black ${Number(fundAmount) === preset ? 'border-[#7C3AED] bg-[#7C3AED]/10 text-[#7C3AED]' : 'border-border bg-card'}`}>
-                      {money(preset)}
-                    </button>
-                  ))}
+              {user?.icaSub ? (
+                <div className="space-y-3 border-t border-border pt-5 mb-5">
+                  <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Fund Wallet</p>
+                  <Link to="/wallet" className="block w-full">
+                    <Button className="w-full py-3" onClick={() => setProfilePanelOpen(false)}>
+                      <CreditCard className="h-4 w-4" />
+                      Manage Wallet
+                    </Button>
+                  </Link>
                 </div>
-                <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-black text-muted-foreground">₦</span>
-                  <input type="number" inputMode="numeric" value={fundAmount} onChange={(event) => setFundAmount(Number(event.target.value) || '')} className="w-full rounded-xl border-2 border-border bg-card py-2.5 pl-8 pr-3 font-bold outline-none focus:border-[#7C3AED] text-sm" placeholder="100 - 50,000" />
+              ) : (
+                <div className="space-y-3 border-t border-border pt-5 mb-5">
+                  <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Fund Wallet</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {FUNDING_PRESETS.map((preset) => (
+                      <button key={preset} type="button" onClick={() => setFundAmount(preset)} className={`rounded-xl border px-2 py-2 text-xs font-black ${Number(fundAmount) === preset ? 'border-[#7C3AED] bg-[#7C3AED]/10 text-[#7C3AED]' : 'border-border bg-card'}`}>
+                        {money(preset)}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-black text-muted-foreground">₦</span>
+                    <input type="number" inputMode="numeric" value={fundAmount} onChange={(event) => setFundAmount(Number(event.target.value) || '')} className="w-full rounded-xl border-2 border-border bg-card py-2.5 pl-8 pr-3 font-bold outline-none focus:border-[#7C3AED] text-sm" placeholder="100 - 50,000" />
+                  </div>
+                  <Button onClick={() => { handleFundWallet(); setProfilePanelOpen(false); }} disabled={walletLoading} className="w-full py-3">
+                    {walletLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                    Fund Wallet
+                  </Button>
+                  <Button onClick={refreshWallet} disabled={walletLoading} variant="outline" className="w-full py-3">
+                    {walletLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
+                    Refresh Wallet
+                  </Button>
                 </div>
-                <Button onClick={() => { handleFundWallet(); setProfilePanelOpen(false); }} disabled={walletLoading} className="w-full py-3">
-                  {walletLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-                  Fund Wallet
-                </Button>
-                <Button onClick={refreshWallet} disabled={walletLoading} variant="outline" className="w-full py-3">
-                  {walletLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
-                  Refresh Wallet
-                </Button>
-              </div>
+              )}
 
               {/* Sign Out */}
               <button

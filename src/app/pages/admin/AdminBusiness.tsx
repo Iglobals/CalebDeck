@@ -519,7 +519,7 @@ export default function AdminBusiness() {
                     </div>
                     <div>
                       <label className="block text-sm font-semibold mb-2">WhatsApp No.</label>
-                      <input required type="tel" value={vendorForm.contactPhone} onChange={e => setVendorForm({...vendorForm, contactPhone: e.target.value})} placeholder="Must be valid WhatsApp" className={`w-full px-4 py-3 rounded-xl border-2 outline-none ${isDark ? 'border-[#333333] bg-[#2A2A2A]' : 'border-gray-200'}`} />
+                      <input type="tel" value={vendorForm.contactPhone} onChange={e => setVendorForm({...vendorForm, contactPhone: e.target.value})} placeholder="Optional WhatsApp" className={`w-full px-4 py-3 rounded-xl border-2 outline-none ${isDark ? 'border-[#333333] bg-[#2A2A2A]' : 'border-gray-200'}`} />
                     </div>
                   </div>
 

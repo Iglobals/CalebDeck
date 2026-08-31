@@ -20,6 +20,7 @@ interface AppUser extends User {
     productsUsed?: string[];
     avatar?: string;
     createdAt?: any;
+    icaSub?: boolean;
 }
 
 interface AuthContextType {
@@ -105,6 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             productsUsed: userData.productsUsed || [],
                             avatar: userData.avatar,
                             createdAt: userData.createdAt,
+                            icaSub: !!userData.icaSub,
                         });
                     } else {
                         setUser(firebaseUser);
