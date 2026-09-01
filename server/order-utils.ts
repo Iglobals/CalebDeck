@@ -20,7 +20,9 @@ export async function calculateServerOrderTotal(
     const platformSettings = settingsDoc.exists ? settingsDoc.data() : {};
     const premiumDeliveryFee = platformSettings!.premiumDeliveryFee || 1250;
 
-    let baseDeliveryFee = isGroup ? 580 : 750;
+    let baseDeliveryFee = isGroup
+        ? (platformSettings!.foodGroupDeliveryFee || 580)
+        : (platformSettings!.foodDeliveryFee || 750);
     if (isPremiumHostel) {
         baseDeliveryFee = premiumDeliveryFee;
     }
@@ -33,7 +35,7 @@ export async function calculateServerOrderTotal(
     if (isMartOrder) {
         const items = orderData?.items || [];
         let martTotal = 0;
-        const martDeliveryFee = orderData?.deliveryFee || 1500;
+        const martDeliveryFee = orderData?.deliveryFee || platformSettings!.martDeliveryFee || 1500;
         
         if (items.length > 0) {
             const itemRefs = items.map((i: any) => db.collection('mart_items').doc(i.id));

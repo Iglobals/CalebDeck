@@ -325,7 +325,7 @@ export default function OrderSuccess() {
               <p className="text-3xl font-black text-foreground">{orderId}</p>
             </div>
 
-            {rider && (
+            {rider && !isFashionOrder && (
               <Card className="mb-10 p-6 bg-secondary/5 border-2 border-secondary/20 rounded-[2.5rem] flex items-center justify-between animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="flex items-center gap-4 text-left">
                   <div className="w-14 h-14 rounded-2xl bg-secondary text-secondary-foreground flex items-center justify-center font-black text-xl">
@@ -342,58 +342,118 @@ export default function OrderSuccess() {
               </Card>
             )}
 
-            <Card className="text-left mb-10 p-8 border-none shadow-2xl bg-card">
-              <div className="space-y-6">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center flex-shrink-0">
-                    <MapPin className="w-6 h-6 text-secondary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Hostel</p>
-                    <p className="text-xl font-bold">{displayHostel}</p>
-                  </div>
+            {isFashionOrder ? (
+              <Card className="text-left mb-10 p-8 border-none shadow-2xl bg-card border-t-4 border-t-[#F97316]">
+                <div className="flex items-center justify-between mb-8 pb-6 border-b border-border">
+                  <h3 className="text-2xl font-black flex items-center gap-2">
+                    <Sparkles className="w-6 h-6 text-[#F97316]" />
+                    Order Receipt
+                  </h3>
+                  <Badge variant="amber" className="uppercase tracking-widest">
+                    {orderStatus.replace(/_/g, ' ')}
+                  </Badge>
                 </div>
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-                    <MapPin className="w-6 h-6 text-amber-500" />
+                
+                <div className="space-y-6">
+                  {orderData.items && Array.isArray(orderData.items) && (
+                    <div className="space-y-3 pb-6 border-b border-border">
+                      <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Items</p>
+                      {orderData.items.map((item: any, i: number) => (
+                        <div key={i} className="flex justify-between items-center">
+                          <p className="font-medium">{item.quantity}x {item.name}</p>
+                          <p className="font-bold">₦{((item.price || 0) * (item.quantity || 1)).toLocaleString()}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-center pb-6 border-b border-border">
+                    <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Total Amount</p>
+                    <p className="text-2xl font-black text-[#F97316]">₦{(orderData.totalAmount || orderData.total || 0).toLocaleString()}</p>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Pickup Point</p>
-                    <p className="text-xl font-bold">{pickupPoint}</p>
-                    <p className="text-sm text-muted-foreground font-medium mt-1">Meet your rider here when they call or arrive.</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Clock className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Expected Arrival</p>
-                    {orderData.deliveryType === 'BATCH' || orderData.foodBatchId ? (
-                      <>
-                        <p className="text-xl font-bold">
-                          {formatBatchTime(orderData.deliveryWindowStart)}–{formatBatchTime(orderData.deliveryWindowEnd)}
+
+                  <div className="grid sm:grid-cols-2 gap-6 pt-2">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-[#F97316]/10 flex items-center justify-center flex-shrink-0">
+                        <MapPin className="w-6 h-6 text-[#F97316]" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Delivery</p>
+                        <p className="text-lg font-bold">{displayHostel}</p>
+                        <p className="text-sm text-muted-foreground font-medium mt-1">{pickupPoint}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-[#F97316]/10 flex items-center justify-center flex-shrink-0">
+                        <Clock className="w-6 h-6 text-[#F97316]" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Expected Arrival</p>
+                        <p className="text-lg font-bold">
+                          {orderData.expectedArrivalDate ? new Date(orderData.expectedArrivalDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'Pending'}
                         </p>
                         <p className="text-sm text-muted-foreground font-medium mt-1">
-                          Your order is part of <strong>{orderData.foodBatchName}</strong>.
+                          Batch: {orderData.fashionBatchName || 'Pending'}
                         </p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-xl font-bold">
-                          {platformSettings?.instantDeliveryEstimateMin && platformSettings?.instantDeliveryEstimateMax 
-                            ? `${platformSettings.instantDeliveryEstimateMin}–${platformSettings.instantDeliveryEstimateMax} minutes` 
-                            : 'Processing Now'}
-                        </p>
-                        <p className="text-sm text-muted-foreground font-medium mt-1">
-                          Delivery time depends on rider availability and current order volume.
-                        </p>
-                      </>
-                    )}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Card>
+              </Card>
+            ) : (
+              <Card className="text-left mb-10 p-8 border-none shadow-2xl bg-card">
+                <div className="space-y-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center flex-shrink-0">
+                      <MapPin className="w-6 h-6 text-secondary" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Hostel</p>
+                      <p className="text-xl font-bold">{displayHostel}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                      <MapPin className="w-6 h-6 text-amber-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Pickup Point</p>
+                      <p className="text-xl font-bold">{pickupPoint}</p>
+                      <p className="text-sm text-muted-foreground font-medium mt-1">Meet your rider here when they call or arrive.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Clock className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Expected Arrival</p>
+                      {orderData.deliveryType === 'BATCH' || orderData.foodBatchId ? (
+                        <>
+                          <p className="text-xl font-bold">
+                            {formatBatchTime(orderData.deliveryWindowStart)}–{formatBatchTime(orderData.deliveryWindowEnd)}
+                          </p>
+                          <p className="text-sm text-muted-foreground font-medium mt-1">
+                            Your order is part of <strong>{orderData.foodBatchName}</strong>.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-xl font-bold">
+                            {platformSettings?.instantDeliveryEstimateMin && platformSettings?.instantDeliveryEstimateMax 
+                              ? `${platformSettings.instantDeliveryEstimateMin}–${platformSettings.instantDeliveryEstimateMax} minutes` 
+                              : 'Processing Now'}
+                          </p>
+                          <p className="text-sm text-muted-foreground font-medium mt-1">
+                            Delivery time depends on rider availability and current order volume.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
 
             {/* Batch Timeline — only shows if order has batch info */}
             {orderData.foodBatchId && (

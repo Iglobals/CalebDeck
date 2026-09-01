@@ -14,6 +14,10 @@ import { Card } from '../../components/design-system/Card';
 import SEO from '../../components/SEO';
 import { Loader2 } from 'lucide-react';
 import { getHexColorName } from '../../../utils/formatColor';
+import { getFashionBatchState, DEFAULT_FASHION_BATCH_CONFIG } from '../../../services/fashionBatch';
+import { FashionBatchPickerModal, SelectedFashionBatchInfo } from '../../components/FashionBatchPickerModal';
+import { BatchStatusBar } from '../../components/BatchStatusBar';
+import { BatchClock } from '../../components/BatchClock';
 
 const FEMALE_HOSTEL_IDS = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'];
 
@@ -45,6 +49,22 @@ export default function FashionCheckout() {
   const total = subtotal + FASHION_DELIVERY_FEE + SERVICE_PROCESSING_FEE;
   const orderId = React.useMemo(() => `CD-FASHION-${Math.floor(10000 + Math.random() * 90000)}`, []);
 
+  const [isBatchPickerOpen, setIsBatchPickerOpen] = useState(false);
+  const fashionBatchConfig = platformSettings?.fashionBatchConfig || DEFAULT_FASHION_BATCH_CONFIG;
+  const batchState = React.useMemo(() => getFashionBatchState(fashionBatchConfig), [fashionBatchConfig]);
+  
+  const [selectedBatch, setSelectedBatch] = useState<SelectedFashionBatchInfo | null>(null);
+
+  useEffect(() => {
+    if (!selectedBatch) {
+      setSelectedBatch({
+        batchName: batchState.currentBatchLabel,
+        expectedArrivalDate: batchState.expectedArrivalDate,
+        status: batchState.isOpen || batchState.isGracePeriod ? 'OPEN' : 'UPCOMING'
+      });
+    }
+  }, [batchState, selectedBatch]);
+
   useEffect(() => {
     if (!user) {
       window.location.href = `/api/auth/login?return_to=${encodeURIComponent(window.location.origin + '/fashion/checkout')}`;
@@ -74,13 +94,7 @@ export default function FashionCheckout() {
   }, []);
 
   const currentHour = new Date().getHours();
-  const openingHour = platformSettings?.fashionOpeningHour ?? 0;
-  const closingHour = platformSettings?.fashionClosingHour ?? 24;
-  const hasFashionItems = items.some(item => item.productType === 'FASHION');
-  
-  const fashionClosed = hasFashionItems && !!platformSettings && (
-    currentHour < openingHour || 
-    currentHour >= closingHour || 
+  const fashionClosed = !!platformSettings && (
     platformSettings?.isFashionAcceptingOrders === false || 
     platformSettings?.isFashionComingSoon === true
   ) && !isDev;
@@ -90,7 +104,7 @@ export default function FashionCheckout() {
     ? (platformSettings?.fashionClosedMessage || 'CalebDeck Fashion is launching soon! Stay tuned.')
     : platformSettings?.isFashionAcceptingOrders === false
       ? (platformSettings?.fashionClosedMessage || 'CalebDeck Fashion is temporarily paused. Please check back shortly.')
-      : `CalebDeck Fashion follows operating hours: ${openingHour}:00 to ${closingHour}:00.`;
+      : 'CalebDeck Fashion is currently closed.';
 
   const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
 
@@ -122,7 +136,10 @@ export default function FashionCheckout() {
       deliveryFee: FASHION_DELIVERY_FEE,
       serviceProcessingFee: SERVICE_PROCESSING_FEE,
       subtotal,
-      totalAmount: total
+      totalAmount: total,
+      fashionBatchName: selectedBatch?.batchName,
+      expectedArrivalDate: selectedBatch?.expectedArrivalDate ? selectedBatch.expectedArrivalDate.toISOString() : null,
+      fashionBatchStatus: selectedBatch?.status
     }
   };
 
@@ -154,6 +171,9 @@ export default function FashionCheckout() {
       serviceProcessingFee: SERVICE_PROCESSING_FEE,
       subtotal,
       totalAmount: total,
+      fashionBatchName: selectedBatch?.batchName,
+      expectedArrivalDate: selectedBatch?.expectedArrivalDate ? selectedBatch.expectedArrivalDate.toISOString() : null,
+      fashionBatchStatus: selectedBatch?.status
     };
 
     const goToSuccess = async (finalOrderId: string, firestoreId = reference.reference || paymentRef.current) => {
@@ -276,10 +296,7 @@ export default function FashionCheckout() {
       return toast.info('Please accept the female hostel delivery agreement before payment.');
     }
 
-    const currentLiveHour = new Date().getHours();
-    const liveClosed = hasFashionItems && !!platformSettings && (
-      currentLiveHour < (platformSettings?.fashionOpeningHour ?? 0) || 
-      currentLiveHour >= (platformSettings?.fashionClosingHour ?? 24) || 
+    const liveClosed = !!platformSettings && (
       platformSettings?.isFashionAcceptingOrders === false || 
       platformSettings?.isFashionComingSoon === true
     ) && !isDev;
@@ -309,7 +326,10 @@ export default function FashionCheckout() {
       deliveryFee: FASHION_DELIVERY_FEE,
       serviceProcessingFee: SERVICE_PROCESSING_FEE,
       subtotal,
-      totalAmount: total
+      totalAmount: total,
+      fashionBatchName: selectedBatch?.batchName,
+      expectedArrivalDate: selectedBatch?.expectedArrivalDate ? selectedBatch.expectedArrivalDate.toISOString() : null,
+      fashionBatchStatus: selectedBatch?.status
     };
 
     fetch('/api/pre-save-order', {
@@ -369,10 +389,66 @@ export default function FashionCheckout() {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+      <main className="max-w-7xl mx-auto px-6 py-12">
+        <div className="grid lg:grid-cols-[1fr_450px] gap-12">
+          {/* Form - Left */}
+          <div className="space-y-8">
+            {/* Fashion Batch Status Bar */}
+            {selectedBatch && (
+              <div 
+                className={`p-4 sm:p-5 rounded-2xl sm:rounded-[2rem] border shadow-inner cursor-pointer transition-colors ${
+                  selectedBatch.status === 'OPEN' 
+                    ? 'bg-[#F97316]/5 border-[#F97316]/20 hover:bg-[#F97316]/10' 
+                    : 'bg-primary/5 border-primary/20 hover:bg-primary/10'
+                }`}
+                onClick={() => setIsBatchPickerOpen(true)}
+              >
+                <div className="flex flex-col">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border shadow-sm ${
+                        selectedBatch.status === 'OPEN'
+                          ? 'bg-[#F97316]/10 border-[#F97316]/20'
+                          : 'bg-primary/10 border-primary/20'
+                      }`}>
+                        <BatchClock size={36} className="drop-shadow-sm" />
+                      </div>
+                      <h4 className="font-black text-foreground text-sm sm:text-base">
+                        Delivery Batch: {selectedBatch.batchName}
+                      </h4>
+                    </div>
+                    <Button variant="secondary" size="sm" className="h-8 text-xs font-bold px-3">
+                      Change
+                    </Button>
+                  </div>
+                  <div className="space-y-2 pl-[52px]">
+                    <p className="text-sm text-muted-foreground font-medium">
+                      Fashion items are grouped into weekly batches for efficient delivery.
+                    </p>
+                    <div className="inline-block px-3 py-1.5 rounded-lg bg-background/50 border border-border/50">
+                      <p className="text-sm font-semibold text-foreground">
+                        Expected Arrival: <span className={`font-black ${
+                          selectedBatch.status === 'OPEN' ? 'text-[#F97316]' : 'text-primary'
+                        }`}>
+                          {selectedBatch.expectedArrivalDate ? new Date(selectedBatch.expectedArrivalDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'Pending'}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
-        <div className="grid md:grid-cols-5 gap-8">
-          <div className="md:col-span-3 space-y-6">
+            {isClosed && (
+              <div className="mb-2 p-5 rounded-2xl bg-red-500/10 border-2 border-red-500/20 text-red-600 dark:text-red-400 flex items-center gap-4 shadow-lg shadow-red-500/5">
+                <AlertTriangle className="w-8 h-8 flex-shrink-0 text-red-500" />
+                <div>
+                  <h4 className="font-black text-lg">Fashion Orders Closed</h4>
+                  <p className="font-medium text-sm">{closedMessage}</p>
+                </div>
+              </div>
+            )}
+
             <Card className="p-6">
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                 <User className="w-5 h-5 text-[#F97316]" />
@@ -534,6 +610,15 @@ export default function FashionCheckout() {
           </div>
         </div>
       </main>
+      <FashionBatchPickerModal
+        isOpen={isBatchPickerOpen}
+        onClose={() => setIsBatchPickerOpen(false)}
+        batchState={batchState}
+        onSelectBatch={(batch) => {
+          setSelectedBatch(batch);
+          setIsBatchPickerOpen(false);
+        }}
+      />
     </div>
   );
 }

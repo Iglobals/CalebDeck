@@ -6,13 +6,12 @@ import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Store, ArrowRight, ArrowLeft, MessageCircle, Lock, Loader2, TrendingUp, Users } from 'lucide-react';
 import SEO from '../../components/SEO';
-import { ThemeToggle } from '../../components/ThemeToggle';
 import { Logo } from '../../components/design-system/Logo';
 import { PaperBagHamburger } from '../../components/design-system/PaperBagHamburger';
 import { Link } from 'react-router';
 
 export default function BusinessPage() {
-  const { studentTheme, toggleStudentTheme } = useTheme();
+  const { studentTheme } = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();
   const isDark = studentTheme === 'dark';
@@ -96,7 +95,6 @@ I would like to onboard my business to CalebDeck.`;
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300 relative pb-20">
-      <ThemeToggle theme={studentTheme} onToggle={toggleStudentTheme} variant="floating" />
       <SEO 
         title="CalebDeck Business — Campus Vendor Visibility" 
         description="Grow your campus business by reaching every student on CalebDeck. List your products on the Campus Brand section." 

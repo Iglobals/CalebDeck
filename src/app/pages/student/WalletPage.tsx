@@ -90,12 +90,16 @@ export default function WalletPage() {
         toast.success(`Wallet funded. New balance: ₦${Number(data.balance).toLocaleString()}`);
     };
 
+    const verifyRef = useRef<Set<string>>(new Set());
+
     useEffect(() => {
         const searchParams = new URLSearchParams(location.search);
         const ref = searchParams.get('reference') || searchParams.get('trxref');
         if (ref && user?.uid) {
             if (sessionStorage.getItem(`wallet_verified_${ref}`)) return;
-            sessionStorage.setItem(`wallet_verified_${ref}`, 'true');
+            if (verifyRef.current.has(ref)) return;
+
+            verifyRef.current.add(ref);
             
             const newUrl = window.location.pathname;
             window.history.replaceState({}, document.title, newUrl);
@@ -103,9 +107,13 @@ export default function WalletPage() {
             toast.loading('Verifying your payment...', { toastId: 'verify-funding' });
             setWalletLoading(true);
             verifyFunding(ref)
+                .then(() => {
+                    sessionStorage.setItem(`wallet_verified_${ref}`, 'true');
+                })
                 .catch((e) => {
                     console.error(e);
                     toast.error('Funding verification delayed. Check back in a few minutes.');
+                    verifyRef.current.delete(ref);
                 })
                 .finally(() => {
                     toast.dismiss('verify-funding');

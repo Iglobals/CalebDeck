@@ -69,6 +69,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
         { id: 'orders', path: '/admin/orders', icon: <ShoppingBag className="w-5 h-5" />, label: 'Food Orders' },
         { id: 'mart-orders', path: '/admin/mart/orders', icon: <Store className="w-5 h-5" />, label: 'Mart Orders' },
         { id: 'mart-inventory', path: '/admin/mart/inventory', icon: <Package className="w-5 h-5" />, label: 'Mart Inventory' },
+        { id: 'fashion-orders', path: '/admin/fashion/orders', icon: <ShoppingBag className="w-5 h-5" />, label: 'Fashion Orders' },
         { id: 'fashion-inventory', path: '/admin/fashion', icon: <Shirt className="w-5 h-5" />, label: 'Fashion Inventory' },
         { id: 'business', path: '/admin/business', icon: <Store className="w-5 h-5" />, label: 'Business Vendors' },
         { id: 'calebnet', path: '/admin/calebnet', icon: <Bell className="w-5 h-5" />, label: 'CalebNet' },

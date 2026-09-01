@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router";
+import { useAuth } from "../../../context/AuthContext";
 
 const PaperBagSVG = () => (
   <svg viewBox="0 0 100 132" width="44" height="58" xmlns="http://www.w3.org/2000/svg" style={{ overflow: 'visible' }}>
@@ -118,16 +119,20 @@ const SpillParticle = ({ delay, x, size }: { delay: number, x: number, size: num
 );
 
 export function PaperBagHamburger() {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [showSpill, setShowSpill] = useState(false);
 
   const navLinks = [
-    { label: "Order Food", emoji: "🍔", to: "/cafeteria" },
-    { label: "CalebDeck Mart", emoji: "🛍️", to: "/mart" },
-    { label: "CalebNet", emoji: "🌐", to: "/calebnet" },
-    { label: "My Orders", emoji: "🧾", to: "/my-orders" },
-    { label: "Support", emoji: "💬", to: "/support" }
+    { label: "Order Food", emoji: "🍔", to: "/cafeteria", external: false },
+    { label: "CalebDeck Mart", emoji: "🛍️", to: "/mart", external: false },
+    { label: "CalebNet", emoji: "🌐", to: "/calebnet", external: false },
+    user?.icaSub 
+        ? { label: "i-CON Profile", emoji: "👤", to: "/profile", external: false }
+        : { label: "Become an i-CON", emoji: "🌟", to: `/api/auth/login?return_to=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`, external: true },
+    { label: "My Orders", emoji: "🧾", to: "/my-orders", external: false },
+    { label: "Support", emoji: "💬", to: "/support", external: false }
   ];
 
   const handleToggle = () => {
@@ -313,24 +318,42 @@ export function PaperBagHamburger() {
         ))}
       </div>
 
-      {/* Nav links dropdown */}
       <div className="nav-links-container">
-        {navLinks.map((link, i) => (
-          <Link
-            key={link.label}
-            to={link.to}
-            onClick={() => setIsOpen(false)}
-            className={`paper-nav-link ${
-              isOpen && !isClosing ? "visible" : ""
-            } ${isClosing ? "hiding" : ""} ${!isOpen && !isClosing ? "hidden" : ""}`}
-            style={{
-              animationDelay: isOpen && !isClosing ? `${i * 0.1 + 0.1}s` : `${(navLinks.length - 1 - i) * 0.05}s`,
-            }}
-          >
-            <span className="nav-emoji">{link.emoji}</span>
-            {link.label}
-          </Link>
-        ))}
+        {navLinks.map((link, i) => {
+          if (link.external) {
+            return (
+              <a
+                key={link.label}
+                href={link.to}
+                className={`paper-nav-link ${
+                  isOpen && !isClosing ? "visible" : ""
+                } ${isClosing ? "hiding" : ""} ${!isOpen && !isClosing ? "hidden" : ""}`}
+                style={{
+                  animationDelay: isOpen && !isClosing ? `${i * 0.1 + 0.1}s` : `${(navLinks.length - 1 - i) * 0.05}s`,
+                }}
+              >
+                <span className="nav-emoji">{link.emoji}</span>
+                {link.label}
+              </a>
+            );
+          }
+          return (
+            <Link
+              key={link.label}
+              to={link.to}
+              onClick={() => setIsOpen(false)}
+              className={`paper-nav-link ${
+                isOpen && !isClosing ? "visible" : ""
+              } ${isClosing ? "hiding" : ""} ${!isOpen && !isClosing ? "hidden" : ""}`}
+              style={{
+                animationDelay: isOpen && !isClosing ? `${i * 0.1 + 0.1}s` : `${(navLinks.length - 1 - i) * 0.05}s`,
+              }}
+            >
+              <span className="nav-emoji">{link.emoji}</span>
+              {link.label}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

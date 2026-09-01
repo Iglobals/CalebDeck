@@ -15,28 +15,29 @@ export default function StudentRoleWrapper() {
     const { studentTheme, toggleStudentTheme, applyTheme } = useTheme();
     const { user } = useAuth();
     const location = useLocation();
+    const isIconUser = !!user?.icaSub;
 
     useEffect(() => {
         applyTheme('student');
     }, [studentTheme, applyTheme]);
 
     useEffect(() => {
-        if (user) {
+        if (isIconUser) {
             document.documentElement.classList.add('i-con');
         } else {
             document.documentElement.classList.remove('i-con');
         }
         return () => document.documentElement.classList.remove('i-con');
-    }, [user]);
+    }, [isIconUser]);
 
     return (
-        <div className={`min-h-screen bg-background transition-colors duration-300 ${user ? 'pb-28 md:pb-0 md:pl-24' : ''}`}>
+        <div className={`min-h-screen bg-background transition-colors duration-300 ${isIconUser ? 'pb-28 md:pb-0 md:pl-24' : ''}`}>
             <MartCartProvider>
                 <BatchTimerProvider>
                     <MaintenanceGate>
                         <Outlet />
                         <GuestBanner />
-                        {user && 
+                        {isIconUser && 
                          !location.pathname.startsWith('/calebnet') && 
                          !location.pathname.startsWith('/cart') &&
                          !location.pathname.startsWith('/fashion') &&

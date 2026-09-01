@@ -577,12 +577,18 @@ export interface PlatformSettings {
     riderRatePerDelivery: number;
     comboRatePerDelivery?: number;
     groupRatePerDelivery?: number;
+    foodDeliveryFee?: number;
+    foodGroupDeliveryFee?: number;
     premiumDeliveryFee?: number;
     premiumSoloRiderRate?: number;  // NEW - for premium solo orders
     premiumComboRiderRate?: number; // NEW - for premium combo orders
     premiumGroupRiderRate?: number;
     premiumRiderRate?: number;
     martRatePerDelivery?: number; // NEW - for CalebMart orders
+    martDeliveryFee?: number;
+    fashionDeliveryFee?: number;
+    businessMonthlyPrice?: number;
+    businessYearlyPrice?: number;
     isAcceptingOrders?: boolean;
     isFoodOrderingClosed?: boolean;
     isMartComingSoon?: boolean;
@@ -647,13 +653,19 @@ export const getPlatformSettings = async (): Promise<PlatformSettings> => {
     const snapshot = await getDoc(settingsRef);
     if (snapshot.exists()) {
         const data = snapshot.data() as PlatformSettings;
+        if (!data.foodDeliveryFee) data.foodDeliveryFee = 750;
+        if (!data.foodGroupDeliveryFee) data.foodGroupDeliveryFee = 580;
+        if (!data.martDeliveryFee) data.martDeliveryFee = 1500;
+        if (!data.fashionDeliveryFee) data.fashionDeliveryFee = 1500;
+        if (!data.businessMonthlyPrice) data.businessMonthlyPrice = 2999;
+        if (!data.businessYearlyPrice) data.businessYearlyPrice = 24999;
         if (!data.promoSlides || data.promoSlides.length === 0) {
             data.promoSlides = DEFAULT_PROMO_SLIDES;
         }
         return data;
     }
     // Default settings
-    return { riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18, promoSlides: DEFAULT_PROMO_SLIDES };
+    return { riderRatePerDelivery: 300, foodDeliveryFee: 750, foodGroupDeliveryFee: 580, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, martDeliveryFee: 1500, fashionDeliveryFee: 1500, businessMonthlyPrice: 2999, businessYearlyPrice: 24999, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18, promoSlides: DEFAULT_PROMO_SLIDES };
 };
 
 export const subscribeToPlatformSettings = (callback: (settings: PlatformSettings) => void) => {
@@ -661,8 +673,14 @@ export const subscribeToPlatformSettings = (callback: (settings: PlatformSetting
     return onSnapshot(settingsRef, (snapshot) => {
         if (snapshot.exists()) {
             const data = snapshot.data() as PlatformSettings;
+            if (!data.foodDeliveryFee) data.foodDeliveryFee = 750;
+            if (!data.foodGroupDeliveryFee) data.foodGroupDeliveryFee = 580;
             if (!data.premiumDeliveryFee) data.premiumDeliveryFee = 1250;
             if (!data.premiumRiderRate) data.premiumRiderRate = 750;
+            if (!data.martDeliveryFee) data.martDeliveryFee = 1500;
+            if (!data.fashionDeliveryFee) data.fashionDeliveryFee = 1500;
+            if (!data.businessMonthlyPrice) data.businessMonthlyPrice = 2999;
+            if (!data.businessYearlyPrice) data.businessYearlyPrice = 24999;
             if (data.isAcceptingOrders === undefined) data.isAcceptingOrders = true;
             if (data.isFoodOrderingClosed === undefined) data.isFoodOrderingClosed = false;
             if (data.isCalebNetComingSoon === undefined) data.isCalebNetComingSoon = true;
@@ -686,11 +704,11 @@ export const subscribeToPlatformSettings = (callback: (settings: PlatformSetting
 
             callback(data);
         } else {
-            callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18, fashionOpeningHour: 0, fashionClosingHour: 24, isFashionAcceptingOrders: true, isFashionComingSoon: false, promoSlides: DEFAULT_PROMO_SLIDES });
+            callback({ riderRatePerDelivery: 300, foodDeliveryFee: 750, foodGroupDeliveryFee: 580, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, martDeliveryFee: 1500, fashionDeliveryFee: 1500, businessMonthlyPrice: 2999, businessYearlyPrice: 24999, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18, fashionOpeningHour: 0, fashionClosingHour: 24, isFashionAcceptingOrders: true, isFashionComingSoon: false, promoSlides: DEFAULT_PROMO_SLIDES });
         }
     }, (error) => {
         console.error('subscribeToPlatformSettings error:', error);
-        callback({ riderRatePerDelivery: 300, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18, fashionOpeningHour: 0, fashionClosingHour: 24, isFashionAcceptingOrders: true, isFashionComingSoon: false, promoSlides: DEFAULT_PROMO_SLIDES });
+        callback({ riderRatePerDelivery: 300, foodDeliveryFee: 750, foodGroupDeliveryFee: 580, premiumDeliveryFee: 1250, premiumRiderRate: 750, martRatePerDelivery: 500, martDeliveryFee: 1500, fashionDeliveryFee: 1500, businessMonthlyPrice: 2999, businessYearlyPrice: 24999, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18, fashionOpeningHour: 0, fashionClosingHour: 24, isFashionAcceptingOrders: true, isFashionComingSoon: false, promoSlides: DEFAULT_PROMO_SLIDES });
     });
 };
 
