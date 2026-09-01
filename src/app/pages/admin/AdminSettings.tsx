@@ -66,6 +66,16 @@ export default function AdminSettings() {
   const [calebNetMessage, setCalebNetMessage] = useState(DEFAULT_MESSAGES.calebNet);
   const [fashionOpenHour, setFashionOpenHour] = useState<string>('0');
   const [fashionCloseHour, setFashionCloseHour] = useState<string>('24');
+  
+  // Fees and Pricing State
+  const [fees, setFees] = useState({
+    foodDeliveryFee: 0,
+    foodGroupDeliveryFee: 0,
+    martDeliveryFee: 0,
+    fashionDeliveryFee: 0,
+    businessMonthlyPrice: 0,
+    businessYearlyPrice: 0
+  });
 
   // Promo Banners State
   const [promoSlides, setPromoSlides] = useState<PromoSlide[]>([]);
@@ -104,6 +114,15 @@ export default function AdminSettings() {
       setCalebNetMessage(data.calebNetClosedMessage || DEFAULT_MESSAGES.calebNet);
       setPromoSlides(data.promoSlides || DEFAULT_PROMO_SLIDES);
       if (data.fashionBatchConfig) setFashionBatchConfig(data.fashionBatchConfig);
+      
+      setFees({
+        foodDeliveryFee: data.foodDeliveryFee || 0,
+        foodGroupDeliveryFee: data.foodGroupDeliveryFee || 0,
+        martDeliveryFee: data.martDeliveryFee || 0,
+        fashionDeliveryFee: data.fashionDeliveryFee || 0,
+        businessMonthlyPrice: data.businessMonthlyPrice || 0,
+        businessYearlyPrice: data.businessYearlyPrice || 0
+      });
     });
     return () => unsub();
   }, []);
@@ -347,6 +366,16 @@ export default function AdminSettings() {
     } catch (err) {
       console.error('Failed to update fashion batch schedule:', err);
       alert('Failed to update fashion batch schedule.');
+    }
+  };
+
+  const handleUpdateFees = async () => {
+    try {
+      await updatePlatformSettings(fees);
+      alert('Platform fees and pricing updated successfully.');
+    } catch (err) {
+      console.error('Failed to update fees:', err);
+      alert('Failed to update fees.');
     }
   };
 
@@ -831,6 +860,93 @@ export default function AdminSettings() {
             </Button>
           </Card>
 
+        </div>
+
+        {/* Platform Fees & Pricing Configuration */}
+        <div className="mt-10">
+          <Card className={`p-6 md:p-8 border-l-4 border-l-emerald-500 shadow-xl`}>
+            <div className="flex flex-col gap-4 mb-6">
+              <h2 className={`text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>Platform Fees & Pricing</h2>
+              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Configure delivery fees and CalebDeck Business plan prices.</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+              <div>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Food Delivery Fee</label>
+                <input 
+                  type="number" min="0"
+                  value={fees.foodDeliveryFee}
+                  onChange={(e) => setFees({ ...fees, foodDeliveryFee: Number(e.target.value) })}
+                  className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                    isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
+                  }`}
+                />
+              </div>
+              <div>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Food Group Delivery Fee</label>
+                <input 
+                  type="number" min="0"
+                  value={fees.foodGroupDeliveryFee}
+                  onChange={(e) => setFees({ ...fees, foodGroupDeliveryFee: Number(e.target.value) })}
+                  className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                    isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
+                  }`}
+                />
+              </div>
+              <div>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Mart Delivery Fee</label>
+                <input 
+                  type="number" min="0"
+                  value={fees.martDeliveryFee}
+                  onChange={(e) => setFees({ ...fees, martDeliveryFee: Number(e.target.value) })}
+                  className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                    isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
+                  }`}
+                />
+              </div>
+              <div>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Fashion Delivery Fee</label>
+                <input 
+                  type="number" min="0"
+                  value={fees.fashionDeliveryFee}
+                  onChange={(e) => setFees({ ...fees, fashionDeliveryFee: Number(e.target.value) })}
+                  className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                    isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
+                  }`}
+                />
+              </div>
+              <div>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Business Monthly Price</label>
+                <input 
+                  type="number" min="0"
+                  value={fees.businessMonthlyPrice}
+                  onChange={(e) => setFees({ ...fees, businessMonthlyPrice: Number(e.target.value) })}
+                  className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                    isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
+                  }`}
+                />
+              </div>
+              <div>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Business Yearly Price</label>
+                <input 
+                  type="number" min="0"
+                  value={fees.businessYearlyPrice}
+                  onChange={(e) => setFees({ ...fees, businessYearlyPrice: Number(e.target.value) })}
+                  className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                    isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
+                  }`}
+                />
+              </div>
+            </div>
+
+            <Button
+              variant="primary"
+              className="w-full bg-[#10B981] hover:bg-[#059669] text-white"
+              onClick={handleUpdateFees}
+            >
+              Save Fees & Pricing
+            </Button>
+          </Card>
         </div>
 
         {/* Promo Banner & Carousel Manager */}

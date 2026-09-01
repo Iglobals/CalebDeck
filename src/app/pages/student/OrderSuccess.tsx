@@ -224,8 +224,8 @@ export default function OrderSuccess() {
 
   const estimatedTime = 25 - (currentStep * 6);
   const isPaymentIssue = ['PENDING_PAYMENT', 'FAILED', 'PENDING_CONFIRMATION'].includes(orderStatus);
-  const retryPath = orderData.orderType === 'mart' || orderData.type === 'mart' || cafeteria === 'CalebDeck Mart' ? '/mart' : '/cafeteria';
-  const isFashionOrder = orderData.orderType === 'FASHION' || orderData.orderType === 'fashion' || orderData.cafeteria === 'CalebDeck Fashion';
+  const isFashionOrder = orderData.orderType === 'FASHION' || orderData.orderType === 'fashion' || orderData.cafeteria === 'CalebDeck Fashion' || orderData.type === 'fashion';
+  const retryPath = isFashionOrder ? '/fashion' : (orderData.orderType === 'mart' || orderData.type === 'mart' || cafeteria === 'CalebDeck Mart' ? '/mart' : '/cafeteria');
   // Map fashion status to the FASHION_ORDER_STATUSES index
   const fashionStatusIndex = isFashionOrder ? FASHION_ORDER_STATUSES.indexOf(orderStatus as any) : -1;
 
@@ -295,7 +295,7 @@ export default function OrderSuccess() {
     );
   }
 
-  if (!showTracking) {
+  if (!showTracking || isFashionOrder) {
     return (
       <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
         <SEO title="Order Placed - CalebDeck" description="Your CalebDeck order has been successfully placed and is ready for live tracking." canonical="https://calebdeck.com/order-success" robots="noindex,follow" />
