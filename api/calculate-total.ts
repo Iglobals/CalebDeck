@@ -1,8 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { adminDb } from '../server/firebase-admin.js';
 
-const DELIVERY_FEE_SOLO = 750;
-const DELIVERY_FEE_GROUP = 580;
 const TAKEAWAY_FEE_PER_PLATE = 200;
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
@@ -34,6 +32,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const platformSettings = settingsDoc.exists ? settingsDoc.data() : {};
         const premiumDeliveryFee = platformSettings!.premiumDeliveryFee || 1250;
+        const foodSoloFee = platformSettings!.foodDeliveryFee || 750;
+        const foodGroupFee = platformSettings!.foodGroupDeliveryFee || 580;
 
         let foodTotal = 0;
         
@@ -62,10 +62,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((hostelId || '').toString().toLowerCase());
         
         // FIXED: Use base delivery fee for breakdown, and correctly calculate discount without double-discounting
-        const baseDeliveryFee = isPremiumHostel ? premiumDeliveryFee : DELIVERY_FEE_SOLO;
+        const baseDeliveryFee = isPremiumHostel ? premiumDeliveryFee : foodSoloFee;
         let discountPerPlate = 0;
         if (isGroup) {
-             discountPerPlate = isPremiumHostel ? (premiumDeliveryFee - Math.round(premiumDeliveryFee * 0.8)) : (DELIVERY_FEE_SOLO - DELIVERY_FEE_GROUP);
+             discountPerPlate = isPremiumHostel ? (premiumDeliveryFee - Math.round(premiumDeliveryFee * 0.8)) : (foodSoloFee - foodGroupFee);
         }
 
         const deliveryFee = baseDeliveryFee * plateCount;
@@ -73,9 +73,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const discount = discountPerPlate * plateCount;
         
         const platformFee = 100;
-        const processingFee = 200;
 
-        const totalAmount = foodTotal + deliveryFee + takeawayFee + platformFee + processingFee - discount;
+        const totalAmount = foodTotal + deliveryFee + takeawayFee + platformFee - discount;
 
         return res.status(200).json({
             data: {
@@ -85,7 +84,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     delivery: deliveryFee, 
                     takeaway: takeawayFee, 
                     platform: platformFee,
-                    processing: processingFee,
+                    processing: 0,
                     discount 
                 },
             }

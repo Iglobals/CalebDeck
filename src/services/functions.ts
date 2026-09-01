@@ -19,12 +19,17 @@ export const calculateOrderTotal = async (data: any) => {
         const plateCount = typeof providedPlateCount === 'number' ? providedPlateCount : 1;
         const isGroup = deliveryMode === 'group' || deliveryMode === 'GROUP';
         const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((hostelId || '').toString().toLowerCase());
+        
+        // This is a local mock for DEV. We don't have direct access to platform settings here so we use defaults,
+        // but Checkout.tsx handles its own fallback if it needs it.
         const premiumDeliveryFee = 1250;
+        const foodSoloFee = 750;
+        const foodGroupFee = 580;
 
-        const baseDeliveryFee = isPremiumHostel ? premiumDeliveryFee : 750;
+        const baseDeliveryFee = isPremiumHostel ? premiumDeliveryFee : foodSoloFee;
         let discountPerPlate = 0;
         if (isGroup) {
-             discountPerPlate = isPremiumHostel ? (premiumDeliveryFee - Math.round(premiumDeliveryFee * 0.8)) : (750 - 580);
+             discountPerPlate = isPremiumHostel ? (premiumDeliveryFee - Math.round(premiumDeliveryFee * 0.8)) : (foodSoloFee - foodGroupFee);
         }
 
         const deliveryFee = baseDeliveryFee * plateCount;
@@ -32,9 +37,8 @@ export const calculateOrderTotal = async (data: any) => {
         const discount = discountPerPlate * plateCount;
 
         const platformFee = 100;
-        const processingFee = 200;
 
-        const finalTotal = total + deliveryFee + takeawayFee + platformFee + processingFee - discount;
+        const finalTotal = total + deliveryFee + takeawayFee + platformFee - discount;
 
         return {
             data: {
@@ -44,7 +48,7 @@ export const calculateOrderTotal = async (data: any) => {
                     delivery: deliveryFee, 
                     takeaway: takeawayFee, 
                     platform: platformFee,
-                    processing: processingFee,
+                    processing: 0,
                     discount 
                 },
             }

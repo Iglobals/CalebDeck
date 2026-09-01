@@ -89,7 +89,7 @@ export default function AdminDashboard() {
 
   const isDark = adminTheme === 'dark';
   const today = new Date().toLocaleDateString();
-  const revenueStatuses = ['PAID', 'OUT_FOR_DELIVERY', 'ON_THE_WAY', 'PREPARING', 'DELIVERED'];
+  const revenueStatuses = ['PAID', 'OUT_FOR_DELIVERY', 'ON_THE_WAY', 'PREPARING', 'DELIVERED', 'CONSOLIDATING', 'PROCUREMENT', 'ARRIVING_AT_CAMPUS', 'READY_FOR_DELIVERY'];
 
   const todayPaidOrders = orders.filter(o => {
     if (!o.createdAt || !revenueStatuses.includes(o.status)) return false;

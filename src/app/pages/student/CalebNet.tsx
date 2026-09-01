@@ -501,12 +501,16 @@ export default function CalebNet() {
     toast.success(`Wallet funded. New balance: ₦${Number(data.balance).toLocaleString()}`);
   };
 
+  const verifyRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const ref = searchParams.get('reference') || searchParams.get('trxref');
     if (ref && user?.uid) {
       if (sessionStorage.getItem(`wallet_verified_${ref}`)) return;
-      sessionStorage.setItem(`wallet_verified_${ref}`, 'true');
+      if (verifyRef.current.has(ref)) return;
+
+      verifyRef.current.add(ref);
       
       const newUrl = window.location.pathname;
       window.history.replaceState({}, document.title, newUrl);
@@ -514,9 +518,13 @@ export default function CalebNet() {
       toast.loading('Verifying your payment...', { toastId: 'verify-funding' });
       setWalletLoading(true);
       verifyFunding(ref)
+        .then(() => {
+          sessionStorage.setItem(`wallet_verified_${ref}`, 'true');
+        })
         .catch((e) => {
           console.error(e);
           toast.error('Funding verification delayed. Check back in a few minutes.');
+          verifyRef.current.delete(ref);
         })
         .finally(() => {
           toast.dismiss('verify-funding');
@@ -534,7 +542,10 @@ export default function CalebNet() {
       onSuccess: (reference: any) => { void (async () => {
         toast.loading('Verifying your payment...', { toastId: 'verify-funding' });
         verifyFunding(reference.reference || fundingReference)
-          .then(() => setFundingReference(createFundingReference()))
+          .then(() => {
+            sessionStorage.setItem(`wallet_verified_${reference.reference || fundingReference}`, 'true');
+            setFundingReference(createFundingReference());
+          })
           .catch(() => toast.error('Funding verification delayed. Check back in a few minutes.'))
           .finally(() => {
             toast.dismiss('verify-funding');

@@ -40,11 +40,10 @@ export default function MartCheckout() {
 
   const selectedHostel = hostels.find(h => h.id === formData.hostel);
   const isFemaleHostelSelected = FEMALE_HOSTEL_IDS.includes((formData.hostel || '').toLowerCase());
-  const MART_DELIVERY_FEE = 1500;
+  const MART_DELIVERY_FEE = platformSettings?.martDeliveryFee || 1500;
   const isDev = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-  const SERVICE_PROCESSING_FEE = 300;
-  const total = subtotal + MART_DELIVERY_FEE + SERVICE_PROCESSING_FEE;
+  const total = subtotal + MART_DELIVERY_FEE;
   const orderId = React.useMemo(() => `CD-MART-${Math.floor(10000 + Math.random() * 90000)}`, []);
 
   const hasFashionItems = items.some(item => ['Apparel', 'Accessories', 'Footwear', 'Merch'].includes(item.category));
@@ -122,7 +121,6 @@ export default function MartCheckout() {
         category: i.category
       })),
       deliveryFee: MART_DELIVERY_FEE,
-      serviceProcessingFee: SERVICE_PROCESSING_FEE,
       subtotal,
       totalAmount: total
     }
@@ -153,7 +151,6 @@ export default function MartCheckout() {
         category: i.category
       })),
       deliveryFee: MART_DELIVERY_FEE,
-      serviceProcessingFee: SERVICE_PROCESSING_FEE,
       subtotal,
       totalAmount: total,
     };
@@ -348,7 +345,6 @@ export default function MartCheckout() {
         category: i.category
       })),
       deliveryFee: MART_DELIVERY_FEE,
-      serviceProcessingFee: SERVICE_PROCESSING_FEE,
       subtotal,
       totalAmount: total
     };
@@ -527,10 +523,6 @@ export default function MartCheckout() {
                 <div className="flex justify-between text-muted-foreground">
                   <span>Delivery Fee</span>
                   <span className="font-medium text-foreground">₦{MART_DELIVERY_FEE}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground text-sm">
-                  <span>Service & Processing Fee</span>
-                  <span className="font-medium text-foreground">₦{SERVICE_PROCESSING_FEE}</span>
                 </div>
               </div>
 

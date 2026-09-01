@@ -204,12 +204,14 @@ if (isPremiumHostel) {
     const premiumFee = platformSettings?.premiumDeliveryFee || 1250;
     baseDeliveryFee = isGrp ? Math.round(premiumFee * 0.8) : premiumFee; // 20% off for group
 } else {
-    baseDeliveryFee = isGrp ? DELIVERY_FEE_GROUP : DELIVERY_FEE_SOLO;
+    const foodSoloFee = platformSettings?.foodDeliveryFee || DELIVERY_FEE_SOLO;
+    const foodGroupFee = platformSettings?.foodGroupDeliveryFee || DELIVERY_FEE_GROUP;
+    baseDeliveryFee = isGrp ? foodGroupFee : foodSoloFee;
 }
     const delivery = baseDeliveryFee * qty;
     return {
-      totalAmount: base * qty + delivery + 300,
-      breakdown: { food: base * qty, delivery, takeaway: 0, discount: 0, platform: 100, processing: 200 }
+      totalAmount: base * qty + delivery + 100, // platform fee
+      breakdown: { food: base * qty, delivery, takeaway: 0, discount: 0, platform: 100, processing: 0 }
     };
   }, [isCombo, comboOrder?.quantity, comboOrder?.basePrice, currentDeliveryMode, formData.hostel, platformSettings]);
 
@@ -1022,9 +1024,9 @@ if (isPremiumHostel) {
                 <div className="flex justify-between items-center text-muted-foreground font-medium">
                   <div className="flex items-center gap-2">
                     <Shield className="w-4 h-4" />
-                    <span>Service & Processing Fee</span>
+                    <span>Platform Fee</span>
                   </div>
-                  <span>₦{((orderTotal?.breakdown?.platform || 100) + (orderTotal?.breakdown?.processing || 200)).toLocaleString()}</span>
+                  <span>₦{(orderTotal?.breakdown?.platform || 100).toLocaleString()}</span>
                 </div>
 
                 <div className="flex justify-between items-center pt-4 border-t border-border gap-4">

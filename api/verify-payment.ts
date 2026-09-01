@@ -39,6 +39,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // 1. Check if order already exists
         const isMartOrder = orderData?.orderType === 'mart';
         const isCombo = orderData?.type === 'combo';
+        const isFashionOrder = orderData?.orderType === 'FASHION' || orderData?.orderType === 'fashion' || orderData?.type === 'fashion' || orderData?.cafeteria === 'CalebDeck Fashion';
         const orderRef = db.collection('orders').doc(reference);
         const existingDoc = await orderRef.get();
 
@@ -164,6 +165,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             delete orderDoc.cafeteriaId;
             delete orderDoc.sectionId;
             delete orderDoc.deliveryMode;
+        } else if (isFashionOrder) {
+            orderDoc.type = 'fashion';
+            orderDoc.orderType = 'FASHION';
+            orderDoc.items = orderData.items || [];
+            orderDoc.totalAmount = paidAmount;
+            orderDoc.subtotal = orderData?.subtotal || (paidAmount - (orderData?.deliveryFee || 1500) - platformFee - processingFee);
+            orderDoc.deliveryFee = orderData?.deliveryFee || 1500;
+            orderDoc.serviceProcessingFee = platformFee + processingFee;
+            orderDoc.fashionBatchName = orderData?.fashionBatchName || null;
+            orderDoc.expectedArrivalDate = orderData?.expectedArrivalDate || null;
+            orderDoc.fashionBatchStatus = orderData?.fashionBatchStatus || null;
+            delete orderDoc.total;
+            delete orderDoc.cafeteria;
+            delete orderDoc.cafeteriaId;
+            delete orderDoc.sectionId;
+            delete orderDoc.deliveryMode;
         } else if (isCombo) {
             orderDoc.type = 'combo';
             orderDoc.comboId = orderData.comboId;
@@ -242,12 +259,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const notifyName = isPreSaved ? existingDoc.data()?.fullName : orderDoc.fullName;
                 const notifyHostel = isPreSaved ? existingDoc.data()?.hostelName : orderDoc.hostelName;
                 const notifyIsMart = isPreSaved ? existingDoc.data()?.type === 'mart' : isMartOrder;
+                const notifyIsFashion = isPreSaved ? existingDoc.data()?.type === 'fashion' : isFashionOrder;
                 await db.collection('notifications').add({
                     userId: 'admin',
-                    title: notifyIsMart ? 'New Mart Order Received' : 'New Order Received',
+                    title: notifyIsFashion ? 'New Fashion Order Received' : (notifyIsMart ? 'New Mart Order Received' : 'New Order Received'),
                     message: `${notifyName || 'A student'} just ordered from ${notifyHostel || 'campus'}`,
                     type: 'order',
-                    link: notifyIsMart ? '/admin/mart/orders' : '/admin/orders',
+                    link: notifyIsFashion ? '/admin/fashion/orders' : (notifyIsMart ? '/admin/mart/orders' : '/admin/orders'),
                     isRead: false,
                     createdAt: FieldValue.serverTimestamp()
                 });
@@ -273,7 +291,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     const host = req.headers.host || 'calebdeck.com';
                     const apiUrl = `${protocol}://${host}/api/send-push`;
                     const adminMsg = `${orderDoc.fullName || 'A student'} just ordered from ${orderDoc.hostelName || orderDoc.hostel}`;
-                    const pushLink = isMartOrder ? '/admin/mart/orders' : '/admin/orders';
+                    const pushLink = isFashionOrder ? '/admin/fashion/orders' : (isMartOrder ? '/admin/mart/orders' : '/admin/orders');
 
                     await fetch(apiUrl, {
                         method: 'POST',
@@ -282,7 +300,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             'X-Api-Key': process.env.INTERNAL_API_KEY
                         },
                         body: JSON.stringify({
-                            title: isMartOrder ? 'New Mart Order' : 'New Order',
+                            title: isFashionOrder ? 'New Fashion Order' : (isMartOrder ? 'New Mart Order' : 'New Order'),
                             body: adminMsg,
                             tokens: allAdminTokens,
                             link: pushLink

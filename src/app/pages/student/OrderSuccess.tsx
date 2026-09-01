@@ -5,9 +5,10 @@ import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
 import { ProgressStepper } from '../../components/design-system/ProgressStepper';
-import { CheckCircle, MapPin, Clock, Phone, Sparkles, RefreshCw, AlertCircle, Timer } from 'lucide-react';
+import { CheckCircle, MapPin, Clock, Phone, Sparkles, RefreshCw, AlertCircle, Timer, ShoppingBag } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import { subscribeToOrderStatus, getRiderById, getHostelById, Rider, getOrderById, submitReview, subscribeToPlatformSettings } from '../../../services/db';
+import { useAuth } from '../../../context/AuthContext';
 import { trackOrderTracked } from '../../../services/analytics';
 import { saveOrderToHistory, buildFoodOrderEntry, buildMartOrderEntry, buildCalebNetEntry, buildFashionOrderEntry } from '../../../services/orderHistory';
 import SEO from '../../components/SEO';
@@ -46,6 +47,7 @@ const getPickupPoint = (hostelId: string, hostelName: string) => {
 export default function OrderSuccess() {
   const location = useLocation();
   const { studentTheme } = useTheme();
+  const { user } = useAuth();
 
   const savedOrder = (() => {
     try { 
@@ -225,7 +227,7 @@ export default function OrderSuccess() {
   const estimatedTime = 25 - (currentStep * 6);
   const isPaymentIssue = ['PENDING_PAYMENT', 'FAILED', 'PENDING_CONFIRMATION'].includes(orderStatus);
   const isFashionOrder = orderData.orderType === 'FASHION' || orderData.orderType === 'fashion' || orderData.cafeteria === 'CalebDeck Fashion' || orderData.type === 'fashion';
-  const retryPath = isFashionOrder ? '/fashion' : (orderData.orderType === 'mart' || orderData.type === 'mart' || cafeteria === 'CalebDeck Mart' ? '/mart' : '/cafeteria');
+  const retryPath = isFashionOrder ? '/fashion' : (orderData.orderType === 'mart' || orderData.type === 'mart' || cafeteria === 'CalebDeck Mart' ? '/mart' : (user?.icaSub ? '/' : '/cafeteria'));
   // Map fashion status to the FASHION_ORDER_STATUSES index
   const fashionStatusIndex = isFashionOrder ? FASHION_ORDER_STATUSES.indexOf(orderStatus as any) : -1;
 
@@ -612,6 +614,43 @@ export default function OrderSuccess() {
           </Card>
         </div>
 
+        {/* Fashion Order Receipt */}
+        {isFashionOrder && orderData.items && orderData.items.length > 0 && (
+          <Card className="bg-card/50 backdrop-blur-sm border-none shadow-xl border-t-4 border-t-[#6D28D9] mb-12">
+            <h3 className="text-xl font-black mb-6 flex items-center gap-2">
+              <ShoppingBag className="w-5 h-5 text-[#6D28D9]" />
+              Order Receipt
+            </h3>
+            <div className="space-y-4">
+              {orderData.items.map((item: any, idx: number) => (
+                <div key={idx} className="flex justify-between items-center py-3 border-b border-border/50 last:border-0">
+                  <div className="flex-1">
+                    <p className="font-bold">{item.name}</p>
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest mt-1">
+                      Qty: {item.quantity}
+                    </p>
+                  </div>
+                  <p className="font-black">₦{item.price.toLocaleString()}</p>
+                </div>
+              ))}
+              <div className="pt-4 border-t border-border mt-4">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-sm font-bold text-muted-foreground">Subtotal</p>
+                  <p className="font-bold">₦{orderData.subtotal?.toLocaleString() || (orderData.totalAmount - (orderData.deliveryFee || 0)).toLocaleString()}</p>
+                </div>
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-sm font-bold text-muted-foreground">Delivery Fee</p>
+                  <p className="font-bold">₦{orderData.deliveryFee?.toLocaleString() || 0}</p>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-border/50">
+                  <p className="text-lg font-black text-[#6D28D9]">Total Amount</p>
+                  <p className="text-xl font-black">₦{orderData.totalAmount?.toLocaleString() || orderData.total?.toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Activity Feed */}
         <Card className="border-none shadow-2xl p-8 bg-card">
           <h3 className="text-xl font-black mb-8 flex items-center gap-2">
@@ -666,10 +705,12 @@ export default function OrderSuccess() {
                   <CheckCircle className="w-12 h-12 text-white" />
                 </div>
                 <h3 className="text-3xl font-black mb-4">
-                  Enjoy Your Meal!
+                  {isFashionOrder ? 'Enjoy Your Gear!' : 'Enjoy Your Meal!'}
                 </h3>
                 <p className="text-lg text-muted-foreground font-medium mb-10 leading-relaxed">
-                  Your order has been delivered. Thank you for choosing CalebDeck for fast campus delivery.
+                  {isFashionOrder 
+                    ? 'Your fashion items have been delivered. Thank you for shopping CalebDeck Fashion.'
+                    : 'Your order has been delivered. Thank you for choosing CalebDeck for fast campus delivery.'}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">
                   {!hasReviewed && (
