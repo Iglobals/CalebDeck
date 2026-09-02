@@ -377,11 +377,11 @@ export default function OrderSuccess() {
                 </div>
 
                 {/* Paper Receipt */}
-                <div className="relative z-10 px-6 -mt-3 pt-3 overflow-hidden" style={{ perspective: '1000px' }}>
-                  <div className="animate-in slide-in-from-top-[100%] duration-1000 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]">
-                    <div className="bg-[#FAF9F6] text-[#111] relative shadow-[0_15px_30px_rgba(0,0,0,0.5)]">
+                <div className="relative z-10 px-6 -mt-3 pt-3 pb-6 overflow-hidden" style={{ perspective: '1000px' }}>
+                  <div className="animate-in slide-in-from-top-[100%] duration-[2500ms] delay-300 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] fill-mode-both">
+                    <div className="bg-[#FAF9F6] text-[#111] relative shadow-[0_15px_30px_rgba(0,0,0,0.5)] mb-2">
                       {/* Top torn edge */}
-                      <svg className="absolute top-0 left-0 w-full h-2 text-[#FAF9F6] fill-current" preserveAspectRatio="none" viewBox="0 0 100 10">
+                      <svg className="absolute -top-2 left-0 w-full h-2 text-[#FAF9F6] fill-current" preserveAspectRatio="none" viewBox="0 0 100 10">
                         <polygon points="0,10 0,0 5,10 10,0 15,10 20,0 25,10 30,0 35,10 40,0 45,10 50,0 55,10 60,0 65,10 70,0 75,10 80,0 85,10 90,0 95,10 100,0 100,10" />
                       </svg>
 
@@ -453,8 +453,8 @@ export default function OrderSuccess() {
                       </div>
                       
                       {/* Bottom torn edge */}
-                      <svg className="absolute bottom-0 left-0 w-full h-2 text-[#FAF9F6] fill-current transform rotate-180" preserveAspectRatio="none" viewBox="0 0 100 10">
-                        <polygon points="0,10 0,0 5,10 10,0 15,10 20,0 25,10 30,0 35,10 40,0 45,10 50,0 55,10 60,0 65,10 70,0 75,10 80,0 85,10 90,0 95,10 100,0 100,10" />
+                      <svg className="absolute -bottom-2 left-0 w-full h-2 text-[#FAF9F6] fill-current" preserveAspectRatio="none" viewBox="0 0 100 10">
+                        <polygon points="0,0 0,10 5,0 10,10 15,0 20,10 25,0 30,10 35,0 40,10 45,0 50,10 55,0 60,10 65,0 70,10 75,0 80,10 85,0 90,10 95,0 100,10 100,0" />
                       </svg>
                     </div>
                   </div>

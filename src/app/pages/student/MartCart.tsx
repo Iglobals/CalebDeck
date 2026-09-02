@@ -8,13 +8,13 @@ import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import SEO from '../../components/SEO';
 import { PlatformSettings, subscribeToPlatformSettings } from '../../../services/db';
 
-const MART_DELIVERY_FEE = 1500; // Flat fee for Mart Delivery
-
 export default function MartCart() {
   const { items, updateQuantity, removeItem, totalItems, subtotal } = useMartCart();
   const navigate = useNavigate();
   const { studentTheme } = useTheme();
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+
+  const MART_DELIVERY_FEE = platformSettings?.martDeliveryFee || 1500; // Dynamic flat fee for Mart Delivery
 
   useEffect(() => {
     const unsub = subscribeToPlatformSettings(setPlatformSettings);

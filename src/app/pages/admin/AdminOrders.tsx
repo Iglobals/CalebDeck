@@ -943,6 +943,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                 }
 
                                                 const deliveryFee = hasBreakdown ? selectedOrder.breakdown.delivery : calculatedDeliveryAmount;
+                                                const processingFee = getOrderServiceFee(selectedOrder);
                                                 const discount = hasBreakdown ? selectedOrder.breakdown.discount : calculatedDiscount;
 
                                                 return (

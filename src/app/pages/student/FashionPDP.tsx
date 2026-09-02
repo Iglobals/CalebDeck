@@ -103,7 +103,7 @@ export default function FashionPDP() {
   ];
 
   const { items: cartItems, addItem, updateQuantity, removeItem, totalItems, subtotal } = useMartCart();
-  const MART_DELIVERY_FEE = 1600; // Mock delivery fee for the cart overlay
+  const FASHION_DELIVERY_FEE = platformSettings?.fashionDeliveryFee || 1500;
 
   useEffect(() => {
     if (!user) {
@@ -570,12 +570,12 @@ export default function FashionPDP() {
                   </div>
                   <div className="flex justify-between text-sm font-medium text-muted-foreground">
                     <span>Delivery Fee</span>
-                    <span className="text-foreground">₦{MART_DELIVERY_FEE.toLocaleString()}</span>
+                    <span className="text-foreground">₦{FASHION_DELIVERY_FEE.toLocaleString()}</span>
                   </div>
                   <div className="w-full h-px bg-border/50 my-2" />
                   <div className="flex justify-between text-base font-bold">
                     <span>Total Price</span>
-                    <span>₦{(subtotal + MART_DELIVERY_FEE).toLocaleString()}</span>
+                    <span>₦{(subtotal + FASHION_DELIVERY_FEE).toLocaleString()}</span>
                   </div>
                 </div>
                 
