@@ -299,9 +299,9 @@ export default function OrderSuccess() {
 
   if (!showTracking || isFashionOrder) {
     return (
-      <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+      <div className={`min-h-screen transition-colors duration-300 ${isFashionOrder ? 'bg-[#000000] text-white' : 'bg-background text-foreground'}`}>
         <SEO title="Order Placed - CalebDeck" description="Your CalebDeck order has been successfully placed and is ready for live tracking." canonical="https://calebdeck.com/order-success" robots="noindex,follow" />
-        <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border transition-colors duration-300">
+        <header className={`sticky top-0 backdrop-blur-sm z-50 border-b transition-colors duration-300 ${isFashionOrder ? 'bg-[#000000]/95 border-[#222]' : 'bg-background/95 border-border'}`}>
           <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-center">
             <Logo size="md" />
           </div>
@@ -309,23 +309,27 @@ export default function OrderSuccess() {
 
         <main className="max-w-2xl mx-auto px-6 py-20">
           <div className="text-center">
-            <div className="relative inline-block mb-8">
-              <div className="w-28 h-28 rounded-[2.5rem] bg-green-500/10 flex items-center justify-center mx-auto animate-pulse">
-                <CheckCircle className="w-16 h-16 text-green-500" />
-              </div>
-              <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground shadow-lg animate-bounce">
-                <Sparkles className="w-4 h-4" />
-              </div>
-            </div>
+            {!isFashionOrder && (
+              <>
+                <div className="relative inline-block mb-8">
+                  <div className="w-28 h-28 rounded-[2.5rem] bg-green-500/10 flex items-center justify-center mx-auto animate-pulse">
+                    <CheckCircle className="w-16 h-16 text-green-500" />
+                  </div>
+                  <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground shadow-lg animate-bounce">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                </div>
 
-            <h1 className="text-4xl md:text-5xl font-black mb-6 tracking-tight">
-              Order Placed!
-            </h1>
+                <h1 className="text-4xl md:text-5xl font-black mb-6 tracking-tight">
+                  Order Placed!
+                </h1>
 
-            <div className="inline-block px-8 py-4 rounded-[2rem] bg-primary/10 border-2 border-primary/30 mb-10 shadow-inner">
-              <p className="text-xs text-muted-foreground uppercase tracking-widest font-black mb-1 opacity-60">Ticket Number</p>
-              <p className="text-3xl font-black text-foreground">{orderId}</p>
-            </div>
+                <div className="inline-block px-8 py-4 rounded-[2rem] bg-primary/10 border-2 border-primary/30 mb-10 shadow-inner">
+                  <p className="text-xs text-muted-foreground uppercase tracking-widest font-black mb-1 opacity-60">Ticket Number</p>
+                  <p className="text-3xl font-black text-foreground">{orderId}</p>
+                </div>
+              </>
+            )}
 
             {rider && !isFashionOrder && (
               <Card className="mb-10 p-6 bg-secondary/5 border-2 border-secondary/20 rounded-[2.5rem] flex items-center justify-between animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -345,63 +349,117 @@ export default function OrderSuccess() {
             )}
 
             {isFashionOrder ? (
-              <Card className="text-left mb-10 p-8 border-none shadow-2xl bg-card border-t-4 border-t-[#F97316]">
-                <div className="flex items-center justify-between mb-8 pb-6 border-b border-border">
-                  <h3 className="text-2xl font-black flex items-center gap-2">
-                    <Sparkles className="w-6 h-6 text-[#F97316]" />
-                    Order Receipt
-                  </h3>
-                  <Badge variant="amber" className="uppercase tracking-widest">
-                    {orderStatus.replace(/_/g, ' ')}
-                  </Badge>
+              <div className="max-w-[400px] mx-auto mt-4 mb-12 relative animate-in fade-in duration-700">
+                {/* Device Element */}
+                <div className="relative z-20 bg-[#1A1A1A] rounded-2xl p-6 shadow-2xl border border-[#333]">
+                  <div className="flex items-center justify-between mb-8">
+                    <Logo size="sm" />
+                    <div className="flex items-center gap-1.5 text-[#10B981] bg-[#10B981]/10 px-3 py-1.5 rounded-full text-xs font-bold tracking-widest uppercase">
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      Order Complete
+                    </div>
+                  </div>
+                  <div className="text-left">
+                    <div className="flex items-end justify-between">
+                      <div>
+                        <h2 className="text-lg font-bold text-white mb-1">Fashion Order</h2>
+                        <p className="text-sm text-gray-400 font-medium">{orderData.items?.length || 0} items</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-gray-400 font-medium uppercase tracking-widest mb-1">Total</p>
+                        <p className="text-2xl font-black text-white">₦{(orderData.totalAmount || orderData.total || 0).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                  {/* The slot where paper comes out */}
+                  <div className="absolute -bottom-2 left-8 right-8 h-4 bg-black rounded-full opacity-60 blur-[3px]"></div>
+                  <div className="absolute bottom-0 left-8 right-8 h-1 bg-[#0A0A0A] rounded-b-xl border-b border-[#222]"></div>
                 </div>
-                
-                <div className="space-y-6">
-                  {orderData.items && Array.isArray(orderData.items) && (
-                    <div className="space-y-3 pb-6 border-b border-border">
-                      <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Items</p>
-                      {orderData.items.map((item: any, i: number) => (
-                        <div key={i} className="flex justify-between items-center">
-                          <p className="font-medium">{item.quantity}x {item.name}</p>
-                          <p className="font-bold">₦{((item.price || 0) * (item.quantity || 1)).toLocaleString()}</p>
+
+                {/* Paper Receipt */}
+                <div className="relative z-10 px-6 -mt-3 pt-3 overflow-hidden" style={{ perspective: '1000px' }}>
+                  <div className="animate-in slide-in-from-top-[100%] duration-1000 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]">
+                    <div className="bg-[#FAF9F6] text-[#111] relative shadow-[0_15px_30px_rgba(0,0,0,0.5)]">
+                      {/* Top torn edge */}
+                      <svg className="absolute top-0 left-0 w-full h-2 text-[#FAF9F6] fill-current" preserveAspectRatio="none" viewBox="0 0 100 10">
+                        <polygon points="0,10 0,0 5,10 10,0 15,10 20,0 25,10 30,0 35,10 40,0 45,10 50,0 55,10 60,0 65,10 70,0 75,10 80,0 85,10 90,0 95,10 100,0 100,10" />
+                      </svg>
+
+                      <div className="px-6 py-10 font-mono text-sm space-y-6 text-left">
+                        <div className="space-y-4">
+                          <p className="font-bold text-gray-500 uppercase tracking-widest text-[10px]">Items</p>
+                          {orderData.items?.map((item: any, i: number) => (
+                            <div key={i} className="flex justify-between items-start">
+                              <div className="flex-1 pr-4">
+                                <p className="font-bold uppercase text-xs">{item.name}</p>
+                                <p className="text-gray-500 text-[10px] mt-1 uppercase">Qty: {item.quantity}</p>
+                              </div>
+                              <p className="font-bold text-xs">₦{((item.price || 0) * (item.quantity || 1)).toLocaleString()}</p>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  )}
 
-                  <div className="flex justify-between items-center pb-6 border-b border-border">
-                    <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Total Amount</p>
-                    <p className="text-2xl font-black text-[#F97316]">₦{(orderData.totalAmount || orderData.total || 0).toLocaleString()}</p>
-                  </div>
+                        <div className="pt-4 border-t border-dashed border-gray-300 space-y-2">
+                          <div className="flex justify-between text-gray-600 uppercase text-[10px] font-bold">
+                            <span>Subtotal</span>
+                            <span>₦{(orderData.subtotal || (orderData.totalAmount - (orderData.deliveryFee || 0))).toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-gray-600 uppercase text-[10px] font-bold">
+                            <span>Delivery Fee</span>
+                            <span>₦{(orderData.deliveryFee || 0).toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-base font-black pt-2 uppercase tracking-tight">
+                            <span>TOTAL PAID</span>
+                            <span>₦{(orderData.totalAmount || orderData.total || 0).toLocaleString()}</span>
+                          </div>
+                        </div>
 
-                  <div className="grid sm:grid-cols-2 gap-6 pt-2">
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-[#F97316]/10 flex items-center justify-center flex-shrink-0">
-                        <MapPin className="w-6 h-6 text-[#F97316]" />
+                        <div className="pt-6 border-t border-dashed border-gray-300 grid grid-cols-2 gap-y-4 text-[10px]">
+                          <div className="text-gray-500 uppercase tracking-widest">Order</div>
+                          <div className="text-right font-bold uppercase">{orderId}</div>
+                          
+                          <div className="text-gray-500 uppercase tracking-widest">Paid With</div>
+                          <div className="text-right font-bold uppercase">{orderData.paymentMethod || 'Paystack'}</div>
+                          
+                          <div className="text-gray-500 uppercase tracking-widest">Date</div>
+                          <div className="text-right font-bold uppercase">
+                             {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} <br/>
+                             {new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                          
+                          <div className="col-span-2 pt-2 border-t border-dashed border-gray-300 mt-2"></div>
+                          
+                          <div className="text-gray-500 uppercase tracking-widest">Delivery</div>
+                          <div className="text-right font-bold uppercase">{displayHostel}</div>
+                          
+                          <div className="text-gray-500 uppercase tracking-widest">Arrival</div>
+                          <div className="text-right font-bold uppercase">
+                             {orderData.expectedArrivalDate ? new Date(orderData.expectedArrivalDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'Pending'}
+                          </div>
+                          
+                          <div className="text-gray-500 uppercase tracking-widest">Batch</div>
+                          <div className="text-right font-bold uppercase">{orderData.fashionBatchName || 'Pending'}</div>
+                        </div>
+
+                        {/* Barcode Graphic */}
+                        <div className="pt-10 pb-4 flex flex-col items-center justify-center opacity-70">
+                          <div className="flex gap-[2px] h-12 items-end justify-center w-full max-w-[220px]">
+                            {[...Array(40)].map((_, i) => (
+                               <div key={i} className={`bg-black ${[1,2,3,4][i % 4] === 1 ? 'w-1' : [1,2,3,4][i % 4] === 2 ? 'w-[2px]' : 'w-[1px]'} ${[1,2,3][i % 3] === 1 ? 'h-full' : 'h-4/5'}`}></div>
+                            ))}
+                          </div>
+                          <p className="text-[10px] tracking-[0.4em] mt-3 font-bold uppercase">{orderId.replace(/[^A-Z0-9]/g, '')}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Delivery</p>
-                        <p className="text-lg font-bold">{displayHostel}</p>
-                        <p className="text-sm text-muted-foreground font-medium mt-1">{pickupPoint}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-[#F97316]/10 flex items-center justify-center flex-shrink-0">
-                        <Clock className="w-6 h-6 text-[#F97316]" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Expected Arrival</p>
-                        <p className="text-lg font-bold">
-                          {orderData.expectedArrivalDate ? new Date(orderData.expectedArrivalDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'Pending'}
-                        </p>
-                        <p className="text-sm text-muted-foreground font-medium mt-1">
-                          Batch: {orderData.fashionBatchName || 'Pending'}
-                        </p>
-                      </div>
+                      
+                      {/* Bottom torn edge */}
+                      <svg className="absolute bottom-0 left-0 w-full h-2 text-[#FAF9F6] fill-current transform rotate-180" preserveAspectRatio="none" viewBox="0 0 100 10">
+                        <polygon points="0,10 0,0 5,10 10,0 15,10 20,0 25,10 30,0 35,10 40,0 45,10 50,0 55,10 60,0 65,10 70,0 75,10 80,0 85,10 90,0 95,10 100,0 100,10" />
+                      </svg>
                     </div>
                   </div>
                 </div>
-              </Card>
+              </div>
             ) : (
               <Card className="text-left mb-10 p-8 border-none shadow-2xl bg-card">
                 <div className="space-y-6">
@@ -465,12 +523,12 @@ export default function OrderSuccess() {
               />
             )}
 
-            <div className="space-y-4">
+            <div className={`space-y-4 ${isFashionOrder ? 'mt-12' : ''}`}>
               <Button
                 variant="primary"
                 size="lg"
                 onClick={() => setShowTracking(true)}
-                className="w-full py-6 text-xl rounded-2xl shadow-xl shadow-primary/20"
+                className={`w-full py-6 text-xl rounded-2xl shadow-xl ${isFashionOrder ? 'shadow-white/5 bg-white text-black hover:bg-gray-200 border-none' : 'shadow-primary/20'}`}
               >
                 Track Live Order
               </Button>
@@ -481,14 +539,14 @@ export default function OrderSuccess() {
                     size="sm" 
                     onClick={refreshStatus}
                     disabled={isRefreshing}
-                    className="w-full opacity-60 hover:opacity-100 flex items-center justify-center gap-2"
+                    className={`w-full opacity-60 hover:opacity-100 flex items-center justify-center gap-2 ${isFashionOrder ? 'text-white hover:bg-white/10' : ''}`}
                 >
                     <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                     {isRefreshing ? 'Syncing...' : 'Sync Status'}
                 </Button>
 
                 <Link to="/">
-                    <Button variant="ghost" size="sm" className="w-full opacity-40 hover:opacity-100">
+                    <Button variant="ghost" size="sm" className={`w-full opacity-40 hover:opacity-100 ${isFashionOrder ? 'text-white hover:bg-white/10' : ''}`}>
                     Return to home
                     </Button>
                 </Link>
