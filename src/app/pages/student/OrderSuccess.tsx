@@ -297,7 +297,7 @@ export default function OrderSuccess() {
     );
   }
 
-  if (!showTracking || isFashionOrder) {
+  if (!showTracking) {
     return (
       <div className={`min-h-screen transition-colors duration-300 ${isFashionOrder ? 'bg-[#000000] text-white' : 'bg-background text-foreground'}`}>
         <SEO title="Order Placed - CalebDeck" description="Your CalebDeck order has been successfully placed and is ready for live tracking." canonical="https://calebdeck.com/order-success" robots="noindex,follow" />

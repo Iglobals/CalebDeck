@@ -373,10 +373,6 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                     <span>Delivery Fee ${isGroup ? '(Group)' : '(Solo)'}</span>
                                     <span>₦${deliveryFee.toLocaleString()}</span>
                                 </div>
-                                <div class="item-row">
-                                    <span>Service & Processing</span>
-                                    <span>₦${processingFee.toLocaleString()}</span>
-                                </div>
                                 ${discount > 0 ? `
                                 <div class="item-row" style="color: #10B981;">
                                     <span>Group Discount</span>
@@ -947,7 +943,6 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                 }
 
                                                 const deliveryFee = hasBreakdown ? selectedOrder.breakdown.delivery : calculatedDeliveryAmount;
-                                                const processingFee = getOrderServiceFee(selectedOrder);
                                                 const discount = hasBreakdown ? selectedOrder.breakdown.discount : calculatedDiscount;
 
                                                 return (
@@ -957,10 +952,6 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                             <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>
                                                                 ₦{deliveryFee.toLocaleString()}
                                                             </span>
-                                                        </div>
-                                                        <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10">
-                                                            <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Service & Processing Fee</p>
-                                                            <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>₦{processingFee.toLocaleString()}</span>
                                                         </div>
                                                         {discount > 0 && (
                                                             <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10 text-green-500">

@@ -50,11 +50,11 @@ export default function AdminDashboard() {
     if (typeof order.deliveryFee === 'number') return order.deliveryFee;
     if (typeof order.breakdown?.delivery === 'number') return order.breakdown.delivery;
 
+    if (order.type === 'fashion' || order.orderType === 'FASHION' || order.type === 'mart') return 0;
+
     const itemCount = order.type === 'combo'
       ? (order.quantity || 1)
-      : order.type === 'mart'
-        ? (order.items || []).reduce((sum: number, item: any) => sum + (item.quantity || 1), 0)
-        : (order.plates?.length || 1);
+      : (order.plates?.length || 1);
     const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
     const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((order.hostel || order.hostelName || '').toString().toLowerCase());
     const baseDeliveryFee = isPremiumHostel ? (platformSettings?.premiumDeliveryFee || 1250) : (isGroup ? 580 : 750);
@@ -75,6 +75,10 @@ export default function AdminDashboard() {
     if (order.type === 'mart') {
       const count = getOrderItemCount(order);
       return `${count} Mart item${count === 1 ? '' : 's'}`;
+    }
+    if (order.type === 'fashion' || order.orderType === 'FASHION') {
+      const count = (order.items || []).reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
+      return `${count} Fashion item${count === 1 ? '' : 's'}`;
     }
     return `${order.plates?.length || 0} Plates`;
   };
@@ -121,7 +125,7 @@ export default function AdminDashboard() {
       return d ? d.toLocaleDateString() === today : false;
     });
     const pendingOrders = hostelOrders.filter(o => o.status === 'PAID');
-    const instantPendingOrders = pendingOrders.filter(o => !o.deliveryType || o.deliveryType === 'INSTANT');
+    const instantPendingOrders = pendingOrders.filter(o => (!o.deliveryType || o.deliveryType === 'INSTANT') && o.type !== 'fashion' && o.orderType !== 'FASHION');
     const batchPendingOrders = pendingOrders.filter(o => o.deliveryType === 'BATCH');
     const outOrders = hostelOrders.filter(o => o.status === 'OUT_FOR_DELIVERY');
     const otwOrders = hostelOrders.filter(o => o.status === 'ON_THE_WAY');
@@ -525,6 +529,9 @@ export default function AdminDashboard() {
                           {getOrderItemLabel(order)}
                           {order.type === 'mart' && (
                             <Badge variant="green" className="text-[10px] uppercase font-black px-2 py-0.5">Mart</Badge>
+                          )}
+                          {(order.type === 'fashion' || order.orderType === 'FASHION') && (
+                            <Badge variant="purple" className="text-[10px] uppercase font-black px-2 py-0.5">Fashion</Badge>
                           )}
                           {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
                             <Badge variant="purple" className="text-[10px] uppercase font-black px-2 py-0.5">Group</Badge>

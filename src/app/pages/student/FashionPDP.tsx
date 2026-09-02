@@ -552,7 +552,7 @@ export default function FashionPDP() {
                         <span className="text-xs font-bold leading-none">&times;</span>
                       </button>
                       <div className="bg-black dark:bg-white text-white dark:text-black font-bold px-4 py-1.5 rounded-full text-xs shadow-md">
-                        ${Math.floor(cartItem.price / 100)} {/* Mocking USD price for visual parity with inspo */}
+                        ₦{cartItem.price.toLocaleString()}
                       </div>
                     </div>
                   </div>

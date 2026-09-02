@@ -153,7 +153,13 @@ export default function MyOrders() {
       <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border shadow-sm transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between pr-16 sm:pr-20">
           <div className="flex items-center gap-3 sm:gap-4">
-             {/* Back button removed per IA changes */}
+            <Link 
+              to="/" 
+              className="p-2 sm:p-2.5 bg-muted/50 hover:bg-muted text-foreground rounded-xl sm:rounded-2xl transition-all duration-200"
+              aria-label="Back to Home"
+            >
+              <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+            </Link>
             <div className="flex items-center gap-2">
               <Package className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />
               <h1 className="text-lg sm:text-2xl font-bold tracking-tight">My Orders</h1>

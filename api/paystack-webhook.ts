@@ -98,6 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // 3. Idempotent — check if order already exists
         const isMartOrder = paymentData.metadata?.orderType === 'mart';
+        const isFashionOrder = paymentData.metadata?.orderType === 'FASHION' || paymentData.metadata?.orderType === 'fashion' || paymentData.metadata?.type === 'fashion' || paymentData.metadata?.cafeteria === 'CalebDeck Fashion';
         const orderRef = db.collection('orders').doc(reference);
         const existingDoc = await orderRef.get();
 
@@ -269,6 +270,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.subtotal = metadata.subtotal || (paidAmount - 1050); // Fallback: minus 750 delivery and 300 fees
             orderDoc.deliveryFee = metadata.deliveryFee || 750;
             orderDoc.serviceProcessingFee = 300;
+            delete orderDoc.total;
+            delete orderDoc.cafeteria;
+            delete orderDoc.cafeteriaId;
+            delete orderDoc.sectionId;
+            delete orderDoc.deliveryMode;
+        } else if (isFashionOrder) {
+            orderDoc.type = 'fashion';
+            orderDoc.orderType = 'FASHION';
+            orderDoc.items = metadata.items || [];
+            orderDoc.totalAmount = paidAmount;
+            orderDoc.subtotal = metadata.subtotal || (paidAmount - (metadata.deliveryFee || 1500) - 300);
+            orderDoc.deliveryFee = metadata.deliveryFee || 1500;
+            orderDoc.serviceProcessingFee = 300;
+            orderDoc.fashionBatchName = metadata.fashionBatchName || null;
+            orderDoc.expectedArrivalDate = metadata.expectedArrivalDate || null;
+            orderDoc.fashionBatchStatus = metadata.fashionBatchStatus || null;
             delete orderDoc.total;
             delete orderDoc.cafeteria;
             delete orderDoc.cafeteriaId;
