@@ -5,7 +5,7 @@ import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
 import { ProgressStepper } from '../../components/design-system/ProgressStepper';
-import { CheckCircle, MapPin, Clock, Phone, Sparkles, RefreshCw, AlertCircle, Timer, ShoppingBag } from 'lucide-react';
+import { CheckCircle, MapPin, Clock, Phone, Sparkles, RefreshCw, AlertCircle, Timer, ShoppingBag, ArrowLeft } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import { subscribeToOrderStatus, getRiderById, getHostelById, Rider, getOrderById, submitReview, subscribeToPlatformSettings } from '../../../services/db';
 import { useAuth } from '../../../context/AuthContext';
@@ -564,7 +564,10 @@ export default function OrderSuccess() {
       <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border transition-colors duration-300 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center">
+            <Link to="/" className="w-10 h-10 rounded-xl bg-muted/50 hover:bg-muted flex items-center justify-center transition-colors">
+              <ArrowLeft className="w-5 h-5 text-foreground" />
+            </Link>
+            <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center hidden sm:flex">
               <Clock className="w-5 h-5 text-secondary" />
             </div>
             <div>
