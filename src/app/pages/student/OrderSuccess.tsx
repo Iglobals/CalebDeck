@@ -80,9 +80,14 @@ export default function OrderSuccess() {
     if (location.state) {
       localStorage.setItem('calebdeck_last_order', JSON.stringify(location.state));
 
+      // Normalize fashion order type immediately upon read to prevent cold-reload bugs
+      let s = { ...location.state } as any;
+      if (s.orderType === 'FASHION' || s.orderType === 'fashion' || s.cafeteria === 'CalebDeck Fashion') {
+        s.type = 'fashion';
+      }
+
       // Save to persistent order history
       try {
-        const s = location.state as any;
         if (s.calebnet) {
           saveOrderToHistory(buildCalebNetEntry({
             network: s.network || '',
@@ -228,8 +233,21 @@ export default function OrderSuccess() {
   const isPaymentIssue = ['PENDING_PAYMENT', 'FAILED', 'PENDING_CONFIRMATION'].includes(orderStatus);
   const isFashionOrder = orderData.orderType === 'FASHION' || orderData.orderType === 'fashion' || orderData.cafeteria === 'CalebDeck Fashion' || orderData.type === 'fashion';
   const retryPath = isFashionOrder ? '/fashion' : (orderData.orderType === 'mart' || orderData.type === 'mart' || cafeteria === 'CalebDeck Mart' ? '/mart' : (user?.icaSub ? '/' : '/cafeteria'));
-  // Map fashion status to the FASHION_ORDER_STATUSES index
-  const fashionStatusIndex = isFashionOrder ? FASHION_ORDER_STATUSES.indexOf(orderStatus as any) : -1;
+  
+  // Map fashion statuses to the 4-stage tracking flow:
+  // Step 0: Received (PAID, CONSOLIDATING, PROCUREMENT_IN_PROGRESS, ARRIVING_AT_CAMPUS, READY_FOR_DELIVERY)
+  // Step 1: Out for Delivery (OUT_FOR_DELIVERY)
+  // Step 2: On The Way (ON_THE_WAY)
+  // Step 3: Delivered (DELIVERED)
+  const getFashionStep = () => {
+    switch (orderStatus) {
+      case 'DELIVERED': return 3;
+      case 'ON_THE_WAY': return 2;
+      case 'OUT_FOR_DELIVERY': return 1;
+      default: return 0; // PAID and all internal pipeline states
+    }
+  };
+  const fashionStatusIndex = isFashionOrder ? getFashionStep() : -1;
 
   if (isPaymentIssue) {
     const isFailed = orderStatus === 'FAILED';
@@ -598,14 +616,50 @@ export default function OrderSuccess() {
           )}
         </div>
 
-        {/* Progress Stepper — Fashion gets the vertical 9-step, food/mart get horizontal 4-step */}
-        {isFashionOrder ? (
-          <div className="mb-16">
-            <FashionOrderStepper currentStatus={orderStatus} />
-          </div>
-        ) : (
-          <div className="mb-16 px-4">
-            <ProgressStepper steps={TRACKING_STEPS} currentStep={currentStep} />
+        {/* Progress Stepper — 4-step horizontal for all order types */}
+        <div className="mb-16 px-4">
+          <ProgressStepper steps={TRACKING_STEPS} currentStep={currentStep} />
+        </div>
+
+        {/* Fashion Batch Info Supplementary Card */}
+        {isFashionOrder && (orderData.fashionBatchName || orderData.fashionBatchStatus) && (
+          <div className="mb-12 max-w-2xl mx-auto">
+            <Card className="p-6 border-[#7C3AED]/20 bg-gradient-to-br from-[#7C3AED]/5 to-transparent">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-[#7C3AED]/10 text-[#7C3AED] flex items-center justify-center shrink-0">
+                  <Package className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-black text-lg tracking-tight mb-1">Batch Fulfillment Details</h3>
+                  <p className="text-sm font-bold text-[#7C3AED] mb-3">
+                    Batch: {orderData.fashionBatchName || 'Scheduled Batch'}
+                  </p>
+                  <p className="text-sm font-medium text-muted-foreground leading-relaxed">
+                    Your fashion items are consolidated and delivered in weekly batches. You will be notified when your batch arrives on campus and is out for delivery.
+                  </p>
+                  {orderData.expectedArrivalDate && (
+                    <div className="mt-4 inline-flex items-center gap-2 bg-background/50 px-3 py-1.5 rounded-lg border border-border/50">
+                      <Clock className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm font-bold">Expected Arrival: {new Date(orderData.expectedArrivalDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                    </div>
+                  )}
+                  {/* Show internal pipeline status explicitly if you're waiting */}
+                  {currentStep === 0 && (
+                    <div className="mt-4 pt-4 border-t border-border/50">
+                      <p className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">Current Stage</p>
+                      <p className="text-sm font-bold text-foreground">
+                        {orderStatus === 'PAID' ? 'Order Placed (Batch Open)' : 
+                         orderStatus === 'CONSOLIDATING' ? 'Consolidating Orders' : 
+                         orderStatus === 'PROCUREMENT_IN_PROGRESS' ? 'Procurement & Shipping' : 
+                         orderStatus === 'ARRIVING_AT_CAMPUS' ? 'Arriving at Campus' : 
+                         orderStatus === 'READY_FOR_DELIVERY' ? 'Ready for Dispatch' : 
+                         orderStatus}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Card>
           </div>
         )}
 

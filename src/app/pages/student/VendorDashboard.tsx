@@ -152,7 +152,19 @@ export default function VendorDashboard() {
     }
   };
 
-  if (!vendor) return <div className="min-h-screen bg-background"></div>;
+  if (!vendor) return (
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-6xl mx-auto space-y-6 animate-pulse">
+        <div className="h-16 bg-muted rounded-xl w-full"></div>
+        <div className="h-32 bg-muted rounded-2xl w-full"></div>
+        <div className="grid md:grid-cols-3 gap-6">
+          <div className="h-32 bg-muted rounded-2xl"></div>
+          <div className="h-32 bg-muted rounded-2xl"></div>
+          <div className="h-32 bg-muted rounded-2xl"></div>
+        </div>
+      </div>
+    </div>
+  );
 
   // Determine subscription status
   const now = new Date();

@@ -50,7 +50,8 @@ export default function AdminDashboard() {
     if (typeof order.deliveryFee === 'number') return order.deliveryFee;
     if (typeof order.breakdown?.delivery === 'number') return order.breakdown.delivery;
 
-    if (order.type === 'fashion' || order.orderType === 'FASHION' || order.type === 'mart') return 0;
+    if (order.type === 'fashion' || order.orderType === 'FASHION') return order.deliveryFee || 0;
+    if (order.type === 'mart') return 0;
 
     const itemCount = order.type === 'combo'
       ? (order.quantity || 1)

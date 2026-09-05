@@ -109,14 +109,14 @@ export default function WalletPage() {
             verifyFunding(ref)
                 .then(() => {
                     sessionStorage.setItem(`wallet_verified_${ref}`, 'true');
+                    toast.dismiss('verify-funding');
+                    setWalletLoading(false);
                 })
                 .catch((e) => {
                     console.error(e);
+                    toast.dismiss('verify-funding');
                     toast.error('Funding verification delayed. Check back in a few minutes.');
                     verifyRef.current.delete(ref);
-                })
-                .finally(() => {
-                    toast.dismiss('verify-funding');
                     setWalletLoading(false);
                 });
         }
@@ -134,10 +134,12 @@ export default function WalletPage() {
                     .then(() => {
                         sessionStorage.setItem(`wallet_verified_${reference.reference || fundingReference}`, 'true');
                         setFundingReference(createFundingReference());
-                    })
-                    .catch(() => toast.error('Funding verification delayed. Check back in a few minutes.'))
-                    .finally(() => {
                         toast.dismiss('verify-funding');
+                        setWalletLoading(false);
+                    })
+                    .catch(() => {
+                        toast.dismiss('verify-funding');
+                        toast.error('Funding verification delayed. Check back in a few minutes.');
                         setWalletLoading(false);
                     });
             })(); },

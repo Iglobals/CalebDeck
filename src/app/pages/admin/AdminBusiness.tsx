@@ -425,6 +425,26 @@ export default function AdminBusiness() {
 
         {/* Products Tab */}
         {activeTab === 'products' && (
+          loading ? (
+            <div className="grid sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {[...Array(10)].map((_, i) => (
+                <Card key={i} className="overflow-hidden flex flex-col border-border shadow-sm animate-pulse">
+                  <div className={`h-40 w-full ${isDark ? 'bg-[#222222]' : 'bg-gray-100'}`}></div>
+                  <div className="p-4 flex-1 flex flex-col bg-card border-t border-border/50">
+                    <div className="h-3 w-1/2 bg-muted rounded mb-2"></div>
+                    <div className="h-4 w-3/4 bg-muted rounded mb-4"></div>
+                    <div className="mt-auto flex justify-between items-center">
+                      <div className="h-4 w-1/3 bg-muted rounded"></div>
+                      <div className="flex gap-1">
+                        <div className="h-7 w-7 bg-muted rounded-lg"></div>
+                        <div className="h-7 w-7 bg-muted rounded-lg"></div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
           <div className="grid sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.vendorBusinessName.toLowerCase().includes(searchQuery.toLowerCase())).map(product => {
               const vendor = vendors.find(v => v.id === product.vendorId);
@@ -460,6 +480,7 @@ export default function AdminBusiness() {
               );
             })}
           </div>
+          )
         )}
 
       </div>

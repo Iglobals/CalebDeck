@@ -111,6 +111,7 @@ export default function MyOrders() {
           status: liveOrder?.status || order.status,
           hostelName: liveOrder?.hostelName || order.hostelName,
           type: liveOrder?.type || order.type,
+          orderType: liveOrder?.orderType || order.orderType || (order.type === 'fashion' ? 'FASHION' : undefined),
           showTracking: true,
         },
       });
