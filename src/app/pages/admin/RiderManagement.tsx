@@ -254,20 +254,13 @@ export default function RiderManagement() {
                                 </div>
                             )}
                         </div>
-                        {/* Premium Delivery */}
+                        {/* Premium Delivery (fee editable in Platform Settings → Fees & Pricing) */}
                         <div className={`p-4 rounded-xl border border-amber-500/30 ${isDark ? 'bg-amber-500/5' : 'bg-amber-50'}`}>
                             <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 ${isDark ? 'text-amber-500' : 'text-amber-600'}`}>Premium Delivery</p>
-                            {isEditingRate === 'premium_delivery' ? (
-                                <div className="flex gap-2">
-                                    <input type="number" value={newRate} onChange={(e) => setNewRate(e.target.value)} className={`w-16 text-sm font-bold p-2 rounded-lg border ${isDark ? 'bg-[#0F0F0F] border-[#333333] text-[#FAF9F6]' : 'bg-white border-gray-200 text-gray-900'}`} placeholder="1250" />
-                                    <Button size="sm" variant="primary" onClick={() => handleSaveRate('premium_delivery')} disabled={savingRate} className="px-2 rounded-lg text-xs font-bold shadow-md">✓</Button>
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-2">
-                                    <h4 className="text-lg font-black text-amber-500">₦{platformSettings?.premiumDeliveryFee || 1250}</h4>
-                                    <button onClick={() => { setNewRate((platformSettings?.premiumDeliveryFee || 1250).toString()); setIsEditingRate('premium_delivery'); }} className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${isDark ? 'bg-[#333333] text-[#FAF9F6] hover:bg-[#444444]' : 'bg-amber-200 text-amber-800 hover:bg-amber-300'}`}>Edit</button>
-                                </div>
-                            )}
+                            <div className="flex items-center gap-2">
+                                <h4 className="text-lg font-black text-amber-500">₦{platformSettings?.premiumDeliveryFee || 1250}</h4>
+                            </div>
+                            <p className={`text-[9px] font-bold mt-1 ${isDark ? 'text-[#9C8F7F]' : 'text-amber-700/70'}`}>Edit in Platform Settings → Fees & Pricing</p>
                         </div>
 
 {/* Premium Solo Rider Rate */}

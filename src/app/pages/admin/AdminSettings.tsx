@@ -71,11 +71,14 @@ export default function AdminSettings() {
   const [fees, setFees] = useState({
     foodDeliveryFee: 0,
     foodGroupDeliveryFee: 0,
+    premiumDeliveryFee: 0,
     martDeliveryFee: 0,
     fashionDeliveryFee: 0,
+    fashionRatePerDelivery: 0,
     businessMonthlyPrice: 0,
     businessYearlyPrice: 0
   });
+  const [premiumHostelsText, setPremiumHostelsText] = useState('');
 
   // Promo Banners State
   const [promoSlides, setPromoSlides] = useState<PromoSlide[]>([]);
@@ -118,11 +121,14 @@ export default function AdminSettings() {
       setFees({
         foodDeliveryFee: data.foodDeliveryFee || 0,
         foodGroupDeliveryFee: data.foodGroupDeliveryFee || 0,
+        premiumDeliveryFee: data.premiumDeliveryFee || 0,
         martDeliveryFee: data.martDeliveryFee || 0,
         fashionDeliveryFee: data.fashionDeliveryFee || 0,
+        fashionRatePerDelivery: data.fashionRatePerDelivery || 0,
         businessMonthlyPrice: data.businessMonthlyPrice || 0,
         businessYearlyPrice: data.businessYearlyPrice || 0
       });
+      setPremiumHostelsText((data.premiumHostels || []).join(', '));
     });
     return () => unsub();
   }, []);
@@ -371,7 +377,11 @@ export default function AdminSettings() {
 
   const handleUpdateFees = async () => {
     try {
-      await updatePlatformSettings(fees);
+      const premiumHostels = premiumHostelsText
+        .split(',')
+        .map(h => h.trim())
+        .filter(Boolean);
+      await updatePlatformSettings({ ...fees, premiumHostels });
       alert('Platform fees and pricing updated successfully.');
     } catch (err) {
       console.error('Failed to update fees:', err);
@@ -916,8 +926,30 @@ export default function AdminSettings() {
                 />
               </div>
               <div>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Girls' Hostel Premium (Food)</label>
+                <input
+                  type="number" min="0"
+                  value={fees.premiumDeliveryFee}
+                  onChange={(e) => setFees({ ...fees, premiumDeliveryFee: Number(e.target.value) })}
+                  className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                    isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
+                  }`}
+                />
+              </div>
+              <div>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Fashion Rider Rate (per order)</label>
+                <input
+                  type="number" min="0"
+                  value={fees.fashionRatePerDelivery}
+                  onChange={(e) => setFees({ ...fees, fashionRatePerDelivery: Number(e.target.value) })}
+                  className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                    isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
+                  }`}
+                />
+              </div>
+              <div>
                 <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Business Monthly Price</label>
-                <input 
+                <input
                   type="number" min="0"
                   value={fees.businessMonthlyPrice}
                   onChange={(e) => setFees({ ...fees, businessMonthlyPrice: Number(e.target.value) })}
@@ -937,6 +969,22 @@ export default function AdminSettings() {
                   }`}
                 />
               </div>
+            </div>
+
+            <div className="mb-6">
+              <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Girls' Hostels (Premium Food Rate Applies) — comma separated</label>
+              <textarea
+                rows={2}
+                value={premiumHostelsText}
+                onChange={(e) => setPremiumHostelsText(e.target.value)}
+                placeholder="sussana, rebecca, mary, esme, deborah, mercy"
+                className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                  isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
+                }`}
+              />
+              <p className={`text-[11px] mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                Only Food orders to these hostels pay the premium rate. Fashion and Mart always use their own flat fees.
+              </p>
             </div>
 
             <Button

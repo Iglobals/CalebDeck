@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { adminDb } from '../server/firebase-admin.js';
+import { isPremiumHostel } from '../src/services/orderFees.js';
 
 const TAKEAWAY_FEE_PER_PLATE = 200;
 
@@ -59,13 +60,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const plateCount = typeof providedPlateCount === 'number' ? providedPlateCount : 1;
         const isGroup = deliveryMode === 'group' || deliveryMode === 'GROUP';
-        const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((hostelId || '').toString().toLowerCase());
-        
+        const isPremium = isPremiumHostel(hostelId, platformSettings);
+
         // FIXED: Use base delivery fee for breakdown, and correctly calculate discount without double-discounting
-        const baseDeliveryFee = isPremiumHostel ? premiumDeliveryFee : foodSoloFee;
+        const baseDeliveryFee = isPremium ? premiumDeliveryFee : foodSoloFee;
         let discountPerPlate = 0;
         if (isGroup) {
-             discountPerPlate = isPremiumHostel ? (premiumDeliveryFee - Math.round(premiumDeliveryFee * 0.8)) : (foodSoloFee - foodGroupFee);
+             discountPerPlate = isPremium ? (premiumDeliveryFee - Math.round(premiumDeliveryFee * 0.8)) : (foodSoloFee - foodGroupFee);
         }
 
         const deliveryFee = baseDeliveryFee * plateCount;

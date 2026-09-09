@@ -37,14 +37,31 @@ function writeHistory(entries: OrderHistoryEntry[]) {
   }
 }
 
-/** Save a new order to history. De-dupes by id. */
+/** Save a new order to history. De-dupes by id.
+ *  On duplicate: keep the existing entry's type/summary (first save is authoritative —
+ *  a later tracking visit must never flip a Fashion/Mart entry to Food) and only
+ *  refresh the live fields. */
 export function saveOrderToHistory(entry: OrderHistoryEntry) {
   const history = readHistory();
-  // Remove duplicate if exists
-  const filtered = history.filter(h => h.id !== entry.id);
+  const existingIdx = history.findIndex(h => h.id === entry.id);
+  if (existingIdx >= 0) {
+    const existing = history[existingIdx];
+    history[existingIdx] = {
+      ...existing,
+      type: existing.type || entry.type,
+      summary: existing.summary || entry.summary,
+      orderId: existing.orderId || entry.orderId,
+      total: entry.total || existing.total,
+      status: entry.status || existing.status,
+      hostelName: entry.hostelName || existing.hostelName,
+      createdAt: existing.createdAt,
+    };
+    writeHistory(history);
+    return;
+  }
   // Prepend new entry
-  filtered.unshift(entry);
-  writeHistory(filtered);
+  history.unshift(entry);
+  writeHistory(history);
 }
 
 /** Get all saved orders, newest first */

@@ -5,6 +5,8 @@ import { Badge } from '../../components/design-system/Badge';
 import { Button } from '../../components/design-system/Button';
 import { Download, Search, Filter, ChevronDown, Trash2, RotateCcw, AlertTriangle, CheckCircle, Package, Clock, Users, Loader2 } from 'lucide-react';
 import { getRecentOrderHistory, subscribeToRiders, trashOrder, recoverOrder, permanentlyDeleteOrder, Rider, subscribeTodayBatchDays, FoodBatchDay } from '../../../services/db';
+import { resolveOrderVertical } from '../../../services/orderVertical';
+import { resolveDeliveryFee } from '../../../services/orderFees';
 import { useTheme } from '../../../context/ThemeContext';
 import { format } from 'date-fns';
 import { BatchOrderInfo, resolveOrderBatchInfo } from '../../components/BatchOrderInfo';
@@ -191,31 +193,26 @@ export default function AdminOrderHistory() {
                 
                 ${(() => {
                     const hasBreakdown = !!order.breakdown;
-                    const plateCount = order.quantity || order.plates?.length || 1;
+                    const isFood = resolveOrderVertical(order) === 'FOOD';
                     const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
-                    const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((order.hostel || order.hostelName || '').toString().toLowerCase());
-                    const baseDeliveryRate = isPremiumHostel ? 1250 : 750;
-                    let calculatedDeliveryAmount = baseDeliveryRate * plateCount;
-                    let calculatedDiscount = 0;
-                    if (isGroup) {
-                        const groupDiscount = isPremiumHostel ? (1250 - Math.round(1250 * 0.8)) : (750 - 580);
-                        calculatedDiscount = groupDiscount * plateCount;
-                    }
-                    const deliveryFee = hasBreakdown ? order.breakdown.delivery : calculatedDeliveryAmount;
-                    const processingFee = hasBreakdown ? (order.breakdown.processing + order.breakdown.platform) : 300;
-                    const discount = hasBreakdown ? order.breakdown.discount : calculatedDiscount;
-                    const takeawayAmount = order.type !== 'combo' ? (order.plates?.length || 0) * 200 : 0;
-                    
+                    const feeInfo = resolveDeliveryFee(order);
+                    const deliveryFee = isFood && hasBreakdown ? order.breakdown.delivery : feeInfo.deliveryFee;
+                    const processingFee = typeof order.serviceProcessingFee === 'number'
+                        ? order.serviceProcessingFee
+                        : (hasBreakdown ? (order.breakdown.processing + order.breakdown.platform) : 300);
+                    const discount = isFood && hasBreakdown ? (order.breakdown.discount || 0) : 0;
+                    const takeawayAmount = isFood && order.type !== 'combo' ? (order.plates?.length || 0) * 200 : 0;
+
                     return `
                         <div style="font-size:11px;font-weight:900;color:#999;margin-top:10px;text-transform:uppercase">FEES</div>
-                        ${order.type !== 'combo' ? `
+                        ${takeawayAmount > 0 ? `
                         <div class="row">
                             <span>Takeaway Pack x ${order.plates?.length || 0}</span>
                             <span>₦${takeawayAmount.toLocaleString()}</span>
                         </div>
                         ` : ''}
                         <div class="row">
-                            <span>Delivery Fee ${isGroup ? '(Group)' : '(Solo)'}</span>
+                            <span>Delivery Fee${isFood ? (isGroup ? ' (Group)' : ' (Solo)') : ''}</span>
                             <span>₦${deliveryFee.toLocaleString()}</span>
                         </div>
                         <div class="row">

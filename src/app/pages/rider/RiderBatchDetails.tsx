@@ -9,6 +9,8 @@ import { useAuth } from '../../../context/AuthContext';
 import { useTheme } from '../../../context/ThemeContext';
 import { useNavigate, useParams } from 'react-router';
 import { subscribeToRiderOrders, subscribeToBatches, updateOrder, updateBatch, Batch, recordDelivery, subscribeToPlatformSettings, PlatformSettings, subscribeTodayBatchDays, FoodBatchDay } from '../../../services/db';
+import { resolveOrderVertical } from '../../../services/orderVertical';
+import { isPremiumHostel } from '../../../services/orderFees';
 import { format } from 'date-fns';
 import { BatchOrderInfo, resolveOrderBatchInfo } from '../../components/BatchOrderInfo';
 
@@ -32,6 +34,26 @@ export default function RiderBatchDetails() {
 
     const isDark = riderTheme === 'dark';
     const getStudentNote = (order: any) => (order.notes || order.instructions || '').trim();
+
+    // Rider earning per order — scoped by vertical. Fashion/Mart are flat per-order
+    // rates and never inherit Food's girls'-hostel premium rate.
+    const getRiderEarning = (order: any): number => {
+        const vertical = resolveOrderVertical(order);
+        if (vertical === 'FASHION') return Number(platformSettings?.fashionRatePerDelivery) || 500;
+        if (vertical === 'MART') return Number(platformSettings?.martRatePerDelivery) || 500;
+        const isCombo = order.type === 'combo';
+        const platesCount = isCombo ? (order.quantity || 1) : (order.plates?.length || 1);
+        const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
+        const isPremium = isPremiumHostel(order.hostel || order.hostelName, platformSettings);
+        const rate = isPremium
+            ? (platformSettings?.premiumRiderRate || 750)
+            : isCombo
+                ? (platformSettings?.comboRatePerDelivery || 250)
+                : isGroup
+                    ? (platformSettings?.groupRatePerDelivery || 200)
+                    : (platformSettings?.riderRatePerDelivery || 350);
+        return platesCount * rate;
+    };
 
     useEffect(() => {
         if (!user) return;
@@ -94,22 +116,8 @@ export default function RiderBatchDetails() {
             await updateOrder(orderId, { status: 'DELIVERED' });
 
             if (order) {
-                const platesCount = order.type === 'combo' ? (order.quantity || 1) : (order.plates?.length || 1);
-                const isCombo = order.type === 'combo';
-                const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
-                const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((order.hostel || order.hostelName || '').toString().toLowerCase());
-                
-                const rate = order.type === 'mart'
-                    ? (platformSettings?.martRatePerDelivery || 500)
-                    : isPremiumHostel 
-                        ? (platformSettings?.premiumRiderRate || 750)
-                        : isCombo
-                            ? (platformSettings?.comboRatePerDelivery || 250)
-                            : isGroup
-                                ? (platformSettings?.groupRatePerDelivery || 200)
-                                : (platformSettings?.riderRatePerDelivery || 350);
-                const earning = platesCount * rate;
-                
+                const earning = getRiderEarning(order);
+
                 // Track stats & earnings
                 recordDelivery(user.uid, orderId, false, earning).catch(console.error);
             }
@@ -161,21 +169,7 @@ export default function RiderBatchDetails() {
                     await updateOrder(orderId, { status: 'DELIVERED' });
 
                     // Record earnings for each order (same logic as individual markDelivered)
-                    const platesCount = order.type === 'combo' ? (order.quantity || 1) : (order.plates?.length || 1);
-                    const isCombo = order.type === 'combo';
-                    const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
-                    const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((order.hostel || order.hostelName || '').toString().toLowerCase());
-                    
-                    const rate = order.type === 'mart'
-                        ? (platformSettings?.martRatePerDelivery || 500)
-                        : isPremiumHostel 
-                            ? (platformSettings?.premiumRiderRate || 750)
-                            : isCombo
-                                ? (platformSettings?.comboRatePerDelivery || 250)
-                                : isGroup
-                                    ? (platformSettings?.groupRatePerDelivery || 200)
-                                    : (platformSettings?.riderRatePerDelivery || 350);
-                    const earning = platesCount * rate;
+                    const earning = getRiderEarning(order);
                     recordDelivery(user.uid, orderId, false, earning).catch(console.error);
                 }
             }

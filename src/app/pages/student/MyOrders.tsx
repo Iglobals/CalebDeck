@@ -8,6 +8,7 @@ import { Card } from '../../components/design-system/Card';
 import SEO from '../../components/SEO';
 import { getOrderHistory, clearOrderHistory, OrderHistoryEntry } from '../../../services/orderHistory';
 import { getOrderById } from '../../../services/db';
+import { resolveOrderVertical } from '../../../services/orderVertical';
 import { useAuth } from '../../../context/AuthContext';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
@@ -102,6 +103,18 @@ export default function MyOrders() {
     setTrackingOrderId(order.id);
     try {
       const liveOrder = await getOrderById(order.id);
+      // The cold Firestore doc is the source of truth for the vertical; fall back
+      // to the entry's own saved type only if the doc no longer identifies itself.
+      const liveVertical = liveOrder
+        ? resolveOrderVertical(liveOrder)
+        : (order.type === 'fashion' ? 'FASHION' : order.type === 'mart' ? 'MART' : 'FOOD');
+      console.info('[MyOrders] Track hand-off:', {
+        id: order.id,
+        savedType: order.type,
+        docType: liveOrder?.type ?? null,
+        docOrderType: liveOrder?.orderType ?? null,
+        resolvedVertical: liveVertical,
+      });
       navigate('/order-success', {
         state: {
           ...(liveOrder || {}),
@@ -110,8 +123,10 @@ export default function MyOrders() {
           total: liveOrder?.total || liveOrder?.totalAmount || order.total,
           status: liveOrder?.status || order.status,
           hostelName: liveOrder?.hostelName || order.hostelName,
-          type: liveOrder?.type || order.type,
-          orderType: liveOrder?.orderType || order.orderType || (order.type === 'fashion' ? 'FASHION' : undefined),
+          type: liveVertical === 'FOOD'
+            ? (liveOrder?.type === 'combo' ? 'combo' : liveOrder?.type || 'plate')
+            : liveOrder?.type || liveVertical.toLowerCase(),
+          orderType: liveVertical,
           showTracking: true,
         },
       });
@@ -125,6 +140,7 @@ export default function MyOrders() {
           status: order.status,
           hostelName: order.hostelName,
           type: order.type,
+          orderType: order.type === 'fashion' ? 'FASHION' : order.type === 'mart' ? 'MART' : undefined,
           showTracking: true,
         },
       });

@@ -4,6 +4,7 @@ import axios from 'axios';
 import { adminDb } from '../server/firebase-admin.js';
 import { confirmFoodBatchReservation } from '../server/food-batch.js';
 import { calculateServerOrderTotal } from '../server/order-utils.js';
+import { resolveOrderVertical } from '../src/services/orderVertical.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
 
@@ -37,9 +38,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // 1. Check if order already exists
-        const isMartOrder = orderData?.orderType === 'mart';
+        const vertical = resolveOrderVertical(orderData);
+        const isMartOrder = vertical === 'MART';
         const isCombo = orderData?.type === 'combo';
-        const isFashionOrder = orderData?.orderType === 'FASHION' || orderData?.orderType === 'fashion' || orderData?.type === 'fashion' || orderData?.cafeteria === 'CalebDeck Fashion';
+        const isFashionOrder = vertical === 'FASHION';
         const orderRef = db.collection('orders').doc(reference);
         const existingDoc = await orderRef.get();
 
@@ -155,6 +157,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (isMartOrder) {
             orderDoc.type = 'mart';
+            orderDoc.orderType = 'MART';
             orderDoc.items = orderData.items || [];
             orderDoc.totalAmount = paidAmount;
             orderDoc.subtotal = orderData?.subtotal || (paidAmount - (orderData?.deliveryFee || 1500) - platformFee - processingFee);
@@ -183,6 +186,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             delete orderDoc.deliveryMode;
         } else if (isCombo) {
             orderDoc.type = 'combo';
+            orderDoc.orderType = 'FOOD';
             orderDoc.comboId = orderData.comboId;
             orderDoc.comboName = orderData.comboName;
             orderDoc.comboItems = orderData.comboItems || []; // Structured items array
@@ -191,7 +195,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.basePrice = orderData.basePrice || 0; // Persist for dashboard pricing
         } else {
             orderDoc.type = 'plate';
-            
+            orderDoc.orderType = 'FOOD';
+
             // Strip out massive base64 images from the arrays to save Firestore size (prevent 1MB limit crash)
             const cleanPlates = (orderData?.plates || []).map((plate: any) => ({
                 ...plate,
@@ -222,6 +227,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const isPreSaved = existingDoc.exists && ['pre_saved', 'webhook_confirmed'].includes(existingSource);
 
         if (isPreSaved) {
+            // Pre-saved docs written before the fashion/mart branches existed are
+            // plate-shaped (no type/orderType/deliveryFee/items). Back-fill the
+            // vertical fields from the verified payload so cold reads classify
+            // the order correctly — not just this time, but permanently.
+            const preSavedData = existingDoc.data()!;
+            const existingVertical = resolveOrderVertical(preSavedData);
+            const needsVerticalBackfill = existingVertical !== vertical || !preSavedData.orderType;
+            const backfill: any = {};
+            if (needsVerticalBackfill) {
+                backfill.type = orderDoc.type;
+                backfill.orderType = orderDoc.orderType;
+                if (isFashionOrder) {
+                    backfill.items = orderDoc.items;
+                    backfill.totalAmount = orderDoc.totalAmount;
+                    backfill.subtotal = orderDoc.subtotal;
+                    backfill.deliveryFee = orderDoc.deliveryFee;
+                    backfill.serviceProcessingFee = orderDoc.serviceProcessingFee;
+                    backfill.fashionBatchName = orderDoc.fashionBatchName;
+                    backfill.expectedArrivalDate = orderDoc.expectedArrivalDate;
+                    backfill.fashionBatchStatus = orderDoc.fashionBatchStatus;
+                    backfill.cafeteria = FieldValue.delete();
+                    backfill.plates = FieldValue.delete();
+                    backfill.drinksSnacks = FieldValue.delete();
+                    backfill.plateCount = FieldValue.delete();
+                    backfill.deliveryMode = FieldValue.delete();
+                } else if (isMartOrder) {
+                    backfill.items = orderDoc.items;
+                    backfill.totalAmount = orderDoc.totalAmount;
+                    backfill.subtotal = orderDoc.subtotal;
+                    backfill.deliveryFee = orderDoc.deliveryFee;
+                    backfill.serviceProcessingFee = orderDoc.serviceProcessingFee;
+                    backfill.plates = FieldValue.delete();
+                    backfill.drinksSnacks = FieldValue.delete();
+                    backfill.plateCount = FieldValue.delete();
+                    backfill.deliveryMode = FieldValue.delete();
+                }
+            }
             await orderRef.set({
                 status: 'PAID',
                 source: 'verified',
@@ -230,12 +272,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 paymentMessage: data.gateway_response || 'Payment confirmed',
                 paymentMethod: 'PAYSTACK',
                 paidAt: data.paid_at || null,
+                ...backfill,
                 updatedAt: FieldValue.serverTimestamp()
             }, { merge: true });
-            console.log(`[verify-payment] Updated pre-saved order to PAID: ${reference}`);
+            console.log(`[verify-payment] Updated pre-saved order to PAID: ${reference}${needsVerticalBackfill ? ` [backfilled vertical=${orderDoc.orderType}]` : ''}`);
 
             // Confirm the reserved slot exactly once across webhook and browser verification.
-            const preSavedData = existingDoc.data()!;
             if (preSavedData.foodBatchDayId) {
                 try {
                     await confirmFoodBatchReservation({

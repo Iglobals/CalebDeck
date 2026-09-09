@@ -19,7 +19,9 @@ import {
     Wallet,
     CreditCard
 } from 'lucide-react';
-import { subscribeToAllOrders, subscribeToHostels, Hostel, subscribeToRiders, Rider, dispatchBatch, markOrderRefunded, orderMatchesHostel, subscribeTodayBatchDays, advanceFashionBatch, FoodBatchDay } from '../../../services/db';
+import { subscribeToAllOrders, subscribeToHostels, Hostel, subscribeToRiders, Rider, dispatchBatch, markOrderRefunded, orderMatchesHostel, subscribeTodayBatchDays, advanceFashionBatch, FoodBatchDay, subscribeToPlatformSettings } from '../../../services/db';
+import { resolveOrderVertical } from '../../../services/orderVertical';
+import { resolveDeliveryFee } from '../../../services/orderFees';
 import { formatDistanceToNow } from 'date-fns';
 import { useTheme } from '../../../context/ThemeContext';
 import { BatchOrderInfo, resolveOrderBatchInfo } from '../../components/BatchOrderInfo';
@@ -41,6 +43,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
     const [dispatching, setDispatching] = useState<string | null>(null);
     const [emergencyDispatch, setEmergencyDispatch] = useState<{ hostel: Hostel, orders: any[] } | null>(null);
     const [deliveryTypeFilter, setDeliveryTypeFilter] = useState<'ALL' | 'INSTANT' | 'BATCH'>('ALL');
+    const [platformSettings, setPlatformSettings] = useState<any>(null);
     const { adminTheme } = useTheme();
 
     useEffect(() => {
@@ -51,7 +54,8 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
         const unsubHostels = subscribeToHostels(setHostels);
         const unsubRiders = subscribeToRiders(setRiders);
         const unsubBatchDays = subscribeTodayBatchDays(setBatchDays);
-        return () => { unsub(); unsubHostels(); unsubRiders(); unsubBatchDays(); };
+        const unsubSettings = subscribeToPlatformSettings(setPlatformSettings);
+        return () => { unsub(); unsubHostels(); unsubRiders(); unsubBatchDays(); unsubSettings(); };
     }, []);
 
     const isDark = adminTheme === 'dark';
@@ -68,24 +72,17 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
     };
 
     const getOrderAmount = (order: any) => order.totalAmount ?? order.total ?? 0;
-    const isFashionOrder = (order: any) => order.type === 'fashion' || order.orderType === 'FASHION';
+    const isFashionOrder = (order: any) => resolveOrderVertical(order) === 'FASHION';
+    const isMartVertical = (order: any) => resolveOrderVertical(order) === 'MART';
     const getOrderItemCount = (order: any) => {
+        if (isFashionOrder(order) || isMartVertical(order)) return (order.items || []).reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
         if (order.type === 'combo') return order.quantity || 1;
-        if (order.type === 'mart') return (order.items || []).reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
-        if (isFashionOrder(order)) return (order.items || []).reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
         return order.plates?.length || 0;
     };
     const getOrderDeliveryFee = (order: any) => {
         if (typeof order.deliveryFee === 'number') return order.deliveryFee;
         if (typeof order.breakdown?.delivery === 'number') return order.breakdown.delivery;
-        if (isFashionOrder(order)) return order.deliveryFee || 0;
-        if (order.type === 'mart') return 1500;
-
-        const plateCount = order.type === 'combo' ? (order.quantity || 1) : (order.plates?.length || 1);
-        const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
-        const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((order.hostel || order.hostelName || '').toString().toLowerCase());
-        const baseDeliveryRate = isPremiumHostel ? 1250 : (isGroup ? 580 : 750);
-        return baseDeliveryRate * plateCount;
+        return resolveDeliveryFee(order, platformSettings).deliveryFee;
     };
     const getOrderServiceFee = (order: any) => {
         if (typeof order.serviceProcessingFee === 'number') return order.serviceProcessingFee;
@@ -105,9 +102,10 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
     const visibleStatuses = ['PENDING_PAYMENT', 'PAID', 'OUT_FOR_DELIVERY', 'ON_THE_WAY', 'PREPARING', 'DELIVERED', 'FAILED', 'CANCELLED', 'REFUNDED', 'CONSOLIDATING', 'PROCUREMENT', 'ARRIVING_AT_CAMPUS', 'READY_FOR_DELIVERY'];
 
     const todayOrders = orders.filter(o => {
-        if (orderType === 'food' && (o.type === 'mart' || o.type === 'fashion' || o.orderType === 'FASHION')) return false;
-        if (orderType === 'mart' && o.type !== 'mart') return false;
-        if (orderType === 'fashion' && !isFashionOrder(o)) return false;
+        const vertical = resolveOrderVertical(o);
+        if (orderType === 'food' && vertical !== 'FOOD') return false;
+        if (orderType === 'mart' && vertical !== 'MART') return false;
+        if (orderType === 'fashion' && vertical !== 'FASHION') return false;
         if (o.status === 'TRASHED' || !visibleStatuses.includes(o.status)) return false;
         
         // Treat old PENDING_PAYMENT as failed
@@ -130,6 +128,8 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
             }
         }
         if (deliveryTypeFilter !== 'ALL') {
+            // Fashion has no instant/batch delivery types — its pipeline is separate
+            if (resolveOrderVertical(o) === 'FASHION') return false;
             const type = o.deliveryType || 'INSTANT';
             if (type !== deliveryTypeFilter) return false;
         }
@@ -146,9 +146,10 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
     });
 
     const failedOrders = orders.filter(o => {
-        if (orderType === 'food' && (o.type === 'mart' || o.type === 'fashion')) return false;
-        if (orderType === 'mart' && o.type !== 'mart') return false;
-        if (orderType === 'fashion' && o.type !== 'fashion') return false;
+        const vertical = resolveOrderVertical(o);
+        if (orderType === 'food' && vertical !== 'FOOD') return false;
+        if (orderType === 'mart' && vertical !== 'MART') return false;
+        if (orderType === 'fashion' && vertical !== 'FASHION') return false;
         const d = parseDate(o.createdAt);
         if (orderType !== 'fashion' && (!d || d.toLocaleDateString() !== today)) return false;
         
@@ -172,7 +173,9 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
     const handleDispatch = async (hostel: Hostel, paidOrders: any[], isEmergency: boolean) => {
         if (dispatching) return;
 
-        const dispatchableOrders = paidOrders.filter(o => (o.status === 'PAID' || (orderType === 'fashion' && o.status === 'READY_FOR_DELIVERY')) && !o.batchId && !o.assignedRiderId);
+        // Food dispatches while PAID; Fashion only once its batch is READY_FOR_DELIVERY
+        const dispatchableStatus = orderType === 'fashion' ? 'READY_FOR_DELIVERY' : 'PAID';
+        const dispatchableOrders = paidOrders.filter(o => o.status === dispatchableStatus && !o.batchId && !o.assignedRiderId);
         if (!dispatchableOrders.length) return;
 
         if (isEmergency) {
@@ -205,7 +208,8 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
     const handleEmergencyDispatchSubmit = async (rider: Rider) => {
         if (!emergencyDispatch || dispatching) return;
         const { hostel, orders: paidOrders } = emergencyDispatch;
-        const dispatchableOrders = paidOrders.filter(o => (o.status === 'PAID' || (orderType === 'fashion' && o.status === 'READY_FOR_DELIVERY')) && !o.batchId && !o.assignedRiderId);
+        const dispatchableStatus = orderType === 'fashion' ? 'READY_FOR_DELIVERY' : 'PAID';
+        const dispatchableOrders = paidOrders.filter(o => o.status === dispatchableStatus && !o.batchId && !o.assignedRiderId);
         if (!dispatchableOrders.length) {
             setEmergencyDispatch(null);
             return;
@@ -293,7 +297,9 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                         <div class="order-id">
                             ORD-${order.orderId?.slice(-6) || 'XXXXXX'}
                             ${(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') ? '  -  GROUP' : ''}
-                            ${batchInfo ? `  -  ${batchInfo.batchName.toUpperCase()}` : '  -  INSTANT'}
+                            ${isFashionOrder(order)
+                                ? `  -  ${(order.fashionBatchName || 'Fashion Batch').toUpperCase()}`
+                                : batchInfo ? `  -  ${batchInfo.batchName.toUpperCase()}` : '  -  INSTANT'}
                         </div>
                     </div>
                     <div class="section">
@@ -329,7 +335,14 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                     ` : ''}
                     <div class="section">
                         <div class="label">Items</div>
-                        ${order.type === 'combo' ? `
+                        ${isFashionOrder(order) ? `
+                            ${(order.items || []).map((item: any) => `
+                                <div class="item-row">
+                                    <span>${item.name}</span>
+                                    <span>x${item.quantity || 1}</span>
+                                </div>
+                            `).join('')}
+                        ` : order.type === 'combo' ? `
                             <div class="plate-header">${order.comboName} x ${order.quantity || 1}</div>
                             ${(order.comboItems || []).map((item: any) => `
                                 <div class="item-row">
@@ -349,31 +362,24 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                         
                         ${(() => {
                             const hasBreakdown = !!order.breakdown;
-                            const plateCount = order.quantity || order.plates?.length || 1;
+                            const vertical = resolveOrderVertical(order);
+                            const isFood = vertical === 'FOOD';
                             const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
-                            const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((order.hostel || order.hostelName || '').toString().toLowerCase());
-                            const baseDeliveryRate = isPremiumHostel ? 1250 : 750;
-                            let calculatedDeliveryAmount = baseDeliveryRate * plateCount;
-                            let calculatedDiscount = 0;
-                            if (isGroup) {
-                                const groupDiscount = isPremiumHostel ? (1250 - Math.round(1250 * 0.8)) : (750 - 580);
-                                calculatedDiscount = groupDiscount * plateCount;
-                            }
-                            const deliveryFee = hasBreakdown ? order.breakdown.delivery : calculatedDeliveryAmount;
-                            const processingFee = hasBreakdown ? (order.breakdown.processing + order.breakdown.platform) : 300;
-                            const discount = hasBreakdown ? order.breakdown.discount : calculatedDiscount;
-                            const takeawayAmount = order.type !== 'combo' ? (order.plates?.length || 0) * 200 : 0;
-                            
+                            const feeInfo = resolveDeliveryFee(order, platformSettings);
+                            const deliveryFee = isFood && hasBreakdown ? order.breakdown.delivery : feeInfo.deliveryFee;
+                            const discount = isFood && hasBreakdown ? (order.breakdown.discount || 0) : 0;
+                            const takeawayAmount = isFood && order.type !== 'combo' ? (order.plates?.length || 0) * 200 : 0;
+
                             return `
                                 <div class="plate-header">Fees</div>
-                                ${order.type !== 'combo' ? `
+                                ${takeawayAmount > 0 ? `
                                 <div class="item-row">
                                     <span>Takeaway Pack (₦200/plate)</span>
                                     <span>₦${takeawayAmount.toLocaleString()}</span>
                                 </div>
                                 ` : ''}
                                 <div class="item-row">
-                                    <span>Delivery Fee ${isGroup ? '(Group)' : '(Solo)'}</span>
+                                    <span>Delivery Fee${isFood ? (isGroup ? ' (Group)' : ' (Solo)') : ''}</span>
                                     <span>₦${deliveryFee.toLocaleString()}</span>
                                 </div>
                                 ${discount > 0 ? `
@@ -454,9 +460,9 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                         <Badge variant="purple" className="text-xs font-black px-3 py-1.5 shrink-0">
                             {todayOrders.length} orders today
                         </Badge>
-                        <Badge variant="gold" className="text-xs font-black px-3 py-1.5 shrink-0">
-                            {todayOrders.filter(o => o.status === 'PAID').length} pending
-                        </Badge>
+                                                        <Badge variant="gold" className="text-xs font-black px-3 py-1.5 shrink-0">
+                                                            {todayOrders.filter(o => orderType === 'fashion' ? o.status === 'READY_FOR_DELIVERY' : o.status === 'PAID').length} {orderType === 'fashion' ? 'ready' : 'pending'}
+                                                        </Badge>
                         <Badge variant="purple" className="text-xs font-black px-3 py-1.5 shrink-0 bg-[#7C3AED]/20">
                             {todayOrders.filter(o => o.status === 'OUT_FOR_DELIVERY').length} out
                         </Badge>
@@ -471,22 +477,24 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                         </Badge>
                     </div>
 
-                    {/* Delivery Type Tabs */}
-                    <div className={`flex items-center gap-2 p-1.5 rounded-xl border ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'} w-fit`}>
-                        {(['ALL', 'INSTANT', 'BATCH'] as const).map(tab => (
-                            <button
-                                key={tab}
-                                onClick={() => setDeliveryTypeFilter(tab)}
-                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                                    deliveryTypeFilter === tab 
-                                        ? (isDark ? 'bg-[#7C3AED] text-white shadow-lg shadow-[#7C3AED]/20' : 'bg-[#7C3AED] text-white shadow-md shadow-[#7C3AED]/20') 
-                                        : (isDark ? 'text-[#9C8F7F] hover:bg-[#333333]' : 'text-gray-500 hover:bg-gray-100')
-                                }`}
-                            >
-                                {tab === 'ALL' ? 'All Orders' : tab === 'INSTANT' ? <span className="flex items-center gap-1"><Zap className="w-3 h-3" /> Instant</span> : <span className="flex items-center gap-1"><Package className="w-3 h-3" /> Batch</span>}
-                            </button>
-                        ))}
-                    </div>
+                    {/* Delivery Type Tabs (food/mart only — fashion has no instant/batch delivery types) */}
+                    {orderType !== 'fashion' && (
+                        <div className={`flex items-center gap-2 p-1.5 rounded-xl border ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'} w-fit`}>
+                            {(['ALL', 'INSTANT', 'BATCH'] as const).map(tab => (
+                                <button
+                                    key={tab}
+                                    onClick={() => setDeliveryTypeFilter(tab)}
+                                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                                        deliveryTypeFilter === tab
+                                            ? (isDark ? 'bg-[#7C3AED] text-white shadow-lg shadow-[#7C3AED]/20' : 'bg-[#7C3AED] text-white shadow-md shadow-[#7C3AED]/20')
+                                            : (isDark ? 'text-[#9C8F7F] hover:bg-[#333333]' : 'text-gray-500 hover:bg-gray-100')
+                                    }`}
+                                >
+                                    {tab === 'ALL' ? 'All Orders' : tab === 'INSTANT' ? <span className="flex items-center gap-1"><Zap className="w-3 h-3" /> Instant</span> : <span className="flex items-center gap-1"><Package className="w-3 h-3" /> Batch</span>}
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
                     {orderType === 'fashion' && (
                         <div className={`mt-6 p-6 rounded-2xl border ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'} shadow-sm`}>
@@ -540,7 +548,9 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                         <div className="space-y-4">
                             {hostelGroups.map(({ hostel, orders: hostelOrders }) => {
                                 const isExpanded = expandedHostels.has(hostel.id);
-                                const paidCount = hostelOrders.filter(o => o.status === 'PAID' || (orderType === 'fashion' && o.status === 'READY_FOR_DELIVERY')).length;
+                                // "pending" = what the Dispatch button will send: PAID for food, READY_FOR_DELIVERY for fashion
+                                const dispatchableStatus = orderType === 'fashion' ? 'READY_FOR_DELIVERY' : 'PAID';
+                                const paidCount = hostelOrders.filter(o => o.status === dispatchableStatus).length;
                                 const outCount = hostelOrders.filter(o => o.status === 'OUT_FOR_DELIVERY').length;
                                 const otwCount = hostelOrders.filter(o => o.status === 'ON_THE_WAY').length;
                                 const deliveredCount = hostelOrders.filter(o => o.status === 'DELIVERED').length;
@@ -583,7 +593,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                                 <Button
                                                                     size="sm"
                                                                     disabled={dispatching === hostel.id}
-                                                                    onClick={() => handleDispatch(hostel, hostelOrders.filter(o => o.status === 'PAID'), isEmergency)}
+                                                                    onClick={() => handleDispatch(hostel, hostelOrders.filter(o => o.status === dispatchableStatus), isEmergency)}
                                                                     className={`h-9 px-4 text-[10px] font-black tracking-widest uppercase ${isEmergency ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-[#7C3AED] hover:bg-purple-600 text-white'}`}
                                                                 >
                                                                     {dispatching === hostel.id ? 'Dispatching...' : isEmergency ? 'Emergency Dispatch' : 'Dispatch Batch'}
@@ -638,7 +648,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                                         <Badge variant="blue" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-blue-500/30 flex items-center gap-1"><CreditCard className="w-3 h-3" /> Paystack</Badge>
                                                                     ) : null}
                                                                     <span className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
-                                                                        {' - '}{isFashionOrder(order) ? `${getOrderItemCount(order)} fashion items` : order.type === 'combo' ? `${order.quantity || 1} combos` : order.type === 'mart' ? `${getOrderItemCount(order)} mart items` : `${order.plates?.length || 0} plates`}
+                                                                        {' - '}{isFashionOrder(order) ? `${getOrderItemCount(order)} fashion items` : order.type === 'combo' ? `${order.quantity || 1} combos` : isMartVertical(order) ? `${getOrderItemCount(order)} mart items` : `${order.plates?.length || 0} plates`}
                                                                     </span>
                                                                 </div>
                                                                 <BatchOrderInfo order={order} batchDays={batchDays} compact />
@@ -678,7 +688,9 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                     {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
                                                         <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 ml-2 mt-1">Group</Badge>
                                                     )}
-                                                    {(!order.deliveryType || order.deliveryType === 'INSTANT') ? (
+                                                    {isFashionOrder(order) ? (
+                                                        <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-[#7C3AED]/30 ml-2 mt-1 flex items-center gap-1"><Package className="w-3 h-3" /> Fashion</Badge>
+                                                    ) : (!order.deliveryType || order.deliveryType === 'INSTANT') ? (
                                                         <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-amber-500/30 ml-2 mt-1 flex items-center gap-1"><Zap className="w-3 h-3" /> Instant</Badge>
                                                     ) : (
                                                         <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-[#7C3AED]/30 ml-2 mt-1 flex items-center gap-1"><Package className="w-3 h-3" /> {resolveOrderBatchInfo(order, batchDays)?.batchName || 'Scheduled Batch'}</Badge>
@@ -719,7 +731,9 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                         <h4 className={`text-sm font-bold truncate ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName || 'Guest'}</h4>
                                                         <div className="flex items-center gap-2 mt-1">
                                                             <p className="text-[10px] font-mono text-[#9C8F7F]">CD-{order.orderId?.slice(-6) || 'N/A'}</p>
-                                                            {(!order.deliveryType || order.deliveryType === 'INSTANT') ? (
+                                                            {isFashionOrder(order) ? (
+                                                                <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-[#7C3AED]/30 flex items-center gap-1"><Package className="w-3 h-3" /></Badge>
+                                                            ) : (!order.deliveryType || order.deliveryType === 'INSTANT') ? (
                                                                 <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-amber-500/30 flex items-center gap-1"><Zap className="w-3 h-3" /></Badge>
                                                             ) : (
                                                                 <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-[#7C3AED]/30 flex items-center gap-1"><Package className="w-3 h-3" /></Badge>
@@ -832,7 +846,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                     </div>
 
                                     {/* Order Items breakdown */}
-                                    {selectedOrder.type === 'mart' ? (
+                                    {isMartVertical(selectedOrder) ? (
                                         <div className={`p-8 rounded-3xl border transition-all ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white shadow-sm'}`}>
                                             <div className="flex justify-between items-center mb-6">
                                                 <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#10B981]">Mart Items</h5>
@@ -876,7 +890,13 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                         </div>
                                     ) : isFashionOrder(selectedOrder) ? (
                                         <div className={`p-8 rounded-3xl border transition-all ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white shadow-sm'}`}>
-                                            <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#7C3AED] mb-6">Fashion Items</h5>
+                                            <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#7C3AED] mb-2">Fashion Items</h5>
+                                            {(selectedOrder.fashionBatchName || selectedOrder.expectedArrivalDate) && (
+                                                <p className={`text-[11px] font-bold mb-6 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+                                                    {selectedOrder.fashionBatchName ? `Batch: ${selectedOrder.fashionBatchName}` : 'Batch: Scheduled Batch'}
+                                                    {selectedOrder.expectedArrivalDate ? ` · Expected on campus ${new Date(selectedOrder.expectedArrivalDate).toLocaleDateString('en-NG', { weekday: 'short', month: 'short', day: 'numeric' })}` : ''}
+                                                </p>
+                                            )}
                                             <div className="space-y-4">
                                                 {selectedOrder.items?.map((item: any, iidx: number) => (
                                                     <div key={iidx} className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10 last:border-0">
@@ -959,13 +979,18 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                         <div className="space-y-4">
                                             {(() => {
                                                 const hasBreakdown = !!selectedOrder.breakdown;
+                                                const vertical = resolveOrderVertical(selectedOrder);
+                                                const isFood = vertical === 'FOOD';
                                                 const plateCount = getOrderItemCount(selectedOrder) || 1;
                                                 const isGroup = selectedOrder.deliveryMode === 'group' || selectedOrder.deliveryMode === 'GROUP';
-                                                let calculatedDeliveryAmount = getOrderDeliveryFee(selectedOrder);
+                                                const feeInfo = resolveDeliveryFee(selectedOrder, platformSettings);
+                                                let calculatedDeliveryAmount = feeInfo.deliveryFee;
                                                 let calculatedDiscount = 0;
-                                                if (isGroup && selectedOrder.type !== 'mart') {
-                                                    const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((selectedOrder.hostel || selectedOrder.hostelName || '').toString().toLowerCase());
-                                                    const groupDiscount = isPremiumHostel ? (1250 - Math.round(1250 * 0.8)) : (750 - 580);
+                                                if (isGroup && isFood) {
+                                                    const foodGroupFee = Number(platformSettings?.foodGroupDeliveryFee) || 580;
+                                                    const groupDiscount = feeInfo.isPremium
+                                                        ? (feeInfo.baseDeliveryFee - Math.round(feeInfo.baseDeliveryFee * 0.8))
+                                                        : (feeInfo.baseDeliveryFee - foodGroupFee);
                                                     calculatedDiscount = groupDiscount * plateCount;
                                                 }
 
@@ -976,7 +1001,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                 return (
                                                     <>
                                                         <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10">
-                                                            <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Delivery Fee {isGroup ? '(Group)' : '(Solo)'}</p>
+                                                            <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Delivery Fee{isFood ? (isGroup ? ' (Group)' : ' (Solo)') : ''}</p>
                                                             <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>
                                                                 ₦{deliveryFee.toLocaleString()}
                                                             </span>
@@ -987,13 +1012,11 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                                 <span className={`text-xs font-bold`}>-₦{discount.toLocaleString()}</span>
                                                             </div>
                                                         )}
-                                                        {!hasBreakdown && (() => {
-                                                            const takeawayAmount = selectedOrder.type !== 'combo' && selectedOrder.type !== 'mart' && !isFashionOrder(selectedOrder) ? (selectedOrder.plates?.length || 0) * 200 : 0;
+                                                        {!hasBreakdown && isFood && (() => {
+                                                            const takeawayAmount = selectedOrder.type !== 'combo' ? (selectedOrder.plates?.length || 0) * 200 : 0;
                                                             let foodAmount = 0;
                                                             if (selectedOrder.type === 'combo') {
                                                                 foodAmount = (selectedOrder.basePrice || (getOrderAmount(selectedOrder) / (selectedOrder.quantity || 1))) * (selectedOrder.quantity || 1);
-                                                            } else if (selectedOrder.type === 'mart' || isFashionOrder(selectedOrder)) {
-                                                                foodAmount = selectedOrder.subtotal || selectedOrder.items?.reduce((acc: number, item: any) => acc + ((item.price || 0) * (item.quantity || 1)), 0) || 0;
                                                             } else {
                                                                 foodAmount += selectedOrder.plates?.reduce((acc: number, p: any) => acc + (p.total || 0), 0) || 0;
                                                                 foodAmount += selectedOrder.drinksSnacks?.reduce((acc: number, a: any) => acc + ((a.item?.price || a.price || 0) * (a.quantity || 1)), 0) || 0;

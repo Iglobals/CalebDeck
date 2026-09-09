@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { adminDb } from '../server/firebase-admin.js';
 import { confirmFoodBatchReservation } from '../server/food-batch.js';
 import { creditWallet, ensureWalletUser, WALLET_FUNDING_MAX, WALLET_FUNDING_MIN } from '../server/wallet.js';
+import { resolveOrderVertical } from '../src/services/orderVertical.js';
 
 function metadataValue(metadata: any, key: string) {
     if (metadata?.[key] !== undefined && metadata?.[key] !== null) return metadata[key];
@@ -97,8 +98,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // 3. Idempotent — check if order already exists
-        const isMartOrder = paymentData.metadata?.orderType === 'mart';
-        const isFashionOrder = paymentData.metadata?.orderType === 'FASHION' || paymentData.metadata?.orderType === 'fashion' || paymentData.metadata?.type === 'fashion' || paymentData.metadata?.cafeteria === 'CalebDeck Fashion';
+        const vertical = resolveOrderVertical(metadata);
+        const isMartOrder = vertical === 'MART';
+        const isFashionOrder = vertical === 'FASHION';
         const orderRef = db.collection('orders').doc(reference);
         const existingDoc = await orderRef.get();
 
@@ -137,6 +139,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 await orderRef.update({
                     status: 'PAID',
                     source: 'webhook_confirmed',
+                    // Stamp the vertical if pre-save wrote before the branches existed
+                    ...(existingData.orderType ? {} : { type: vertical === 'FASHION' ? 'fashion' : vertical === 'MART' ? 'mart' : existingData.type || 'plate', orderType: vertical }),
                     paymentStatus: paymentData.status || 'success',
                     paymentMessage: paymentData.gateway_response || 'Payment confirmed',
                     paidAt: paymentData.paid_at || null,
@@ -162,10 +166,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 try {
                     const adminMsg = `${existingData.fullName} just ordered from ${existingData.hostelName || existingData.hostel}`;
                     const notifyIsMart = existingData.type === 'mart' || isMartOrder;
-                    const notifyLink = notifyIsMart ? '/admin/mart/orders' : '/admin/orders';
+                    const notifyIsFashion = existingData.type === 'fashion' || isFashionOrder;
+                    const notifyLink = notifyIsFashion ? '/admin/fashion/orders' : (notifyIsMart ? '/admin/mart/orders' : '/admin/orders');
                     await db.collection('notifications').add({
                         userId: 'admin',
-                        title: notifyIsMart ? 'New Mart Order' : 'New Order',
+                        title: notifyIsFashion ? 'New Fashion Order Received' : (notifyIsMart ? 'New Mart Order' : 'New Order Received'),
                         message: adminMsg,
                         type: 'order',
                         link: notifyLink,
@@ -217,7 +222,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const isCalebDeck = metadata.orderId?.startsWith('CD-') ||
             metadata.cafeteriaId ||
             metadata.hostel ||
-            metadata.orderType === 'mart' ||
+            String(metadata.orderType || '').toUpperCase() === 'MART' ||
+            String(metadata.orderType || '').toUpperCase() === 'FASHION' ||
             metadata.source === 'calebdeck';
 
         if (!isCalebDeck) {
@@ -265,10 +271,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (isMartOrder) {
             orderDoc.type = 'mart';
+            orderDoc.orderType = 'MART';
             orderDoc.items = metadata.items || [];
             orderDoc.totalAmount = paidAmount;
-            orderDoc.subtotal = metadata.subtotal || (paidAmount - 1050); // Fallback: minus 750 delivery and 300 fees
-            orderDoc.deliveryFee = metadata.deliveryFee || 750;
+            orderDoc.subtotal = metadata.subtotal || (paidAmount - (metadata.deliveryFee || 1500) - 300);
+            orderDoc.deliveryFee = metadata.deliveryFee || 1500;
             orderDoc.serviceProcessingFee = 300;
             delete orderDoc.total;
             delete orderDoc.cafeteria;
@@ -293,6 +300,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             delete orderDoc.deliveryMode;
         } else if (metadata.type === 'combo') {
             orderDoc.type = 'combo';
+            orderDoc.orderType = 'FOOD';
             orderDoc.comboId = metadata.comboId;
             orderDoc.comboName = metadata.comboName;
             orderDoc.comboItems = metadata.comboItems || [];
@@ -300,6 +308,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.plateCount = metadata.quantity || 1;
             orderDoc.basePrice = metadata.basePrice || 0;
         } else {
+            orderDoc.type = 'plate';
+            orderDoc.orderType = 'FOOD';
             orderDoc.plates = metadata.plates || [];
             orderDoc.drinksSnacks = metadata.drinksSnacks || [];
             orderDoc.plateCount = metadata.plateCount || 1;
@@ -311,10 +321,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // 5. Admin notification
         try {
             const adminMsg = `${orderDoc.fullName} just ordered from ${orderDoc.hostelName || orderDoc.hostel}`;
-            const notifyLink = isMartOrder ? '/admin/mart/orders' : '/admin/orders';
+            const notifyLink = isFashionOrder ? '/admin/fashion/orders' : (isMartOrder ? '/admin/mart/orders' : '/admin/orders');
             await db.collection('notifications').add({
                 userId: 'admin',
-                title: isMartOrder ? 'New Mart Order' : 'New Order',
+                title: isFashionOrder ? 'New Fashion Order Received' : (isMartOrder ? 'New Mart Order' : 'New Order Received'),
                 message: adminMsg,
                 type: 'order',
                 link: notifyLink,

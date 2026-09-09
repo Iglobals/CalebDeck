@@ -17,6 +17,8 @@ import {
   X
 } from 'lucide-react';
 import { subscribeToAllOrders, subscribeToRiders, subscribeToHostels, dispatchBatch, Rider, Hostel, subscribeToPlatformSettings, updatePlatformSettings, PlatformSettings, orderMatchesHostel, subscribeTodayBatchDays, BatchDay } from '../../../services/db';
+import { resolveOrderVertical } from '../../../services/orderVertical';
+import { resolveDeliveryFee } from '../../../services/orderFees';
 import { useTheme } from '../../../context/ThemeContext';
 import { isToday, isYesterday, format } from 'date-fns';
 import { BatchOrderInfo, resolveOrderBatchInfo } from '../../components/BatchOrderInfo';
@@ -46,21 +48,11 @@ export default function AdminDashboard() {
 
   const parseDate = (d: any) => d?.seconds ? new Date(d.seconds * 1000) : d ? new Date(d) : null;
   const getOrderAmount = (order: any) => order.totalAmount ?? order.total ?? 0;
+  const isFoodVertical = (order: any) => resolveOrderVertical(order) === 'FOOD';
   const getOrderDeliveryFee = (order: any) => {
     if (typeof order.deliveryFee === 'number') return order.deliveryFee;
     if (typeof order.breakdown?.delivery === 'number') return order.breakdown.delivery;
-
-    if (order.type === 'fashion' || order.orderType === 'FASHION') return order.deliveryFee || 0;
-    if (order.type === 'mart') return 0;
-
-    const itemCount = order.type === 'combo'
-      ? (order.quantity || 1)
-      : (order.plates?.length || 1);
-    const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
-    const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((order.hostel || order.hostelName || '').toString().toLowerCase());
-    const baseDeliveryFee = isPremiumHostel ? (platformSettings?.premiumDeliveryFee || 1250) : (isGroup ? 580 : 750);
-
-    return baseDeliveryFee * itemCount;
+    return resolveDeliveryFee(order, platformSettings).deliveryFee;
   };
   const getOrderServiceFee = (order: any) => {
     if (typeof order.serviceProcessingFee === 'number') return order.serviceProcessingFee;
@@ -126,7 +118,7 @@ export default function AdminDashboard() {
       return d ? d.toLocaleDateString() === today : false;
     });
     const pendingOrders = hostelOrders.filter(o => o.status === 'PAID');
-    const instantPendingOrders = pendingOrders.filter(o => (!o.deliveryType || o.deliveryType === 'INSTANT') && o.type !== 'fashion' && o.orderType !== 'FASHION');
+    const instantPendingOrders = pendingOrders.filter(o => isFoodVertical(o) && (!o.deliveryType || o.deliveryType === 'INSTANT'));
     const batchPendingOrders = pendingOrders.filter(o => o.deliveryType === 'BATCH');
     const outOrders = hostelOrders.filter(o => o.status === 'OUT_FOR_DELIVERY');
     const otwOrders = hostelOrders.filter(o => o.status === 'ON_THE_WAY');
@@ -162,7 +154,8 @@ export default function AdminDashboard() {
 
   const handleDispatch = async (card: typeof hostelCards[0]) => {
     if (dispatchingHostel || !card.dispatchRider || card.pendingCount === 0) return;
-    const dispatchableOrders = card.pendingOrders.filter(o => o.status === 'PAID' && !o.batchId && !o.assignedRiderId);
+    // Food dispatch from the dashboard; fashion/mart dispatch from their own pages
+    const dispatchableOrders = card.pendingOrders.filter(o => isFoodVertical(o) && o.status === 'PAID' && !o.batchId && !o.assignedRiderId);
     if (dispatchableOrders.length === 0) return;
     setDispatchingHostel(card.hostel.id);
     try {
@@ -176,7 +169,7 @@ export default function AdminDashboard() {
 
   const handleEmergencyDispatch = async (rider: Rider) => {
     if (dispatchingHostel || !emergencyCard || emergencyCard.pendingCount === 0) return;
-    const dispatchableOrders = emergencyCard.pendingOrders.filter(o => o.status === 'PAID' && !o.batchId && !o.assignedRiderId);
+    const dispatchableOrders = emergencyCard.pendingOrders.filter(o => isFoodVertical(o) && o.status === 'PAID' && !o.batchId && !o.assignedRiderId);
     if (dispatchableOrders.length === 0) return;
     setDispatchingHostel(emergencyCard.hostel.id);
     setEmergencyCard(null);
@@ -200,6 +193,7 @@ export default function AdminDashboard() {
       hostelCards.forEach((card) => {
         if (!card.dispatchRider || card.pendingCount === 0 || autoDispatchingRef.current.has(card.hostel.id)) return;
         const eligible = card.pendingOrders.filter((order) => {
+          if (!isFoodVertical(order)) return false;
           if (order.status !== 'PAID' || order.batchId || order.assignedRiderId) return false;
           
           if (order.deliveryType === 'BATCH') {

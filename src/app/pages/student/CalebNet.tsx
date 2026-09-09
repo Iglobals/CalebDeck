@@ -9,6 +9,7 @@ import { collection, doc, getDoc, limit, onSnapshot, query, setDoc, where, updat
 import { auth, db } from '../../../services/firebase';
 import { useAuth } from '../../../context/AuthContext';
 import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
+import { createFundingReference, verifyFunding, announceFundingResult, validateFundingAmount } from '../../../services/walletFunding';
 import { saveOrderToHistory, buildCalebNetEntry } from '../../../services/orderHistory';
 import { Button } from '../../components/design-system/Button';
 import { Card } from '../../components/design-system/Card';
@@ -59,10 +60,6 @@ const NETWORKS: Array<{ id: Network; label: string; color: string; text: string;
 const AIRTIME_PRESETS = [50, 100, 200, 500, 1000, 2000];
 const FUNDING_PRESETS = [500, 1000, 2000, 5000, 10000];
 const CATALOG_CACHE_TTL_MS = 10 * 60 * 1000;
-
-function createFundingReference() {
-  return `CDWALLET-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-}
 
 function pendingFundingKey(userId: string) {
   return `calebnet_pending_wallet_funding_${userId}`;
@@ -479,26 +476,16 @@ export default function CalebNet() {
   };
   const initializeFunding = usePaystackPayment(fundingConfig as any);
 
-  const verifyFunding = async (reference: string, attempts = 0): Promise<void> => {
+  const runFundingVerification = async (reference: string): Promise<void> => {
     if (!user) return;
     const token = await user.getIdToken();
-    const response = await fetch('/api/wallet/verify-funding', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ reference }),
-    });
-    const data = await response.json();
-    
-    if (!response.ok) {
-      if (attempts < 2) {
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        return verifyFunding(reference, attempts + 1);
-      }
-      throw new Error(data.error || 'Wallet funding failed');
+    const result = await verifyFunding(reference, token);
+    announceFundingResult(result, setWalletBalance);
+    if (result.status !== 'pending') {
+      sessionStorage.setItem(`wallet_verified_${reference}`, 'true');
+    } else {
+      verifyRef.current.delete(reference);
     }
-    
-    setWalletBalance(Number(data.balance || 0));
-    toast.success(`Wallet funded. New balance: ₦${Number(data.balance).toLocaleString()}`);
   };
 
   const verifyRef = useRef<Set<string>>(new Set());
@@ -511,23 +498,18 @@ export default function CalebNet() {
       if (verifyRef.current.has(ref)) return;
 
       verifyRef.current.add(ref);
-      
+
       const newUrl = window.location.pathname;
       window.history.replaceState({}, document.title, newUrl);
-      
+
       toast.loading('Verifying your payment...', { toastId: 'verify-funding' });
       setWalletLoading(true);
-      verifyFunding(ref)
-        .then(() => {
-          sessionStorage.setItem(`wallet_verified_${ref}`, 'true');
-          toast.dismiss('verify-funding');
-          setWalletLoading(false);
-        })
+      runFundingVerification(ref)
         .catch((e) => {
-          console.error(e);
+          console.error('[CalebNet] funding verification failed:', e);
+        })
+        .finally(() => {
           toast.dismiss('verify-funding');
-          toast.error('Funding verification delayed. Check back in a few minutes.');
-          verifyRef.current.delete(ref);
           setWalletLoading(false);
         });
     }
@@ -535,24 +517,19 @@ export default function CalebNet() {
 
   const handleFundWallet = () => {
     const amountNum = Number(fundAmount);
-    if (!amountNum || amountNum < 100) return toast.error('Minimum funding amount is ₦100');
-    
+    const validationError = validateFundingAmount(amountNum);
+    if (validationError) return toast.error(validationError);
+
     setWalletLoading(true);
     initializeFunding({
       onSuccess: (reference: any) => { void (async () => {
+        const ref = reference.reference || fundingReference;
         toast.loading('Verifying your payment...', { toastId: 'verify-funding' });
-        verifyFunding(reference.reference || fundingReference)
-          .then(() => {
-            sessionStorage.setItem(`wallet_verified_${reference.reference || fundingReference}`, 'true');
-            setFundingReference(createFundingReference());
-            toast.dismiss('verify-funding');
-            setWalletLoading(false);
-          })
-          .catch(() => {
-            toast.dismiss('verify-funding');
-            toast.error('Funding verification delayed. Check back in a few minutes.');
-            setWalletLoading(false);
-          });
+        await runFundingVerification(ref)
+          .catch((e) => console.error('[CalebNet] funding verification failed:', e));
+        setFundingReference(createFundingReference());
+        toast.dismiss('verify-funding');
+        setWalletLoading(false);
       })(); },
       onClose: () => {
         setWalletLoading(false);

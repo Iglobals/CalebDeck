@@ -6,6 +6,8 @@ import {
     PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer
 } from 'recharts';
 import { getRecentOrderHistory, subscribeToPlatformSettings } from '../../../services/db';
+import { resolveOrderVertical } from '../../../services/orderVertical';
+import { resolveDeliveryFee } from '../../../services/orderFees';
 import { TrendingUp, ShoppingBag, Users, DollarSign, CalendarDays, Shield, Truck, CheckCircle, Printer } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
@@ -45,13 +47,15 @@ export default function AdminAnalytics() {
     const isCalebDeckOrder = (order: any) => (
         order.type === 'mart' ||
         order.type === 'combo' ||
+        order.type === 'fashion' ||
         Array.isArray(order.plates) ||
-        Array.isArray(order.drinksSnacks)
+        Array.isArray(order.drinksSnacks) ||
+        Array.isArray(order.items)
     );
     const getOrderAmount = (order: any) => order.totalAmount ?? order.total ?? order.amount ?? 0;
     const getOrderItemCount = (order: any) => {
         if (order.type === 'combo') return order.quantity || 1;
-        if (order.type === 'mart') return (order.items || []).reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
+        if (order.type === 'mart' || resolveOrderVertical(order) === 'FASHION') return (order.items || []).reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
         return order.plates?.length || 0;
     };
     const getRangeBounds = (range: TimeRange) => {
@@ -69,13 +73,7 @@ export default function AdminAnalytics() {
     const getDeliveryFee = (order: any) => {
         if (typeof order.deliveryFee === 'number') return order.deliveryFee;
         if (typeof order.breakdown?.delivery === 'number') return order.breakdown.delivery;
-        if (order.type === 'mart') return 1500;
-
-        const count = order.type === 'combo' ? (order.quantity || 1) : (order.plates?.length || 1);
-        const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
-        const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((order.hostel || order.hostelName || '').toString().toLowerCase());
-        const baseDeliveryFee = isPremiumHostel ? (platformSettings?.premiumDeliveryFee || 1250) : isGroup ? 580 : 750;
-        return baseDeliveryFee * count;
+        return resolveDeliveryFee(order, platformSettings).deliveryFee;
     };
     const getServiceFee = (order: any) => {
         if (typeof order.serviceProcessingFee === 'number') return order.serviceProcessingFee;

@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '../server/firebase-admin.js';
+import { resolveOrderVertical } from '../src/services/orderVertical.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
 const GRACE_PERIOD_MS = 5 * 60 * 1000; // 5 minutes grace after window closes
@@ -52,9 +53,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         }
 
-        const isMartOrder = orderData.orderType === 'mart' || orderData.type === 'mart';
+        const vertical = resolveOrderVertical(orderData);
+        const isMartOrder = vertical === 'MART';
+        const isFashionOrder = vertical === 'FASHION';
 
-        // ─── Delivery Type Validation (food orders only) ───
+        // ─── Delivery Type Validation (food orders only — fashion batches are managed separately) ───
         let batchInfo: {
             batchId: string;
             batchName: string;
@@ -66,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         } | null = null;
         const deliveryType = orderData.deliveryType || 'INSTANT';
 
-        if (!isMartOrder) {
+        if (vertical === 'FOOD') {
             const settingsSnap = await db.collection('settings').doc('platform').get();
             const settings = settingsSnap.exists ? settingsSnap.data()! : {};
 
@@ -249,7 +252,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             hostel: orderData.hostel || '',
             hostelName: orderData.hostelName || '',
             instructions: orderData.instructions || '',
-            total: isMartOrder ? undefined : (orderData.total || 0),
+            total: (isMartOrder || isFashionOrder) ? undefined : (orderData.total || 0),
             cafeteria: orderData.cafeteria || '',
             cafeteriaId: orderData.cafeteriaId || '',
             sectionId: orderData.sectionId || 'none',
@@ -275,9 +278,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.foodBatchDayId = batchInfo.batchDayId;
         }
 
-        // Handle mart, combo, and regular food orders
-        if (isMartOrder) {
+        // Handle fashion, mart, combo, and regular food orders — every branch
+        // stamps both `type` (legacy marker) and `orderType` (explicit vertical)
+        // so cold Firestore reads can always classify the order.
+        if (isFashionOrder) {
+            orderDoc.type = 'fashion';
+            orderDoc.orderType = 'FASHION';
+            orderDoc.items = orderData.items || [];
+            orderDoc.totalAmount = orderData.totalAmount || orderData.total || 0;
+            orderDoc.subtotal = orderData.subtotal || 0;
+            orderDoc.deliveryFee = orderData.deliveryFee || 1500;
+            orderDoc.serviceProcessingFee = orderData.serviceProcessingFee || 300;
+            orderDoc.fashionBatchName = orderData.fashionBatchName || null;
+            orderDoc.expectedArrivalDate = orderData.expectedArrivalDate || null;
+            orderDoc.fashionBatchStatus = orderData.fashionBatchStatus || null;
+            delete orderDoc.total;
+            delete orderDoc.cafeteria;
+            delete orderDoc.cafeteriaId;
+            delete orderDoc.sectionId;
+            delete orderDoc.deliveryMode;
+        } else if (isMartOrder) {
             orderDoc.type = 'mart';
+            orderDoc.orderType = 'MART';
             orderDoc.items = orderData.items || [];
             orderDoc.totalAmount = orderData.totalAmount || orderData.total || 0;
             orderDoc.subtotal = orderData.subtotal || 0;
@@ -290,6 +312,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             delete orderDoc.deliveryMode;
         } else if (orderData.type === 'combo') {
             orderDoc.type = 'combo';
+            orderDoc.orderType = 'FOOD';
             orderDoc.comboId = orderData.comboId;
             orderDoc.comboName = orderData.comboName;
             orderDoc.comboItems = orderData.comboItems || [];
@@ -297,6 +320,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.plateCount = orderData.quantity || 1;
             orderDoc.basePrice = orderData.basePrice || 0;
         } else {
+            orderDoc.type = 'plate';
+            orderDoc.orderType = 'FOOD';
             orderDoc.plates = cleanPlates;
             orderDoc.drinksSnacks = cleanSnacks;
             orderDoc.plateCount = orderData.plateCount || cleanPlates.length || 1;

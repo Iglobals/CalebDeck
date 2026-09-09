@@ -7,6 +7,7 @@ import { calculateServerOrderTotal } from '../../server/order-utils.js';
 import { setCors } from '../../server/calebnet.js';
 import { verifyUser } from '../../server/verify-user.js';
 import { creditWallet, ensureWalletUser, WALLET_FUNDING_MAX, WALLET_FUNDING_MIN } from '../../server/wallet.js';
+import { resolveOrderVertical } from '../../src/services/orderVertical.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
 
@@ -46,8 +47,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
 
             const payment = await verifyPaystack(reference);
+            // Log the essentials of what Paystack actually returned before deciding —
+            // the client toast branches on these, so the decision must be traceable.
+            console.info('[Wallet Verify Funding]', {
+                reference,
+                paystackStatus: payment?.status ?? null,
+                amountKobo: payment?.amount ?? null,
+                channel: payment?.channel ?? null,
+                customerEmail: payment?.customer?.email ?? null,
+                signedInEmail: user.email ?? null,
+            });
             if (payment?.status !== 'success') {
-                return res.status(400).json({ error: 'Payment was not successful' });
+                // A genuinely failed charge will never succeed — 400 (definitive).
+                // pending/abandoned/timeout may still settle — 202 so the client
+                // keeps polling instead of showing an error for money that lands later.
+                if (payment?.status === 'failed') {
+                    return res.status(400).json({ error: 'Payment was not successful', paystackStatus: 'failed' });
+                }
+                return res.status(202).json({
+                    error: 'Payment has not been confirmed by Paystack yet',
+                    paystackStatus: payment?.status || 'unknown',
+                });
             }
 
             const amount = Number(payment.amount || 0) / 100;
@@ -106,7 +126,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
             const orderId = orderData?.orderId || `CD-${Math.floor(10000 + Math.random() * 90000)}`;
-            const isMartOrder = orderData?.orderType === 'mart' || orderData?.type === 'mart';
+            const vertical = resolveOrderVertical(orderData);
+            const isMartOrder = vertical === 'MART';
+            const isFashionOrder = vertical === 'FASHION';
             const isCombo = orderData?.type === 'combo';
 
             let finalAmount = 0;
@@ -189,6 +211,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                 if (isMartOrder) {
                     orderDocBase.type = 'mart';
+                    orderDocBase.orderType = 'MART';
                     orderDocBase.items = orderData.items || [];
                     orderDocBase.totalAmount = serverTotal;
                     orderDocBase.subtotal = orderData?.subtotal || (serverTotal - (orderData?.deliveryFee || 1500) - platformFee - processingFee);
@@ -199,8 +222,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     delete orderDocBase.cafeteriaId;
                     delete orderDocBase.sectionId;
                     delete orderDocBase.deliveryMode;
+                } else if (isFashionOrder) {
+                    orderDocBase.type = 'fashion';
+                    orderDocBase.orderType = 'FASHION';
+                    orderDocBase.items = orderData.items || [];
+                    orderDocBase.totalAmount = serverTotal;
+                    orderDocBase.subtotal = orderData?.subtotal || (serverTotal - (orderData?.deliveryFee || 1500) - platformFee - processingFee);
+                    orderDocBase.deliveryFee = orderData?.deliveryFee || 1500;
+                    orderDocBase.serviceProcessingFee = platformFee + processingFee;
+                    orderDocBase.fashionBatchName = orderData?.fashionBatchName || null;
+                    orderDocBase.expectedArrivalDate = orderData?.expectedArrivalDate || null;
+                    orderDocBase.fashionBatchStatus = orderData?.fashionBatchStatus || null;
+                    delete orderDocBase.total;
+                    delete orderDocBase.cafeteria;
+                    delete orderDocBase.cafeteriaId;
+                    delete orderDocBase.sectionId;
+                    delete orderDocBase.deliveryMode;
                 } else if (isCombo) {
                     orderDocBase.type = 'combo';
+                    orderDocBase.orderType = 'FOOD';
                     orderDocBase.comboId = orderData.comboId;
                     orderDocBase.comboName = orderData.comboName;
                     orderDocBase.comboItems = orderData.comboItems || []; 
@@ -209,7 +249,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     orderDocBase.basePrice = orderData.basePrice || 0;
                 } else {
                     orderDocBase.type = 'plate';
-                    
+                    orderDocBase.orderType = 'FOOD';
+
                     const cleanPlates = (orderData?.plates || []).map((plate: any) => ({
                         ...plate,
                         items: (plate.items || []).map((i: any) => {

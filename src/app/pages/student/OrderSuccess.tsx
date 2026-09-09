@@ -5,17 +5,16 @@ import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
 import { ProgressStepper } from '../../components/design-system/ProgressStepper';
-import { CheckCircle, MapPin, Clock, Phone, Sparkles, RefreshCw, AlertCircle, Timer, ShoppingBag, ArrowLeft } from 'lucide-react';
+import { CheckCircle, MapPin, Clock, Phone, Sparkles, RefreshCw, AlertCircle, Timer, ShoppingBag, ArrowLeft, Package } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import { subscribeToOrderStatus, getRiderById, getHostelById, Rider, getOrderById, submitReview, subscribeToPlatformSettings } from '../../../services/db';
 import { useAuth } from '../../../context/AuthContext';
 import { trackOrderTracked } from '../../../services/analytics';
 import { saveOrderToHistory, buildFoodOrderEntry, buildMartOrderEntry, buildCalebNetEntry, buildFashionOrderEntry } from '../../../services/orderHistory';
+import { resolveOrderVertical } from '../../../services/orderVertical';
 import SEO from '../../components/SEO';
 import { BatchTimeline } from '../../components/BatchTimeline';
 import { formatBatchTime } from '../../../context/BatchTimerContext';
-import { FashionOrderStepper } from '../../components/FashionOrderStepper';
-import { FASHION_ORDER_STATUSES } from '../../../services/db';
 
 const TRACKING_STEPS = ['Received', 'Out for Delivery', 'On The Way', 'Delivered'];
 const MASS_COMM_PICKUP_HOSTELS = ['mary', 'mary hall', 'rebecca', 'rebecca hall', 'esme', 'esme hall', 'mercy', 'mercy hall', 'deborah', 'deborah hall'];
@@ -80,15 +79,17 @@ export default function OrderSuccess() {
     if (location.state) {
       localStorage.setItem('calebdeck_last_order', JSON.stringify(location.state));
 
-      // Normalize fashion order type immediately upon read to prevent cold-reload bugs
+      // Normalize the vertical marker immediately upon read to prevent cold-reload bugs
       let s = { ...location.state } as any;
-      if (s.orderType === 'FASHION' || s.orderType === 'fashion' || s.cafeteria === 'CalebDeck Fashion') {
-        s.type = 'fashion';
+      const stateVertical = s.calebnet ? 'CALEBNET' : resolveOrderVertical(s);
+      if (stateVertical !== 'CALEBNET' && stateVertical !== 'FOOD') {
+        s.type = stateVertical.toLowerCase();
+        s.orderType = stateVertical;
       }
 
       // Save to persistent order history
       try {
-        if (s.calebnet) {
+        if (stateVertical === 'CALEBNET') {
           saveOrderToHistory(buildCalebNetEntry({
             network: s.network || '',
             type: s.type || 'data',
@@ -97,9 +98,9 @@ export default function OrderSuccess() {
             planName: s.planName,
             reference: s.firestoreOrderId || s.paymentReference || s.orderId || `cn_${Date.now()}`
           }));
-        } else if (s.orderType === 'FASHION' || s.orderType === 'fashion' || s.cafeteria === 'CalebDeck Fashion') {
+        } else if (stateVertical === 'FASHION') {
           saveOrderToHistory(buildFashionOrderEntry(s));
-        } else if (s.orderType === 'mart' || s.type === 'mart' || s.cafeteria === 'CalebDeck Mart') {
+        } else if (stateVertical === 'MART') {
           saveOrderToHistory(buildMartOrderEntry(s));
         } else {
           saveOrderToHistory(buildFoodOrderEntry(s));
@@ -231,8 +232,10 @@ export default function OrderSuccess() {
 
   const estimatedTime = 25 - (currentStep * 6);
   const isPaymentIssue = ['PENDING_PAYMENT', 'FAILED', 'PENDING_CONFIRMATION'].includes(orderStatus);
-  const isFashionOrder = orderData.orderType === 'FASHION' || orderData.orderType === 'fashion' || orderData.cafeteria === 'CalebDeck Fashion' || orderData.type === 'fashion';
-  const retryPath = isFashionOrder ? '/fashion' : (orderData.orderType === 'mart' || orderData.type === 'mart' || cafeteria === 'CalebDeck Mart' ? '/mart' : (user?.icaSub ? '/' : '/cafeteria'));
+  const orderVertical = resolveOrderVertical(orderData);
+  const isFashionOrder = orderVertical === 'FASHION';
+  const isMartOrder = orderVertical === 'MART';
+  const retryPath = isFashionOrder ? '/fashion' : (isMartOrder ? '/mart' : (user?.icaSub ? '/' : '/cafeteria'));
   
   // Map fashion statuses to the 4-stage tracking flow:
   // Step 0: Received (PAID, CONSOLIDATING, PROCUREMENT_IN_PROGRESS, ARRIVING_AT_CAMPUS, READY_FOR_DELIVERY)
@@ -648,11 +651,12 @@ export default function OrderSuccess() {
                     <div className="mt-4 pt-4 border-t border-border/50">
                       <p className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">Current Stage</p>
                       <p className="text-sm font-bold text-foreground">
-                        {orderStatus === 'PAID' ? 'Order Placed (Batch Open)' : 
-                         orderStatus === 'CONSOLIDATING' ? 'Consolidating Orders' : 
-                         orderStatus === 'PROCUREMENT_IN_PROGRESS' ? 'Procurement & Shipping' : 
-                         orderStatus === 'ARRIVING_AT_CAMPUS' ? 'Arriving at Campus' : 
-                         orderStatus === 'READY_FOR_DELIVERY' ? 'Ready for Dispatch' : 
+                        {orderStatus === 'PAID' ? 'Order Placed (Batch Open)' :
+                         orderStatus === 'CONSOLIDATING' ? 'Consolidating Orders' :
+                         orderStatus === 'CONSOLIDATED' ? 'Orders Consolidated' :
+                         orderStatus === 'PROCUREMENT' || orderStatus === 'PROCUREMENT_IN_PROGRESS' ? 'Procurement & Shipping' :
+                         orderStatus === 'ARRIVING_AT_CAMPUS' ? 'Arriving at Campus' :
+                         orderStatus === 'READY_FOR_DELIVERY' ? 'Ready for Dispatch' :
                          orderStatus}
                       </p>
                     </div>

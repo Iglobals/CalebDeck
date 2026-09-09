@@ -1,14 +1,23 @@
 import type { firestore } from 'firebase-admin';
+import { resolveOrderVertical } from '../src/services/orderVertical.js';
+import { isPremiumHostel as sharedIsPremiumHostel } from '../src/services/orderFees.js';
+
+const FOOD_PLATE_FEE_FALLBACKS = { foodDeliveryFee: 750, foodGroupDeliveryFee: 580, premiumDeliveryFee: 1250 };
+
+function isPremiumHostelFor(orderData: any, platformSettings: any): boolean {
+    return sharedIsPremiumHostel(orderData?.hostel || orderData?.hostelName || orderData?.hostelId, platformSettings);
+}
 
 export async function calculateServerOrderTotal(
     db: firestore.Firestore,
     orderData: any,
     transaction?: firestore.Transaction
 ): Promise<{ serverTotal: number; itemsDocs?: any[]; comboDoc?: any; paidAmountExpected?: number }> {
-    const isMartOrder = orderData?.orderType === 'mart' || orderData?.type === 'mart';
+    const vertical = resolveOrderVertical(orderData);
+    const isMartOrder = vertical === 'MART';
+    const isFashionOrder = vertical === 'FASHION';
     const isCombo = orderData?.type === 'combo';
     const isGroup = orderData?.deliveryMode === 'group' || orderData?.deliveryMode === 'GROUP';
-    const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((orderData?.hostel || orderData?.hostelName || '').toString().toLowerCase());
 
     const settingsRef = db.collection('settings').doc('platform');
     let settingsDoc;
@@ -18,29 +27,50 @@ export async function calculateServerOrderTotal(
         settingsDoc = await settingsRef.get();
     }
     const platformSettings = settingsDoc.exists ? settingsDoc.data() : {};
-    const premiumDeliveryFee = platformSettings!.premiumDeliveryFee || 1250;
-
-    let baseDeliveryFee = isGroup
-        ? (platformSettings!.foodGroupDeliveryFee || 580)
-        : (platformSettings!.foodDeliveryFee || 750);
-    if (isPremiumHostel) {
-        baseDeliveryFee = premiumDeliveryFee;
-    }
+    const isPremium = isPremiumHostelFor(orderData, platformSettings);
 
     const platformFee = 100;
     const processingFee = 200;
 
     let serverTotal = 0;
 
+    if (isFashionOrder) {
+        // Fashion is a flat per-order fee — it never inherits Food's premium hostel rate.
+        const fashionDeliveryFee = Number(orderData?.deliveryFee) > 0
+            ? Number(orderData.deliveryFee)
+            : (platformSettings!.fashionDeliveryFee || 1500);
+        const items = orderData?.items || [];
+        let fashionTotal = 0;
+        if (items.length > 0) {
+            const itemRefs = items.map((i: any) => db.collection('fashion_inventory').doc(i.id));
+            let itemDocs: firestore.DocumentSnapshot[] = [];
+            if (transaction) {
+                itemDocs = await transaction.getAll(...itemRefs);
+            } else {
+                itemDocs = await db.getAll(...itemRefs);
+            }
+            for (let idx = 0; idx < itemDocs.length; idx++) {
+                const doc = itemDocs[idx];
+                const qty = items[idx].quantity || 1;
+                const currentPrice = doc.exists ? (doc.data()!.price || 0) : (items[idx].price || 0);
+                fashionTotal += currentPrice * qty;
+            }
+        }
+        serverTotal = fashionTotal + fashionDeliveryFee + platformFee + processingFee;
+        return { serverTotal };
+    }
+
     if (isMartOrder) {
         const items = orderData?.items || [];
         let martTotal = 0;
-        const martDeliveryFee = orderData?.deliveryFee || platformSettings!.martDeliveryFee || 1500;
-        
+        const martDeliveryFee = Number(orderData?.deliveryFee) > 0
+            ? Number(orderData.deliveryFee)
+            : (platformSettings!.martDeliveryFee || 1500);
+
         if (items.length > 0) {
             const itemRefs = items.map((i: any) => db.collection('mart_items').doc(i.id));
             let itemDocs: firestore.DocumentSnapshot[] = [];
-            
+
             if (transaction) {
                 // transaction.getAll requires refs passed as arguments
                 itemDocs = await transaction.getAll(...itemRefs);
@@ -57,8 +87,15 @@ export async function calculateServerOrderTotal(
         }
         serverTotal = martTotal + martDeliveryFee + platformFee + processingFee;
         return { serverTotal };
-    } 
-    
+    }
+
+    // Food (plate or combo) — premium hostel rate only applies to food orders.
+    const baseDeliveryFee = isPremium
+        ? (platformSettings!.premiumDeliveryFee || FOOD_PLATE_FEE_FALLBACKS.premiumDeliveryFee)
+        : isGroup
+            ? (platformSettings!.foodGroupDeliveryFee || FOOD_PLATE_FEE_FALLBACKS.foodGroupDeliveryFee)
+            : (platformSettings!.foodDeliveryFee || FOOD_PLATE_FEE_FALLBACKS.foodDeliveryFee);
+
     if (isCombo) {
         const comboRef = db.collection('combo_packs').doc(orderData.comboId);
         let comboDoc;
@@ -71,15 +108,15 @@ export async function calculateServerOrderTotal(
         if (!comboDoc.exists) {
              throw new Error('Invalid combo selected');
         }
-        
+
         const comboData = comboDoc.data()!;
         const quantity = orderData.quantity || 1;
         const deliveryFee = baseDeliveryFee * quantity;
-        
+
         serverTotal = (comboData.basePrice * quantity) + deliveryFee + platformFee + processingFee;
         return { serverTotal, comboDoc: comboData };
-    } 
-    
+    }
+
     // Food Plate Order
     const items = orderData?.items || [];
     let foodTotal = 0;
@@ -87,7 +124,7 @@ export async function calculateServerOrderTotal(
     if (items.length > 0) {
         const itemRefs = items.map((i: any) => db.collection('menu_items').doc(i.id));
         let itemDocs: firestore.DocumentSnapshot[] = [];
-        
+
         if (transaction) {
             itemDocs = await transaction.getAll(...itemRefs);
         } else {
@@ -117,6 +154,6 @@ export async function calculateServerOrderTotal(
     const deliveryFee = baseDeliveryFee * plateCount;
     const takeawayFee = 200 * plateCount;
     serverTotal = foodTotal + deliveryFee + takeawayFee + platformFee + processingFee;
-    
+
     return { serverTotal };
 }

@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 
+import { isPremiumHostel } from './orderFees';
+
 // In DEV: mock server-side calculations locally
 // In PRODUCTION: call Vercel API routes (server-side, secure)
 
@@ -18,18 +20,18 @@ export const calculateOrderTotal = async (data: any) => {
 
         const plateCount = typeof providedPlateCount === 'number' ? providedPlateCount : 1;
         const isGroup = deliveryMode === 'group' || deliveryMode === 'GROUP';
-        const isPremiumHostel = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'].includes((hostelId || '').toString().toLowerCase());
-        
+
         // This is a local mock for DEV. We don't have direct access to platform settings here so we use defaults,
         // but Checkout.tsx handles its own fallback if it needs it.
         const premiumDeliveryFee = 1250;
         const foodSoloFee = 750;
         const foodGroupFee = 580;
+        const isPremium = isPremiumHostel(hostelId);
 
-        const baseDeliveryFee = isPremiumHostel ? premiumDeliveryFee : foodSoloFee;
+        const baseDeliveryFee = isPremium ? premiumDeliveryFee : foodSoloFee;
         let discountPerPlate = 0;
         if (isGroup) {
-             discountPerPlate = isPremiumHostel ? (premiumDeliveryFee - Math.round(premiumDeliveryFee * 0.8)) : (foodSoloFee - foodGroupFee);
+             discountPerPlate = isPremium ? (premiumDeliveryFee - Math.round(premiumDeliveryFee * 0.8)) : (foodSoloFee - foodGroupFee);
         }
 
         const deliveryFee = baseDeliveryFee * plateCount;
