@@ -15,11 +15,10 @@ import SEO from '../../components/SEO';
 import { Loader2 } from 'lucide-react';
 import { getHexColorName } from '../../../utils/formatColor';
 import { getFashionBatchState, DEFAULT_FASHION_BATCH_CONFIG } from '../../../services/fashionBatch';
+import { isPremiumHostel } from '../../../services/orderFees';
 import { FashionBatchPickerModal, SelectedFashionBatchInfo } from '../../components/FashionBatchPickerModal';
 import { BatchStatusBar } from '../../components/BatchStatusBar';
 import { BatchClock } from '../../components/BatchClock';
-
-const FEMALE_HOSTEL_IDS = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'];
 
 export default function FashionCheckout() {
   const { items, subtotal, totalItems, clearCart } = useMartCart();
@@ -41,7 +40,7 @@ export default function FashionCheckout() {
   const [saveAsDefault, setSaveAsDefault] = useState(false);
 
   const selectedHostel = hostels.find(h => h.id === formData.hostel);
-  const isFemaleHostelSelected = FEMALE_HOSTEL_IDS.includes((formData.hostel || '').toLowerCase());
+  const isFemaleHostelSelected = isPremiumHostel(formData.hostel, platformSettings);
   const FASHION_DELIVERY_FEE = platformSettings?.fashionDeliveryFee || 1500; // Batch fulfillment delivery fee
   const isDev = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 

@@ -326,7 +326,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             'X-Api-Key': process.env.INTERNAL_API_KEY
                         },
                         body: JSON.stringify({
-                            title: isMartOrder ? 'New Mart Order',
+                            title: isMartOrder ? 'New Mart Order Received' : 'New Order Received',
                             body: adminMsg,
                             tokens: allAdminTokens,
                             link: pushLink

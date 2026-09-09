@@ -14,8 +14,7 @@ import { Card } from '../../components/design-system/Card';
 import SEO from '../../components/SEO';
 import { PaymentSelector, PaymentMethod } from '../../components/student/PaymentSelector';
 import { Loader2 } from 'lucide-react';
-
-const FEMALE_HOSTEL_IDS = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'];
+import { isPremiumHostel } from '../../../services/orderFees';
 
 export default function MartCheckout() {
   const { items, subtotal, totalItems, clearCart } = useMartCart();
@@ -39,7 +38,7 @@ export default function MartCheckout() {
   const [isWalletPaying, setIsWalletPaying] = useState(false);
 
   const selectedHostel = hostels.find(h => h.id === formData.hostel);
-  const isFemaleHostelSelected = FEMALE_HOSTEL_IDS.includes((formData.hostel || '').toLowerCase());
+  const isFemaleHostelSelected = isPremiumHostel(formData.hostel, platformSettings);
   const MART_DELIVERY_FEE = platformSettings?.martDeliveryFee || 1500;
   const isDev = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 

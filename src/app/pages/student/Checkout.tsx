@@ -7,6 +7,7 @@ import { Badge } from '../../components/design-system/Badge';
 import { Input, Select, Textarea } from '../../components/design-system/Input';
 import { ArrowLeft, Lock, Shield, CreditCard, MapPin, User, AlertTriangle, Timer } from 'lucide-react';
 import { getActiveHostels, Hostel, subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
+import { isPremiumHostel } from '../../../services/orderFees';
 import { calculateOrderTotal, verifyPayment } from '../../../services/functions';
 import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
@@ -30,7 +31,6 @@ import { BatchClock } from '../../components/BatchClock';
 
 const DELIVERY_FEE_SOLO = 750;
 const DELIVERY_FEE_GROUP = 580;
-const FEMALE_HOSTEL_IDS = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'];
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -197,10 +197,10 @@ export default function Checkout() {
     const base = comboOrder.basePrice || 0;
     const dMode = currentDeliveryMode || 'solo';
     const isGrp = dMode === 'group' || dMode === 'GROUP';
-    const isPremiumHostel = FEMALE_HOSTEL_IDS.includes((formData.hostel || '').toLowerCase());
+    const premium = isPremiumHostel(formData.hostel, platformSettings);
 
 let baseDeliveryFee;
-if (isPremiumHostel) {
+if (premium) {
     const premiumFee = platformSettings?.premiumDeliveryFee || 1250;
     baseDeliveryFee = isGrp ? Math.round(premiumFee * 0.8) : premiumFee; // 20% off for group
 } else {
@@ -252,7 +252,7 @@ if (isPremiumHostel) {
 
   const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
   const selectedHostel = hostels.find(h => h.id === formData.hostel);
-  const isFemaleHostelSelected = FEMALE_HOSTEL_IDS.includes((formData.hostel || '').toLowerCase());
+  const isFemaleHostelSelected = isPremiumHostel(formData.hostel, platformSettings);
   const orderId = React.useMemo(() => `CD-${Math.floor(10000 + Math.random() * 90000)}`, []);
 
   // Stable payment reference — generated once, used for pre-save + Paystack + verify
