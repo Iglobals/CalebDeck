@@ -285,7 +285,7 @@ export default function AdminFashion() {
                       disabled={processingImage}
                     >
                       {processingImage ? (
-                        <><Loader2 className="w-4 h-4 animate-spin" /> Removing Background...</>
+                        <><Loader2 className="w-4 h-4 animate-spin" /> Processing Image...</>
                       ) : (
                         <><Upload className="w-4 h-4" /> {formData.imageUrl ? 'Change Image' : 'Upload Image'}</>
                       )}
