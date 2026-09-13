@@ -481,7 +481,16 @@ export default function CalebNet() {
 
   const runFundingVerification = async (reference: string): Promise<void> => {
     if (!user) return;
-    const token = await user.getIdToken();
+    let token: string | null = null;
+    try {
+      token = await user.getIdToken();
+    } catch {
+      token = null;
+    }
+    if (!token) {
+      announceFundingResult({ status: 'failed', message: 'Your session expired — please sign in again and retry the top-up.' });
+      return;
+    }
     const result = await verifyFunding(reference, token);
     announceFundingResult(result, setWalletBalance);
     if (result.status === 'success') {
@@ -529,14 +538,18 @@ export default function CalebNet() {
     setWalletLoading(true);
     // Record the intended amount server-side BEFORE the charge starts, so the
     // wallet is credited what was requested — not a surcharged amount.
-    const tokenPromise = user ? user.getIdToken() : Promise.resolve(null);
-    tokenPromise
-      .then(token => fetch('/api/wallet/funding-intent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ reference: fundingReference, amount: amountNum }),
-      }))
-      .then(res => { if (!res.ok) console.warn('[CalebNet] funding intent not recorded — server will credit the charged amount'); })
+    // Async wrapper so even a synchronous token failure becomes a rejection
+    // instead of escaping the handler (which would leave loading stuck).
+    Promise.resolve()
+      .then(async () => {
+        const token = await user!.getIdToken();
+        const res = await fetch('/api/wallet/funding-intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ reference: fundingReference, amount: amountNum }),
+        });
+        if (!res.ok) console.warn('[CalebNet] funding intent not recorded — server will credit the charged amount');
+      })
       .catch(err => console.warn('[CalebNet] funding intent not recorded:', err))
       .finally(() => {
         initializeFunding({

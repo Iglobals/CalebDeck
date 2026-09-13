@@ -90,8 +90,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 unsubscribeSnapshot = onSnapshot(doc(db, 'users', firebaseUser.uid), (userDoc) => {
                     if (userDoc.exists()) {
                         const userData = userDoc.data();
+                        // Spread copies own properties but NOT the Firebase User
+                        // prototype — so getIdToken (and every other method) would
+                        // vanish. Re-delegate any method the app calls.
                         setUser({
                             ...firebaseUser,
+                            getIdToken: (...args) => firebaseUser.getIdToken(...args),
                             role: userData.role,
                             assignedHostelIds: userData.assignedHostelIds,
                             fullName: userData.fullName,
