@@ -185,7 +185,7 @@ export default function WalletPage() {
         }
     };
 
-    // Bank-style monthly wallet statement — one Firestore range query per request.
+    // Monthly wallet statement — one Firestore range query per request.
     const [statementMonth, setStatementMonth] = useState(() => new Date().toISOString().slice(0, 7));
     const [statementLoading, setStatementLoading] = useState(false);
 
@@ -269,7 +269,7 @@ export default function WalletPage() {
                         <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
                             <div className="flex-1">
                                 <p className="text-sm font-black">Wallet Statement</p>
-                                <p className="text-xs text-muted-foreground mt-0.5">Bank-style PDF of your credits and debits for any month.</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">Download a PDF summary of your credits and debits for any month.</p>
                             </div>
                             <input
                                 type="month"

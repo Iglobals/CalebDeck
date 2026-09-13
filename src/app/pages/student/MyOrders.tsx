@@ -108,7 +108,7 @@ export default function MyOrders() {
 
   const filtered = filter === 'all' ? orders : orders.filter(o => o.type === filter);
 
-  // Bank-style monthly statement — queries the account's orders for one month.
+  // Monthly statement — queries the account's orders for one month.
   const [statementMonth, setStatementMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [statementLoading, setStatementLoading] = useState(false);
 
@@ -290,7 +290,7 @@ export default function MyOrders() {
           }`}>
             <div className="flex-1">
               <p className="text-sm font-bold">Monthly Statement</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Download a bank-style PDF of your orders for any month.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Download a PDF statement of your orders for any month.</p>
             </div>
             <input
               type="month"

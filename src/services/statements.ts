@@ -1,5 +1,5 @@
 /**
- * Bank-style statements: render a print-ready statement document (Save as PDF)
+ * Account statements: render a print-ready statement document (Save as PDF)
  * for a chosen month, from order or wallet-transaction data.
  */
 
