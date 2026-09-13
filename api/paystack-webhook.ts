@@ -3,7 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import crypto from 'crypto';
 import { adminDb } from '../server/firebase-admin.js';
 import { confirmFoodBatchReservation } from '../server/food-batch.js';
-import { creditWallet, ensureWalletUser, WALLET_FUNDING_MAX, WALLET_FUNDING_MIN } from '../server/wallet.js';
+import { creditWallet, ensureWalletUser, WALLET_FUNDING_MAX, WALLET_FUNDING_MIN, resolveFundingAmount, markFundingIntentUsed } from '../server/wallet.js';
 import { resolveOrderVertical } from '../src/services/orderVertical.js';
 
 function metadataValue(metadata: any, key: string) {
@@ -67,10 +67,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return res.status(200).json({ received: true, error: true, walletFunding: true, reason: 'missing_user_id' });
             }
 
-            if (!Number.isFinite(paidAmount) || paidAmount < WALLET_FUNDING_MIN || paidAmount > WALLET_FUNDING_MAX) {
-                console.warn(`[Webhook] Wallet funding amount outside allowed range: ${reference} (${paidAmount})`);
-                return res.status(200).json({ received: true, error: true, walletFunding: true, reason: 'invalid_amount' });
-            }
+            // Amount range is validated after intent resolution below — a Paystack
+            // surcharge on the charged amount must not reject a valid funding.
 
             await ensureWalletUser(userId, {
                 email: metadataValue(metadata, 'email') || paymentData.customer?.email || null,
@@ -78,9 +76,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 phoneNumber: metadataValue(metadata, 'phoneNumber') || null,
             });
 
+            // Credit what the user ASKED to fund (server-recorded intent), not what
+            // Paystack reports as charged — surcharges never leak into the wallet.
+            const intent = await resolveFundingAmount(userId, reference, paidAmount);
+            const creditAmount = intent ? intent.amount : paidAmount;
+            if (intent) {
+                console.info(`[Webhook] ${reference} crediting intent amount ₦${creditAmount} (charged ₦${paidAmount})`);
+            }
+            if (!Number.isFinite(creditAmount) || creditAmount < WALLET_FUNDING_MIN || creditAmount > WALLET_FUNDING_MAX) {
+                console.warn(`[Webhook] Wallet funding amount outside allowed range: ${reference} (${creditAmount})`);
+                return res.status(200).json({ received: true, error: true, walletFunding: true, reason: 'invalid_amount' });
+            }
+
             const result = await creditWallet({
                 userId,
-                amount: paidAmount,
+                amount: creditAmount,
                 reference,
                 purpose: 'WALLET_FUNDING',
                 relatedOrderId: null,
@@ -90,8 +100,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     channel: paymentData.channel || null,
                     paidAt: paymentData.paid_at || paymentData.paidAt || null,
                     customerEmail: paymentData.customer?.email || null,
+                    chargedAmount: paidAmount,
+                    creditedFromIntent: !!intent,
                 },
             });
+
+            if (intent) {
+                await markFundingIntentUsed(reference).catch(err =>
+                    console.warn(`[Webhook] Failed to mark intent used: ${reference}`, err));
+            }
 
             console.log(`[Webhook] CalebNet wallet funding credited: ${reference} alreadyProcessed=${result.alreadyProcessed}`);
             return res.status(200).json({ received: true, walletFunding: true, credited: true, alreadyProcessed: result.alreadyProcessed });
@@ -274,9 +291,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.orderType = 'MART';
             orderDoc.items = metadata.items || [];
             orderDoc.totalAmount = paidAmount;
-            orderDoc.subtotal = metadata.subtotal || (paidAmount - (metadata.deliveryFee || 1500) - 300);
+            orderDoc.subtotal = metadata.subtotal || (paidAmount - (metadata.deliveryFee || 1500));
             orderDoc.deliveryFee = metadata.deliveryFee || 1500;
-            orderDoc.serviceProcessingFee = 300;
             delete orderDoc.total;
             delete orderDoc.cafeteria;
             delete orderDoc.cafeteriaId;
@@ -287,9 +303,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.orderType = 'FASHION';
             orderDoc.items = metadata.items || [];
             orderDoc.totalAmount = paidAmount;
-            orderDoc.subtotal = metadata.subtotal || (paidAmount - (metadata.deliveryFee || 1500) - 300);
+            orderDoc.subtotal = metadata.subtotal || (paidAmount - (metadata.deliveryFee || 1500));
             orderDoc.deliveryFee = metadata.deliveryFee || 1500;
-            orderDoc.serviceProcessingFee = 300;
             orderDoc.fashionBatchName = metadata.fashionBatchName || null;
             orderDoc.expectedArrivalDate = metadata.expectedArrivalDate || null;
             orderDoc.fashionBatchStatus = metadata.fashionBatchStatus || null;

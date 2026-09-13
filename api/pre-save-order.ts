@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '../server/firebase-admin.js';
 import { resolveOrderVertical } from '../src/services/orderVertical.js';
+import { isRateLimited, clientIp } from '../server/rate-limit.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
 const GRACE_PERIOD_MS = 5 * 60 * 1000; // 5 minutes grace after window closes
@@ -31,6 +32,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    if (isRateLimited(`pre-save:${clientIp(req)}`, 20, 60 * 1000)) {
+        return res.status(429).json({ error: 'Too many requests' });
+    }
 
     try {
         const db = adminDb();
@@ -288,7 +292,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.totalAmount = orderData.totalAmount || orderData.total || 0;
             orderDoc.subtotal = orderData.subtotal || 0;
             orderDoc.deliveryFee = orderData.deliveryFee || 1500;
-            orderDoc.serviceProcessingFee = orderData.serviceProcessingFee || 300;
             orderDoc.fashionBatchName = orderData.fashionBatchName || null;
             orderDoc.expectedArrivalDate = orderData.expectedArrivalDate || null;
             orderDoc.fashionBatchStatus = orderData.fashionBatchStatus || null;
@@ -304,7 +307,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.totalAmount = orderData.totalAmount || orderData.total || 0;
             orderDoc.subtotal = orderData.subtotal || 0;
             orderDoc.deliveryFee = orderData.deliveryFee || 1500;
-            orderDoc.serviceProcessingFee = orderData.serviceProcessingFee || 300;
             delete orderDoc.total;
             delete orderDoc.cafeteria;
             delete orderDoc.cafeteriaId;

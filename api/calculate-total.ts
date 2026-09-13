@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { adminDb } from '../server/firebase-admin.js';
 import { isPremiumHostel } from '../src/services/orderFees.js';
+import { isRateLimited, clientIp } from '../server/rate-limit.js';
 
 const TAKEAWAY_FEE_PER_PLATE = 200;
 
@@ -13,6 +14,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    if (isRateLimited(`calculate-total:${clientIp(req)}`, 30, 60 * 1000)) {
+        return res.status(429).json({ error: 'Too many requests' });
+    }
 
     try {
         const db = adminDb();
@@ -72,21 +76,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const deliveryFee = baseDeliveryFee * plateCount;
         const takeawayFee = TAKEAWAY_FEE_PER_PLATE * plateCount;
         const discount = discountPerPlate * plateCount;
-        
-        const platformFee = 100;
 
-        const totalAmount = foodTotal + deliveryFee + takeawayFee + platformFee - discount;
+        const totalAmount = foodTotal + deliveryFee + takeawayFee - discount;
 
         return res.status(200).json({
             data: {
                 totalAmount,
-                breakdown: { 
-                    food: foodTotal, 
-                    delivery: deliveryFee, 
-                    takeaway: takeawayFee, 
-                    platform: platformFee,
+                breakdown: {
+                    food: foodTotal,
+                    delivery: deliveryFee,
+                    takeaway: takeawayFee,
                     processing: 0,
-                    discount 
+                    discount
                 },
             }
         });

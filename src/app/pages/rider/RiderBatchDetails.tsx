@@ -9,8 +9,8 @@ import { useAuth } from '../../../context/AuthContext';
 import { useTheme } from '../../../context/ThemeContext';
 import { useNavigate, useParams } from 'react-router';
 import { subscribeToRiderOrders, subscribeToBatches, updateOrder, updateBatch, Batch, recordDelivery, subscribeToPlatformSettings, PlatformSettings, subscribeTodayBatchDays, FoodBatchDay } from '../../../services/db';
-import { resolveOrderVertical } from '../../../services/orderVertical';
-import { isPremiumHostel } from '../../../services/orderFees';
+import { resolveOrderVertical, getOrderItemCount } from '../../../services/orderVertical';
+import { riderEarningForOrder } from '../../../services/orderFees';
 import { format } from 'date-fns';
 import { BatchOrderInfo, resolveOrderBatchInfo } from '../../components/BatchOrderInfo';
 
@@ -35,25 +35,8 @@ export default function RiderBatchDetails() {
     const isDark = riderTheme === 'dark';
     const getStudentNote = (order: any) => (order.notes || order.instructions || '').trim();
 
-    // Rider earning per order — scoped by vertical. Fashion/Mart are flat per-order
-    // rates and never inherit Food's girls'-hostel premium rate.
-    const getRiderEarning = (order: any): number => {
-        const vertical = resolveOrderVertical(order);
-        if (vertical === 'FASHION') return Number(platformSettings?.fashionRatePerDelivery) || 500;
-        if (vertical === 'MART') return Number(platformSettings?.martRatePerDelivery) || 500;
-        const isCombo = order.type === 'combo';
-        const platesCount = isCombo ? (order.quantity || 1) : (order.plates?.length || 1);
-        const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
-        const isPremium = isPremiumHostel(order.hostel || order.hostelName, platformSettings);
-        const rate = isPremium
-            ? (platformSettings?.premiumRiderRate || 750)
-            : isCombo
-                ? (platformSettings?.comboRatePerDelivery || 250)
-                : isGroup
-                    ? (platformSettings?.groupRatePerDelivery || 200)
-                    : (platformSettings?.riderRatePerDelivery || 350);
-        return platesCount * rate;
-    };
+    // Rider payout per delivered order — vertical-aware shared helper.
+    const getRiderEarning = (order: any): number => riderEarningForOrder(order, platformSettings);
 
     useEffect(() => {
         if (!user) return;
@@ -236,7 +219,7 @@ export default function RiderBatchDetails() {
                             <div class="value" style="margin-bottom: 5px;">${order.fullName}</div>
                             <div style="font-weight: 700; color: #666; font-size: 14px; margin-bottom: 15px;">📞 ${order.phone || 'N/A'}</div>
 
-                            ${order.type !== 'mart' && (order.cafeteria || order.cafeteriaId) ? `
+                            ${resolveOrderVertical(order) === 'FOOD' && (order.cafeteria || order.cafeteriaId) ? `
                                 <div style="margin-bottom: 15px; padding: 10px; background: #f8fafc; border-left: 3px solid #FCD34D; border-radius: 4px;">
                                     <div class="label">Cafe Source</div>
                                     <div style="font-size: 14px; font-weight: 900;">${order.cafeteria || (order.cafeteriaId === 'old' ? 'Old Cafeteria' : order.cafeteriaId === 'new' ? 'New Cafeteria' : 'Food Cafe')}</div>
@@ -245,7 +228,15 @@ export default function RiderBatchDetails() {
                             ` : ''}
 
                             <div class="label">Order Items</div>
-                            ${order.type === 'combo' ? (
+                            ${resolveOrderVertical(order) === 'FASHION' || resolveOrderVertical(order) === 'MART' ? (
+                                `<div class="plate-header">${resolveOrderVertical(order) === 'FASHION' ? 'Fashion Items' : 'Mart Items'}</div>` +
+                                (order.items || []).map((item: any) => `
+                                    <div class="item-row">
+                                        <span>${item.name}</span>
+                                        <span style="font-weight: 900;">×${item.quantity}</span>
+                                    </div>
+                                `).join('')
+                            ) : order.type === 'combo' ? (
                                 `<div class="plate-header">${order.comboName} × ${order.quantity || 1}</div>` +
                                 (order.comboItems || []).map((item: any) => `
                                     <div class="item-row">
@@ -272,15 +263,7 @@ export default function RiderBatchDetails() {
                                     `).join('')}
                                 `).join('')
                             )}
-                            
-                            ${(order.type !== 'combo' && order.type !== 'mart') ? `
-                            <div class="plate-header">Fees</div>
-                            <div class="item-row">
-                                <span>Takeaway Pack</span>
-                                <span style="font-weight: 900;">×${order.plates?.length || 0}</span>
-                            </div>
-                            ` : ''}
-                            
+
                             ${order.drinksSnacks?.length > 0 ? `
                                 <div class="plate-header">Add-ons</div>
                                 ${order.drinksSnacks.map((item: any) => `
@@ -439,15 +422,7 @@ export default function RiderBatchDetails() {
                         const isDelivered = order.status === 'DELIVERED';
                         const isExpanded = expandedOrders.has(order.id);
                         const isOtw = order.status === 'ON_THE_WAY' || order.status === 'OUT_FOR_DELIVERY';
-
-                        const comboBasePrice = order.type === 'combo'
-                            ? (order.basePrice || Math.round((order.total || 0) / (order.quantity || 1)))
-                            : 0;
-
-                        const totalOrderPrice = order.type === 'combo' 
-                            ? (comboBasePrice * (order.quantity || 1)) 
-                            : ((order.plates?.reduce((acc: number, p: any) => acc + (p.price || p.total || 0), 0) || 0)
-                                + (order.drinksSnacks?.reduce((acc: number, d: any) => acc + (d.price || d.total || 0), 0) || 0));
+                        const itemCount = getOrderItemCount(order);
 
                         return (
                             <Card
@@ -493,7 +468,7 @@ export default function RiderBatchDetails() {
                                     </div>
                                     <div className="flex items-center gap-4">
                                         <div className="text-right hidden sm:block">
-                                            <div className="text-[10px] text-amber-500 font-bold uppercase">{order.type === 'combo' ? `${order.quantity || 1} Combos` : `${order.plates?.length || 0} Plates`}</div>
+                                            <div className="text-[10px] text-amber-500 font-bold uppercase">{itemCount} Items</div>
                                         </div>
                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDark ? 'bg-[#222222] text-[#9C8F7F]' : 'bg-gray-100 text-gray-500'}`}>
                                             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -512,60 +487,41 @@ export default function RiderBatchDetails() {
                                                     <FileText className="w-4 h-4" /> <span className="font-bold uppercase tracking-widest text-[10px]">Order Contents</span>
                                                 </div>
 
-                                                {order.type === 'combo' ? (
-                                                    <div className={`rounded-xl p-3 border ${isDark ? 'bg-[#222222]/50 border-[#333333]' : 'bg-gray-50 border-gray-200'}`}>
+                                                {resolveOrderVertical(order) === 'FASHION' || order.type === 'mart' ? (
+                                                    <div className={`rounded-xl p-3 border ${resolveOrderVertical(order) === 'FASHION' ? (isDark ? 'bg-[#222222]/50 border-[#333333]' : 'bg-purple-50 border-purple-200') : (isDark ? 'bg-[#222222]/50 border-[#333333]' : 'bg-blue-50 border-blue-200')}`}>
                                                         <div className="flex justify-between items-start mb-1">
-                                                            <span className="text-xs font-black text-purple-600 uppercase tracking-widest">{order.comboName} × {order.quantity || 1}</span>
-                                                            <span className="text-xs font-bold text-amber-500">₦{(comboBasePrice * (order.quantity || 1)).toLocaleString()}</span>
-                                                        </div>
-                                                        <div className={`text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
-                                                            {order.comboItems?.map((item: any) => `${item.quantity > 1 ? `${item.quantity}x ` : ''}${item.name}`).join(', ') || 'No items'}
-                                                        </div>
-                                                    </div>
-                                                ) : order.type === 'mart' ? (
-                                                    <div className={`rounded-xl p-3 border ${isDark ? 'bg-[#222222]/50 border-[#333333]' : 'bg-blue-50 border-blue-200'}`}>
-                                                        <div className="flex justify-between items-start mb-1">
-                                                            <span className="text-xs font-black text-blue-600 uppercase tracking-widest">Mart Items</span>
-                                                            <span className="text-xs font-bold text-amber-500">₦{order.totalAmount?.toLocaleString()}</span>
+                                                            <span className={`text-xs font-black uppercase tracking-widest ${resolveOrderVertical(order) === 'FASHION' ? 'text-[#7C3AED]' : 'text-blue-600'}`}>
+                                                                {resolveOrderVertical(order) === 'FASHION' ? 'Fashion Items' : 'Mart Items'}
+                                                            </span>
                                                         </div>
                                                         <div className={`text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
                                                             {order.items?.map((item: any) => `${item.quantity > 1 ? `${item.quantity}x ` : ''}${item.name}`).join(', ') || 'No items'}
+                                                        </div>
+                                                    </div>
+                                                ) : order.type === 'combo' ? (
+                                                    <div className={`rounded-xl p-3 border ${isDark ? 'bg-[#222222]/50 border-[#333333]' : 'bg-gray-50 border-gray-200'}`}>
+                                                        <span className="text-xs font-black text-purple-600 uppercase tracking-widest">{order.comboName} × {order.quantity || 1}</span>
+                                                        <div className={`text-sm mt-1 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
+                                                            {order.comboItems?.map((item: any) => `${item.quantity > 1 ? `${item.quantity}x ` : ''}${item.name}`).join(', ') || 'No items'}
                                                         </div>
                                                     </div>
                                                 ) : (
                                                     <>
                                                         {order.plates?.map((plate: any, i: number) => (
                                                             <div key={i} className={`rounded-xl p-3 border ${isDark ? 'bg-[#222222]/50 border-[#333333]' : 'bg-gray-50 border-gray-200'}`}>
-                                                                <div className="flex justify-between items-start mb-1">
-                                                                    <span className="text-xs font-black text-purple-600 uppercase tracking-widest">Plate {i + 1}</span>
-                                                                    <span className="text-xs font-bold text-amber-500">₦{(plate.total || plate.price || 0).toLocaleString()}</span>
-                                                                </div>
-                                                                <div className={`text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
+                                                                <span className="text-xs font-black text-purple-600 uppercase tracking-widest">Plate {i + 1}</span>
+                                                                <div className={`text-sm mt-1 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
                                                                     {plate.items ? plate.items.map((item: any) => `${item.quantity > 1 ? `${item.quantity}x ` : ''}${item.item?.name || item.name}`).join(', ') : 'No items'}
                                                                 </div>
                                                             </div>
                                                         ))}
-
-                                                        <div className={`rounded-xl p-3 border ${isDark ? 'bg-amber-500/5 border-amber-500/20' : 'bg-[#FAF9F6] border-gray-200'}`}>
-                                                            <div className="flex justify-between items-start mb-1">
-                                                                <span className="text-xs font-black text-amber-600 uppercase tracking-widest">Fees</span>
-                                                                <span className="text-xs font-bold text-amber-600">₦{((order.plates?.length || 0) * 200).toLocaleString()}</span>
-                                                            </div>
-                                                            <div className={`text-sm font-medium flex items-center gap-1.5 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
-                                                                <Package className="w-3.5 h-3.5 text-amber-500" />
-                                                                Takeaway Pack × {order.plates?.length || 0}
-                                                            </div>
-                                                        </div>
                                                     </>
                                                 )}
 
                                                 {order.drinksSnacks?.length > 0 && (
-                                                    <div className={`rounded-xl p-3 border ${isDark ? 'bg-amber-500/5 border-amber-500/20' : 'bg-amber-50 border-amber-200'}`}>
-                                                        <div className="flex justify-between items-start mb-1">
-                                                            <span className="text-xs font-black text-amber-600 uppercase tracking-widest">Extras</span>
-                                                            <span className="text-xs font-bold text-amber-600">₦{order.drinksSnacks.reduce((a: number, b: any) => a + ((b.item?.price || b.price || 0) * (b.quantity || 1)), 0).toLocaleString()}</span>
-                                                        </div>
-                                                        <div className={`text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
+                                                    <div className={`rounded-xl p-3 border ${isDark ? 'bg-[#222222]/50 border-[#333333]' : 'bg-amber-50 border-amber-200'}`}>
+                                                        <span className="text-xs font-black text-amber-600 uppercase tracking-widest">Extras</span>
+                                                        <div className={`text-sm mt-1 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
                                                             {order.drinksSnacks.map((d: any) => `${d.quantity > 1 ? `${d.quantity}x ` : ''}${d.item?.name || d.name}`).join(', ')}
                                                         </div>
                                                     </div>

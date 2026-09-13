@@ -69,6 +69,16 @@ export function getOrderHistory(): OrderHistoryEntry[] {
   return readHistory();
 }
 
+/** Update a saved entry's status from a live source (e.g. CalebNetStatus).
+ *  Cold localStorage entries otherwise stay frozen at their purchase-time status. */
+export function updateOrderHistoryStatus(id: string, status: string) {
+  const history = readHistory();
+  const idx = history.findIndex(h => h.id === id);
+  if (idx === -1 || history[idx].status === status) return;
+  history[idx] = { ...history[idx], status };
+  writeHistory(history);
+}
+
 /** Clear all order history */
 export function clearOrderHistory() {
   localStorage.removeItem(STORAGE_KEY);

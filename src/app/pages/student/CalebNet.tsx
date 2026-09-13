@@ -41,6 +41,7 @@ interface WalletTransaction {
   amount: number;
   balanceAfter: number;
   purpose: string;
+  reference?: string;
   relatedOrderId?: string;
   status: string;
   createdAt?: any;
@@ -60,32 +61,6 @@ const NETWORKS: Array<{ id: Network; label: string; color: string; text: string;
 const AIRTIME_PRESETS = [50, 100, 200, 500, 1000, 2000];
 const FUNDING_PRESETS = [500, 1000, 2000, 5000, 10000];
 const CATALOG_CACHE_TTL_MS = 10 * 60 * 1000;
-
-function pendingFundingKey(userId: string) {
-  return `calebnet_pending_wallet_funding_${userId}`;
-}
-
-function getPendingFundingReferences(userId: string) {
-  try {
-    const raw = window.localStorage.getItem(pendingFundingKey(userId));
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.filter((item) => typeof item === 'string') : [];
-  } catch {
-    return [];
-  }
-}
-
-function savePendingFundingReference(userId: string, reference: string) {
-  const refs = new Set(getPendingFundingReferences(userId));
-  refs.add(reference);
-  window.localStorage.setItem(pendingFundingKey(userId), JSON.stringify(Array.from(refs).slice(-5)));
-}
-
-function removePendingFundingReference(userId: string, reference: string) {
-  const refs = getPendingFundingReferences(userId).filter((item) => item !== reference);
-  if (refs.length === 0) window.localStorage.removeItem(pendingFundingKey(userId));
-  else window.localStorage.setItem(pendingFundingKey(userId), JSON.stringify(refs));
-}
 
 function money(value: number) {
   return `₦${Number(value || 0).toLocaleString()}`;
@@ -293,6 +268,7 @@ export default function CalebNet() {
   const [isLoadingPlans, setIsLoadingPlans] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
+  const [walletBalanceLoaded, setWalletBalanceLoaded] = useState(false);
   const [walletLoading, setWalletLoading] = useState(false);
   const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([]);
   const [fundAmount, setFundAmount] = useState<number | ''>(1000);
@@ -329,6 +305,13 @@ export default function CalebNet() {
 
   useEffect(() => subscribeToPlatformSettings(setPlatformSettings), []);
 
+  // Safety valve: if the realtime balance never arrives (dead network), ungate
+  // the Pay button after a wait — the server still validates the real balance.
+  useEffect(() => {
+    const t = setTimeout(() => setWalletBalanceLoaded(true), 8000);
+    return () => clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     if (!user?.uid) return;
     const userUnsub = onSnapshot(doc(db, 'users', user.uid), (snap) => {
@@ -338,6 +321,7 @@ export default function CalebNet() {
         phoneNumber: String(data.phoneNumber || user.phoneNumber || '').trim(),
       };
       setWalletBalance(Number(data.walletBalance || 0));
+      setWalletBalanceLoaded(true);
       if (data.calebNetAvatarId) setAvatarId(data.calebNetAvatarId);
       setStudentProfile(nextProfile);
       setProfileDraft((current) => ({
@@ -350,9 +334,24 @@ export default function CalebNet() {
     });
     const txQuery = query(collection(db, 'wallet_transactions'), where('userId', '==', user.uid), limit(12));
     const txUnsub = onSnapshot(txQuery, (snap) => {
-      setWalletTransactions(snap.docs
+      const txs = snap.docs
         .map((item) => ({ id: item.id, ...item.data() } as WalletTransaction))
-        .sort((a, b) => Number(b.createdAt?.seconds || 0) - Number(a.createdAt?.seconds || 0)));
+        .sort((a, b) => Number(b.createdAt?.seconds || 0) - Number(a.createdAt?.seconds || 0));
+      setWalletTransactions(txs);
+      // Announce wallet-funding credits that confirm AFTER verification gave up
+      // (webhook path). First snapshot is the baseline — never toast on load.
+      txs.forEach((t) => {
+        const ref = t.reference || t.id;
+        if (t.type === 'credit' && t.purpose === 'WALLET_FUNDING') {
+          if (!txBaselineDone.current) {
+            announcedFundingRefs.current.add(ref);
+          } else if (!announcedFundingRefs.current.has(ref)) {
+            announcedFundingRefs.current.add(ref);
+            toast.success(`Wallet funded. New balance: ₦${Number(t.balanceAfter || 0).toLocaleString()}`);
+          }
+        }
+      });
+      txBaselineDone.current = true;
     }, () => setWalletTransactions([]));
     return () => {
       userUnsub();
@@ -439,7 +438,10 @@ export default function CalebNet() {
   const providerStatus = statuses[`${type}_${network}`] || 'HEALTHY';
   const airtimeAvailable = type !== 'AIRTIME' || plans.length > 0;
   const currentAmount = type === 'DATA' ? Number(selectedPlan?.sellingPrice || 0) : Number(amount || 0);
-  const insufficientBalance = currentAmount > 0 && walletBalance < currentAmount;
+  // The balance check must never run against not-yet-loaded data — that is what
+  // produced the false "Insufficient wallet balance" flash before the first
+  // realtime snapshot landed.
+  const insufficientBalance = walletBalanceLoaded && currentAmount > 0 && walletBalance < currentAmount;
   const airtimeAmountError = type === 'AIRTIME' && amount !== ''
     ? currentAmount < 50
       ? 'Minimum airtime purchase is ₦50.'
@@ -449,6 +451,7 @@ export default function CalebNet() {
     : '';
   const phoneMismatch = phoneNumber.length >= 4 && detectNetwork(phoneNumber) && detectNetwork(phoneNumber) !== network;
   const valid = !!user
+    && walletBalanceLoaded
     && providerStatus !== 'DOWN'
     && airtimeAvailable
     && !insufficientBalance
@@ -481,7 +484,8 @@ export default function CalebNet() {
     const token = await user.getIdToken();
     const result = await verifyFunding(reference, token);
     announceFundingResult(result, setWalletBalance);
-    if (result.status !== 'pending') {
+    if (result.status === 'success') {
+      announcedFundingRefs.current.add(reference);
       sessionStorage.setItem(`wallet_verified_${reference}`, 'true');
     } else {
       verifyRef.current.delete(reference);
@@ -489,6 +493,8 @@ export default function CalebNet() {
   };
 
   const verifyRef = useRef<Set<string>>(new Set());
+  const announcedFundingRefs = useRef<Set<string>>(new Set());
+  const txBaselineDone = useRef(false);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -521,20 +527,33 @@ export default function CalebNet() {
     if (validationError) return toast.error(validationError);
 
     setWalletLoading(true);
-    initializeFunding({
-      onSuccess: (reference: any) => { void (async () => {
-        const ref = reference.reference || fundingReference;
-        toast.loading('Verifying your payment...', { toastId: 'verify-funding' });
-        await runFundingVerification(ref)
-          .catch((e) => console.error('[CalebNet] funding verification failed:', e));
-        setFundingReference(createFundingReference());
-        toast.dismiss('verify-funding');
-        setWalletLoading(false);
-      })(); },
-      onClose: () => {
-        setWalletLoading(false);
-      },
-    });
+    // Record the intended amount server-side BEFORE the charge starts, so the
+    // wallet is credited what was requested — not a surcharged amount.
+    const tokenPromise = user ? user.getIdToken() : Promise.resolve(null);
+    tokenPromise
+      .then(token => fetch('/api/wallet/funding-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ reference: fundingReference, amount: amountNum }),
+      }))
+      .then(res => { if (!res.ok) console.warn('[CalebNet] funding intent not recorded — server will credit the charged amount'); })
+      .catch(err => console.warn('[CalebNet] funding intent not recorded:', err))
+      .finally(() => {
+        initializeFunding({
+          onSuccess: (reference: any) => { void (async () => {
+            const ref = reference.reference || fundingReference;
+            toast.loading('Verifying your payment...', { toastId: 'verify-funding' });
+            await runFundingVerification(ref)
+              .catch((e) => console.error('[CalebNet] funding verification failed:', e));
+            setFundingReference(createFundingReference());
+            toast.dismiss('verify-funding');
+            setWalletLoading(false);
+          })(); },
+          onClose: () => {
+            setWalletLoading(false);
+          },
+        });
+      });
   };
 
   const refreshWallet = async () => {
@@ -683,7 +702,9 @@ export default function CalebNet() {
         } catch(e) {}
       }
       purchaseRef.current = `CDNETW-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-      navigate(`/calebnet/status/${encodeURIComponent(clientRequestId)}`);
+      // replace (not push): back from the status page must land on the page
+      // before this purchase — never a CalebNet ↔ status history loop.
+      navigate(`/calebnet/status/${encodeURIComponent(clientRequestId)}`, { replace: true });
     } catch (error: any) {
       const raw = error.message || '';
       // Never show raw Firestore / server internals to students

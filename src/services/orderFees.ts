@@ -89,3 +89,27 @@ export function resolveDeliveryFee(order: any, settings?: any): DeliveryFeeResul
 export const TAKEAWAY_FEE_PER_PLATE = 200;
 export const PLATFORM_FEE = 100;
 export const PROCESSING_FEE = 200;
+
+/**
+ * Rider payout for one delivered order — vertical-aware, mirroring the
+ * admin-configured rates in Platform Settings. Fashion/Mart are flat per-order
+ * rates and never inherit Food's premium hostel rate. Emergency multipliers and
+ * refund adjustments are call-site policy, not part of this helper.
+ */
+export function riderEarningForOrder(order: any, settings?: any): number {
+    const vertical = resolveOrderVertical(order);
+    if (vertical === 'FASHION') return Number(settings?.fashionRatePerDelivery) || 500;
+    if (vertical === 'MART') return Number(settings?.martRatePerDelivery) || 500;
+    const isCombo = order?.type === 'combo';
+    const platesCount = isCombo ? (order?.quantity || 1) : (order?.plates?.length || 1);
+    const isGroup = order?.deliveryMode === 'group' || order?.deliveryMode === 'GROUP';
+    const isPremium = isPremiumHostel(order?.hostel || order?.hostelName, settings);
+    const rate = isPremium
+        ? (settings?.premiumRiderRate || 750)
+        : isCombo
+            ? (settings?.comboRatePerDelivery || 250)
+            : isGroup
+                ? (settings?.groupRatePerDelivery || 200)
+                : (settings?.riderRatePerDelivery || 350);
+    return platesCount * rate;
+}

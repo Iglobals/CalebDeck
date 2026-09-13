@@ -6,6 +6,7 @@ import { TrendingUp, DollarSign, Package, CheckCircle, Clock } from 'lucide-reac
 import { useAuth } from '../../../context/AuthContext';
 import { useTheme } from '../../../context/ThemeContext';
 import { subscribeToRiderOrders, subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
+import { riderEarningForOrder } from '../../../services/orderFees';
 import { format, subDays, startOfDay, isAfter, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, isWithinInterval } from 'date-fns';
 
 export default function RiderAnalytics() {
@@ -29,18 +30,8 @@ export default function RiderAnalytics() {
         return unsub;
     }, [user]);
 
-    const riderRate = platformSettings?.riderRatePerDelivery || 300;
-
     const getOrderEarnings = (o: any) => {
-        const platesCount = o.type === 'combo' ? (o.quantity || 1) : (o.plates?.length || 1);
-        const isCombo = o.type === 'combo';
-        const isGroup = o.deliveryMode === 'group' || o.deliveryMode === 'GROUP';
-        const rate = isCombo
-            ? (platformSettings?.comboRatePerDelivery || 250)
-            : isGroup
-                ? (platformSettings?.groupRatePerDelivery || 200)
-                : (platformSettings?.riderRatePerDelivery || 350);
-        const earning = platesCount * rate;
+        const earning = riderEarningForOrder(o, platformSettings);
         return o.isEmergency ? earning * 1.5 : earning;
     };
 
@@ -71,7 +62,7 @@ export default function RiderAnalytics() {
     const deliveredOrders = filteredOrders.filter(o => o.status === 'DELIVERED');
 
     const totalEarnings = deliveredOrders.reduce((acc, o) => acc + getOrderEarnings(o), 0);
-    const avgPerDelivery = riderRate;
+    const avgPerDelivery = deliveredOrders.length > 0 ? Math.round(totalEarnings / deliveredOrders.length) : 0;
     const completionRate = filteredOrders.length > 0 ? ((deliveredOrders.length / filteredOrders.length) * 100).toFixed(0) : '0';
 
     let chartData: any[] = [];

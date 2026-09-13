@@ -197,9 +197,6 @@ export default function AdminOrderHistory() {
                     const isGroup = order.deliveryMode === 'group' || order.deliveryMode === 'GROUP';
                     const feeInfo = resolveDeliveryFee(order);
                     const deliveryFee = isFood && hasBreakdown ? order.breakdown.delivery : feeInfo.deliveryFee;
-                    const processingFee = typeof order.serviceProcessingFee === 'number'
-                        ? order.serviceProcessingFee
-                        : (hasBreakdown ? (order.breakdown.processing + order.breakdown.platform) : 300);
                     const discount = isFood && hasBreakdown ? (order.breakdown.discount || 0) : 0;
                     const takeawayAmount = isFood && order.type !== 'combo' ? (order.plates?.length || 0) * 200 : 0;
 
@@ -214,10 +211,6 @@ export default function AdminOrderHistory() {
                         <div class="row">
                             <span>Delivery Fee${isFood ? (isGroup ? ' (Group)' : ' (Solo)') : ''}</span>
                             <span>₦${deliveryFee.toLocaleString()}</span>
-                        </div>
-                        <div class="row">
-                            <span>Service & Processing</span>
-                            <span>₦${processingFee.toLocaleString()}</span>
                         </div>
                         ${discount > 0 ? `
                         <div class="row" style="color: #10B981;">

@@ -770,9 +770,13 @@ export const createNotification = async (data: Omit<Notification, 'id' | 'create
             }
             if (tokens.length > 0) {
                 tokens = [...new Set(tokens)]; // Deduplicate
+                // Authorized via the signed-in user's ID token — the bundled Vite
+                // env keys are public and are not a security boundary.
+                const { getAuth } = await import('firebase/auth');
+                const idToken = await getAuth().currentUser?.getIdToken().catch(() => null);
                 fetch('/api/send-push', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Api-Key': import.meta.env.VITE_INTERNAL_API_KEY || '' },
+                    headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
                     body: JSON.stringify({ tokens, title: data.title, body: data.message, link: data.link || '/' })
                 })
                     .then(async response => {

@@ -75,18 +75,6 @@ export default function AdminAnalytics() {
         if (typeof order.breakdown?.delivery === 'number') return order.breakdown.delivery;
         return resolveDeliveryFee(order, platformSettings).deliveryFee;
     };
-    const getServiceFee = (order: any) => {
-        if (typeof order.serviceProcessingFee === 'number') return order.serviceProcessingFee;
-        const orderDate = parseDate(order.createdAt || order.date);
-        const serviceFeeStartDate = new Date('2026-04-22T12:00:00+01:00');
-        let platform = order.breakdown?.platform || 0;
-        let processing = order.breakdown?.processing || 0;
-        if (orderDate && orderDate >= serviceFeeStartDate) {
-            platform = platform || 100;
-            processing = processing || 200;
-        }
-        return platform + processing;
-    };
 
     const filteredOrders = useMemo(() => {
         const rangeBounds = getRangeBounds(timeRange);
@@ -101,19 +89,25 @@ export default function AdminAnalytics() {
 
     const isGroupOrder = (o: any) => o.deliveryMode === 'group' || o.deliveryMode === 'GROUP';
     const isComboOrder = (o: any) => o.type === 'combo';
-    const isMartOrder = (o: any) => o.type === 'mart';
+    const isMartOrder = (o: any) => resolveOrderVertical(o) === 'MART';
 
+    // Order types are vertical-aware: Food splits Solo/Group, Combo is a Food
+    // subtype, and Mart/Fashion are their own verticals (Fashion has no solo/group
+    // concept — it must never be counted as a Food solo order).
     const orderTypeBreakdown = useMemo(() => {
-        const combo = filteredOrders.filter(o => isComboOrder(o)).length;
-        const mart = filteredOrders.filter(o => isMartOrder(o)).length;
-        const solo = filteredOrders.filter(o => !isComboOrder(o) && !isMartOrder(o) && !isGroupOrder(o)).length;
-        const group = filteredOrders.filter(o => !isComboOrder(o) && !isMartOrder(o) && isGroupOrder(o)).length;
+        const foodOrders = filteredOrders.filter(o => resolveOrderVertical(o) === 'FOOD');
+        const combo = foodOrders.filter(o => isComboOrder(o)).length;
+        const solo = foodOrders.filter(o => !isComboOrder(o) && !isGroupOrder(o)).length;
+        const group = foodOrders.filter(o => !isComboOrder(o) && isGroupOrder(o)).length;
+        const mart = filteredOrders.filter(o => resolveOrderVertical(o) === 'MART').length;
+        const fashion = filteredOrders.filter(o => resolveOrderVertical(o) === 'FASHION').length;
 
         return [
-            { name: 'Solo', value: solo },
-            { name: 'Group', value: group },
+            { name: 'Food Solo', value: solo },
+            { name: 'Food Group', value: group },
             { name: 'Combo Pack', value: combo },
             { name: 'Mart', value: mart },
+            { name: 'Fashion', value: fashion },
         ].filter(d => d.value > 0);
     }, [filteredOrders]);
 
@@ -122,9 +116,10 @@ export default function AdminAnalytics() {
         const itemCounts: Record<string, number> = {};
 
         filteredOrders.forEach(o => {
-            if (isMartOrder(o)) {
-                const martItems = o.items || [];
-                martItems.forEach((item: any) => {
+            const vertical = resolveOrderVertical(o);
+            if (vertical === 'MART' || vertical === 'FASHION') {
+                const items = o.items || [];
+                items.forEach((item: any) => {
                     const name = (item.name || '').trim();
                     if (name) itemCounts[name] = (itemCounts[name] || 0) + (item.quantity || 1);
                 });
@@ -191,7 +186,6 @@ export default function AdminAnalytics() {
     const totalOrders = filteredOrders.length;
     const totalTotal = filteredOrders.reduce((sum, o) => sum + getOrderAmount(o), 0);
     const totalDeliveryFees = filteredOrders.reduce((sum, o) => sum + getDeliveryFee(o), 0);
-    const totalSystemFees = filteredOrders.reduce((sum, o) => sum + getServiceFee(o), 0);
     const totalRevenue = totalTotal;
     const totalItems = filteredOrders.reduce((sum, o) => sum + getOrderItemCount(o), 0);
     const deliveredOrders = filteredOrders.filter(o => o.status === 'DELIVERED').length;
@@ -223,13 +217,14 @@ export default function AdminAnalytics() {
         const topRows = topMenuItems.map((item, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(item.name)}</td><td>${item.count}x</td></tr>`).join('');
         const detailRows = filteredOrders.map(o => {
             const date = parseDate(o.createdAt);
+            const verticalLabel = resolveOrderVertical(o) === 'FASHION' ? 'Fashion' : resolveOrderVertical(o) === 'MART' ? 'Mart' : (o.type === 'combo' ? 'Combo' : 'Food');
             return `<tr>
                 <td>${date ? format(date, 'MMM d, h:mm a') : 'N/A'}</td>
                 <td>${escapeHtml(o.orderId || o.id)}</td>
                 <td>${escapeHtml(o.fullName || o.studentName || '')}</td>
                 <td>${escapeHtml(o.phone || '')}</td>
                 <td>${escapeHtml(o.hostelName || o.hostel || '')}</td>
-                <td>${escapeHtml(o.type || 'food')}</td>
+                <td>${escapeHtml(verticalLabel)}</td>
                 <td>${escapeHtml(o.status)}</td>
                 <td>NGN ${getOrderAmount(o).toLocaleString()}</td>
             </tr>`;
@@ -289,10 +284,10 @@ export default function AdminAnalytics() {
                   <div class="card"><div class="label">Total Orders</div><div class="value">${totalOrders}</div></div>
                   <div class="card"><div class="label">Gross Revenue</div><div class="value">NGN ${totalRevenue.toLocaleString()}</div></div>
                   <div class="card"><div class="label">Delivery Fees</div><div class="value">NGN ${totalDeliveryFees.toLocaleString()}</div></div>
-                  <div class="card"><div class="label">Service Fees</div><div class="value">NGN ${totalSystemFees.toLocaleString()}</div></div>
                   <div class="card"><div class="label">Delivered</div><div class="value">${deliveredOrders} (${fulfillmentRate}%)</div></div>
                   <div class="card"><div class="label">Average Order Value</div><div class="value">NGN ${avgOrderValue.toLocaleString()}</div></div>
-                  <div class="card"><div class="label">Mart Orders</div><div class="value">${filteredOrders.filter(o => isMartOrder(o)).length}</div></div>
+                  <div class="card"><div class="label">Mart Orders</div><div class="value">${filteredOrders.filter(o => resolveOrderVertical(o) === 'MART').length}</div></div>
+                  <div class="card"><div class="label">Fashion Orders</div><div class="value">${filteredOrders.filter(o => resolveOrderVertical(o) === 'FASHION').length}</div></div>
                   <div class="card"><div class="label">Customers / Items</div><div class="value">${uniqueCustomers} / ${totalItems}</div></div>
                 </div>
                 <div class="section-grid">
@@ -376,7 +371,7 @@ export default function AdminAnalytics() {
                     { label: 'Total Orders', value: totalOrders.toString(), icon: <ShoppingBag className="w-5 h-5" />, color: '#7C3AED' },
                     { label: 'Gross Revenue', value: `₦${totalRevenue.toLocaleString()}` , icon: <DollarSign className="w-5 h-5" />, color: '#10B981' },
                     { label: 'Delivery Revenue', value: `₦${totalDeliveryFees.toLocaleString()}` , icon: <Truck className="w-5 h-5" />, color: '#F97316' },
-                    { label: 'Service Fees', value: `₦${totalSystemFees.toLocaleString()}` , icon: <Shield className="w-5 h-5" />, color: '#F43F5E' },
+                    { label: 'Unique Customers', value: uniqueCustomers.toString(), icon: <Shield className="w-5 h-5" />, color: '#F43F5E' },
                     { label: 'Orders Delivered', value: `${deliveredOrders} (${fulfillmentRate}%)`, icon: <CheckCircle className="w-5 h-5" />, color: '#3B82F6' },
                 ].map((kpi, i) => (
                     <Card key={i} className={`${cardBg} border`}>

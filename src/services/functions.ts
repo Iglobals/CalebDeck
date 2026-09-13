@@ -38,20 +38,17 @@ export const calculateOrderTotal = async (data: any) => {
         const takeawayFee = plateCount * 200;
         const discount = discountPerPlate * plateCount;
 
-        const platformFee = 100;
-
-        const finalTotal = total + deliveryFee + takeawayFee + platformFee - discount;
+        const finalTotal = total + deliveryFee + takeawayFee - discount;
 
         return {
             data: {
                 totalAmount: finalTotal,
-                breakdown: { 
-                    food: total, 
-                    delivery: deliveryFee, 
-                    takeaway: takeawayFee, 
-                    platform: platformFee,
+                breakdown: {
+                    food: total,
+                    delivery: deliveryFee,
+                    takeaway: takeawayFee,
                     processing: 0,
-                    discount 
+                    discount
                 },
             }
         };

@@ -29,9 +29,6 @@ export async function calculateServerOrderTotal(
     const platformSettings = settingsDoc.exists ? settingsDoc.data() : {};
     const isPremium = isPremiumHostelFor(orderData, platformSettings);
 
-    const platformFee = 100;
-    const processingFee = 200;
-
     let serverTotal = 0;
 
     if (isFashionOrder) {
@@ -56,7 +53,7 @@ export async function calculateServerOrderTotal(
                 fashionTotal += currentPrice * qty;
             }
         }
-        serverTotal = fashionTotal + fashionDeliveryFee + platformFee + processingFee;
+        serverTotal = fashionTotal + fashionDeliveryFee;
         return { serverTotal };
     }
 
@@ -85,7 +82,7 @@ export async function calculateServerOrderTotal(
                 martTotal += currentPrice * qty;
             }
         }
-        serverTotal = martTotal + martDeliveryFee + platformFee + processingFee;
+        serverTotal = martTotal + martDeliveryFee;
         return { serverTotal };
     }
 
@@ -113,12 +110,24 @@ export async function calculateServerOrderTotal(
         const quantity = orderData.quantity || 1;
         const deliveryFee = baseDeliveryFee * quantity;
 
-        serverTotal = (comboData.basePrice * quantity) + deliveryFee + platformFee + processingFee;
+        serverTotal = (comboData.basePrice * quantity) + deliveryFee;
         return { serverTotal, comboDoc: comboData };
     }
 
-    // Food Plate Order
-    const items = orderData?.items || [];
+    // Food Plate Order — food orders carry a flat `items` array (wallet path)
+    // or `plates` (client plate-builder); price both through menu_items.
+    const flatItems: any[] = Array.isArray(orderData?.items) ? [...orderData.items] : [];
+    for (const plate of (orderData?.plates || [])) {
+        for (const plateItem of (plate?.items || [])) {
+            flatItems.push({
+                id: plateItem?.item?.id || plateItem?.id,
+                price: plateItem?.item?.price || plateItem?.price || 0,
+                quantity: plateItem?.quantity || 1,
+                isAddon: plateItem?.isAddon,
+            });
+        }
+    }
+    const items = flatItems;
     let foodTotal = 0;
 
     if (items.length > 0) {
@@ -153,7 +162,7 @@ export async function calculateServerOrderTotal(
     const plateCount = typeof orderData?.plateCount === 'number' ? orderData.plateCount : 1;
     const deliveryFee = baseDeliveryFee * plateCount;
     const takeawayFee = 200 * plateCount;
-    serverTotal = foodTotal + deliveryFee + takeawayFee + platformFee + processingFee;
+    serverTotal = foodTotal + deliveryFee + takeawayFee;
 
     return { serverTotal };
 }

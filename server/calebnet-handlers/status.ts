@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { adminDb } from '../firebase-admin.js';
 import { setCors } from '../calebnet.js';
+import { isRateLimited, clientIp } from '../rate-limit.js';
 
 function studentOrder(data: any, id: string) {
     return {
@@ -21,6 +22,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     setCors(res, 'GET, OPTIONS');
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+    // Public endpoint — blunt reference-enumeration bursts.
+    if (isRateLimited(`calebnet-status:${clientIp(req)}`, 30, 60 * 1000)) {
+        return res.status(429).json({ error: 'Too many requests' });
+    }
 
     try {
         const paymentReference = String(req.query.paymentReference || '').trim();

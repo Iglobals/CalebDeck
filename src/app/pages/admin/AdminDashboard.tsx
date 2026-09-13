@@ -54,10 +54,6 @@ export default function AdminDashboard() {
     if (typeof order.breakdown?.delivery === 'number') return order.breakdown.delivery;
     return resolveDeliveryFee(order, platformSettings).deliveryFee;
   };
-  const getOrderServiceFee = (order: any) => {
-    if (typeof order.serviceProcessingFee === 'number') return order.serviceProcessingFee;
-    return (order.breakdown?.platform || 100) + (order.breakdown?.processing || 200);
-  };
   const getOrderItemCount = (order: any) => {
     if (order.type === 'combo') return order.quantity || 1;
     if (order.type === 'mart') return (order.items || []).reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
@@ -102,10 +98,6 @@ export default function AdminDashboard() {
 
   const totalRevenue = todayPaidOrders.reduce((sum, o) => sum + getOrderAmount(o), 0);
   const totalDeliveryFees = todayPaidOrders.reduce((sum, o) => sum + getOrderDeliveryFee(o), 0);
-
-  const totalSystemFees = todayPaidOrders.reduce((sum, o) => {
-     return sum + getOrderServiceFee(o);
-  }, 0);
 
   const getRider = (id?: string) => riders.find(r => r.id === id) || null;
 
@@ -251,13 +243,6 @@ export default function AdminDashboard() {
       change: 'reserved for payout/profit',
       icon: <CheckCircle className="w-6 h-6" />,
       color: '#10B981'
-    },
-    {
-      label: 'Service Fees',
-      value: `₦${totalSystemFees.toLocaleString()}`,
-      change: 'platform net revenue',
-      icon: <Zap className="w-6 h-6" />,
-      color: '#3B82F6'
     },
     {
       label: 'Riders Online',

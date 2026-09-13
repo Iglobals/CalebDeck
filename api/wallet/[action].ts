@@ -6,8 +6,9 @@ import { adminDb, ensureFirebaseAdmin } from '../../server/firebase-admin.js';
 import { calculateServerOrderTotal } from '../../server/order-utils.js';
 import { setCors } from '../../server/calebnet.js';
 import { verifyUser } from '../../server/verify-user.js';
-import { creditWallet, ensureWalletUser, WALLET_FUNDING_MAX, WALLET_FUNDING_MIN } from '../../server/wallet.js';
+import { creditWallet, ensureWalletUser, WALLET_FUNDING_MAX, WALLET_FUNDING_MIN, recordFundingIntent, resolveFundingAmount, markFundingIntentUsed } from '../../server/wallet.js';
 import { resolveOrderVertical } from '../../src/services/orderVertical.js';
+import { isRateLimited, clientIp } from '../../server/rate-limit.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
 
@@ -29,8 +30,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    if (isRateLimited(`wallet:${clientIp(req)}`, 30, 60 * 1000)) {
+        return res.status(429).json({ error: 'Too many requests' });
+    }
 
     const { action } = req.query;
+
+    if (action === 'funding-intent') {
+        try {
+            const user = await verifyUser(req);
+            if (!user) return res.status(401).json({ error: 'Sign in to fund your CalebNet wallet.' });
+
+            const reference = String(req.body?.reference || '').trim();
+            const amount = Number(req.body?.amount);
+            if (!reference) return res.status(400).json({ error: 'Payment reference is required' });
+            if (!Number.isFinite(amount) || amount < WALLET_FUNDING_MIN || amount > WALLET_FUNDING_MAX) {
+                return res.status(400).json({ error: `Wallet funding must be between ₦${WALLET_FUNDING_MIN.toLocaleString()} and ₦${WALLET_FUNDING_MAX.toLocaleString()}` });
+            }
+
+            await recordFundingIntent(user.uid, reference, amount);
+            return res.status(200).json({ success: true });
+        } catch (error: any) {
+            console.error('[Wallet Funding Intent]', error);
+            return res.status(500).json({ error: 'Could not record funding intent' });
+        }
+    }
 
     if (action === 'verify-funding') {
         try {
@@ -80,9 +104,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return res.status(403).json({ error: 'This payment does not belong to the signed-in wallet.' });
             }
 
+            // Credit what the user ASKED to fund (server-recorded intent), not what
+            // Paystack reports as charged — surcharges never leak into the wallet.
+            const intent = await resolveFundingAmount(user.uid, reference, amount);
+            const creditAmount = intent ? intent.amount : amount;
+            if (intent) {
+                console.info(`[Wallet Verify Funding] ${reference} crediting intent amount ₦${creditAmount} (charged ₦${amount})`);
+            }
+
             const result = await creditWallet({
                 userId: user.uid,
-                amount,
+                amount: creditAmount,
                 reference,
                 purpose: 'WALLET_FUNDING',
                 relatedOrderId: null,
@@ -91,8 +123,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     channel: payment.channel || null,
                     paidAt: payment.paid_at || payment.paidAt || null,
                     customerEmail: customerEmail || null,
+                    chargedAmount: amount,
+                    creditedFromIntent: !!intent,
                 },
             });
+
+            if (intent) {
+                await markFundingIntentUsed(reference).catch(err =>
+                    console.warn(`[Wallet Verify Funding] Failed to mark intent used: ${reference}`, err));
+            }
 
             return res.status(200).json({
                 success: true,
@@ -173,9 +212,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 
                 isPreSaved = existingOrder.exists && existingOrder.data()?.source === 'pre_saved';
 
-                const platformFee = 100;
-                const processingFee = 200;
-
                 const orderDocBase: any = {
                     orderId,
                     fullName: orderData?.fullName || orderData?.studentName || '',
@@ -214,9 +250,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     orderDocBase.orderType = 'MART';
                     orderDocBase.items = orderData.items || [];
                     orderDocBase.totalAmount = serverTotal;
-                    orderDocBase.subtotal = orderData?.subtotal || (serverTotal - (orderData?.deliveryFee || 1500) - platformFee - processingFee);
+                    orderDocBase.subtotal = orderData?.subtotal || (serverTotal - (orderData?.deliveryFee || 1500));
                     orderDocBase.deliveryFee = orderData?.deliveryFee || 1500;
-                    orderDocBase.serviceProcessingFee = platformFee + processingFee;
                     delete orderDocBase.total;
                     delete orderDocBase.cafeteria;
                     delete orderDocBase.cafeteriaId;
@@ -227,9 +262,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     orderDocBase.orderType = 'FASHION';
                     orderDocBase.items = orderData.items || [];
                     orderDocBase.totalAmount = serverTotal;
-                    orderDocBase.subtotal = orderData?.subtotal || (serverTotal - (orderData?.deliveryFee || 1500) - platformFee - processingFee);
+                    orderDocBase.subtotal = orderData?.subtotal || (serverTotal - (orderData?.deliveryFee || 1500));
                     orderDocBase.deliveryFee = orderData?.deliveryFee || 1500;
-                    orderDocBase.serviceProcessingFee = platformFee + processingFee;
                     orderDocBase.fashionBatchName = orderData?.fashionBatchName || null;
                     orderDocBase.expectedArrivalDate = orderData?.expectedArrivalDate || null;
                     orderDocBase.fashionBatchStatus = orderData?.fashionBatchStatus || null;

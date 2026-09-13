@@ -6,6 +6,7 @@ import { Card } from '../../components/design-system/Card';
 import { Badge } from '../../components/design-system/Badge';
 import { Logo } from '../../components/design-system/Logo';
 import SEO from '../../components/SEO';
+import { updateOrderHistoryStatus } from '../../../services/orderHistory';
 
 const MESSAGES: Record<string, { title: string; detail: string; icon: any; badge: 'green' | 'amber' | 'purple' | 'gray' }> = {
   SUCCESSFUL: { title: 'Top-up sent successfully', detail: 'Your CalebNet transaction has been confirmed.', icon: CheckCircle2, badge: 'green' },
@@ -32,6 +33,11 @@ export default function CalebNetStatus() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Unable to load order status');
       setOrder(data.order);
+      // Keep the device-local Order History entry in sync with the live status —
+      // otherwise a saved entry stays stuck on PROCESSING after a reload.
+      const live = String(data.order?.fulfillmentStatus || '');
+      if (live === 'SUCCESSFUL') updateOrderHistoryStatus(paymentReference, 'SUCCESSFUL');
+      else if (['FAILED', 'CANCELLED', 'REFUND_REQUIRED'].includes(live)) updateOrderHistoryStatus(paymentReference, 'FAILED');
     } catch (err: any) {
       setError(err.message || 'Unable to load order status');
     } finally {

@@ -17,6 +17,7 @@ import { getHexColorName } from '../../../utils/formatColor';
 import { getFashionBatchState, DEFAULT_FASHION_BATCH_CONFIG } from '../../../services/fashionBatch';
 import { isPremiumHostel } from '../../../services/orderFees';
 import { FashionBatchPickerModal, SelectedFashionBatchInfo } from '../../components/FashionBatchPickerModal';
+import { PaymentSelector, PaymentMethod } from '../../components/student/PaymentSelector';
 import { BatchStatusBar } from '../../components/BatchStatusBar';
 import { BatchClock } from '../../components/BatchClock';
 
@@ -38,6 +39,8 @@ export default function FashionCheckout() {
   });
   const [femaleHostelAgreement, setFemaleHostelAgreement] = useState(false);
   const [saveAsDefault, setSaveAsDefault] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PAYSTACK');
+  const [isWalletPaying, setIsWalletPaying] = useState(false);
 
   const selectedHostel = hostels.find(h => h.id === formData.hostel);
   const isFemaleHostelSelected = isPremiumHostel(formData.hostel, platformSettings);
@@ -283,6 +286,50 @@ export default function FashionCheckout() {
     toast.info("Your order details were saved, but payment was not completed. Try again with a stronger network or switch data/WiFi.");
   };
 
+  const handleWalletPayment = async (orderPayload: any) => {
+    setIsWalletPaying(true);
+    toast.loading("Processing atomic wallet transaction...");
+    try {
+      const token = await user?.getIdToken();
+      const res = await fetch('/api/wallet/pay-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ orderData: orderPayload })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Wallet payment failed');
+      }
+
+      // Success
+      toast.dismiss();
+      clearCart();
+      navigate('/order-success', {
+        state: {
+          ...orderPayload,
+          firestoreOrderId: data.data.orderId,
+          orderId: data.data.orderId,
+          paymentReference: `WALLET-${data.data.orderId}`,
+          totalAmount: total,
+          total,
+          cafeteria: 'CalebDeck Fashion',
+          status: 'PAID'
+        },
+        replace: true
+      });
+    } catch (err: any) {
+      toast.dismiss();
+      toast.error(err.message || "Failed to process wallet payment");
+      setPaymentMethod('PAYSTACK'); // fallback safely
+    } finally {
+      setIsWalletPaying(false);
+    }
+  };
+
   const handlePay = () => {
     if (!formData.fullName.trim()) return toast.error('Please enter your full name');
     if (!formData.phone.trim()) return toast.error('Please enter your phone number');
@@ -293,7 +340,7 @@ export default function FashionCheckout() {
     }
 
     const liveClosed = !!platformSettings && (
-      platformSettings?.isFashionAcceptingOrders === false || 
+      platformSettings?.isFashionAcceptingOrders === false ||
       platformSettings?.isFashionComingSoon === true
     ) && !isDev;
 
@@ -326,6 +373,11 @@ export default function FashionCheckout() {
       expectedArrivalDate: selectedBatch?.expectedArrivalDate ? selectedBatch.expectedArrivalDate.toISOString() : null,
       fashionBatchStatus: selectedBatch?.status
     };
+
+    if (paymentMethod === 'WALLET') {
+      handleWalletPayment(preSaveData);
+      return;
+    }
 
     fetch('/api/pre-save-order', {
       method: 'POST',
@@ -555,42 +607,23 @@ export default function FashionCheckout() {
                   <span className="font-bold">Total</span>
                   <span className="text-2xl font-black text-[#F97316]">₦{total}</span>
                 </div>
-                
-                <div className="p-4 rounded-xl border-2 border-primary/20 bg-primary/5 flex items-center justify-between opacity-100 transition-all cursor-not-allowed mb-3 relative overflow-hidden">
-                  <div className="flex items-center gap-3 relative z-10">
-                    <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-black">
-                      ₦
-                    </div>
-                    <div>
-                      <p className="font-bold">i-CON Wallet</p>
-                      <p className="text-xs text-muted-foreground">Disabled for Fashion pilot</p>
-                    </div>
-                  </div>
-                  <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/30 relative z-10"></div>
-                  <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] z-20"></div>
-                </div>
 
-                <div className="p-4 rounded-xl border-2 border-[#7C3AED] bg-card flex items-center justify-between transition-all">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shadow-sm">
-                      <CreditCard className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="font-bold">Paystack</p>
-                      <p className="text-xs text-muted-foreground">Card, Bank Transfer, USSD</p>
-                    </div>
-                  </div>
-                  <div className="w-4 h-4 rounded-full border-[5px] border-[#7C3AED] bg-white"></div>
-                </div>
+                <PaymentSelector
+                  amount={total}
+                  selectedMethod={paymentMethod}
+                  onSelect={setPaymentMethod}
+                  disabled={isWalletPaying}
+                />
               </div>
 
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 className="w-full py-4 text-lg text-white flex items-center justify-center gap-2 shadow-xl bg-gradient-to-r from-[#7C3AED] to-[#F97316] hover:opacity-90 border-none font-bold shadow-[#F97316]/20 disabled:bg-none disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none disabled:cursor-not-allowed transition-all"
                 onClick={handlePay}
-                disabled={!formData.fullName.trim() || !formData.phone.trim() || !formData.hostel || (isFemaleHostelSelected && !femaleHostelAgreement)}
+                disabled={isWalletPaying || !formData.fullName.trim() || !formData.phone.trim() || !formData.hostel || (isFemaleHostelSelected && !femaleHostelAgreement)}
               >
-                <CreditCard className="w-5 h-5" /> Pay ₦{total}
+                {isWalletPaying ? <Loader2 className="w-5 h-5 animate-spin" /> : <CreditCard className="w-5 h-5" />}
+                {isWalletPaying ? 'Processing...' : `Pay ₦${total}`}
               </Button>
 
               <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">

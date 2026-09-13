@@ -27,28 +27,38 @@ interface VerifyEndpointOutcome {
 }
 
 async function callVerifyFundingEndpoint(reference: string, token: string): Promise<VerifyEndpointOutcome> {
-    const response = await fetch('/api/wallet/verify-funding', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ reference }),
-    });
-    let data: any = null;
-    try { data = await response.json(); } catch { /* non-JSON body */ }
-    // Log exactly what verification received — trace the real condition, never guess.
-    console.info('[walletFunding] verify response:', {
-        reference,
-        httpStatus: response.status,
-        paystackStatus: data?.paystackStatus ?? null,
-        error: data?.error ?? null,
-    });
-    return { httpStatus: response.status, data };
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    try {
+        const response = await fetch('/api/wallet/verify-funding', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ reference }),
+            signal: controller.signal,
+        });
+        let data: any = null;
+        try { data = await response.json(); } catch { /* non-JSON body */ }
+        // Log exactly what verification received — trace the real condition, never guess.
+        console.info('[walletFunding] verify response:', {
+            reference,
+            httpStatus: response.status,
+            paystackStatus: data?.paystackStatus ?? null,
+            error: data?.error ?? null,
+        });
+        return { httpStatus: response.status, data };
+    } finally {
+        clearTimeout(timeout);
+    }
 }
 
 const RETRYABLE_HTTP = new Set([202, 404, 429, 500, 502, 503, 504]);
 
 /**
  * Single shared wallet-funding verification used by WalletPage and CalebNet.
- * Retries transient states for ~20s, then reports 'pending' instead of erroring.
+ * Never throws — every terminal outcome resolves to success/pending/failed so a
+ * toast always fires. Retries transient states for ~20s, then reports 'pending'
+ * instead of erroring (the webhook still credits and the wallet onSnapshot
+ * refreshes the balance).
  */
 export async function verifyFunding(reference: string, token: string): Promise<VerifyFundingResult> {
     if (import.meta.env.DEV) {
@@ -63,7 +73,9 @@ export async function verifyFunding(reference: string, token: string): Promise<V
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
         try {
             const { httpStatus, data } = await callVerifyFundingEndpoint(reference, token);
-            if (httpStatus >= 200 && httpStatus < 300) {
+            // Success requires an explicit success payload — 202 (pending) must
+            // never be read as success just because it's in the 2xx range.
+            if (httpStatus === 200 && data?.success === true) {
                 return { status: 'success', balance: Number(data?.balance || 0) };
             }
             const err = String(data?.error || '');

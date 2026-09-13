@@ -56,6 +56,21 @@ export default function WalletPage() {
                 .sort((a, b) => Number(b.createdAt?.seconds || 0) - Number(a.createdAt?.seconds || 0));
             setTransactions(txs);
             setLoadingTransactions(false);
+            // Announce wallet-funding credits that confirm AFTER verification gave
+            // up (webhook path). The first snapshot is the baseline — never toast
+            // historical credits on page load.
+            txs.forEach((t) => {
+                const ref = t.reference || t.id;
+                if (t.type === 'credit' && t.purpose === 'WALLET_FUNDING') {
+                    if (!txBaselineDone.current) {
+                        announcedFundingRefs.current.add(ref);
+                    } else if (!announcedFundingRefs.current.has(ref)) {
+                        announcedFundingRefs.current.add(ref);
+                        toast.success(`Wallet funded. New balance: ₦${Number(t.balanceAfter || 0).toLocaleString()}`);
+                    }
+                }
+            });
+            txBaselineDone.current = true;
         }, () => setLoadingTransactions(false));
 
         return () => {
@@ -69,7 +84,8 @@ export default function WalletPage() {
         const token = await user.getIdToken();
         const result = await verifyFunding(reference, token);
         announceFundingResult(result, setWalletBalance);
-        if (result.status !== 'pending') {
+        if (result.status === 'success') {
+            announcedFundingRefs.current.add(reference);
             sessionStorage.setItem(`wallet_verified_${reference}`, 'true');
         } else {
             // Allow a later visit (or the wallet onSnapshot credit) to re-verify cleanly.
@@ -78,6 +94,8 @@ export default function WalletPage() {
     };
 
     const verifyRef = useRef<Set<string>>(new Set());
+    const announcedFundingRefs = useRef<Set<string>>(new Set());
+    const txBaselineDone = useRef(false);
 
     useEffect(() => {
         const searchParams = new URLSearchParams(location.search);
@@ -110,20 +128,33 @@ export default function WalletPage() {
         if (validationError) return toast.error(validationError);
 
         setWalletLoading(true);
-        initializeFunding({
-            onSuccess: (reference: any) => { void (async () => {
-                const ref = reference.reference || fundingReference;
-                toast.loading('Verifying your payment...', { toastId: 'verify-funding' });
-                await runFundingVerification(ref)
-                    .catch((e) => console.error('[WalletPage] funding verification failed:', e));
-                setFundingReference(createFundingReference());
-                toast.dismiss('verify-funding');
-                setWalletLoading(false);
-            })(); },
-            onClose: () => {
-                setWalletLoading(false);
-            },
-        });
+        // Record the intended amount server-side BEFORE the charge starts, so the
+        // wallet is credited what was requested — not a surcharged amount.
+        const tokenPromise = user ? user.getIdToken() : Promise.resolve(null);
+        tokenPromise
+            .then(token => fetch('/api/wallet/funding-intent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                body: JSON.stringify({ reference: fundingReference, amount }),
+            }))
+            .then(res => { if (!res.ok) console.warn('[WalletPage] funding intent not recorded — server will credit the charged amount'); })
+            .catch(err => console.warn('[WalletPage] funding intent not recorded:', err))
+            .finally(() => {
+                initializeFunding({
+                    onSuccess: (reference: any) => { void (async () => {
+                        const ref = reference.reference || fundingReference;
+                        toast.loading('Verifying your payment...', { toastId: 'verify-funding' });
+                        await runFundingVerification(ref)
+                            .catch((e) => console.error('[WalletPage] funding verification failed:', e));
+                        setFundingReference(createFundingReference());
+                        toast.dismiss('verify-funding');
+                        setWalletLoading(false);
+                    })(); },
+                    onClose: () => {
+                        setWalletLoading(false);
+                    },
+                });
+            });
     };
 
     const refreshWallet = async () => {

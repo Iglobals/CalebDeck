@@ -6,6 +6,57 @@ export const WALLET_FUNDING_MAX = 50000;
 
 export type WalletTransactionPurpose = 'WALLET_FUNDING' | 'CALEBNET_PURCHASE' | 'CALEBNET_REFUND';
 
+export interface FundingIntent {
+    userId: string;
+    amount: number;
+    status: 'PENDING' | 'USED';
+    createdAt?: any;
+    updatedAt?: any;
+}
+
+/** Record what the user ASKED to fund, server-side, before the charge starts. */
+export async function recordFundingIntent(userId: string, reference: string, amount: number) {
+    const db = adminDb();
+    await db.collection('wallet_funding_intents').doc(reference).set({
+        userId,
+        amount,
+        status: 'PENDING',
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+    });
+}
+
+/**
+ * Resolve the amount to credit: the server-recorded intent (what the user
+ * requested) when a valid one exists, otherwise the amount Paystack reports as
+ * charged. Paystack surcharges must never leak into the wallet credit, and the
+ * intent is only trusted if the charge actually collected at least that amount.
+ */
+export async function resolveFundingAmount(
+    userId: string,
+    reference: string,
+    chargedAmount: number
+): Promise<{ amount: number; fromIntent: boolean } | null> {
+    const db = adminDb();
+    const snap = await db.collection('wallet_funding_intents').doc(reference).get();
+    if (!snap.exists) return null;
+    const intent = snap.data() as FundingIntent;
+    if (intent.status !== 'PENDING') return null;
+    if (String(intent.userId) !== String(userId)) return null;
+    const amount = Number(intent.amount);
+    if (!Number.isFinite(amount) || amount < WALLET_FUNDING_MIN || amount > WALLET_FUNDING_MAX) return null;
+    if (chargedAmount + 0.001 < amount) return null;
+    return { amount, fromIntent: true };
+}
+
+export async function markFundingIntentUsed(reference: string) {
+    const db = adminDb();
+    await db.collection('wallet_funding_intents').doc(reference).set(
+        { status: 'USED', updatedAt: FieldValue.serverTimestamp() },
+        { merge: true }
+    );
+}
+
 interface WalletProfile {
     email?: string;
     displayName?: string;

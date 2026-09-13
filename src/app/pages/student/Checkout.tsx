@@ -28,6 +28,7 @@ import {
 import { DeliveryTypeSelector, SelectedBatchInfo } from '../../components/DeliveryTypeSelector';
 import { BatchPickerModal } from '../../components/BatchPickerModal';
 import { BatchClock } from '../../components/BatchClock';
+import { PaymentSelector, PaymentMethod } from '../../components/student/PaymentSelector';
 
 const DELIVERY_FEE_SOLO = 750;
 const DELIVERY_FEE_GROUP = 580;
@@ -210,8 +211,8 @@ if (premium) {
 }
     const delivery = baseDeliveryFee * qty;
     return {
-      totalAmount: base * qty + delivery + 100, // platform fee
-      breakdown: { food: base * qty, delivery, takeaway: 0, discount: 0, platform: 100, processing: 0 }
+      totalAmount: base * qty + delivery,
+      breakdown: { food: base * qty, delivery, takeaway: 0, discount: 0, platform: 0, processing: 0 }
     };
   }, [isCombo, comboOrder?.quantity, comboOrder?.basePrice, currentDeliveryMode, formData.hostel, platformSettings]);
 
@@ -323,6 +324,48 @@ if (premium) {
   };
 
   const initializePayment = usePaystackPayment(config);
+
+  const handleWalletPayment = async (orderPayload: any) => {
+    setIsWalletPaying(true);
+    toast.loading("Processing atomic wallet transaction...");
+    try {
+      const token = await user?.getIdToken();
+      const res = await fetch('/api/wallet/pay-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ orderData: orderPayload })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Wallet payment failed');
+      }
+
+      // Success
+      toast.dismiss();
+      navigate('/order-success', {
+        state: {
+          ...orderPayload,
+          firestoreOrderId: data.data.orderId,
+          orderId: data.data.orderId,
+          paymentReference: `WALLET-${data.data.orderId}`,
+          total: orderTotal?.totalAmount || 0,
+          totalAmount: orderTotal?.totalAmount || 0,
+          status: 'PAID'
+        },
+        replace: true
+      });
+    } catch (err: any) {
+      toast.dismiss();
+      toast.error(err.message || "Failed to process wallet payment");
+      setPaymentMethod('PAYSTACK'); // fallback safely
+    } finally {
+      setIsWalletPaying(false);
+    }
+  };
 
   const onSuccess = async (reference: any) => {
     paymentProcessingRef.current = true;
@@ -523,6 +566,8 @@ if (premium) {
         : `CalebDeck is currently closed. Ordering hours are between ${openingHour}:00 and ${closingHour}:00.`;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PAYSTACK');
+  const [isWalletPaying, setIsWalletPaying] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -543,45 +588,46 @@ if (premium) {
 
     // PRE-SAVE: Save the complete order to Firestore BEFORE payment
     // This ensures items are never lost, even if verify-payment fails later
+    const preSaveData = {
+      orderId,
+      iConId: user?.uid || null,
+      source: 'CalebDeck',
+      fullName: formData.fullName,
+      studentName: formData.fullName,
+      phone: formData.phone,
+      hostel: formData.hostel,
+      hostelName: selectedHostel?.name || formData.hostel,
+      instructions: formData.instructions,
+      total: orderTotal?.totalAmount,
+      breakdown: orderTotal?.breakdown,
+      femaleHostelAgreement,
+      cafeteria,
+      cafeteriaId,
+      sectionId,
+      deliveryMode: currentDeliveryMode,
+      deliveryType,
+      selectedBatchId: deliveryType === 'BATCH' ? selectedBatch?.batchId : undefined,
+      foodBatchName: deliveryType === 'BATCH' ? selectedBatch?.batchName : undefined,
+      orderWindowStart: deliveryType === 'BATCH' ? selectedBatch?.orderWindowStart : undefined,
+      orderWindowEnd: deliveryType === 'BATCH' ? selectedBatch?.orderWindowEnd : undefined,
+      deliveryWindowStart: deliveryType === 'BATCH' ? selectedBatch?.deliveryWindowStart : undefined,
+      deliveryWindowEnd: deliveryType === 'BATCH' ? selectedBatch?.deliveryWindowEnd : undefined,
+      ...(isCombo ? {
+        type: 'combo',
+        comboId: comboOrder.comboId,
+        comboName: comboOrder.comboName,
+        comboItems: comboOrder.comboItems,
+        quantity: comboOrder.quantity,
+        plateCount: comboOrder.quantity,
+        basePrice: comboOrder.basePrice
+      } : {
+        plates,
+        drinksSnacks: drinksSnacksItems,
+        plateCount: plates.length
+      })
+    };
+
     try {
-      const preSaveData = {
-        orderId,
-        iConId: user?.uid || null,
-        source: 'CalebDeck',
-        fullName: formData.fullName,
-        studentName: formData.fullName,
-        phone: formData.phone,
-        hostel: formData.hostel,
-        hostelName: selectedHostel?.name || formData.hostel,
-        instructions: formData.instructions,
-        total: orderTotal?.totalAmount,
-        breakdown: orderTotal?.breakdown,
-        femaleHostelAgreement,
-        cafeteria,
-        cafeteriaId,
-        sectionId,
-        deliveryMode: currentDeliveryMode,
-        deliveryType,
-        selectedBatchId: deliveryType === 'BATCH' ? selectedBatch?.batchId : undefined,
-        foodBatchName: deliveryType === 'BATCH' ? selectedBatch?.batchName : undefined,
-        orderWindowStart: deliveryType === 'BATCH' ? selectedBatch?.orderWindowStart : undefined,
-        orderWindowEnd: deliveryType === 'BATCH' ? selectedBatch?.orderWindowEnd : undefined,
-        deliveryWindowStart: deliveryType === 'BATCH' ? selectedBatch?.deliveryWindowStart : undefined,
-        deliveryWindowEnd: deliveryType === 'BATCH' ? selectedBatch?.deliveryWindowEnd : undefined,
-        ...(isCombo ? {
-          type: 'combo',
-          comboId: comboOrder.comboId,
-          comboName: comboOrder.comboName,
-          comboItems: comboOrder.comboItems,
-          quantity: comboOrder.quantity,
-          plateCount: comboOrder.quantity,
-          basePrice: comboOrder.basePrice
-        } : {
-          plates,
-          drinksSnacks: drinksSnacksItems,
-          plateCount: plates.length
-        })
-      };
 
       const preSaveResponse = await fetch('/api/pre-save-order', {
         method: 'POST',
@@ -647,9 +693,15 @@ if (premium) {
       return;
     }
 
-    initializePayment({ 
-      onSuccess: (reference: any) => void onSuccess(reference), 
-      onClose: () => { onClose(); setIsSubmitting(false); } 
+    // Wallet payments debit atomically server-side against the just-saved order.
+    if (paymentMethod === 'WALLET') {
+      await handleWalletPayment(preSaveData);
+      return;
+    }
+
+    initializePayment({
+      onSuccess: (reference: any) => void onSuccess(reference),
+      onClose: () => { onClose(); setIsSubmitting(false); }
     });
   };
 
@@ -1021,14 +1073,6 @@ if (premium) {
 
 
 
-                <div className="flex justify-between items-center text-muted-foreground font-medium">
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-4 h-4" />
-                    <span>Platform Fee</span>
-                  </div>
-                  <span>₦{(orderTotal?.breakdown?.platform || 100).toLocaleString()}</span>
-                </div>
-
                 <div className="flex justify-between items-center pt-4 border-t border-border gap-4">
                   <span className="text-2xl font-black">Total Due</span>
                   <div className="text-right">
@@ -1038,6 +1082,19 @@ if (premium) {
                   </div>
                 </div>
               </div>
+
+              {/* Payment Method */}
+              {!calculating && orderTotal && (
+                <div className="mb-6">
+                  <PaymentSelector
+                    amount={orderTotal.totalAmount || 0}
+                    selectedMethod={paymentMethod}
+                    onSelect={setPaymentMethod}
+                    // Batch slots are confirmed through the Paystack verification flow
+                    walletDisabled={deliveryType === 'BATCH'}
+                  />
+                </div>
+              )}
 
               {/* Payment Button */}
               <button
@@ -1053,7 +1110,7 @@ if (premium) {
                 ) : (
                   <>
                     <CreditCard className="w-6 h-6" />
-                    Pay ₦{(orderTotal?.totalAmount || 0).toLocaleString()}
+                    {isWalletPaying ? 'Processing...' : `Pay ₦${(orderTotal?.totalAmount || 0).toLocaleString()}`}
                   </>
                 )}
               </button>

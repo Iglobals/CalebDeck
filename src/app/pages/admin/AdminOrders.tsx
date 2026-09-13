@@ -84,10 +84,6 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
         if (typeof order.breakdown?.delivery === 'number') return order.breakdown.delivery;
         return resolveDeliveryFee(order, platformSettings).deliveryFee;
     };
-    const getOrderServiceFee = (order: any) => {
-        if (typeof order.serviceProcessingFee === 'number') return order.serviceProcessingFee;
-        return (order.breakdown?.processing || 200) + (order.breakdown?.platform || 100);
-    };
 
     const getStudentNumber = (order: any) => (
         order.studentNumber ||
@@ -995,7 +991,6 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                 }
 
                                                 const deliveryFee = hasBreakdown ? selectedOrder.breakdown.delivery : calculatedDeliveryAmount;
-                                                const processingFee = getOrderServiceFee(selectedOrder);
                                                 const discount = hasBreakdown ? selectedOrder.breakdown.discount : calculatedDiscount;
 
                                                 return (
@@ -1012,27 +1007,6 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                                 <span className={`text-xs font-bold`}>-₦{discount.toLocaleString()}</span>
                                                             </div>
                                                         )}
-                                                        {!hasBreakdown && isFood && (() => {
-                                                            const takeawayAmount = selectedOrder.type !== 'combo' ? (selectedOrder.plates?.length || 0) * 200 : 0;
-                                                            let foodAmount = 0;
-                                                            if (selectedOrder.type === 'combo') {
-                                                                foodAmount = (selectedOrder.basePrice || (getOrderAmount(selectedOrder) / (selectedOrder.quantity || 1))) * (selectedOrder.quantity || 1);
-                                                            } else {
-                                                                foodAmount += selectedOrder.plates?.reduce((acc: number, p: any) => acc + (p.total || 0), 0) || 0;
-                                                                foodAmount += selectedOrder.drinksSnacks?.reduce((acc: number, a: any) => acc + ((a.item?.price || a.price || 0) * (a.quantity || 1)), 0) || 0;
-                                                            }
-                                                            const predictedBase = foodAmount + deliveryFee + takeawayAmount + processingFee - discount;
-                                                            const difference = getOrderAmount(selectedOrder) - predictedBase;
-                                                            if (difference >= 40 && difference <= 60) {
-                                                                return (
-                                                                    <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10">
-                                                                        <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Cafe Charge</p>
-                                                                        <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>₦50</span>
-                                                                    </div>
-                                                                );
-                                                            }
-                                                            return null;
-                                                        })()}
                                                     </>
                                                 );
                                             })()}

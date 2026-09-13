@@ -87,11 +87,15 @@ service cloud.firestore {
     match /riders/{riderId} {
       allow read: if true;
 
+      // Riders edit their own profile (status, bank details, FCM tokens) but can
+      // never self-activate — activation is admin-only.
       allow update: if isAdmin() ||
-        (isAuthenticated() && request.auth.uid == riderId);
+        (isAuthenticated() && request.auth.uid == riderId &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isActive']));
 
       allow create: if isAdmin() ||
-        (isAuthenticated() && request.auth.uid == riderId);
+        (isAuthenticated() && request.auth.uid == riderId &&
+          request.resource.data.isActive != true);
       allow delete: if isAdmin();
     }
 
@@ -121,7 +125,11 @@ service cloud.firestore {
         (resource.data.userId == 'admin' && isAdmin())
       );
 
-      allow create: if isAuthenticated();
+      // Users may create notifications addressed to themselves; only admins can
+      // address anyone. (Riders create their own 'admin'-addressed read receipts
+      // via the client when reporting — restricted to unread, non-admin senders.)
+      allow create: if isAdmin() ||
+        (isAuthenticated() && resource.data.userId == request.auth.uid);
 
       allow update: if isAuthenticated() && (
         resource.data.userId == request.auth.uid ||
@@ -152,7 +160,7 @@ service cloud.firestore {
     // ─── Rider Payouts ───
     match /rider_payouts/{payoutId} {
       allow read: if isAdmin() || (isAuthenticated() && resource.data.riderId == request.auth.uid);
-      allow create: if isAdmin() || isAuthenticated();
+      allow create: if isAdmin();  // Payout records are admin-issued only
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }
@@ -207,7 +215,10 @@ service cloud.firestore {
     // ─── Reviews ───
     match /reviews/{reviewId} {
       allow read: if true;
-      allow create: if true;
+      allow create: if request.resource.data.rating is int &&
+        request.resource.data.rating >= 1 && request.resource.data.rating <= 5 &&
+        request.resource.data.orderId is string &&
+        request.resource.data.orderId.size() > 0;
       allow update, delete: if isAdmin();
     }
 

@@ -5,6 +5,7 @@ import { adminDb } from '../server/firebase-admin.js';
 import { confirmFoodBatchReservation } from '../server/food-batch.js';
 import { calculateServerOrderTotal } from '../server/order-utils.js';
 import { resolveOrderVertical } from '../src/services/orderVertical.js';
+import { isRateLimited, clientIp } from '../server/rate-limit.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
 
@@ -15,6 +16,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    if (isRateLimited(`verify-payment:${clientIp(req)}`, 20, 60 * 1000)) {
+        return res.status(429).json({ error: 'Too many requests' });
+    }
 
     try {
         const db = adminDb();
@@ -107,9 +111,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // 3. Recalculate total from Firestore prices (server-side validation)
         const { serverTotal, comboDoc } = await calculateServerOrderTotal(db, orderData);
 
-        const platformFee = 100;
-        const processingFee = 200;
-
         // 4. Verify amount — allow 5% tolerance for rounding
         const paidAmount = data.amount / 100; // Paystack sends in kobo
         const tolerance = serverTotal * 0.05;
@@ -160,9 +161,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.orderType = 'MART';
             orderDoc.items = orderData.items || [];
             orderDoc.totalAmount = paidAmount;
-            orderDoc.subtotal = orderData?.subtotal || (paidAmount - (orderData?.deliveryFee || 1500) - platformFee - processingFee);
+            orderDoc.subtotal = orderData?.subtotal || (paidAmount - (orderData?.deliveryFee || 1500));
             orderDoc.deliveryFee = orderData?.deliveryFee || 1500;
-            orderDoc.serviceProcessingFee = platformFee + processingFee;
             delete orderDoc.total;
             delete orderDoc.cafeteria;
             delete orderDoc.cafeteriaId;
@@ -173,9 +173,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.orderType = 'FASHION';
             orderDoc.items = orderData.items || [];
             orderDoc.totalAmount = paidAmount;
-            orderDoc.subtotal = orderData?.subtotal || (paidAmount - (orderData?.deliveryFee || 1500) - platformFee - processingFee);
+            orderDoc.subtotal = orderData?.subtotal || (paidAmount - (orderData?.deliveryFee || 1500));
             orderDoc.deliveryFee = orderData?.deliveryFee || 1500;
-            orderDoc.serviceProcessingFee = platformFee + processingFee;
             orderDoc.fashionBatchName = orderData?.fashionBatchName || null;
             orderDoc.expectedArrivalDate = orderData?.expectedArrivalDate || null;
             orderDoc.fashionBatchStatus = orderData?.fashionBatchStatus || null;
@@ -243,7 +242,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     backfill.totalAmount = orderDoc.totalAmount;
                     backfill.subtotal = orderDoc.subtotal;
                     backfill.deliveryFee = orderDoc.deliveryFee;
-                    backfill.serviceProcessingFee = orderDoc.serviceProcessingFee;
                     backfill.fashionBatchName = orderDoc.fashionBatchName;
                     backfill.expectedArrivalDate = orderDoc.expectedArrivalDate;
                     backfill.fashionBatchStatus = orderDoc.fashionBatchStatus;
@@ -252,16 +250,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     backfill.drinksSnacks = FieldValue.delete();
                     backfill.plateCount = FieldValue.delete();
                     backfill.deliveryMode = FieldValue.delete();
+                    backfill.serviceProcessingFee = FieldValue.delete();
                 } else if (isMartOrder) {
                     backfill.items = orderDoc.items;
                     backfill.totalAmount = orderDoc.totalAmount;
                     backfill.subtotal = orderDoc.subtotal;
                     backfill.deliveryFee = orderDoc.deliveryFee;
-                    backfill.serviceProcessingFee = orderDoc.serviceProcessingFee;
                     backfill.plates = FieldValue.delete();
                     backfill.drinksSnacks = FieldValue.delete();
                     backfill.plateCount = FieldValue.delete();
                     backfill.deliveryMode = FieldValue.delete();
+                    backfill.serviceProcessingFee = FieldValue.delete();
                 }
             }
             await orderRef.set({

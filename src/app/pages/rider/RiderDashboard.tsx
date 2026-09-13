@@ -18,7 +18,8 @@ import {
   PlatformSettings,
   subscribeToPlatformSettings,
   subscribeTodayBatchDays,
-  FoodBatchDay
+  FoodBatchDay,
+  subscribeToRiderDailyEarnings
 } from '../../../services/db';
 import { NotificationPanel } from '../../components/NotificationPanel';
 import { requestNotificationPermissionAndSaveToken, onForegroundMessage } from '../../../services/messaging';
@@ -37,6 +38,7 @@ export default function RiderDashboard() {
   const [batchDays, setBatchDays] = useState<FoodBatchDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [showBankModal, setShowBankModal] = useState(false);
+  const [todayRecordedEarnings, setTodayRecordedEarnings] = useState<number | null>(null);
 
   const isDark = riderTheme === 'dark';
 
@@ -45,6 +47,17 @@ export default function RiderDashboard() {
     const unsubBatchDays = subscribeTodayBatchDays(setBatchDays);
     return () => { unsub(); unsubBatchDays(); };
   }, []);
+
+  // "Wallet & Incentives" reads the same recorded earnings the Wallet page shows,
+  // never a locally recomputed estimate.
+  useEffect(() => {
+    if (!user) return;
+    const todayKey = new Date().toLocaleDateString('en-CA');
+    const unsub = subscribeToRiderDailyEarnings(user.uid, (days) => {
+      setTodayRecordedEarnings(days.find(d => d.date === todayKey)?.totalEarned ?? 0);
+    });
+    return unsub;
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -129,22 +142,7 @@ export default function RiderDashboard() {
     return d ? d.toLocaleDateString() === todayStr : true; // Fallback to true if no date
   });
 
-  const riderRate = platformSettings?.riderRatePerDelivery || 300;
-
-  const getOrderEarnings = (o: any) => {
-    const platesCount = o.type === 'combo' ? (o.quantity || 1) : (o.plates?.length || 1);
-    const isCombo = o.type === 'combo';
-    const isGroup = o.deliveryMode === 'group' || o.deliveryMode === 'GROUP';
-    const rate = isCombo
-        ? (platformSettings?.comboRatePerDelivery || 250)
-        : isGroup
-            ? (platformSettings?.groupRatePerDelivery || 200)
-            : (platformSettings?.riderRatePerDelivery || 350);
-    const earning = platesCount * rate;
-    return earning;
-  };
-
-  const todayEarnings = deliveredOrders.reduce((acc, o) => acc + getOrderEarnings(o), 0);
+  const todayEarnings = todayRecordedEarnings ?? 0;
   const isNotActivated = rider && rider.isActive === false;
 
   return (
