@@ -256,6 +256,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const orderDoc: any = {
             orderId: metadata.orderId || `CD-WH-${Math.floor(10000 + Math.random() * 90000)}`,
+            userId: metadataValue(metadata, 'userId') || null,
             fullName: metadata.fullName || metadata.studentName || 'Unknown (Webhook)',
             studentName: metadata.fullName || metadata.studentName || '',
             phone: metadata.phone || '',

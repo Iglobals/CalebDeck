@@ -332,7 +332,7 @@ export default function CalebNet() {
         setPhoneNumber(nextProfile.phoneNumber);
       }
     });
-    const txQuery = query(collection(db, 'wallet_transactions'), where('userId', '==', user.uid), limit(12));
+    const txQuery = query(collection(db, 'wallet_transactions'), where('userId', '==', user.uid), limit(50));
     const txUnsub = onSnapshot(txQuery, (snap) => {
       const txs = snap.docs
         .map((item) => ({ id: item.id, ...item.data() } as WalletTransaction))
@@ -457,6 +457,24 @@ export default function CalebNet() {
     && !insufficientBalance
     && isValidNigerianPhone(phoneNumber)
     && (type === 'DATA' ? !!selectedPlan : currentAmount >= 50 && currentAmount <= 200000);
+
+  // The Pay button must never be disabled without a visible reason — compute the
+  // same conditions and surface the first one that fails.
+  const payDisabledReason = !user
+    ? 'Sign in to pay from your wallet.'
+    : providerStatus === 'DOWN'
+        ? `${network} is temporarily unavailable — please try another network or check back later.`
+        : !airtimeAvailable
+            ? `${network} airtime is currently unavailable.`
+            : type === 'DATA' && !selectedPlan
+                ? 'Select a data plan to continue.'
+                : !isValidNigerianPhone(phoneNumber)
+                    ? 'Enter a valid phone number to continue.'
+                    : currentAmount > 0 && currentAmount < 50
+                        ? 'Minimum airtime purchase is ₦50.'
+                        : currentAmount > 200000
+                            ? 'Maximum purchase is ₦200,000.'
+                            : null;
 
   const fundingAmountNumber = Number(fundAmount || 0);
   const fundingConfig = {
@@ -1029,10 +1047,15 @@ export default function CalebNet() {
                     Top up ₦{Math.max(100, currentAmount - walletBalance)} to continue
                   </Button>
                 ) : (
-                  <Button onClick={handlePurchase} disabled={!valid || isProcessing} className="w-full py-4">
-                    {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Shield className="h-5 w-5" />}
-                    Pay from Wallet
-                  </Button>
+                  <>
+                    <Button onClick={handlePurchase} disabled={!valid || isProcessing} className="w-full py-4">
+                      {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Shield className="h-5 w-5" />}
+                      Pay from Wallet
+                    </Button>
+                    {!valid && !isProcessing && payDisabledReason && (
+                      <p className="mt-3 rounded-xl bg-amber-500/10 p-3 text-center text-xs font-bold text-amber-600">{payDisabledReason}</p>
+                    )}
+                  </>
                 )}
                 {!airtimeAvailable && <p className="mt-3 text-center text-xs font-bold text-red-500">{network} airtime is currently unavailable.</p>}
                 {airtimeAmountError && <p className="mt-3 text-center text-xs font-bold text-red-500">{airtimeAmountError}</p>}

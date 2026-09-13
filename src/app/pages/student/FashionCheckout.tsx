@@ -119,6 +119,7 @@ export default function FashionCheckout() {
     metadata: {
       orderId,
       orderType: 'FASHION',
+      userId: user?.uid || '',
       source: 'calebdeck',
       fullName: formData.fullName,
       studentName: formData.fullName,
@@ -152,6 +153,7 @@ export default function FashionCheckout() {
 
     const orderData = {
       orderId,
+      userId: user?.uid || null,
       fullName: formData.fullName,
       studentName: formData.fullName,
       phone: formData.phone,
@@ -355,6 +357,7 @@ export default function FashionCheckout() {
 
     const preSaveData = {
       orderId,
+      userId: user?.uid || null,
       fullName: formData.fullName,
       studentName: formData.fullName,
       phone: formData.phone,

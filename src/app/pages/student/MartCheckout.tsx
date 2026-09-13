@@ -104,6 +104,7 @@ export default function MartCheckout() {
     metadata: {
       orderId,
       orderType: 'MART',
+      userId: user?.uid || '',
       source: 'calebdeck',
       fullName: formData.fullName,
       studentName: formData.fullName,
@@ -134,6 +135,7 @@ export default function MartCheckout() {
 
     const orderData = {
       orderId,
+      userId: user?.uid || null,
       fullName: formData.fullName,
       studentName: formData.fullName,
       phone: formData.phone,
@@ -332,6 +334,7 @@ export default function MartCheckout() {
 
     const preSaveData = {
       orderId,
+      userId: user?.uid || null,
       fullName: formData.fullName,
       studentName: formData.fullName,
       phone: formData.phone,

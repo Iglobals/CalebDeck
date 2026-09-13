@@ -214,6 +214,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                 const orderDocBase: any = {
                     orderId,
+                    userId: uid, // authoritative — the paying wallet owner
                     fullName: orderData?.fullName || orderData?.studentName || '',
                     studentName: orderData?.fullName || orderData?.studentName || '',
                     phone: orderData?.phone || '',

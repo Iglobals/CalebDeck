@@ -4,6 +4,8 @@
  * Max 50 orders kept. Oldest are pruned automatically.
  */
 
+import { getOrderItemCount, resolveOrderVertical } from './orderVertical';
+
 const STORAGE_KEY = 'calebdeck_order_history';
 const MAX_ORDERS = 50;
 
@@ -160,7 +162,7 @@ export function buildCalebNetEntry(data: {
 export function buildFashionOrderEntry(orderState: any): OrderHistoryEntry {
   const itemCount = orderState.items?.length || 0;
   const totalQty = orderState.items?.reduce((sum: number, i: any) => sum + (i.quantity || 1), 0) || 0;
-  
+
   return {
     id: orderState.firestoreOrderId || orderState.paymentReference || orderState.orderId,
     orderId: orderState.orderId,
@@ -171,4 +173,55 @@ export function buildFashionOrderEntry(orderState: any): OrderHistoryEntry {
     hostelName: orderState.hostelName || orderState.hostel,
     createdAt: new Date().toISOString()
   };
+}
+
+/** Build a history entry from a Firestore order document (cloud history for signed-in users). */
+export function buildEntryFromFirestoreOrder(id: string, doc: any): OrderHistoryEntry {
+  const vertical = resolveOrderVertical(doc);
+  const created = doc.createdAt?.toDate
+    ? doc.createdAt.toDate().toISOString()
+    : doc.createdAt?.seconds
+        ? new Date(doc.createdAt.seconds * 1000).toISOString()
+        : new Date().toISOString();
+
+  let type: OrderHistoryEntry['type'];
+  let summary: string;
+  if (vertical === 'FASHION') {
+    type = 'fashion';
+    const qty = getOrderItemCount(doc);
+    summary = `${qty} item${qty !== 1 ? 's' : ''} from CalebDeck Fashion`;
+  } else if (vertical === 'MART') {
+    type = 'mart';
+    const qty = getOrderItemCount(doc);
+    summary = `${qty} item${qty !== 1 ? 's' : ''} from CalebDeck Mart`;
+  } else if (doc.type === 'combo') {
+    type = 'combo';
+    summary = `${doc.comboName || 'Combo'} × ${doc.quantity || 1}`;
+  } else {
+    type = 'food';
+    const plateCount = doc.plateCount || doc.plates?.length || 1;
+    summary = `${plateCount} plate${plateCount !== 1 ? 's' : ''} from ${doc.cafeteria || 'Cafeteria'}`;
+  }
+
+  return {
+    id,
+    orderId: doc.orderId || id,
+    type,
+    summary,
+    total: doc.totalAmount ?? doc.total ?? 0,
+    status: doc.status || 'PAID',
+    hostelName: doc.hostelName || doc.hostel || undefined,
+    createdAt: created,
+  };
+}
+
+/** Merge device history with cloud history — deduped by id, newest first. */
+export function mergeHistory(local: OrderHistoryEntry[], cloud: OrderHistoryEntry[]): OrderHistoryEntry[] {
+  const byId = new Map<string, OrderHistoryEntry>();
+  for (const entry of cloud) byId.set(entry.id, entry);
+  for (const entry of local) {
+    if (!byId.has(entry.id)) byId.set(entry.id, entry);
+  }
+  return Array.from(byId.values()).sort((a, b) =>
+    (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0));
 }

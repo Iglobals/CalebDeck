@@ -6,11 +6,11 @@ import { Logo } from '../../components/design-system/Logo';
 import { Button } from '../../components/design-system/Button';
 import { Card } from '../../components/design-system/Card';
 import SEO from '../../components/SEO';
-import { getOrderHistory, clearOrderHistory, OrderHistoryEntry } from '../../../services/orderHistory';
+import { getOrderHistory, clearOrderHistory, OrderHistoryEntry, buildEntryFromFirestoreOrder, mergeHistory } from '../../../services/orderHistory';
 import { getOrderById } from '../../../services/db';
 import { resolveOrderVertical } from '../../../services/orderVertical';
 import { useAuth } from '../../../context/AuthContext';
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 
 const typeConfig: Record<string, { icon: React.ReactNode; color: string; bgColor: string; borderColor: string; label: string }> = {
@@ -85,6 +85,25 @@ export default function MyOrders() {
   useEffect(() => {
     setOrders(getOrderHistory());
   }, []);
+
+  // Signed-in users: merge their cloud orders (every device) with device history.
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, 'orders'),
+      where('userId', '==', user.uid),
+      orderBy('createdAt', 'desc'),
+      limit(50)
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const cloud = snap.docs.map(d => buildEntryFromFirestoreOrder(d.id, d.data()));
+      setOrders(mergeHistory(getOrderHistory(), cloud));
+    }, (err) => {
+      // Composite index not deployed (or offline) — device history still shows.
+      console.warn('[MyOrders] Cloud history unavailable:', err.message);
+    });
+    return unsub;
+  }, [user]);
 
   const filtered = filter === 'all' ? orders : orders.filter(o => o.type === filter);
 
@@ -200,8 +219,9 @@ export default function MyOrders() {
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
 
-        {/* Device Notice */}
-        <div className={`rounded-2xl mb-6 overflow-hidden ${
+        {/* Device Notice — guests only; signed-in users' history follows their account */}
+        {!user && (
+          <div className={`rounded-2xl mb-6 overflow-hidden ${
           studentTheme === 'dark'
             ? 'bg-[#1A1A1A] border border-[#333333]'
             : 'bg-amber-50/50 border border-amber-200/60'
@@ -219,11 +239,12 @@ export default function MyOrders() {
               <p className={`text-xs mt-0.5 ${
                 isAuth ? 'text-muted-foreground' : (studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-amber-700/70')
               }`}>
-                Clearing your browser data, switching browsers, or using incognito mode will erase your history.
+                Clearing your browser data, switching browsers, or using incognito mode will erase your history. Sign in to keep your order history everywhere.
               </p>
             </div>
           </div>
         </div>
+        )}
 
         {/* Filter Tabs */}
         {orders.length > 0 && (

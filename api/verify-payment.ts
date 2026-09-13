@@ -125,6 +125,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const orderDoc: any = {
             orderId,
+            userId: orderData?.userId || orderData?.iConId || null,
             fullName: orderData?.fullName || orderData?.studentName || '',
             studentName: orderData?.fullName || orderData?.studentName || '',
             phone: orderData?.phone || '',
