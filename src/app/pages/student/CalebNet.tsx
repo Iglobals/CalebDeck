@@ -1130,9 +1130,9 @@ export default function CalebNet() {
         </div>
       )}
 
-      {/* Profile Panel — triggered by avatar tap */}
+      {/* Profile Panel — triggered by avatar tap or non-ICA top-up (all screen sizes) */}
       {profilePanelOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 pt-16 backdrop-blur-sm lg:hidden" onClick={() => setProfilePanelOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 pt-16 backdrop-blur-sm" onClick={() => setProfilePanelOpen(false)}>
           <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md max-h-[85vh] flex flex-col">
             <Card className="w-full flex-1 border-[#7C3AED]/20 shadow-2xl overflow-y-auto custom-scrollbar">
               <div className="flex items-center justify-between mb-6">

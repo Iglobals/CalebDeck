@@ -179,7 +179,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 if (!userDoc.exists) {
                     throw new Error('User profile not found');
                 }
-                
+
+                // Firestore transactions require ALL reads before ANY writes.
+                const orderRef = db.collection('orders').doc(orderId);
+                const existingOrder = await t.get(orderRef);
+                isPreSaved = existingOrder.exists && existingOrder.data()?.source === 'pre_saved';
+
                 const userData = userDoc.data()!;
                 const walletBalance = Number(userData.walletBalance || 0);
 
@@ -201,16 +206,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     type: 'debit',
                     amount: serverTotal,
                     balanceAfter: walletBalance - serverTotal,
-                    purpose: 'MART_PURCHASE',
+                    purpose: isFashionOrder ? 'FASHION_PURCHASE' : isMartOrder ? 'MART_PURCHASE' : 'FOOD_PURCHASE',
                     status: 'successful',
                     reference: orderId,
                     createdAt: FieldValue.serverTimestamp()
                 });
-
-                const orderRef = db.collection('orders').doc(orderId);
-                const existingOrder = await t.get(orderRef);
-                
-                isPreSaved = existingOrder.exists && existingOrder.data()?.source === 'pre_saved';
 
                 const orderDocBase: any = {
                     orderId,

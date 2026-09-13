@@ -91,7 +91,7 @@ export function PaymentSelector({ amount, selectedMethod, onSelect, disabled, wa
                   <ShieldAlert className="w-3 h-3" /> Insufficient balance
                 </p>
               ) : (
-                <p className="text-xs font-bold text-muted-foreground mt-0.5">Fast, zero-fee atomic checkout</p>
+                <p className="text-xs font-bold text-muted-foreground mt-0.5">Pay instantly from your balance</p>
               )}
             </div>
           </div>

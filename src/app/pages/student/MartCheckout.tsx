@@ -270,7 +270,7 @@ export default function MartCheckout() {
 
   const handleWalletPayment = async (orderPayload: any) => {
     setIsWalletPaying(true);
-    toast.loading("Processing atomic wallet transaction...");
+    toast.loading("Paying from your wallet...");
     try {
       const token = await user?.getIdToken();
       const res = await fetch('/api/wallet/pay-order', {
