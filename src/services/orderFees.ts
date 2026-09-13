@@ -6,7 +6,7 @@
  * missing. Fashion and Mart are flat per-order fees and NEVER inherit Food's
  * girls'-hostel premium — the premium only applies inside the FOOD branch.
  */
-import { resolveOrderVertical, type OrderVertical } from './orderVertical';
+import { resolveOrderVertical, type OrderVertical } from './orderVertical.js';
 
 export const DEFAULT_PREMIUM_HOSTELS = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'];
 
