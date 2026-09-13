@@ -114,6 +114,14 @@
         { "fieldPath": "riderId", "order": "ASCENDING" },
         { "fieldPath": "weekId", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "wallet_transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

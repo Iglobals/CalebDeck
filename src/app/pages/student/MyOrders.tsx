@@ -10,8 +10,9 @@ import { getOrderHistory, clearOrderHistory, OrderHistoryEntry, buildEntryFromFi
 import { getOrderById } from '../../../services/db';
 import { resolveOrderVertical } from '../../../services/orderVertical';
 import { useAuth } from '../../../context/AuthContext';
-import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, onSnapshot, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
+import { openOrderStatement } from '../../../services/statements';
 
 const typeConfig: Record<string, { icon: React.ReactNode; color: string; bgColor: string; borderColor: string; label: string }> = {
   food: {
@@ -106,6 +107,42 @@ export default function MyOrders() {
   }, [user]);
 
   const filtered = filter === 'all' ? orders : orders.filter(o => o.type === filter);
+
+  // Bank-style monthly statement — queries the account's orders for one month.
+  const [statementMonth, setStatementMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [statementLoading, setStatementLoading] = useState(false);
+
+  const handleOrderStatement = async () => {
+    if (!user) return;
+    setStatementLoading(true);
+    try {
+      const [year, month] = statementMonth.split('-').map(Number);
+      const start = new Date(year, month - 1, 1);
+      const end = new Date(year, month, 0, 23, 59, 59, 999);
+      const q = query(
+        collection(db, 'orders'),
+        where('userId', '==', user.uid),
+        where('createdAt', '>=', Timestamp.fromDate(start)),
+        where('createdAt', '<=', Timestamp.fromDate(end))
+      );
+      const snap = await getDocs(q);
+      const entries = snap.docs
+        .map(d => buildEntryFromFirestoreOrder(d.id, d.data()))
+        .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+      const periodLabel = start.toLocaleDateString('en-NG', { month: 'long', year: 'numeric' });
+      openOrderStatement(
+        entries,
+        periodLabel,
+        user.fullName || user.displayName || 'Student',
+        user.email || user.uid
+      );
+    } catch (err: any) {
+      console.error('[MyOrders] Statement failed:', err);
+      alert('Could not generate your statement. Please try again.');
+    } finally {
+      setStatementLoading(false);
+    }
+  };
 
   const handleClear = () => {
     clearOrderHistory();
@@ -244,6 +281,28 @@ export default function MyOrders() {
             </div>
           </div>
         </div>
+        )}
+
+        {/* Monthly Statement (signed-in users) */}
+        {user && orders.length > 0 && (
+          <div className={`rounded-2xl border p-4 mb-6 flex flex-col sm:flex-row sm:items-center gap-3 ${
+            studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#333333]' : 'bg-white border-gray-100'
+          }`}>
+            <div className="flex-1">
+              <p className="text-sm font-bold">Monthly Statement</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Download a bank-style PDF of your orders for any month.</p>
+            </div>
+            <input
+              type="month"
+              value={statementMonth}
+              max={new Date().toISOString().slice(0, 7)}
+              onChange={(e) => setStatementMonth(e.target.value)}
+              className="rounded-xl border-2 border-border bg-card px-3 py-2 text-sm font-bold outline-none focus:border-[#7C3AED]"
+            />
+            <Button variant="secondary" size="md" onClick={handleOrderStatement} disabled={statementLoading}>
+              {statementLoading ? 'Preparing…' : 'Download Statement'}
+            </Button>
+          </div>
         )}
 
         {/* Filter Tabs */}

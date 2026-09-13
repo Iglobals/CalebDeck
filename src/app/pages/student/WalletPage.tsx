@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router';
 import { useAuth } from '../../../context/AuthContext';
-import { doc, onSnapshot, collection, query, where, limit, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, limit, getDoc, updateDoc, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
+import { openWalletStatement } from '../../../services/statements';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { ArrowLeft, Wallet, CreditCard, RefreshCcw, History, Loader2, ArrowUpRight, ArrowDownLeft, Shield } from 'lucide-react';
@@ -184,6 +185,40 @@ export default function WalletPage() {
         }
     };
 
+    // Bank-style monthly wallet statement — one Firestore range query per request.
+    const [statementMonth, setStatementMonth] = useState(() => new Date().toISOString().slice(0, 7));
+    const [statementLoading, setStatementLoading] = useState(false);
+
+    const handleWalletStatement = async () => {
+        if (!user) return;
+        setStatementLoading(true);
+        try {
+            const [year, month] = statementMonth.split('-').map(Number);
+            const start = new Date(year, month - 1, 1);
+            const end = new Date(year, month, 0, 23, 59, 59, 999);
+            const q = query(
+                collection(db, 'wallet_transactions'),
+                where('userId', '==', user.uid),
+                where('createdAt', '>=', Timestamp.fromDate(start)),
+                where('createdAt', '<=', Timestamp.fromDate(end))
+            );
+            const snap = await getDocs(q);
+            const txs = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+            const periodLabel = start.toLocaleDateString('en-NG', { month: 'long', year: 'numeric' });
+            openWalletStatement(
+                txs,
+                periodLabel,
+                user.fullName || user.displayName || 'Student',
+                user.email || user.uid
+            );
+        } catch (err: any) {
+            console.error('[WalletPage] Statement failed:', err);
+            toast.error('Could not generate your statement. Please try again.');
+        } finally {
+            setStatementLoading(false);
+        }
+    };
+
     const fundingAmountNumber = Number(fundAmount || 0);
     const fundingConfig = {
         reference: fundingReference,
@@ -230,6 +265,24 @@ export default function WalletPage() {
                     
                     {/* Left Column - History */}
                     <div className="space-y-6 order-2 md:order-1">
+                        {/* Monthly Statement */}
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+                            <div className="flex-1">
+                                <p className="text-sm font-black">Wallet Statement</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">Bank-style PDF of your credits and debits for any month.</p>
+                            </div>
+                            <input
+                                type="month"
+                                value={statementMonth}
+                                max={new Date().toISOString().slice(0, 7)}
+                                onChange={(e) => setStatementMonth(e.target.value)}
+                                className="rounded-xl border-2 border-border bg-card px-3 py-2 text-sm font-bold outline-none focus:border-[#10B981]"
+                            />
+                            <Button variant="secondary" size="md" onClick={handleWalletStatement} disabled={statementLoading}>
+                                {statementLoading ? 'Preparing…' : 'Download'}
+                            </Button>
+                        </div>
+
                         <div className="flex items-center gap-2 mb-4">
                             <History className="h-5 w-5 text-[#10B981]" />
                             <h2 className="text-xl font-black">Transaction History</h2>
