@@ -351,7 +351,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     const host = req.headers.host || 'calebdeck.com';
                     const apiUrl = `${protocol}://${host}/api/send-push`;
                     const adminMsg = `${orderData?.fullName || 'A student'} just ordered from ${orderData?.hostelName || orderData?.hostel}`;
-                    const pushLink = isMartOrder ? '/admin/mart/orders' : '/admin/orders';
+                    const pushLink = isFashionOrder ? '/admin/fashion/orders' : (isMartOrder ? '/admin/mart/orders' : '/admin/orders');
 
                     await fetch(apiUrl, {
                         method: 'POST',

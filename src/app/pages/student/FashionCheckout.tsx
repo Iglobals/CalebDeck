@@ -288,6 +288,9 @@ export default function FashionCheckout() {
 
   const handleWalletPayment = async (orderPayload: any) => {
     setIsWalletPaying(true);
+    // Suppress the empty-cart redirect while payment processes — clearCart()
+    // empties items before navigate('/order-success') fires.
+    paymentProcessingRef.current = true;
     toast.loading("Paying from your wallet...");
     try {
       const token = await user?.getIdToken();
@@ -322,6 +325,7 @@ export default function FashionCheckout() {
         replace: true
       });
     } catch (err: any) {
+      paymentProcessingRef.current = false;
       toast.dismiss();
       toast.error(err.message || "Failed to process wallet payment");
       setPaymentMethod('PAYSTACK'); // fallback safely

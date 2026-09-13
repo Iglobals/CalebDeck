@@ -327,6 +327,9 @@ if (premium) {
 
   const handleWalletPayment = async (orderPayload: any) => {
     setIsWalletPaying(true);
+    // Suppress the empty-order redirect while payment processes — clearing the
+    // plate builder happens only via successful navigation to order-success.
+    paymentProcessingRef.current = true;
     toast.loading("Paying from your wallet...");
     try {
       const token = await user?.getIdToken();
@@ -359,6 +362,7 @@ if (premium) {
         replace: true
       });
     } catch (err: any) {
+      paymentProcessingRef.current = false;
       toast.dismiss();
       toast.error(err.message || "Failed to process wallet payment");
       setPaymentMethod('PAYSTACK'); // fallback safely
