@@ -113,7 +113,7 @@ export default function MyOrders() {
   const [statementLoading, setStatementLoading] = useState(false);
 
   const handleOrderStatement = async () => {
-    if (!user) return;
+    if (!user || statementLoading) return;
     setStatementLoading(true);
     try {
       const [year, month] = statementMonth.split('-').map(Number);
@@ -130,7 +130,7 @@ export default function MyOrders() {
         .map(d => buildEntryFromFirestoreOrder(d.id, d.data()))
         .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
       const periodLabel = start.toLocaleDateString('en-NG', { month: 'long', year: 'numeric' });
-      openOrderStatement(
+      await openOrderStatement(
         entries,
         periodLabel,
         user.fullName || user.displayName || 'Student',
@@ -300,7 +300,7 @@ export default function MyOrders() {
               className="rounded-xl border-2 border-border bg-card px-3 py-2 text-sm font-bold outline-none focus:border-[#7C3AED]"
             />
             <Button variant="secondary" size="md" onClick={handleOrderStatement} disabled={statementLoading}>
-              {statementLoading ? 'Preparing…' : 'Download Statement'}
+              {statementLoading ? 'Opening…' : 'Download Statement'}
             </Button>
           </div>
         )}

@@ -1,6 +1,11 @@
 /**
  * Account statements: render a print-ready statement document (Save as PDF)
  * for a chosen month, from order or wallet-transaction data.
+ *
+ * Do not @import Google Fonts here. Safari/iOS defers window.print() until
+ * pending stylesheets finish (or hit a ~30s timeout), which made the print
+ * sheet look broken while the button went idle. Inter is already loaded by
+ * the app in src/styles/fonts.css.
  */
 
 const escapeHtml = (value: any) => String(value ?? '')
@@ -12,13 +17,26 @@ const escapeHtml = (value: any) => String(value ?? '')
 
 const ngn = (n: number) => `₦${Number(n || 0).toLocaleString()}`;
 
-function printStatement(title: string, bodyHtml: string) {
+let printLock = false;
+
+function waitNextPaint(): Promise<void> {
+    return new Promise((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+}
+
+function printStatement(title: string, bodyHtml: string): Promise<void> {
+    if (printLock) return Promise.resolve();
+    printLock = true;
+
+    document.querySelectorAll('.statement-print-root').forEach((node) => node.remove());
+
+    const previousTitle = document.title;
     const printRoot = document.createElement('div');
     printRoot.className = 'statement-print-root';
     printRoot.innerHTML = `
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-            .statement-print-page { box-sizing: border-box; font-family: Inter, Arial, sans-serif; padding: 32px; color: #141414; background: #fff; max-width: 860px; margin: 0 auto; }
+            .statement-print-page { box-sizing: border-box; font-family: Inter, system-ui, -apple-system, Arial, sans-serif; padding: 32px; color: #141414; background: #fff; max-width: 860px; margin: 0 auto; }
             .statement-print-page * { box-sizing: border-box; }
             .statement-print-page .topbar { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #7C3AED; padding-bottom: 16px; margin-bottom: 22px; }
             .statement-print-page .brand { font-size: 22px; font-weight: 900; letter-spacing: -0.5px; }
@@ -40,10 +58,11 @@ function printStatement(title: string, bodyHtml: string) {
             @media screen { .statement-print-root { display: none; } }
             @media print {
                 @page { size: auto; margin: 1cm; }
+                html, body { height: auto !important; max-width: none !important; overflow: visible !important; background: #fff !important; }
                 body > *:not(.statement-print-root) { display: none !important; }
                 .statement-print-root { display: block !important; }
                 .statement-print-page { max-width: none; padding: 0; }
-                body { margin: 0 !important; background: #fff !important; }
+                body { margin: 0 !important; }
             }
         </style>
         <main class="statement-print-page" aria-label="${escapeHtml(title)}">
@@ -51,16 +70,45 @@ function printStatement(title: string, bodyHtml: string) {
             <div class="footer">CalebDeck - This statement was generated from your account activity.</div>
         </main>
     `;
+    document.title = title;
     document.body.appendChild(printRoot);
 
+    let cleaned = false;
+    let lockTimeout = 0;
+    let orphanTimeout = 0;
+    const printMedia = window.matchMedia?.('print');
     const cleanup = () => {
+        if (cleaned) return;
+        cleaned = true;
         printRoot.remove();
+        document.title = previousTitle;
+        printLock = false;
         window.removeEventListener('afterprint', cleanup);
+        printMedia?.removeEventListener?.('change', onPrintMedia);
+        window.clearTimeout(lockTimeout);
+        window.clearTimeout(orphanTimeout);
     };
+    const onPrintMedia = (event: MediaQueryListEvent) => {
+        if (!event.matches) cleanup();
+    };
+
+    printMedia?.addEventListener?.('change', onPrintMedia);
     window.addEventListener('afterprint', cleanup, { once: true });
 
-    // Let the print-only layer enter the document before opening the native print sheet.
-    requestAnimationFrame(() => window.print());
+    return waitNextPaint().then(() => {
+        try {
+            window.print();
+        } catch {
+            cleanup();
+            return;
+        }
+        // Extra taps while iOS is still presenting the sheet should no-op.
+        lockTimeout = window.setTimeout(() => { printLock = false; }, 2500);
+        // iOS often skips afterprint; drop an orphaned print layer later.
+        orphanTimeout = window.setTimeout(() => {
+            if (!window.matchMedia?.('print').matches) cleanup();
+        }, 60000);
+    });
 }
 
 function statementHead(title: string, periodLabel: string, accountName: string, accountDetail: string) {
@@ -114,7 +162,7 @@ export function openOrderStatement(
             <tbody>${rows || '<tr><td colspan="6" class="empty">No orders in this period</td></tr>'}</tbody>
         </table>
     `;
-    printStatement(`Order Statement - ${periodLabel}`, body);
+    return printStatement(`Order Statement - ${periodLabel}`, body);
 }
 
 /** Wallet statement for one month. txs: wallet transactions in the period. */
@@ -154,5 +202,5 @@ export function openWalletStatement(
             <tbody>${rows || '<tr><td colspan="6" class="empty">No transactions in this period</td></tr>'}</tbody>
         </table>
     `;
-    printStatement(`Wallet Statement - ${periodLabel}`, body);
+    return printStatement(`Wallet Statement - ${periodLabel}`, body);
 }

@@ -190,7 +190,7 @@ export default function WalletPage() {
     const [statementLoading, setStatementLoading] = useState(false);
 
     const handleWalletStatement = async () => {
-        if (!user) return;
+        if (!user || statementLoading) return;
         setStatementLoading(true);
         try {
             const [year, month] = statementMonth.split('-').map(Number);
@@ -205,7 +205,7 @@ export default function WalletPage() {
             const snap = await getDocs(q);
             const txs = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
             const periodLabel = start.toLocaleDateString('en-NG', { month: 'long', year: 'numeric' });
-            openWalletStatement(
+            await openWalletStatement(
                 txs,
                 periodLabel,
                 user.fullName || user.displayName || 'Student',
@@ -279,7 +279,7 @@ export default function WalletPage() {
                                 className="rounded-xl border-2 border-border bg-card px-3 py-2 text-sm font-bold outline-none focus:border-[#10B981]"
                             />
                             <Button variant="secondary" size="md" onClick={handleWalletStatement} disabled={statementLoading}>
-                                {statementLoading ? 'Preparing…' : 'Download'}
+                                {statementLoading ? 'Opening…' : 'Download'}
                             </Button>
                         </div>
 
