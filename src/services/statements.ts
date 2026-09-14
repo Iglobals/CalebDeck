@@ -12,61 +12,55 @@ const escapeHtml = (value: any) => String(value ?? '')
 
 const ngn = (n: number) => `₦${Number(n || 0).toLocaleString()}`;
 
-function openStatementWindow(title: string, bodyHtml: string) {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-        alert('Please allow popups to download your statement.');
-        return;
-    }
-    printWindow.document.write(`
-        <html>
-            <head>
-                <title>${escapeHtml(title)}</title>
-                <style>
-                    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-                    * { box-sizing: border-box; }
-                    body { font-family: Inter, Arial, sans-serif; padding: 32px; color: #141414; background: #fff; max-width: 860px; margin: 0 auto; }
-                    .topbar { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #7C3AED; padding-bottom: 16px; margin-bottom: 22px; }
-                    .brand { font-size: 22px; font-weight: 900; letter-spacing: -0.5px; }
-                    .brand span { color: #7C3AED; }
-                    h1 { font-size: 17px; margin: 6px 0 2px; }
-                    .meta { color: #666; font-size: 12px; line-height: 1.5; }
-                    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 18px 0; }
-                    .card { border: 1px solid #e7e2f4; border-radius: 8px; padding: 12px; background: #fbfaff; }
-                    .label { font-size: 9px; text-transform: uppercase; letter-spacing: .12em; color: #665a77; font-weight: 900; }
-                    .value { font-size: 17px; font-weight: 900; margin-top: 5px; }
-                    table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
-                    th, td { border-bottom: 1px solid #ececec; padding: 8px; text-align: left; vertical-align: top; }
-                    th { background: #f7f5fb; text-transform: uppercase; font-size: 9px; letter-spacing: .08em; color: #6b5b7e; }
-                    td.num, th.num { text-align: right; white-space: nowrap; }
-                    .credit { color: #10B981; font-weight: 700; }
-                    .debit { color: #ef4444; font-weight: 700; }
-                    .empty { text-align: center; color: #777; padding: 22px; }
-                    .footer { margin-top: 26px; border-top: 2px solid #7C3AED; padding-top: 12px; text-align: center; font-size: 10px; font-weight: 700; color: #9C8F7F; }
-                    .actions { margin-top: 16px; display: flex; gap: 10px; justify-content: flex-end; }
-                    .print-btn, .close-btn { padding: 11px 16px; border: 0; border-radius: 8px; color: #fff; font-weight: 900; cursor: pointer; }
-                    .print-btn { background: #7C3AED; }
-                    .close-btn { background: #171717; }
-                    @media print { .actions { display: none; } body { padding: 0; } }
-                </style>
-            </head>
-            <body>
-                ${bodyHtml}
-                <div class="footer">CalebDeck — This statement was generated from your account activity.</div>
-                <div class="actions">
-                    <button class="print-btn" onclick="window.print()">Print / Save PDF</button>
-                    <button class="close-btn" onclick="closeStatement()">Close</button>
-                </div>
-                <script>
-                    function closeStatement() {
-                        try { window.close(); } catch (e) {}
-                        setTimeout(function () { if (!window.closed) window.history.back(); }, 150);
-                    }
-                </script>
-            </body>
-        </html>
-    `);
-    printWindow.document.close();
+function printStatement(title: string, bodyHtml: string) {
+    const printRoot = document.createElement('div');
+    printRoot.className = 'statement-print-root';
+    printRoot.innerHTML = `
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+            .statement-print-page { box-sizing: border-box; font-family: Inter, Arial, sans-serif; padding: 32px; color: #141414; background: #fff; max-width: 860px; margin: 0 auto; }
+            .statement-print-page * { box-sizing: border-box; }
+            .statement-print-page .topbar { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #7C3AED; padding-bottom: 16px; margin-bottom: 22px; }
+            .statement-print-page .brand { font-size: 22px; font-weight: 900; letter-spacing: -0.5px; }
+            .statement-print-page .brand span { color: #7C3AED; }
+            .statement-print-page h1 { font-size: 17px; margin: 6px 0 2px; }
+            .statement-print-page .meta { color: #666; font-size: 12px; line-height: 1.5; }
+            .statement-print-page .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 18px 0; }
+            .statement-print-page .card { border: 1px solid #e7e2f4; border-radius: 8px; padding: 12px; background: #fbfaff; }
+            .statement-print-page .label { font-size: 9px; text-transform: uppercase; letter-spacing: .12em; color: #665a77; font-weight: 900; }
+            .statement-print-page .value { font-size: 17px; font-weight: 900; margin-top: 5px; }
+            .statement-print-page table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
+            .statement-print-page th, .statement-print-page td { border-bottom: 1px solid #ececec; padding: 8px; text-align: left; vertical-align: top; }
+            .statement-print-page th { background: #f7f5fb; text-transform: uppercase; font-size: 9px; letter-spacing: .08em; color: #6b5b7e; }
+            .statement-print-page td.num, .statement-print-page th.num { text-align: right; white-space: nowrap; }
+            .statement-print-page .credit { color: #10B981; font-weight: 700; }
+            .statement-print-page .debit { color: #ef4444; font-weight: 700; }
+            .statement-print-page .empty { text-align: center; color: #777; padding: 22px; }
+            .statement-print-page .footer { margin-top: 26px; border-top: 2px solid #7C3AED; padding-top: 12px; text-align: center; font-size: 10px; font-weight: 700; color: #9C8F7F; }
+            @media screen { .statement-print-root { display: none; } }
+            @media print {
+                @page { size: auto; margin: 1cm; }
+                body > *:not(.statement-print-root) { display: none !important; }
+                .statement-print-root { display: block !important; }
+                .statement-print-page { max-width: none; padding: 0; }
+                body { margin: 0 !important; background: #fff !important; }
+            }
+        </style>
+        <main class="statement-print-page" aria-label="${escapeHtml(title)}">
+            ${bodyHtml}
+            <div class="footer">CalebDeck - This statement was generated from your account activity.</div>
+        </main>
+    `;
+    document.body.appendChild(printRoot);
+
+    const cleanup = () => {
+        printRoot.remove();
+        window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup, { once: true });
+
+    // Let the print-only layer enter the document before opening the native print sheet.
+    requestAnimationFrame(() => window.print());
 }
 
 function statementHead(title: string, periodLabel: string, accountName: string, accountDetail: string) {
@@ -84,10 +78,6 @@ function statementHead(title: string, periodLabel: string, accountName: string, 
         </div>
     `;
 }
-
-const STATEMENT_STYLES = `
-    .grid { grid-template-columns: repeat(3, 1fr); }
-`;
 
 /** Order statement for one month. entries: OrderHistoryEntry[] */
 export function openOrderStatement(
@@ -124,7 +114,7 @@ export function openOrderStatement(
             <tbody>${rows || '<tr><td colspan="6" class="empty">No orders in this period</td></tr>'}</tbody>
         </table>
     `;
-    openStatementWindow(`Order Statement — ${periodLabel}`, body);
+    printStatement(`Order Statement - ${periodLabel}`, body);
 }
 
 /** Wallet statement for one month. txs: wallet transactions in the period. */
@@ -164,5 +154,5 @@ export function openWalletStatement(
             <tbody>${rows || '<tr><td colspan="6" class="empty">No transactions in this period</td></tr>'}</tbody>
         </table>
     `;
-    openStatementWindow(`Wallet Statement — ${periodLabel}`, body);
+    printStatement(`Wallet Statement - ${periodLabel}`, body);
 }
