@@ -33,3 +33,10 @@ dist-ssr
 # Vercel
 .vercel
 .env*
+# IDE
+.idea/
+.vscode/
+.zcode/
+*.swp
+*.swo
+.qodo
