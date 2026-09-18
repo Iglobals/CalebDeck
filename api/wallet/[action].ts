@@ -9,6 +9,7 @@ import { setCors } from '../../server/calebnet.js';
 import { verifyUser } from '../../server/verify-user.js';
 import { creditWallet, ensureWalletUser, WALLET_FUNDING_MAX, WALLET_FUNDING_MIN, recordFundingIntent, resolveFundingAmount, markFundingIntentUsed } from '../../server/wallet.js';
 import { resolveOrderVertical } from '../../src/services/orderVertical.js';
+import { confirmFoodBatchReservation } from '../../server/food-batch.js';
 import { isRateLimited, clientIp } from '../../server/rate-limit.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
@@ -159,13 +160,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const uid = decodedToken.uid;
 
             const db = adminDb();
-            const { orderData } = req.body;
+            const { orderData, reference } = req.body;
 
             if (!orderData) {
                 return res.status(400).json({ error: 'orderData is required' });
             }
 
-            const orderId = orderData?.orderId || `CD-${Math.floor(10000 + Math.random() * 90000)}`;
+            const displayOrderId = orderData?.orderId || `CD-${Math.floor(10000 + Math.random() * 90000)}`;
+            // Prefer the pre-save reference so batch reservations (keyed by that
+            // doc id) get confirmed on the same order Paystack would have used.
+            const orderId = (typeof reference === 'string' && reference.trim())
+                ? reference.trim()
+                : displayOrderId;
             const vertical = resolveOrderVertical(orderData);
             const isMartOrder = vertical === 'MART';
             const isFashionOrder = vertical === 'FASHION';
@@ -214,11 +220,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 if (firstOrderEval.applied) {
                     writeFirstOrderDiscountClaim(t, db, {
                         userId: uid,
-                        orderId,
+                        orderId: displayOrderId,
                         evaluation: firstOrderEval,
                         studentName: orderData?.fullName || orderData?.studentName || userData?.fullName || '',
                         email: userData?.email || '',
-                        paymentReference: `WALLET-${orderId}`,
+                        paymentReference: `WALLET-${displayOrderId}`,
                         skipUserWrite: true,
                     });
                 }
@@ -250,7 +256,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     sectionId: orderData?.sectionId || 'none',
                     deliveryMode: orderData?.deliveryMode || 'solo',
                     deliveryType: orderData?.deliveryType || 'INSTANT',
-                    paymentReference: `WALLET-${orderId}`,
+                    paymentReference: `WALLET-${displayOrderId}`,
                     paymentMethod: 'WALLET',
                     assignedRiderId: null,
                     batchId: null,
@@ -261,12 +267,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 };
 
                 if (orderDocBase.deliveryType === 'BATCH') {
-                    orderDocBase.foodBatchId = orderData?.selectedBatchId || orderData?.foodBatchId || null;
-                    orderDocBase.foodBatchName = orderData?.foodBatchName || 'Scheduled Batch';
-                    orderDocBase.orderWindowStart = orderData?.orderWindowStart || null;
-                    orderDocBase.orderWindowEnd = orderData?.orderWindowEnd || null;
-                    orderDocBase.deliveryWindowStart = orderData?.deliveryWindowStart || null;
-                    orderDocBase.deliveryWindowEnd = orderData?.deliveryWindowEnd || null;
+                    const existing = existingOrder.exists ? existingOrder.data() : null;
+                    orderDocBase.foodBatchId = orderData?.selectedBatchId || orderData?.foodBatchId || existing?.foodBatchId || null;
+                    orderDocBase.foodBatchName = orderData?.foodBatchName || existing?.foodBatchName || 'Scheduled Batch';
+                    orderDocBase.orderWindowStart = orderData?.orderWindowStart || existing?.orderWindowStart || null;
+                    orderDocBase.orderWindowEnd = orderData?.orderWindowEnd || existing?.orderWindowEnd || null;
+                    orderDocBase.deliveryWindowStart = orderData?.deliveryWindowStart || existing?.deliveryWindowStart || null;
+                    orderDocBase.deliveryWindowEnd = orderData?.deliveryWindowEnd || existing?.deliveryWindowEnd || null;
+                    orderDocBase.foodBatchDayId = existing?.foodBatchDayId || orderData?.foodBatchDayId || null;
                 }
 
                 if (isMartOrder) {
@@ -342,6 +350,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                 t.set(orderRef, mergeDiscountOntoOrder(orderDocBase, firstOrderEval), { merge: true });
             });
+
+            try {
+                await confirmFoodBatchReservation({
+                    db,
+                    orderRef: db.collection('orders').doc(orderId),
+                    reference: orderId,
+                    paidAmount: finalAmount,
+                });
+            } catch (batchErr) {
+                console.warn('[pay-order] Failed to confirm batch slot (non-blocking):', batchErr);
+            }
             
             try {
                 await db.collection('users').doc(uid).update({
@@ -407,7 +426,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     success: true,
                     message: 'Wallet payment successful',
                     amount: finalAmount,
-                    orderId
+                    orderId: displayOrderId,
+                    firestoreOrderId: orderId,
                 }
             });
 

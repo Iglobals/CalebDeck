@@ -365,7 +365,7 @@ if (premium) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ orderData: orderPayload })
+        body: JSON.stringify({ orderData: orderPayload, reference: paymentRef.current })
       });
       const data = await res.json();
 
@@ -378,9 +378,9 @@ if (premium) {
       navigate('/order-success', {
         state: {
           ...orderPayload,
-          firestoreOrderId: data.data.orderId,
-          orderId: data.data.orderId,
-          paymentReference: `WALLET-${data.data.orderId}`,
+          firestoreOrderId: data.data.firestoreOrderId || data.data.orderId,
+          orderId: data.data.orderId || orderPayload.orderId,
+          paymentReference: `WALLET-${data.data.orderId || orderPayload.orderId}`,
           total: payableTotal,
           totalAmount: payableTotal,
           status: 'PAID'
@@ -744,6 +744,7 @@ if (premium) {
     // Wallet payments debit atomically server-side against the just-saved order.
     if (paymentMethod === 'WALLET') {
       await handleWalletPayment(preSaveData);
+      setIsSubmitting(false);
       return;
     }
 
@@ -1162,8 +1163,6 @@ if (premium) {
                     amount={payableTotal}
                     selectedMethod={paymentMethod}
                     onSelect={setPaymentMethod}
-                    // Batch slots are confirmed through the Paystack verification flow
-                    walletDisabled={deliveryType === 'BATCH'}
                   />
                 </div>
               )}
