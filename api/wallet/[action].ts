@@ -4,6 +4,7 @@ import { getAuth } from 'firebase-admin/auth';
 import axios from 'axios';
 import { adminDb, ensureFirebaseAdmin } from '../../server/firebase-admin.js';
 import { calculateServerOrderTotal } from '../../server/order-utils.js';
+import { evaluateFirstOrderDiscountTx, writeFirstOrderDiscountClaim, mergeDiscountOntoOrder } from '../../server/first-order-discount.js';
 import { setCors } from '../../server/calebnet.js';
 import { verifyUser } from '../../server/verify-user.js';
 import { creditWallet, ensureWalletUser, WALLET_FUNDING_MAX, WALLET_FUNDING_MIN, recordFundingIntent, resolveFundingAmount, markFundingIntentUsed } from '../../server/wallet.js';
@@ -188,7 +189,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const userData = userDoc.data()!;
                 const walletBalance = Number(userData.walletBalance || 0);
 
-                const { serverTotal } = await calculateServerOrderTotal(db, orderData, t);
+                const { serverTotal: rawTotal, netDeliveryFee } = await calculateServerOrderTotal(db, orderData, t);
+                const firstOrderEval = await evaluateFirstOrderDiscountTx(t, db, {
+                    userId: uid,
+                    userData,
+                    netDeliveryFee,
+                    isFood: !isMartOrder && !isFashionOrder,
+                });
+                const serverTotal = firstOrderEval.applied ? rawTotal - firstOrderEval.amount : rawTotal;
                 finalAmount = serverTotal;
 
                 if (walletBalance < serverTotal) {
@@ -197,8 +205,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                 t.update(userRef, {
                     walletBalance: FieldValue.increment(-serverTotal),
-                    updatedAt: FieldValue.serverTimestamp()
+                    updatedAt: FieldValue.serverTimestamp(),
+                    ...(firstOrderEval.applied
+                        ? { firstOrderDiscountClaimed: true, firstOrderDiscountClaimedAt: FieldValue.serverTimestamp() }
+                        : {})
                 });
+
+                if (firstOrderEval.applied) {
+                    writeFirstOrderDiscountClaim(t, db, {
+                        userId: uid,
+                        orderId,
+                        evaluation: firstOrderEval,
+                        studentName: orderData?.fullName || orderData?.studentName || userData?.fullName || '',
+                        email: userData?.email || '',
+                        paymentReference: `WALLET-${orderId}`,
+                        skipUserWrite: true,
+                    });
+                }
 
                 const transactionRef = db.collection('wallet_transactions').doc();
                 t.set(transactionRef, {
@@ -310,7 +333,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     orderDocBase.plateCount = orderData?.plateCount || 1;
                 }
 
-                t.set(orderRef, orderDocBase, { merge: true });
+                if (orderData?.breakdown) {
+                    const restBreakdown = { ...orderData.breakdown };
+                    delete restBreakdown.firstOrderDiscount;
+                    delete restBreakdown.firstOrderDiscountPercent;
+                    orderDocBase.breakdown = restBreakdown;
+                }
+
+                t.set(orderRef, mergeDiscountOntoOrder(orderDocBase, firstOrderEval), { merge: true });
             });
             
             try {

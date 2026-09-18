@@ -5,6 +5,8 @@ import { adminDb } from '../server/firebase-admin.js';
 import { confirmFoodBatchReservation } from '../server/food-batch.js';
 import { creditWallet, ensureWalletUser, WALLET_FUNDING_MAX, WALLET_FUNDING_MIN, resolveFundingAmount, markFundingIntentUsed } from '../server/wallet.js';
 import { resolveOrderVertical } from '../src/services/orderVertical.js';
+import { calculateServerOrderTotal } from '../server/order-utils.js';
+import { claimFirstOrderDiscount, mergeDiscountOntoOrder } from '../server/first-order-discount.js';
 
 function metadataValue(metadata: any, key: string) {
     if (metadata?.[key] !== undefined && metadata?.[key] !== null) return metadata[key];
@@ -153,6 +155,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             // Pre-saved order (items already complete) — just flip status to PAID
             if (existingData.source === 'pre_saved' && ['PENDING_PAYMENT', 'FAILED'].includes(existingData.status)) {
+                let discountFields: any = {};
+                try {
+                    const { netDeliveryFee } = await calculateServerOrderTotal(db, { ...existingData, ...metadata });
+                    const firstOrderEval = await claimFirstOrderDiscount(db, {
+                        userId: existingData.userId || existingData.iConId || metadataValue(metadata, 'userId') || metadataValue(metadata, 'iConId'),
+                        orderId: existingData.orderId || reference,
+                        netDeliveryFee,
+                        isFood: vertical === 'FOOD',
+                        studentName: existingData.fullName || existingData.studentName || '',
+                        email: existingData.email || metadataValue(metadata, 'email') || '',
+                        paymentReference: reference,
+                    });
+                    discountFields = firstOrderEval.applied
+                        ? mergeDiscountOntoOrder({ breakdown: existingData.breakdown }, firstOrderEval)
+                        : {};
+                } catch (discountErr) {
+                    console.warn('[Webhook] First-order discount claim failed (non-blocking):', discountErr);
+                }
+
                 await orderRef.update({
                     status: 'PAID',
                     source: 'webhook_confirmed',
@@ -161,6 +182,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     paymentStatus: paymentData.status || 'success',
                     paymentMessage: paymentData.gateway_response || 'Payment confirmed',
                     paidAt: paymentData.paid_at || null,
+                    ...discountFields,
                     updatedAt: FieldValue.serverTimestamp()
                 });
                 console.log(`[Webhook] Confirmed pre-saved order: ${reference}`);
@@ -329,6 +351,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.plates = metadata.plates || [];
             orderDoc.drinksSnacks = metadata.drinksSnacks || [];
             orderDoc.plateCount = metadata.plateCount || 1;
+        }
+
+        try {
+            const { netDeliveryFee } = await calculateServerOrderTotal(db, { ...metadata, ...orderDoc });
+            const firstOrderEval = await claimFirstOrderDiscount(db, {
+                userId: orderDoc.userId || metadataValue(metadata, 'userId') || metadataValue(metadata, 'iConId'),
+                orderId: orderDoc.orderId || reference,
+                netDeliveryFee,
+                isFood: !isMartOrder && !isFashionOrder,
+                studentName: orderDoc.fullName || orderDoc.studentName || '',
+                email: metadataValue(metadata, 'email') || paymentData.customer?.email || '',
+                paymentReference: reference,
+            });
+            Object.assign(orderDoc, mergeDiscountOntoOrder(orderDoc, firstOrderEval));
+        } catch (discountErr) {
+            console.warn('[Webhook] First-order discount claim failed (non-blocking):', discountErr);
         }
 
         await orderRef.set(orderDoc);

@@ -643,8 +643,42 @@ export interface PlatformSettings {
     };
     // Promo Banners
     promoSlides?: PromoSlide[];
+    // Launch promo: first N ICA food orders get % off delivery
+    firstOrderDiscountEnabled?: boolean;
+    firstOrderDiscountPercent?: number;
+    firstOrderDiscountMaxOrders?: number;
+    firstOrderDiscountClaimedCount?: number;
     [key: string]: any;
 }
+
+export const FIRST_ORDER_DISCOUNT_COLLECTION = 'first_order_discount_claims';
+
+export interface FirstOrderDiscountClaim {
+    id: string;
+    userId: string;
+    orderId: string;
+    studentName: string;
+    email?: string;
+    percentOff: number;
+    amount: number;
+    slotNumber: number;
+    maxOrders: number;
+    claimedAt: any;
+}
+
+export const subscribeToFirstOrderDiscountClaims = (
+    callback: (claims: FirstOrderDiscountClaim[]) => void
+) => {
+    const claimsRef = collection(db, FIRST_ORDER_DISCOUNT_COLLECTION);
+    return onSnapshot(claimsRef, (snapshot) => {
+        const claims = snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<FirstOrderDiscountClaim, 'id'>) }));
+        claims.sort((a, b) => (a.slotNumber || 0) - (b.slotNumber || 0));
+        callback(claims);
+    }, (error) => {
+        console.error('subscribeToFirstOrderDiscountClaims error:', error);
+        callback([]);
+    });
+};
 
 export const FASHION_ORDER_STATUSES = [
   'ORDER_PLACED',

@@ -17,7 +17,8 @@ import {
     Zap,
     AlertTriangle,
     Wallet,
-    CreditCard
+    CreditCard,
+    Gift
 } from 'lucide-react';
 import { subscribeToAllOrders, subscribeToHostels, Hostel, subscribeToRiders, Rider, dispatchBatch, markOrderRefunded, orderMatchesHostel, subscribeTodayBatchDays, advanceFashionBatch, FoodBatchDay, subscribeToPlatformSettings } from '../../../services/db';
 import { resolveOrderVertical } from '../../../services/orderVertical';
@@ -384,6 +385,12 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                     <span>-₦${discount.toLocaleString()}</span>
                                 </div>
                                 ` : ''}
+                                ${(order.firstOrderDiscount?.applied || (isFood && hasBreakdown && order.breakdown.firstOrderDiscount > 0)) ? `
+                                <div class="item-row" style="color: #10B981;">
+                                    <span>First-order delivery discount${order.firstOrderDiscount?.percentOff ? ` (${order.firstOrderDiscount.percentOff}%)` : ''}</span>
+                                    <span>-₦${Number(order.firstOrderDiscount?.amount || order.breakdown?.firstOrderDiscount || 0).toLocaleString()}</span>
+                                </div>
+                                ` : ''}
                             `;
                         })()}
                         ${order.drinksSnacks?.length > 0 ? `
@@ -643,6 +650,9 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                                     ) : order.paymentMethod === 'PAYSTACK' ? (
                                                                         <Badge variant="blue" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-blue-500/30 flex items-center gap-1"><CreditCard className="w-3 h-3" /> Paystack</Badge>
                                                                     ) : null}
+                                                                    {order.firstOrderDiscount?.applied && (
+                                                                        <Badge variant="green" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-emerald-500/30 flex items-center gap-1"><Gift className="w-3 h-3" /> First order</Badge>
+                                                                    )}
                                                                     <span className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                                                                         {' - '}{isFashionOrder(order) ? `${getOrderItemCount(order)} fashion items` : order.type === 'combo' ? `${order.quantity || 1} combos` : isMartVertical(order) ? `${getOrderItemCount(order)} mart items` : `${order.plates?.length || 0} plates`}
                                                                     </span>
@@ -696,6 +706,9 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                     ) : order.paymentMethod === 'PAYSTACK' ? (
                                                         <Badge variant="blue" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-blue-500/30 ml-2 mt-1 flex items-center gap-1"><CreditCard className="w-3 h-3" /> Paystack</Badge>
                                                     ) : null}
+                                                    {order.firstOrderDiscount?.applied && (
+                                                        <Badge variant="green" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-emerald-500/30 ml-2 mt-1 flex items-center gap-1"><Gift className="w-3 h-3" /> First order</Badge>
+                                                    )}
                                                 </div>
                                                 <div className="flex items-center gap-3">
                                                     <span className={`text-sm font-black ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>₦{getOrderAmount(order).toLocaleString()}</span>
@@ -796,6 +809,9 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                             ) : selectedOrder.paymentMethod === 'PAYSTACK' ? (
                                                 <Badge variant="blue" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-blue-500/30 shrink-0 flex items-center gap-1"><CreditCard className="w-3 h-3" /> Paystack</Badge>
                                             ) : null}
+                                            {selectedOrder.firstOrderDiscount?.applied && (
+                                                <Badge variant="green" className="text-[9px] uppercase font-black px-1.5 py-0.5 border border-emerald-500/30 shrink-0 flex items-center gap-1"><Gift className="w-3 h-3" /> First order {selectedOrder.firstOrderDiscount.percentOff}% off delivery</Badge>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -1005,6 +1021,17 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                             <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10 text-green-500">
                                                                 <p className={`text-sm font-bold`}>Group Discount</p>
                                                                 <span className={`text-xs font-bold`}>-₦{discount.toLocaleString()}</span>
+                                                            </div>
+                                                        )}
+                                                        {(selectedOrder.firstOrderDiscount?.applied || (hasBreakdown && selectedOrder.breakdown.firstOrderDiscount > 0)) && (
+                                                            <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10 text-emerald-500">
+                                                                <div>
+                                                                    <p className="text-sm font-bold">First-order delivery discount</p>
+                                                                    <p className={`text-[10px] font-bold mt-0.5 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+                                                                        {selectedOrder.firstOrderDiscount?.message || `${selectedOrder.firstOrderDiscount?.percentOff || selectedOrder.breakdown?.firstOrderDiscountPercent || ''}% off delivery for an early ICA food order`}
+                                                                    </p>
+                                                                </div>
+                                                                <span className="text-xs font-bold">-₦{Number(selectedOrder.firstOrderDiscount?.amount || selectedOrder.breakdown?.firstOrderDiscount || 0).toLocaleString()}</span>
                                                             </div>
                                                         )}
                                                     </>

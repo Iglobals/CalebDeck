@@ -12,7 +12,7 @@ export async function calculateServerOrderTotal(
     db: firestore.Firestore,
     orderData: any,
     transaction?: firestore.Transaction
-): Promise<{ serverTotal: number; itemsDocs?: any[]; comboDoc?: any; paidAmountExpected?: number }> {
+): Promise<{ serverTotal: number; netDeliveryFee: number; itemsDocs?: any[]; comboDoc?: any; paidAmountExpected?: number }> {
     const vertical = resolveOrderVertical(orderData);
     const isMartOrder = vertical === 'MART';
     const isFashionOrder = vertical === 'FASHION';
@@ -54,7 +54,7 @@ export async function calculateServerOrderTotal(
             }
         }
         serverTotal = fashionTotal + fashionDeliveryFee;
-        return { serverTotal };
+        return { serverTotal, netDeliveryFee: fashionDeliveryFee };
     }
 
     if (isMartOrder) {
@@ -83,7 +83,7 @@ export async function calculateServerOrderTotal(
             }
         }
         serverTotal = martTotal + martDeliveryFee;
-        return { serverTotal };
+        return { serverTotal, netDeliveryFee: martDeliveryFee };
     }
 
     // Food (plate or combo) — premium hostel rate only applies to food orders.
@@ -111,7 +111,7 @@ export async function calculateServerOrderTotal(
         const deliveryFee = baseDeliveryFee * quantity;
 
         serverTotal = (comboData.basePrice * quantity) + deliveryFee;
-        return { serverTotal, comboDoc: comboData };
+        return { serverTotal, netDeliveryFee: deliveryFee, comboDoc: comboData };
     }
 
     // Food Plate Order — food orders carry a flat `items` array (wallet path)
@@ -164,5 +164,5 @@ export async function calculateServerOrderTotal(
     const takeawayFee = 200 * plateCount;
     serverTotal = foodTotal + deliveryFee + takeawayFee;
 
-    return { serverTotal };
+    return { serverTotal, netDeliveryFee: deliveryFee };
 }

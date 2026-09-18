@@ -4,8 +4,8 @@ import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
-import { Settings, ShieldAlert, Store, Pizza, Clock, Wifi, Utensils, MessageSquare, Plus, Trash2, Edit3, ArrowUp, ArrowDown, Image as ImageIcon, Sparkles, Check, X } from 'lucide-react';
-import { subscribeToPlatformSettings, updatePlatformSettings, PlatformSettings, PromoSlide, DEFAULT_PROMO_SLIDES } from '../../../services/db';
+import { Settings, ShieldAlert, Store, Pizza, Clock, Wifi, Utensils, MessageSquare, Plus, Trash2, Edit3, ArrowUp, ArrowDown, Image as ImageIcon, Sparkles, Check, X, Gift } from 'lucide-react';
+import { subscribeToPlatformSettings, updatePlatformSettings, subscribeToFirstOrderDiscountClaims, PlatformSettings, PromoSlide, DEFAULT_PROMO_SLIDES, FirstOrderDiscountClaim } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 import { FashionBatchConfig, DEFAULT_FASHION_BATCH_CONFIG } from '../../../services/fashionBatch';
 
@@ -80,6 +80,15 @@ export default function AdminSettings() {
   });
   const [premiumHostelsText, setPremiumHostelsText] = useState('');
 
+  const [firstOrderDiscount, setFirstOrderDiscount] = useState({
+    enabled: false,
+    percentOff: 50,
+    maxOrders: 1,
+  });
+  const [firstOrderClaimedCount, setFirstOrderClaimedCount] = useState(0);
+  const [firstOrderClaims, setFirstOrderClaims] = useState<FirstOrderDiscountClaim[]>([]);
+  const [savingFirstOrderDiscount, setSavingFirstOrderDiscount] = useState(false);
+
   // Promo Banners State
   const [promoSlides, setPromoSlides] = useState<PromoSlide[]>([]);
   const [editingSlideId, setEditingSlideId] = useState<string | null>(null);
@@ -129,7 +138,18 @@ export default function AdminSettings() {
         businessYearlyPrice: data.businessYearlyPrice || 0
       });
       setPremiumHostelsText((data.premiumHostels || []).join(', '));
+      setFirstOrderDiscount({
+        enabled: data.firstOrderDiscountEnabled === true,
+        percentOff: Number(data.firstOrderDiscountPercent) > 0 ? Number(data.firstOrderDiscountPercent) : 50,
+        maxOrders: Number(data.firstOrderDiscountMaxOrders) > 0 ? Number(data.firstOrderDiscountMaxOrders) : 1,
+      });
+      setFirstOrderClaimedCount(Number(data.firstOrderDiscountClaimedCount) || 0);
     });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const unsub = subscribeToFirstOrderDiscountClaims(setFirstOrderClaims);
     return () => unsub();
   }, []);
 
@@ -386,6 +406,45 @@ export default function AdminSettings() {
     } catch (err) {
       console.error('Failed to update fees:', err);
       alert('Failed to update fees.');
+    }
+  };
+
+  const handleSaveFirstOrderDiscount = async () => {
+    const percentOff = Math.min(100, Math.max(1, Math.round(Number(firstOrderDiscount.percentOff) || 0)));
+    const maxOrders = Math.min(1000, Math.max(1, Math.floor(Number(firstOrderDiscount.maxOrders) || 0)));
+    if (!percentOff || !maxOrders) {
+      alert('Enter a percent off (1–100) and how many first orders should get it (1 or more).');
+      return;
+    }
+    if (maxOrders < firstOrderClaimedCount) {
+      if (!confirm(`You've already granted this discount to ${firstOrderClaimedCount} ${firstOrderClaimedCount === 1 ? 'person' : 'people'}. Lowering the limit to ${maxOrders} will stop new claims but will not take the discount back from people who already got it. Continue?`)) {
+        return;
+      }
+    }
+    setSavingFirstOrderDiscount(true);
+    try {
+      await updatePlatformSettings({
+        firstOrderDiscountEnabled: firstOrderDiscount.enabled,
+        firstOrderDiscountPercent: percentOff,
+        firstOrderDiscountMaxOrders: maxOrders,
+      });
+      setFirstOrderDiscount({ enabled: firstOrderDiscount.enabled, percentOff, maxOrders });
+      alert('First-order discount settings saved.');
+    } catch (err) {
+      console.error('Failed to save first-order discount:', err);
+      alert('Failed to save first-order discount settings.');
+    } finally {
+      setSavingFirstOrderDiscount(false);
+    }
+  };
+
+  const formatClaimDate = (ts: any) => {
+    if (!ts) return 'Just now';
+    try {
+      const date = ts.toDate ? ts.toDate() : new Date(ts);
+      return date.toLocaleString('en-NG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '—';
     }
   };
 
@@ -994,6 +1053,142 @@ export default function AdminSettings() {
             >
               Save Fees & Pricing
             </Button>
+          </Card>
+        </div>
+
+        {/* First Order Discount */}
+        <div className="mt-10">
+          <Card className="p-6 md:p-8 border-l-4 border-l-amber-500 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+              <div className="flex items-center space-x-3">
+                <div className={`p-3 rounded-2xl ${isDark ? 'bg-amber-900/40 text-amber-400' : 'bg-amber-100 text-amber-600'}`}>
+                  <Gift className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className={`text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>First Order Discount</h2>
+                  <p className={`text-xs sm:text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Percent off delivery for the first ICA (i-CON) students who order food on CalebDeck. Change the percent and how many people qualify anytime.
+                  </p>
+                </div>
+              </div>
+              <Badge className={firstOrderDiscount.enabled ? 'bg-emerald-100 text-emerald-700' : isDark ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'}>
+                {firstOrderDiscount.enabled ? 'Active' : 'Off'}
+              </Badge>
+            </div>
+
+            <div className={`mb-6 rounded-2xl border px-4 py-3 ${isDark ? 'border-gray-800 bg-[#1A1A1A]' : 'border-gray-100 bg-gray-50'}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {firstOrderClaimedCount} of {firstOrderDiscount.maxOrders} claimed
+                  </p>
+                  <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {Math.max(0, firstOrderDiscount.maxOrders - firstOrderClaimedCount)} slot{Math.max(0, firstOrderDiscount.maxOrders - firstOrderClaimedCount) === 1 ? '' : 's'} remaining. Only signed-in ICA accounts qualify, once per person.
+                  </p>
+                </div>
+                <div className={`h-2 w-28 rounded-full overflow-hidden ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`}>
+                  <div
+                    className="h-full bg-amber-500"
+                    style={{ width: `${Math.min(100, firstOrderDiscount.maxOrders > 0 ? (firstOrderClaimedCount / firstOrderDiscount.maxOrders) * 100 : 0)}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+              <div>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Enable discount</label>
+                <button
+                  type="button"
+                  onClick={() => setFirstOrderDiscount(prev => ({ ...prev, enabled: !prev.enabled }))}
+                  className={`w-full px-3 py-2 rounded-lg border font-bold text-sm transition-all ${
+                    firstOrderDiscount.enabled
+                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600'
+                      : isDark
+                        ? 'bg-[#2A2A2A] border-[#333333] text-gray-300'
+                        : 'bg-white border-gray-200 text-gray-700'
+                  }`}
+                >
+                  {firstOrderDiscount.enabled ? 'On — students can receive it' : 'Off — no launch discount'}
+                </button>
+              </div>
+              <div>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Percent off delivery fee</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={firstOrderDiscount.percentOff}
+                  onChange={(e) => setFirstOrderDiscount(prev => ({ ...prev, percentOff: Number(e.target.value) }))}
+                  className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                    isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
+                  }`}
+                />
+                <p className={`text-[11px] mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Applied after food, takeaway, and group delivery are calculated.</p>
+              </div>
+              <div>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>How many first orders</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="1000"
+                  value={firstOrderDiscount.maxOrders}
+                  onChange={(e) => setFirstOrderDiscount(prev => ({ ...prev, maxOrders: Number(e.target.value) }))}
+                  className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                    isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
+                  }`}
+                />
+                <p className={`text-[11px] mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>1 = first person only. Raise this later to the first 3, 4, or more without a code change.</p>
+              </div>
+            </div>
+
+            <Button
+              variant="primary"
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white mb-8"
+              onClick={handleSaveFirstOrderDiscount}
+              disabled={savingFirstOrderDiscount}
+            >
+              {savingFirstOrderDiscount ? 'Saving...' : 'Save First Order Discount'}
+            </Button>
+
+            <div>
+              <h3 className={`text-sm font-black uppercase tracking-widest mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Who received it</h3>
+              {firstOrderClaims.length === 0 ? (
+                <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                  Nobody has claimed this discount yet. The first eligible ICA student to pay for a food order will show up here.
+                </p>
+              ) : (
+                <div className={`overflow-x-auto rounded-xl border ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
+                  <table className="w-full text-sm">
+                    <thead className={isDark ? 'bg-[#1A1A1A] text-gray-400' : 'bg-gray-50 text-gray-500'}>
+                      <tr>
+                        <th className="text-left font-bold px-3 py-2">#</th>
+                        <th className="text-left font-bold px-3 py-2">Student</th>
+                        <th className="text-left font-bold px-3 py-2">Order</th>
+                        <th className="text-left font-bold px-3 py-2">Saved</th>
+                        <th className="text-left font-bold px-3 py-2">When</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {firstOrderClaims.map((claim) => (
+                        <tr key={claim.id} className={isDark ? 'border-t border-gray-800' : 'border-t border-gray-100'}>
+                          <td className={`px-3 py-2 font-black ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>{claim.slotNumber}</td>
+                          <td className={`px-3 py-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            <div className="font-bold">{claim.studentName || 'Student'}</div>
+                            <div className={`text-[11px] ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{claim.email || claim.userId}</div>
+                          </td>
+                          <td className={`px-3 py-2 font-mono text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{claim.orderId}</td>
+                          <td className="px-3 py-2 font-bold text-emerald-600">
+                            -₦{(claim.amount || 0).toLocaleString()} ({claim.percentOff}%)
+                          </td>
+                          <td className={`px-3 py-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{formatClaimDate(claim.claimedAt)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </Card>
         </div>
 

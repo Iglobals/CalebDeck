@@ -4,6 +4,7 @@ import axios from 'axios';
 import { adminDb } from '../server/firebase-admin.js';
 import { confirmFoodBatchReservation } from '../server/food-batch.js';
 import { calculateServerOrderTotal } from '../server/order-utils.js';
+import { claimFirstOrderDiscount, mergeDiscountOntoOrder } from '../server/first-order-discount.js';
 import { resolveOrderVertical } from '../src/services/orderVertical.js';
 import { isRateLimited, clientIp } from '../server/rate-limit.js';
 
@@ -109,7 +110,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // 3. Recalculate total from Firestore prices (server-side validation)
-        const { serverTotal, comboDoc } = await calculateServerOrderTotal(db, orderData);
+        const { serverTotal: rawTotal, netDeliveryFee, comboDoc } = await calculateServerOrderTotal(db, orderData);
+        const discountUserId = orderData?.userId || orderData?.iConId || null;
+        let firstOrderEval = {
+            applied: false,
+            amount: 0,
+            percentOff: 0,
+            maxOrders: 0,
+            slotNumber: 0,
+            remaining: 0,
+            message: '',
+        };
+        try {
+            firstOrderEval = await claimFirstOrderDiscount(db, {
+                userId: discountUserId,
+                orderId: orderData?.orderId || reference,
+                netDeliveryFee,
+                isFood: !isMartOrder && !isFashionOrder,
+                studentName: orderData?.fullName || orderData?.studentName || '',
+                email: orderData?.email || '',
+                paymentReference: reference,
+            });
+        } catch (discountErr) {
+            console.warn('[verify-payment] First-order discount claim failed (non-blocking):', discountErr);
+        }
+        const serverTotal = firstOrderEval.applied ? rawTotal - firstOrderEval.amount : rawTotal;
 
         // 4. Verify amount — allow 5% tolerance for rounding
         const paidAmount = data.amount / 100; // Paystack sends in kobo
@@ -222,6 +247,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.plateCount = orderData?.plateCount || 1;
         }
 
+        Object.assign(orderDoc, mergeDiscountOntoOrder(orderDoc, firstOrderEval));
+
         // For pre-saved orders, just update the status — item data is already in Firestore
         const existingSource = existingDoc.exists ? existingDoc.data()?.source : null;
         const isPreSaved = existingDoc.exists && ['pre_saved', 'webhook_confirmed'].includes(existingSource);
@@ -273,6 +300,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 paymentMethod: 'PAYSTACK',
                 paidAt: data.paid_at || null,
                 ...backfill,
+                ...(firstOrderEval.applied ? mergeDiscountOntoOrder({ breakdown: preSavedData.breakdown }, firstOrderEval) : {}),
                 updatedAt: FieldValue.serverTimestamp()
             }, { merge: true });
             console.log(`[verify-payment] Updated pre-saved order to PAID: ${reference}${needsVerticalBackfill ? ` [backfilled vertical=${orderDoc.orderType}]` : ''}`);

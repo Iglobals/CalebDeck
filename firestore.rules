@@ -212,6 +212,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Launch promo claims — server writes, admin reads
+    match /first_order_discount_claims/{claimId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     // ─── Reviews ───
     match /reviews/{reviewId} {
       allow read: if true;

@@ -5,7 +5,8 @@ import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
 import { Input, Select, Textarea } from '../../components/design-system/Input';
-import { ArrowLeft, Lock, Shield, CreditCard, MapPin, User, AlertTriangle, Timer } from 'lucide-react';
+import { ArrowLeft, Lock, Shield, CreditCard, MapPin, User, AlertTriangle, Timer, Gift } from 'lucide-react';
+import { netDeliveryFeeFromBreakdown, previewFirstOrderDiscount } from '../../../services/firstOrderDiscount';
 import { getActiveHostels, Hostel, subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 import { isPremiumHostel } from '../../../services/orderFees';
 import { calculateOrderTotal, verifyPayment } from '../../../services/functions';
@@ -256,6 +257,29 @@ if (premium) {
   const isFemaleHostelSelected = isPremiumHostel(formData.hostel, platformSettings);
   const orderId = React.useMemo(() => `CD-${Math.floor(10000 + Math.random() * 90000)}`, []);
 
+  const firstOrderPreview = React.useMemo(() => {
+    if (!orderTotal) return null;
+    return previewFirstOrderDiscount({
+      settings: platformSettings,
+      user,
+      netDeliveryFee: netDeliveryFeeFromBreakdown(orderTotal.breakdown),
+    });
+  }, [orderTotal, platformSettings, user]);
+
+  const payableTotal = Math.max(
+    0,
+    (orderTotal?.totalAmount || 0) - (firstOrderPreview?.amount || 0)
+  );
+  const checkoutBreakdown = {
+    ...(orderTotal?.breakdown || {}),
+    ...(firstOrderPreview
+      ? {
+          firstOrderDiscount: firstOrderPreview.amount,
+          firstOrderDiscountPercent: firstOrderPreview.percentOff,
+        }
+      : {}),
+  };
+
   // Stable payment reference — generated once, used for pre-save + Paystack + verify
   const paymentRef = useRef((new Date()).getTime().toString());
 
@@ -264,11 +288,13 @@ if (premium) {
     email: formData.fullName
       ? `${formData.fullName.trim().toLowerCase().replace(/\s+/g, '.')}@calebdeck.com`
       : "guest@calebdeck.com",
-    amount: Math.round((orderTotal?.totalAmount || 0) * 100),
+    amount: Math.round(payableTotal * 100),
     publicKey: paystackKey as string,
     metadata: {
       // These fields are used by the webhook as a fallback
       orderId,
+      userId: user?.uid || null,
+      iConId: user?.uid || null,
       fullName: formData.fullName,
       studentName: formData.fullName,
       phone: formData.phone,
@@ -355,8 +381,8 @@ if (premium) {
           firestoreOrderId: data.data.orderId,
           orderId: data.data.orderId,
           paymentReference: `WALLET-${data.data.orderId}`,
-          total: orderTotal?.totalAmount || 0,
-          totalAmount: orderTotal?.totalAmount || 0,
+          total: payableTotal,
+          totalAmount: payableTotal,
           status: 'PAID'
         },
         replace: true
@@ -377,13 +403,22 @@ if (premium) {
 
     const orderData = {
       orderId,
+      userId: user?.uid || null,
       iConId: user?.uid || null,
       source: 'CalebDeck',
       ...formData,
       studentName: formData.fullName,
       hostelName: selectedHostel?.name || formData.hostel,
-      total: orderTotal?.totalAmount,
-      breakdown: orderTotal?.breakdown,
+      total: payableTotal,
+      breakdown: checkoutBreakdown,
+      firstOrderDiscount: firstOrderPreview
+        ? {
+            applied: true,
+            percentOff: firstOrderPreview.percentOff,
+            amount: firstOrderPreview.amount,
+            message: firstOrderPreview.message,
+          }
+        : undefined,
       femaleHostelAgreement,
       cafeteria,
       cafeteriaId,
@@ -583,7 +618,7 @@ if (premium) {
     
     // Track payment initiation
     trackPaymentInitiated(
-      orderTotal.totalAmount,
+      payableTotal,
       currentDeliveryMode,
       'paystack'
     );
@@ -594,6 +629,7 @@ if (premium) {
     // This ensures items are never lost, even if verify-payment fails later
     const preSaveData = {
       orderId,
+      userId: user?.uid || null,
       iConId: user?.uid || null,
       source: 'CalebDeck',
       fullName: formData.fullName,
@@ -602,8 +638,16 @@ if (premium) {
       hostel: formData.hostel,
       hostelName: selectedHostel?.name || formData.hostel,
       instructions: formData.instructions,
-      total: orderTotal?.totalAmount,
-      breakdown: orderTotal?.breakdown,
+      total: payableTotal,
+      breakdown: checkoutBreakdown,
+      firstOrderDiscount: firstOrderPreview
+        ? {
+            applied: true,
+            percentOff: firstOrderPreview.percentOff,
+            amount: firstOrderPreview.amount,
+            message: firstOrderPreview.message,
+          }
+        : undefined,
       femaleHostelAgreement,
       cafeteria,
       cafeteriaId,
@@ -1073,15 +1117,39 @@ if (premium) {
                   </div>
                 )}
 
-
-
-
+                {firstOrderPreview && (
+                  <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center shrink-0">
+                        <Gift className="w-5 h-5 text-emerald-600" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">First on CalebDeck</p>
+                        <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300 leading-snug mt-1">
+                          {firstOrderPreview.headline}
+                        </p>
+                        <p className="text-xs text-emerald-700/80 dark:text-emerald-400/80 mt-1 leading-relaxed">
+                          {firstOrderPreview.percentOff}% off your delivery fee — a thank-you for being among the first to order food here.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center text-emerald-600 font-black pt-1 border-t border-emerald-500/20">
+                      <span>First-order delivery discount</span>
+                      <span>-₦{firstOrderPreview.amount.toLocaleString()}</span>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex justify-between items-center pt-4 border-t border-border gap-4">
                   <span className="text-2xl font-black">Total Due</span>
                   <div className="text-right">
+                    {firstOrderPreview && !calculating && (
+                      <div className="text-sm font-bold text-muted-foreground line-through mb-1">
+                        ₦{(orderTotal?.totalAmount || 0).toLocaleString()}
+                      </div>
+                    )}
                     <div className="text-4xl font-black text-secondary leading-none">
-                      {calculating ? '...' : `₦${(orderTotal?.totalAmount || 0).toLocaleString()}`}
+                      {calculating ? '...' : `₦${payableTotal.toLocaleString()}`}
                     </div>
                   </div>
                 </div>
@@ -1091,7 +1159,7 @@ if (premium) {
               {!calculating && orderTotal && (
                 <div className="mb-6">
                   <PaymentSelector
-                    amount={orderTotal.totalAmount || 0}
+                    amount={payableTotal}
                     selectedMethod={paymentMethod}
                     onSelect={setPaymentMethod}
                     // Batch slots are confirmed through the Paystack verification flow
@@ -1114,7 +1182,7 @@ if (premium) {
                 ) : (
                   <>
                     <CreditCard className="w-6 h-6" />
-                    {isWalletPaying ? 'Processing...' : `Pay ₦${(orderTotal?.totalAmount || 0).toLocaleString()}`}
+                    {isWalletPaying ? 'Processing...' : `Pay ₦${payableTotal.toLocaleString()}`}
                   </>
                 )}
               </button>

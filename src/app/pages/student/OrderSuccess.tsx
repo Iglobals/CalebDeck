@@ -349,6 +349,18 @@ export default function OrderSuccess() {
                   <p className="text-xs text-muted-foreground uppercase tracking-widest font-black mb-1 opacity-60">Ticket Number</p>
                   <p className="text-3xl font-black text-foreground">{orderId}</p>
                 </div>
+
+                {(orderData.firstOrderDiscount?.applied || Number(orderData.breakdown?.firstOrderDiscount) > 0) && (
+                  <div className="mb-10 mx-auto max-w-md rounded-[1.5rem] border border-emerald-500/30 bg-emerald-500/10 p-4 text-left">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">First on CalebDeck</p>
+                    <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300 mt-1 leading-snug">
+                      {orderData.firstOrderDiscount?.message || "You got a launch discount off delivery for being among the first to order food on CalebDeck."}
+                    </p>
+                    <p className="text-sm font-black text-emerald-600 mt-2">
+                      -₦{Number(orderData.firstOrderDiscount?.amount || orderData.breakdown?.firstOrderDiscount || 0).toLocaleString()} off delivery
+                    </p>
+                  </div>
+                )}
               </>
             )}
 
