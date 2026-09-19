@@ -11,12 +11,12 @@ import { subscribeToPlatformSettings, PlatformSettings } from '../../../services
 import { getFashionBatchState, formatFashionCountdown, formatArrivalDate, DEFAULT_FASHION_BATCH_CONFIG } from '../../../services/fashionBatch';
 import type { FashionBatchState } from '../../../services/fashionBatch';
 
-const CATEGORIES = ['Trending', 'Shoes', 'Bags', 'Shirts', 'Apparel'];
+// Categories will be dynamically generated based on available items
 
 export default function FashionPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeCategory, setActiveCategory] = useState('Trending');
+  const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [priceRange, setPriceRange] = useState({ min: 0, max: 100000 });
@@ -127,8 +127,11 @@ export default function FashionPage() {
     return () => clearInterval(interval);
   }, [platformSettings]);
 
+  const dynamicCategories = Array.from(new Set(items.map(item => item.category))).filter(Boolean);
+  const displayCategories = ['All', ...dynamicCategories];
+
   const filteredItems = items.filter(item => {
-    const matchesCategory = activeCategory === 'Trending' || item.category === activeCategory;
+    const matchesCategory = activeCategory === 'All' || item.category === activeCategory;
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           item.brand.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesPrice = item.price >= priceRange.min && item.price <= priceRange.max;
@@ -238,7 +241,7 @@ export default function FashionPage() {
         
         {/* Categories (Pills) */}
         <div className="flex overflow-x-auto hide-scrollbar gap-3 pb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
-          {CATEGORIES.map(category => (
+          {displayCategories.map(category => (
             <button
               key={category}
               onClick={() => setActiveCategory(category)}
@@ -375,7 +378,7 @@ export default function FashionPage() {
                       <ImageWithFallback 
                         src={item.imageUrl} 
                         alt={item.name}
-                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-700 mix-blend-multiply"
+                        className="w-full h-full object-cover rounded-xl group-hover:scale-105 transition-transform duration-700 shadow-sm"
                       />
                     {!item.inStock && (
                         <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] flex items-center justify-center">

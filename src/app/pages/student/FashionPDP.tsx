@@ -328,7 +328,7 @@ export default function FashionPDP() {
           <ImageWithFallback
             src={activeThumbnail}
             alt={item.name}
-            className="w-full h-full object-contain mix-blend-multiply drop-shadow-2xl transition-all duration-300"
+            className="w-full h-full object-cover rounded-2xl shadow-sm transition-all duration-300"
           />
         </div>
 
@@ -343,7 +343,7 @@ export default function FashionPDP() {
                   activeThumbnail === thumb ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:bg-white/60'
                 }`}
               >
-                <ImageWithFallback src={thumb} alt={`Thumbnail ${idx}`} className="w-full h-full object-cover mix-blend-multiply" />
+                <ImageWithFallback src={thumb} alt={`Thumbnail ${idx}`} className="w-full h-full object-cover rounded-xl shadow-sm" />
               </button>
             ))}
           </div>
@@ -522,7 +522,7 @@ export default function FashionPDP() {
                 cartItems.map(cartItem => (
                   <div key={cartItem.id} className="relative flex gap-4 items-center bg-white dark:bg-background p-3 rounded-[20px] shadow-sm border border-border/30">
                     <div className="w-20 h-20 rounded-[16px] p-2 flex-shrink-0" style={{ backgroundColor: item?.brandColor || '#FDBA74' }}>
-                      <ImageWithFallback src={cartItem.imageUrl} alt={cartItem.name} className="w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal" />
+                      <ImageWithFallback src={cartItem.imageUrl} alt={cartItem.name} className="w-full h-full object-cover rounded-xl shadow-sm" />
                     </div>
                     
                     <div className="flex-1 min-w-0 pr-2">

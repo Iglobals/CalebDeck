@@ -106,7 +106,7 @@ export default function MartCart() {
               return (
                 <li key={item.id} className={`p-4 sm:p-6 flex items-center gap-4 sm:gap-6 ${isItemClosed ? 'bg-amber-500/5' : 'bg-card'}`}>
                   <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-muted/50 p-2 flex-shrink-0 flex items-center justify-center">
-                    <ImageWithFallback src={item.imageUrl} alt={item.name} className="w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal" />
+                    <ImageWithFallback src={item.imageUrl} alt={item.name} className="w-full h-full object-cover rounded-xl shadow-sm" />
                   </div>
                   
                   <div className="flex-1 min-w-0">

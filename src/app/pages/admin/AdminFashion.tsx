@@ -16,10 +16,7 @@ import {
 } from 'lucide-react';
 import { subscribeToFashionItems, FashionItem, addFashionItem, updateFashionItem, deleteFashionItem } from '../../../services/fashion';
 import { useTheme } from '../../../context/ThemeContext';
-import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
-import { removeBackgroundML } from '../../../utils/imageUtils';
-
-const CATEGORIES = ['All', 'Apparel', 'Accessories', 'Footwear', 'Merch'];
+// Categories will be dynamically derived from items
 
 export default function AdminFashion() {
   const [items, setItems] = useState<FashionItem[]>([]);
@@ -56,6 +53,9 @@ export default function AdminFashion() {
     return () => unsub();
   }, []);
 
+  const dynamicCategories = Array.from(new Set(items.map(item => item.category))).filter(Boolean);
+  const displayCategories = ['All', ...dynamicCategories];
+
   const filteredItems = items.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.brand.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = activeCategory === 'All' || item.category === activeCategory;
@@ -72,15 +72,12 @@ export default function AdminFashion() {
     
     setProcessingImage(true);
     try {
-      // Automatically remove background for clean catalog presentation
-      const transparentDataUrl = await removeBackgroundML(file);
-      setFormData(prev => ({ ...prev, imageUrl: transparentDataUrl }));
-    } catch (err) {
-      console.error('Background removal failed, using original image:', err);
-      // Fallback to raw image if processing fails
       const reader = new FileReader();
       reader.onload = (ev) => {
         setFormData(prev => ({ ...prev, imageUrl: ev.target?.result as string }));
+      };
+      reader.onerror = () => {
+        alert('Failed to read image');
       };
       reader.readAsDataURL(file);
     } finally {
@@ -189,7 +186,7 @@ export default function AdminFashion() {
 
         {/* Category Filter */}
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
-          {CATEGORIES.map(cat => (
+          {displayCategories.map(cat => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
@@ -214,9 +211,9 @@ export default function AdminFashion() {
             ))
           ) : filteredItems.map(item => (
             <Card key={item.id} className={`overflow-hidden flex flex-col ${!item.inStock ? 'opacity-60 grayscale-[0.5]' : ''}`}>
-              <div className={`relative h-40 flex items-center justify-center p-4 ${isDark ? 'bg-[#222222]' : 'bg-gray-50'}`}>
+              <div className={`relative h-40 flex items-center justify-center p-4 rounded-t-2xl ${isDark ? 'bg-[#222222]' : 'bg-gray-50'}`}>
                 {item.imageUrl ? (
-                  <ImageWithFallback src={item.imageUrl} alt={item.name} className="w-full h-full object-contain drop-shadow-lg" />
+                  <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover rounded-xl shadow-sm" />
                 ) : (
                   <Shirt className="w-12 h-12 text-[#7C3AED]/30" />
                 )}
@@ -293,7 +290,7 @@ export default function AdminFashion() {
                   </div>
                   {formData.imageUrl && (
                     <div className="w-20 h-20 rounded-xl bg-muted/50 border-2 border-border overflow-hidden flex items-center justify-center flex-shrink-0">
-                      <img src={formData.imageUrl} alt="Preview" className="max-w-full max-h-full object-contain" />
+                      <img src={formData.imageUrl} alt="Preview" className="w-full h-full object-cover rounded-xl" />
                     </div>
                   )}
                 </div>
@@ -352,17 +349,22 @@ export default function AdminFashion() {
                   </div>
                   <div className="col-span-1">
                     <label className="block text-sm font-semibold mb-2">Category</label>
-                    <select
+                    <input
+                      type="text"
+                      list="category-options"
+                      required
                       value={formData.category}
                       onChange={e => setFormData({...formData, category: e.target.value})}
+                      placeholder="Select or type..."
                       className={`w-full px-4 py-3 rounded-xl border-2 outline-none ${
                         isDark ? 'border-[#333333] bg-[#2A2A2A] focus:border-[#7C3AED]' : 'border-gray-200 focus:border-[#7C3AED]/50'
                       }`}
-                    >
-                      {CATEGORIES.filter(c => c !== 'All').map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
+                    />
+                    <datalist id="category-options">
+                      {dynamicCategories.map(cat => (
+                        <option key={cat} value={cat} />
                       ))}
-                    </select>
+                    </datalist>
                   </div>
                 </div>
 

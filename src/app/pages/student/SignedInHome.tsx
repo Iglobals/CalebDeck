@@ -349,7 +349,7 @@ export function SignedInHome() {
                       <ImageWithFallback 
                         src={product.image} 
                         alt={product.name} 
-                        className={`w-full h-full object-contain p-2 opacity-90 group-hover:opacity-100 transition-opacity ${isFashion ? 'mix-blend-multiply dark:mix-blend-normal' : 'object-cover'}`} 
+                        className={`w-full h-full object-cover rounded-xl shadow-sm p-1 opacity-90 group-hover:opacity-100 transition-opacity`} 
                       />
                       <div className={`absolute top-2 left-2 backdrop-blur text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-border/50 ${badgeBg}`}>
                         {product.type}
