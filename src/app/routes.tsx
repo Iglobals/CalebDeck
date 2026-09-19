@@ -2,6 +2,7 @@ import { createBrowserRouter, Outlet } from "react-router";
 import { Suspense, lazy } from 'react';
 import { AdminRoleWrapper, RiderRoleWrapper } from './layouts/RoleWrappers';
 import StudentRoleWrapper from './layouts/StudentRoleWrapper';
+import { IconGate } from './layouts/IconGate';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { RootWrapper } from './components/RootWrapper';
 
@@ -86,18 +87,27 @@ export const router = createBrowserRouter([
           { path: "mart", Component: MartPage },
           { path: "cart", Component: MartCart },
           { path: "mart/checkout", Component: MartCheckout },
-          { path: "fashion", lazy: () => import("./pages/student/FashionPage").then(m => ({ Component: m.default })) },
-          { path: "fashion/product/:id", lazy: () => import("./pages/student/FashionPDP").then(m => ({ Component: m.default })) },
-          { path: "fashion/checkout", lazy: () => import("./pages/student/FashionCheckout").then(m => ({ Component: m.default })) },
           { path: "calebnet", lazy: () => import("./pages/student/CalebNet").then(m => ({ Component: m.default })) },
           { path: "calebnet/status/:paymentReference", lazy: () => import("./pages/student/CalebNetStatus").then(m => ({ Component: m.default })) },
           { path: "my-orders", lazy: () => import("./pages/student/MyOrders").then(m => ({ Component: m.default })) },
-          { path: "profile", lazy: () => import("./pages/student/Profile").then(m => ({ Component: m.default })) },
-          { path: "wallet", lazy: () => import("./pages/student/WalletPage").then(m => ({ Component: m.default })) },
+          
           { path: "business", lazy: () => import("./pages/student/BusinessPage").then(m => ({ Component: m.default })) },
           { path: "business/product/:id", lazy: () => import("./pages/student/BusinessProductPage").then(m => ({ Component: m.default })) },
           { path: "business/dashboard", lazy: () => import("./pages/student/VendorDashboard").then(m => ({ Component: m.default })) },
           { path: "business/activate/:token", lazy: () => import("./pages/student/VendorActivation").then(m => ({ Component: m.default })) },
+          
+          /* ICON-Only Routes */
+          {
+            path: "",
+            element: <IconGate />,
+            children: [
+              { path: "fashion", lazy: () => import("./pages/student/FashionPage").then(m => ({ Component: m.default })) },
+              { path: "fashion/product/:id", lazy: () => import("./pages/student/FashionPDP").then(m => ({ Component: m.default })) },
+              { path: "fashion/checkout", lazy: () => import("./pages/student/FashionCheckout").then(m => ({ Component: m.default })) },
+              { path: "profile", lazy: () => import("./pages/student/Profile").then(m => ({ Component: m.default })) },
+              { path: "wallet", lazy: () => import("./pages/student/WalletPage").then(m => ({ Component: m.default })) },
+            ]
+          }
         ]
       },
 

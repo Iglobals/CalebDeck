@@ -117,14 +117,14 @@ export function PaperBagHamburger() {
     { label: "Order Food", icon: <Utensils className="w-5 h-5 text-[#FCD34D]" />, to: "/cafeteria" },
     { label: "CalebDeck Mart", icon: <ShoppingBag className="w-5 h-5 text-[#10B981]" />, to: "/mart" },
     { label: "CalebNet", icon: <Wifi className="w-5 h-5 text-blue-500" />, to: "/calebnet" },
-    user 
+    user?.icaSub 
       ? { label: "i-CON Profile", icon: <User className="w-5 h-5 text-[#7C3AED]" />, to: "/profile" }
       : { label: "My Orders", icon: <ShoppingBag className="w-5 h-5 text-[#A78BFA]" />, to: "/my-orders" },
     { label: "Become a Rider", icon: <Bike className="w-5 h-5 text-[#10B981]" />, to: "/rider/signup" },
     { label: "Support", icon: <Headset className="w-5 h-5 text-[#7C3AED]" />, to: "/support" }
   ];
 
-  if (!user) {
+  if (!user?.icaSub) {
     navLinks.push({ label: "Become an i-CON", icon: <LogIn className="w-5 h-5 text-white" />, to: `/api/auth/login?return_to=${encodeURIComponent(window.location.origin)}`, isExternal: true, highlight: true });
   }
 
