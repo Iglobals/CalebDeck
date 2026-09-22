@@ -42,7 +42,7 @@ export default function AdminBusiness() {
   // Forms
   const [vendorForm, setVendorForm] = useState({
     businessName: '', description: '', category: '', contactName: '', contactPhone: '', contactEmail: '',
-    subscriptionPlan: 'Monthly Plan (₦2,999/month)', startDate: '', endDate: '', imageUrl: ''
+    subscriptionPlan: 'Basic Plan', startDate: '', endDate: '', imageUrl: ''
   });
   
   const [productForm, setProductForm] = useState({
@@ -163,9 +163,8 @@ export default function AdminBusiness() {
     const code = generateAccessCode();
     const now = new Date();
     const vendorDoc = vendors.find(v => v.id === vendorId);
-    const plan = vendorDoc?.subscriptionPlan || 'Monthly Plan (₦2,999/month)';
-    const isYearly = plan.toLowerCase().includes('year');
-    const endDate = new Date(now.getTime() + (isYearly ? 365 : 30) * 24 * 60 * 60 * 1000);
+    const plan = vendorDoc?.subscriptionPlan || 'Basic Plan';
+    const endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
     await updateBusinessVendor(vendorId, {
       status: 'ACTIVE',
@@ -232,7 +231,7 @@ export default function AdminBusiness() {
       const nextMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
       setVendorForm({
         businessName: '', description: '', category: '', contactName: '', contactPhone: '', contactEmail: '',
-        subscriptionPlan: 'Monthly Plan (₦2,999/month)', startDate: now.toISOString().split('T')[0], endDate: nextMonth.toISOString().split('T')[0], imageUrl: ''
+        subscriptionPlan: 'Basic Plan', startDate: now.toISOString().split('T')[0], endDate: nextMonth.toISOString().split('T')[0], imageUrl: ''
       });
       setEditingVendor(null);
     }
@@ -572,8 +571,8 @@ export default function AdminBusiness() {
                     <div className="col-span-2">
                       <label className="block text-xs font-semibold mb-2">Plan Name</label>
                       <select required value={vendorForm.subscriptionPlan} onChange={e => setVendorForm({...vendorForm, subscriptionPlan: e.target.value})} className={`w-full px-4 py-3 rounded-xl border-2 outline-none ${isDark ? 'border-[#333333] bg-[#2A2A2A]' : 'border-gray-200'}`}>
-                        <option value="Monthly Plan (₦2,999/month)">Monthly Plan (₦2,999/month)</option>
-                        <option value="Yearly Plan (₦24,999/year)">Yearly Plan (₦24,999/year)</option>
+                        <option value="Basic Plan">Basic Plan</option>
+                        <option value="Premium Plan">Premium Plan</option>
                       </select>
                     </div>
                     <div className="col-span-1">

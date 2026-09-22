@@ -270,7 +270,7 @@ export default function LandingPage() {
               without stress.
             </h1>
             <p className="text-base sm:text-xl text-muted-foreground leading-relaxed max-w-lg">
-              Order meals, groceries, exclusive campus fashion, and other campus needs through CalebDeck, then meet your rider at your hostel area.
+              Order meals, groceries, exclusive campus fashion, and other campus essentials through CalebDeck. We also offer products from selected external brands, giving you more options—all delivered conveniently to your hostel area.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
               <Link to="/cafeteria">
