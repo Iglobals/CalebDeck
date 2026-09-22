@@ -22,7 +22,8 @@ export default function BusinessPage() {
   const [categoryTag, setCategoryTag] = useState('');
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
-  const [plan, setPlan] = useState('Basic Plan (₦{settings?.businessBasicPrice?.toLocaleString() || '2,999'}/month)');
+  const [plan, setPlan] = useState('');
+  const [settings, setSettings] = useState<PlatformSettings | null>(null);
 
   const [accessCode, setAccessCode] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
