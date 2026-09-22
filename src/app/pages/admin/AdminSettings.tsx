@@ -75,8 +75,8 @@ export default function AdminSettings() {
     martDeliveryFee: 0,
     fashionDeliveryFee: 0,
     fashionRatePerDelivery: 0,
-    businessMonthlyPrice: 0,
-    businessYearlyPrice: 0
+    businessBasicPrice: 0,
+    businessPremiumPrice: 0
   });
   const [premiumHostelsText, setPremiumHostelsText] = useState('');
 
@@ -125,8 +125,8 @@ export default function AdminSettings() {
         martDeliveryFee: data.martDeliveryFee || 0,
         fashionDeliveryFee: data.fashionDeliveryFee || 0,
         fashionRatePerDelivery: data.fashionRatePerDelivery || 0,
-        businessMonthlyPrice: data.businessMonthlyPrice || 0,
-        businessYearlyPrice: data.businessYearlyPrice || 0
+        businessBasicPrice: data.businessBasicPrice || 0,
+        businessPremiumPrice: data.businessPremiumPrice || 0
       });
       setPremiumHostelsText((data.premiumHostels || []).join(', '));
     });
@@ -948,22 +948,22 @@ export default function AdminSettings() {
                 />
               </div>
               <div>
-                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Business Monthly Price</label>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Business Basic Price</label>
                 <input
                   type="number" min="0"
-                  value={fees.businessMonthlyPrice}
-                  onChange={(e) => setFees({ ...fees, businessMonthlyPrice: Number(e.target.value) })}
+                  value={fees.businessBasicPrice}
+                  onChange={(e) => setFees({ ...fees, businessBasicPrice: Number(e.target.value) })}
                   className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
                     isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
                   }`}
                 />
               </div>
               <div>
-                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Business Yearly Price</label>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Business Premium Price</label>
                 <input 
                   type="number" min="0"
-                  value={fees.businessYearlyPrice}
-                  onChange={(e) => setFees({ ...fees, businessYearlyPrice: Number(e.target.value) })}
+                  value={fees.businessPremiumPrice}
+                  onChange={(e) => setFees({ ...fees, businessPremiumPrice: Number(e.target.value) })}
                   className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
                     isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
                   }`}

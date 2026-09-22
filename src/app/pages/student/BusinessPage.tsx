@@ -5,6 +5,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Store, ArrowRight, ArrowLeft, MessageCircle, Lock, Loader2, TrendingUp, Users, Check, Truck, Sparkles } from 'lucide-react';
+import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 import SEO from '../../components/SEO';
 import { Logo } from '../../components/design-system/Logo';
 import { PaperBagHamburger } from '../../components/design-system/PaperBagHamburger';
@@ -21,13 +22,24 @@ export default function BusinessPage() {
   const [categoryTag, setCategoryTag] = useState('');
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
-  const [plan, setPlan] = useState('Basic Plan (₦2,999/month)');
+  const [plan, setPlan] = useState('Basic Plan (₦{settings?.businessBasicPrice?.toLocaleString() || '2,999'}/month)');
 
   const [accessCode, setAccessCode] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState('');
 
   const ONBOARDING_PHONE = '2348072550635'; // CalebDeck Business onboarding line
+
+  useEffect(() => {
+    const unsub = subscribeToPlatformSettings(setSettings);
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    if (settings && !plan) {
+      setPlan(`Basic Plan (₦${settings.businessBasicPrice?.toLocaleString() || '2,999'}/month)`);
+    }
+  }, [settings, plan]);
 
   // Persistent vendor login: auto-redirect if already logged in
   useEffect(() => {
@@ -182,7 +194,7 @@ I would like to onboard my business to CalebDeck.`;
                 Get your business on CalebDeck and start reaching campus customers.
               </p>
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-black">₦2,999</span>
+                <span className="text-3xl font-black">₦{settings?.businessBasicPrice?.toLocaleString() || '2,999'}</span>
                 <span className="text-sm text-muted-foreground font-bold">/month</span>
               </div>
             </div>
@@ -213,7 +225,7 @@ I would like to onboard my business to CalebDeck.`;
             <Button
               type="button"
               variant="secondary"
-              onClick={() => handleChoosePlan('Basic Plan (₦2,999/month)')}
+              onClick={() => handleChoosePlan(`Basic Plan (₦${settings?.businessBasicPrice?.toLocaleString() || '2,999'}/month)`)}
               className={`w-full font-bold py-4 ${isDark ? 'bg-[#333333] text-white hover:bg-[#444444]' : 'bg-gray-200 text-gray-900 hover:bg-gray-300'}`}
             >
               Choose Basic <ArrowRight className="w-5 h-5 ml-2" />
@@ -232,7 +244,7 @@ I would like to onboard my business to CalebDeck.`;
                 Everything in Basic — plus personalized campus delivery support.
               </p>
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-black">₦4,999</span>
+                <span className="text-3xl font-black">₦{settings?.businessPremiumPrice?.toLocaleString() || '4,999'}</span>
                 <span className="text-sm text-muted-foreground font-bold">/month</span>
               </div>
             </div>
@@ -262,7 +274,7 @@ I would like to onboard my business to CalebDeck.`;
 
             <Button
               type="button"
-              onClick={() => handleChoosePlan('Premium Plan (₦4,999/month)')}
+              onClick={() => handleChoosePlan(`Premium Plan (₦${settings?.businessPremiumPrice?.toLocaleString() || '4,999'}/month)`)}
               className="
               w-full
               font-bold
@@ -393,8 +405,8 @@ I would like to onboard my business to CalebDeck.`;
                   onChange={e => setPlan(e.target.value)}
                   className={`w-full px-4 py-3 rounded-xl border-2 outline-none transition-all ${isDark ? 'border-[#333333] bg-[#2A2A2A] focus:border-primary' : 'border-gray-200 bg-gray-50 focus:border-primary/50'}`}
                 >
-                  <option value="Basic Plan (₦2,999/month)">Basic Plan — ₦2,999/month</option>
-                  <option value="Premium Plan (₦4,999/month)">Premium Plan — ₦4,999/month</option>
+                  <option value={`Basic Plan (₦${settings?.businessBasicPrice?.toLocaleString() || '2,999'}/month)`}>Basic Plan — ₦{settings?.businessBasicPrice?.toLocaleString() || '2,999'}/month</option>
+                  <option value={`Premium Plan (₦${settings?.businessPremiumPrice?.toLocaleString() || '4,999'}/month)`}>Premium Plan — ₦{settings?.businessPremiumPrice?.toLocaleString() || '4,999'}/month</option>
                 </select>
               </div>
 

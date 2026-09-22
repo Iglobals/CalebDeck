@@ -599,8 +599,8 @@ export interface PlatformSettings {
     martDeliveryFee?: number;
     fashionDeliveryFee?: number;
     fashionRatePerDelivery?: number; // flat rider rate per fashion order
-    businessMonthlyPrice?: number;
-    businessYearlyPrice?: number;
+    businessBasicPrice?: number;
+    businessPremiumPrice?: number;
     isAcceptingOrders?: boolean;
     isFoodOrderingClosed?: boolean;
     isMartComingSoon?: boolean;
@@ -671,15 +671,15 @@ export const getPlatformSettings = async (): Promise<PlatformSettings> => {
         if (!data.fashionDeliveryFee) data.fashionDeliveryFee = 1500;
         if (!data.fashionRatePerDelivery) data.fashionRatePerDelivery = 500;
         if (!Array.isArray(data.premiumHostels) || data.premiumHostels.length === 0) data.premiumHostels = [...DEFAULT_PREMIUM_HOSTELS];
-        if (!data.businessMonthlyPrice) data.businessMonthlyPrice = 2999;
-        if (!data.businessYearlyPrice) data.businessYearlyPrice = 24999;
+        if (!data.businessBasicPrice) data.businessBasicPrice = 2999;
+        if (!data.businessPremiumPrice) data.businessPremiumPrice = 4999;
         if (!data.promoSlides || data.promoSlides.length === 0) {
             data.promoSlides = DEFAULT_PROMO_SLIDES;
         }
         return data;
     }
     // Default settings
-    return { riderRatePerDelivery: 300, foodDeliveryFee: 750, foodGroupDeliveryFee: 580, premiumDeliveryFee: 1250, premiumHostels: [...DEFAULT_PREMIUM_HOSTELS], premiumRiderRate: 750, martRatePerDelivery: 500, martDeliveryFee: 1500, fashionDeliveryFee: 1500, fashionRatePerDelivery: 500, businessMonthlyPrice: 2999, businessYearlyPrice: 24999, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18, promoSlides: DEFAULT_PROMO_SLIDES };
+    return { riderRatePerDelivery: 300, foodDeliveryFee: 750, foodGroupDeliveryFee: 580, premiumDeliveryFee: 1250, premiumHostels: [...DEFAULT_PREMIUM_HOSTELS], premiumRiderRate: 750, martRatePerDelivery: 500, martDeliveryFee: 1500, fashionDeliveryFee: 1500, fashionRatePerDelivery: 500, businessBasicPrice: 2999, businessPremiumPrice: 4999, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18, promoSlides: DEFAULT_PROMO_SLIDES };
 };
 
 export const subscribeToPlatformSettings = (callback: (settings: PlatformSettings) => void) => {
@@ -695,8 +695,8 @@ export const subscribeToPlatformSettings = (callback: (settings: PlatformSetting
             if (!data.martDeliveryFee) data.martDeliveryFee = 1500;
             if (!data.fashionDeliveryFee) data.fashionDeliveryFee = 1500;
             if (!data.fashionRatePerDelivery) data.fashionRatePerDelivery = 500;
-            if (!data.businessMonthlyPrice) data.businessMonthlyPrice = 2999;
-            if (!data.businessYearlyPrice) data.businessYearlyPrice = 24999;
+            if (!data.businessBasicPrice) data.businessBasicPrice = 2999;
+            if (!data.businessPremiumPrice) data.businessPremiumPrice = 4999;
             if (data.isAcceptingOrders === undefined) data.isAcceptingOrders = true;
             if (data.isFoodOrderingClosed === undefined) data.isFoodOrderingClosed = false;
             if (data.isCalebNetComingSoon === undefined) data.isCalebNetComingSoon = true;
@@ -720,11 +720,11 @@ export const subscribeToPlatformSettings = (callback: (settings: PlatformSetting
 
             callback(data);
         } else {
-            callback({ riderRatePerDelivery: 300, foodDeliveryFee: 750, foodGroupDeliveryFee: 580, premiumDeliveryFee: 1250, premiumHostels: [...DEFAULT_PREMIUM_HOSTELS], premiumRiderRate: 750, martRatePerDelivery: 500, martDeliveryFee: 1500, fashionDeliveryFee: 1500, fashionRatePerDelivery: 500, businessMonthlyPrice: 2999, businessYearlyPrice: 24999, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18, fashionOpeningHour: 0, fashionClosingHour: 24, isFashionAcceptingOrders: true, isFashionComingSoon: false, promoSlides: DEFAULT_PROMO_SLIDES });
+            callback({ riderRatePerDelivery: 300, foodDeliveryFee: 750, foodGroupDeliveryFee: 580, premiumDeliveryFee: 1250, premiumHostels: [...DEFAULT_PREMIUM_HOSTELS], premiumRiderRate: 750, martRatePerDelivery: 500, martDeliveryFee: 1500, fashionDeliveryFee: 1500, fashionRatePerDelivery: 500, businessBasicPrice: 2999, businessPremiumPrice: 4999, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18, fashionOpeningHour: 0, fashionClosingHour: 24, isFashionAcceptingOrders: true, isFashionComingSoon: false, promoSlides: DEFAULT_PROMO_SLIDES });
         }
     }, (error) => {
         console.error('subscribeToPlatformSettings error:', error);
-        callback({ riderRatePerDelivery: 300, foodDeliveryFee: 750, foodGroupDeliveryFee: 580, premiumDeliveryFee: 1250, premiumHostels: [...DEFAULT_PREMIUM_HOSTELS], premiumRiderRate: 750, martRatePerDelivery: 500, martDeliveryFee: 1500, fashionDeliveryFee: 1500, fashionRatePerDelivery: 500, businessMonthlyPrice: 2999, businessYearlyPrice: 24999, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18, fashionOpeningHour: 0, fashionClosingHour: 24, isFashionAcceptingOrders: true, isFashionComingSoon: false, promoSlides: DEFAULT_PROMO_SLIDES });
+        callback({ riderRatePerDelivery: 300, foodDeliveryFee: 750, foodGroupDeliveryFee: 580, premiumDeliveryFee: 1250, premiumHostels: [...DEFAULT_PREMIUM_HOSTELS], premiumRiderRate: 750, martRatePerDelivery: 500, martDeliveryFee: 1500, fashionDeliveryFee: 1500, fashionRatePerDelivery: 500, businessBasicPrice: 2999, businessPremiumPrice: 4999, isAcceptingOrders: true, isFoodOrderingClosed: false, isMartComingSoon: false, isCalebNetComingSoon: true, isIPizzaComingSoon: true, autoDispatchEnabled: false, autoDispatchDelaySeconds: 60, systemOpeningHour: 10, systemClosingHour: 18, fashionOpeningHour: 0, fashionClosingHour: 24, isFashionAcceptingOrders: true, isFashionComingSoon: false, promoSlides: DEFAULT_PROMO_SLIDES });
     });
 };
 
