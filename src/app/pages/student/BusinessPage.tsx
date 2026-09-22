@@ -4,7 +4,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
-import { Store, ArrowRight, ArrowLeft, MessageCircle, Lock, Loader2, TrendingUp, Users } from 'lucide-react';
+import { Store, ArrowRight, ArrowLeft, MessageCircle, Lock, Loader2, TrendingUp, Users, Check, Truck, Sparkles } from 'lucide-react';
 import SEO from '../../components/SEO';
 import { Logo } from '../../components/design-system/Logo';
 import { PaperBagHamburger } from '../../components/design-system/PaperBagHamburger';
@@ -21,7 +21,7 @@ export default function BusinessPage() {
   const [categoryTag, setCategoryTag] = useState('');
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
-  const [plan, setPlan] = useState('Monthly Plan (₦2,999/month)');
+  const [plan, setPlan] = useState('Basic Plan (₦2,999/month)');
 
   const [accessCode, setAccessCode] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -93,6 +93,13 @@ I would like to onboard my business to CalebDeck.`;
     }
   };
 
+  // Selecting a plan from the pricing cards pre-fills the apply form and
+  // scrolls the user down to it.
+  const handleChoosePlan = (planLabel: string) => {
+    setPlan(planLabel);
+    document.getElementById('apply-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300 relative pb-20">
       <SEO 
@@ -152,8 +159,158 @@ I would like to onboard my business to CalebDeck.`;
         </div>
       </section>
 
+      {/* Pricing Section */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-16">
+        <div className="text-center max-w-2xl mx-auto mb-4">
+          <p className="text-xs font-black tracking-widest text-primary uppercase mb-3">
+            CalebDeck Business — Vendor Membership
+          </p>
+          <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-4">
+            Choose your plan
+          </h2>
+          <p className="text-muted-foreground leading-relaxed">
+            Put your business in front of the campus community. Let CalebDeck help you sell and deliver.
+          </p>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-6 lg:gap-8 mt-10">
+          {/* Basic Plan */}
+          <Card className={`p-6 sm:p-8 rounded-3xl border-2 shadow-sm flex flex-col ${isDark ? 'bg-[#1A1A1A] border-[#333333]' : 'bg-white border-gray-100'}`}>
+            <div className="mb-6">
+              <h3 className="text-xl font-black mb-1">Basic</h3>
+              <p className="text-sm text-muted-foreground font-medium mb-4">
+                Get your business on CalebDeck and start reaching campus customers.
+              </p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-black">₦2,999</span>
+                <span className="text-sm text-muted-foreground font-bold">/month</span>
+              </div>
+            </div>
+
+            <ul className="space-y-3 mb-6 flex-1">
+              {[
+                'Business profile on CalebDeck Business',
+                'Product & service listings',
+                'Visibility to the campus community',
+                'Receive customer orders through CalebDeck',
+                'Manage your incoming orders',
+                'CalebDeck vendor support',
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-3 text-sm">
+                  <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+
+            <div className={`flex items-start gap-2 text-xs text-muted-foreground p-3 rounded-xl mb-6 ${isDark ? 'bg-[#2A2A2A]' : 'bg-gray-50'}`}>
+              <Truck className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>
+                You manage delivery of your own orders. If your product isn't already available on campus, you're responsible for bringing it to campus for fulfillment.
+              </span>
+            </div>
+
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => handleChoosePlan('Basic Plan (₦2,999/month)')}
+              className={`w-full font-bold py-4 ${isDark ? 'bg-[#333333] text-white hover:bg-[#444444]' : 'bg-gray-200 text-gray-900 hover:bg-gray-300'}`}
+            >
+              Choose Basic <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          </Card>
+
+          {/* Premium Plan */}
+          <Card className="p-6 sm:p-8 rounded-3xl border-2 border-primary shadow-lg shadow-primary/10 flex flex-col relative bg-card">
+            <div className="absolute -top-3 left-6 px-3 py-1 rounded-full bg-primary text-primary-foreground text-xs font-black flex items-center gap-1">
+              <Sparkles className="w-3 h-3" /> Most support
+            </div>
+
+            <div className="mb-6">
+              <h3 className="text-xl font-black mb-1">Premium</h3>
+              <p className="text-sm text-muted-foreground font-medium mb-4">
+                Everything in Basic — plus personalized campus delivery support.
+              </p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-black">₦4,999</span>
+                <span className="text-sm text-muted-foreground font-bold">/month</span>
+              </div>
+            </div>
+
+            <ul className="space-y-3 mb-6 flex-1">
+              {[
+                'Everything in Basic',
+                'Personalized delivery support',
+                'Assigned CalebDeck delivery agent',
+                'Delivery coordination for your campus orders',
+                'Less time spent arranging deliveries',
+                'Dedicated support for delivery needs',
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-3 text-sm">
+                  <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+
+            <div className="flex items-start gap-2 text-xs text-muted-foreground p-3 rounded-xl mb-6 bg-primary/5">
+              <Truck className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
+              <span>
+                Once your product is available on campus, CalebDeck supports delivery through your assigned delivery agent.
+              </span>
+            </div>
+
+            <Button
+              type="button"
+              onClick={() => handleChoosePlan('Premium Plan (₦4,999/month)')}
+              className="
+              w-full
+              font-bold
+              py-4
+              !bg-gray-200
+              !text-gray-900
+              border-2
+              border-[#FCD34D]
+              hover:!bg-[#FCD34D]
+              hover:!text-white
+              transition-colors
+              duration-300
+            "
+            >
+              Choose Premium <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          </Card>
+        </div>
+
+        {/* The difference, simply */}
+        <div className="grid sm:grid-cols-2 gap-6 mt-10">
+          <Card className="p-6 border-border bg-card shadow-sm squircle">
+            <h4 className="font-black text-sm uppercase tracking-wide text-primary mb-3">The difference, simply</h4>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              <span className="font-bold text-foreground">Basic</span> — you sell, you manage delivery.
+              <br />
+              <span className="font-bold text-foreground">Premium</span> — you sell, CalebDeck supports delivery.
+            </p>
+          </Card>
+          <Card className="p-6 border-border bg-card shadow-sm squircle">
+            <h4 className="font-black text-sm uppercase tracking-wide text-primary mb-3">Who should choose what</h4>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Choose <span className="font-bold text-foreground">Basic</span> if you already have a reliable way to fulfill and deliver campus orders.
+              <br />
+              Choose <span className="font-bold text-foreground">Premium</span> if you want to focus on your business while CalebDeck helps coordinate campus delivery.
+            </p>
+          </Card>
+        </div>
+
+        {/* Campus availability requirement */}
+        <div className={`mt-6 p-5 rounded-2xl border text-sm text-muted-foreground leading-relaxed ${isDark ? 'bg-[#1A1A1A] border-[#333333]' : 'bg-gray-50 border-gray-200'}`}>
+          <span className="font-black text-foreground">Campus availability requirement: </span>
+          Your products must be available on campus. If they aren't currently, you're responsible for getting them to campus before CalebDeck can fulfill customer orders.
+        </div>
+      </section>
+
       {/* Forms Section */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6">
+      <section id="apply-form" className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start">
           
           {/* Apply Form */}
@@ -236,8 +393,8 @@ I would like to onboard my business to CalebDeck.`;
                   onChange={e => setPlan(e.target.value)}
                   className={`w-full px-4 py-3 rounded-xl border-2 outline-none transition-all ${isDark ? 'border-[#333333] bg-[#2A2A2A] focus:border-primary' : 'border-gray-200 bg-gray-50 focus:border-primary/50'}`}
                 >
-                  <option value="Monthly Plan (₦2,999/month)">Monthly Plan — ₦2,999/month</option>
-                  <option value="Yearly Plan (₦24,999/year)">Yearly Plan — ₦24,999/year</option>
+                  <option value="Basic Plan (₦2,999/month)">Basic Plan — ₦2,999/month</option>
+                  <option value="Premium Plan (₦4,999/month)">Premium Plan — ₦4,999/month</option>
                 </select>
               </div>
 
@@ -295,6 +452,11 @@ I would like to onboard my business to CalebDeck.`;
           </Card>
         </div>
       </section>
+
+      {/* Footer tagline */}
+      <p className="text-center text-xs text-muted-foreground font-bold tracking-wide mt-16">
+        Connecting campus businesses with the campus community.
+      </p>
     </div>
   );
 }
