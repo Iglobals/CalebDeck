@@ -109,7 +109,7 @@ export default function FashionCheckout() {
 
   const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
 
-  const config = {
+  const config: any = {
     reference: paymentRef.current,
     email: formData.fullName
       ? `${formData.fullName.trim().toLowerCase().replace(/\s+/g, '.')}@calebdeck.com`

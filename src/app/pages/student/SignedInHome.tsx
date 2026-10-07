@@ -6,7 +6,7 @@ import { Button } from '../../components/design-system/Button';
 import { StatusDot, Badge } from '../../components/design-system/Badge';
 import { Search, Wallet, Package, Clock, Utensils, ShoppingBag, Wifi, Shirt, TrendingUp, ChevronRight, ChevronLeft, Store, Plus, Minus } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
-import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
+import { subscribeToPlatformSettings, PlatformSettings, PromoSlide } from '../../../services/db';
 import { useMartCart } from '../../../context/MartCartContext';
 import { subscribeToMartItems, MartItem } from '../../../services/mart';
 import { subscribeToFashionItems, FashionItem } from '../../../services/fashion';
@@ -21,7 +21,7 @@ const STATIC_CALEBNET_PRODUCTS = [
 ];
 
 
-const PROMO_SLIDES = [
+const PROMO_SLIDES: PromoSlide[] = [
   { 
     id: 'slide-mart',
     badge: 'Mart Live',
