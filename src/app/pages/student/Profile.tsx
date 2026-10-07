@@ -47,6 +47,13 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+
+  useEffect(() => {
+    if ('Notification' in window) {
+      setNotificationsEnabled(Notification.permission === 'granted');
+    }
+  }, []);
 
   const memojis = ['😎', '🤓', '🤠', '😇', '👾', '👻', '🤖', '👑', '🚀', '🌟', '🦄', '🦁', '🐶', '🦊', '🐼', '🐯'];
 
@@ -73,9 +80,23 @@ export default function Profile() {
   const handleEnableNotifications = async () => {
     if (!user) return;
     try {
-      await requestNotificationPermissionAndSaveToken(user.uid, 'users');
-      toast.success("Push notifications enabled!");
+      if ('Notification' in window && Notification.permission === 'default') {
+         const permission = await Notification.requestPermission();
+         if (permission === 'granted') {
+           await requestNotificationPermissionAndSaveToken(user.uid, 'users');
+           setNotificationsEnabled(true);
+           toast.success("Push notifications enabled!");
+         } else {
+           setNotificationsEnabled(false);
+           toast.error("Notification permission denied");
+         }
+      } else if ('Notification' in window && Notification.permission === 'granted') {
+         await requestNotificationPermissionAndSaveToken(user.uid, 'users');
+         setNotificationsEnabled(true);
+         toast.success("Push notifications updated!");
+      }
     } catch (e) {
+      setNotificationsEnabled(false);
       toast.error("Could not enable notifications");
     }
   };
@@ -359,7 +380,22 @@ export default function Profile() {
                       <p className="font-bold text-sm">Push Notifications</p>
                       <p className="text-sm text-muted-foreground mt-0.5">Enable notifications for order updates.</p>
                     </div>
-                    <Button type="button" variant="outline" onClick={handleEnableNotifications}>Enable</Button>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer" 
+                        checked={notificationsEnabled}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            handleEnableNotifications();
+                          } else {
+                            toast.info("You must disable notifications from your browser settings.");
+                            setNotificationsEnabled(true); // reset to true since we can't revoke OS permission via JS
+                          }
+                        }}
+                      />
+                      <div className="w-11 h-6 bg-muted-foreground/30 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
                   </div>
                 </div>
 

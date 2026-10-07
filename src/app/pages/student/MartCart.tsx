@@ -7,6 +7,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import SEO from '../../components/SEO';
 import { PlatformSettings, subscribeToPlatformSettings } from '../../../services/db';
+import { getHexColorName } from '../../../utils/formatColor';
 
 export default function MartCart() {
   const { items, updateQuantity, removeItem, totalItems, subtotal } = useMartCart();
@@ -126,9 +127,12 @@ export default function MartCart() {
                         <div className="flex items-center gap-1.5 sm:ml-2">
                           {item.size && <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 bg-muted rounded-md text-muted-foreground">{item.size}</span>}
                           {item.color && (
-                            <div className="flex items-center">
+                            <div className="flex items-center gap-1">
                               {item.color.startsWith('#') ? (
-                                <span className="w-3.5 h-3.5 rounded-full border border-border shadow-sm" style={{ backgroundColor: item.color }} title={item.color} />
+                                <>
+                                  <span className="w-3.5 h-3.5 rounded-full border border-border shadow-sm" style={{ backgroundColor: item.color }} title={item.color} />
+                                  <span className="text-[10px] uppercase font-bold text-muted-foreground">{getHexColorName(item.color)}</span>
+                                </>
                               ) : (
                                 <span className="text-[10px] uppercase font-bold text-muted-foreground">{item.color}</span>
                               )}

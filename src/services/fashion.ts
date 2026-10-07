@@ -1,6 +1,15 @@
 import { collection, onSnapshot, query, doc, updateDoc, addDoc, serverTimestamp, setDoc, deleteDoc, limit } from 'firebase/firestore';
 import { db } from './firebase';
 
+export interface FashionMedia {
+  url: string;
+  type: 'image' | 'video';
+  publicId?: string;
+  width?: number;
+  height?: number;
+  isMain?: boolean;
+}
+
 export interface FashionItem {
   id: string;
   name: string;
@@ -14,13 +23,15 @@ export interface FashionItem {
   sizes?: string[];
   colors?: string[];
   thumbnails?: string[];
-  // New features
+  // Legacy media features
   videoUrl?: string;
   mediaUrls?: string[];
   colorMedia?: Record<string, string>; // Maps color hex to media URL
   variationName?: string;
   variations?: string[];
   sizeChartUrl?: string;
+  // New structured media
+  media?: FashionMedia[];
   createdAt: any;
 }
 

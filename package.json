@@ -42,6 +42,7 @@
     "@types/cookie": "^0.6.0",
     "axios": "^1.13.5",
     "class-variance-authority": "0.7.1",
+    "cloudinary": "^2.11.0",
     "clsx": "2.1.1",
     "cmdk": "1.1.1",
     "cookie": "^2.0.1",
