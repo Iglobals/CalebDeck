@@ -49,6 +49,17 @@ export default function Profile() {
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
+  // OS detection for PWA install instructions
+  const [isIOS, setIsIOS] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(true); // default true to avoid flash
+
+  useEffect(() => {
+    setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream);
+    setIsAndroid(/android/i.test(navigator.userAgent));
+    setIsStandalone(window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone);
+  }, []);
+
   useEffect(() => {
     if ('Notification' in window) {
       setNotificationsEnabled(Notification.permission === 'granted');
@@ -399,14 +410,14 @@ export default function Profile() {
                   </div>
                 </div>
 
-                {installPrompt && (
-                  <div className="pt-4 border-t border-border mt-4 bg-primary/10 -mx-6 md:-mx-8 px-6 md:px-8 py-4">
+                {installPrompt && !isStandalone && (
+                  <div className="pt-4 border-t border-border mt-4 bg-[#7C3AED]/10 -mx-6 md:-mx-8 px-6 md:px-8 py-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-bold text-sm text-primary">Install CalebDeck App</p>
+                        <p className="font-bold text-sm text-[#7C3AED]">Install CalebDeck App</p>
                         <p className="text-sm text-muted-foreground mt-0.5">Add CalebDeck to your home screen for quick access.</p>
                       </div>
-                      <Button type="button" variant="primary" onClick={handleInstallClick}>Install</Button>
+                      <Button type="button" variant="primary" onClick={handleInstallClick} className="bg-[#7C3AED] text-white">Install</Button>
                     </div>
                   </div>
                 )}
@@ -456,6 +467,39 @@ export default function Profile() {
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
               </Link>
             </Card>
+
+            {/* PWA Install Instructions */}
+            {!isStandalone && !installPrompt && (isIOS || isAndroid) && (
+              <Card className="p-5 border-[#7C3AED]/30 bg-[#7C3AED]/5 relative overflow-hidden">
+                <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#7C3AED]/10 rounded-full blur-xl"></div>
+                <h3 className="font-bold text-sm text-[#7C3AED] uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-md bg-[#7C3AED]/20 flex items-center justify-center">
+                    <Shield className="w-4 h-4 text-[#7C3AED]" />
+                  </div>
+                  Install App
+                </h3>
+                
+                {isIOS && (
+                  <div className="space-y-2 text-sm text-muted-foreground font-medium">
+                    <p>To install CalebDeck on your iPhone or iPad:</p>
+                    <ol className="list-decimal list-inside space-y-1 ml-1">
+                      <li>Tap the <strong>Share</strong> button at the bottom of Safari</li>
+                      <li>Scroll down and tap <strong>Add to Home Screen</strong></li>
+                    </ol>
+                  </div>
+                )}
+                
+                {isAndroid && (
+                  <div className="space-y-2 text-sm text-muted-foreground font-medium">
+                    <p>To install CalebDeck on your Android device:</p>
+                    <ol className="list-decimal list-inside space-y-1 ml-1">
+                      <li>Tap the <strong>Menu</strong> (3 dots) in your browser</li>
+                      <li>Tap <strong>Install app</strong> or <strong>Add to Home screen</strong></li>
+                    </ol>
+                  </div>
+                )}
+              </Card>
+            )}
 
             {/* Connected Products */}
             <Card className="p-5 border-border">

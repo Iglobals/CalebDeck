@@ -22,12 +22,14 @@ export const migrateFashionMediaToCloudinary = async (onProgress: (msg: string) 
     
     try {
       // Helper to upload a base64 string
-      const uploadBase64 = async (b64: string, type: 'image'|'video', isMain: boolean = false) => {
+      const uploadBase64 = async (b64: string, type: 'image'|'video', isMain: boolean = false, itemName: string) => {
         // Convert base64 to file
         const res = await fetch(b64);
         const blob = await res.blob();
         const file = new File([blob], `migrated_${item.id}_${Date.now()}.${type === 'video' ? 'mp4' : 'jpg'}`, { type: blob.type });
-        const result = await uploadMediaToCloudinary(file);
+        const result = await uploadMediaToCloudinary(file, (progress) => {
+          onProgress(`Uploading ${type} for ${itemName}... ${progress}%`);
+        });
         return {
           url: result.url,
           type: result.type,
@@ -40,8 +42,8 @@ export const migrateFashionMediaToCloudinary = async (onProgress: (msg: string) 
 
       // 1. Check main imageUrl
       if (item.imageUrl && item.imageUrl.startsWith('data:')) {
-        onProgress(`Migrating main image for ${item.name}...`);
-        const media = await uploadBase64(item.imageUrl, 'image', true);
+        onProgress(`Preparing main image for ${item.name}...`);
+        const media = await uploadBase64(item.imageUrl, 'image', true, item.name);
         newMedia.push(media);
         item.imageUrl = media.url; // Keep legacy field updated for backwards compatibility
         needsUpdate = true;
@@ -49,8 +51,8 @@ export const migrateFashionMediaToCloudinary = async (onProgress: (msg: string) 
 
       // 2. Check videoUrl
       if (item.videoUrl && item.videoUrl.startsWith('data:')) {
-        onProgress(`Migrating video for ${item.name}...`);
-        const media = await uploadBase64(item.videoUrl, 'video');
+        onProgress(`Preparing video for ${item.name}...`);
+        const media = await uploadBase64(item.videoUrl, 'video', false, item.name);
         newMedia.push(media);
         item.videoUrl = media.url;
         needsUpdate = true;
@@ -62,8 +64,8 @@ export const migrateFashionMediaToCloudinary = async (onProgress: (msg: string) 
         for (let i = 0; i < item.mediaUrls.length; i++) {
           const mUrl = item.mediaUrls[i];
           if (mUrl.startsWith('data:')) {
-            onProgress(`Migrating additional image ${i+1} for ${item.name}...`);
-            const media = await uploadBase64(mUrl, 'image');
+            onProgress(`Preparing additional image ${i+1} for ${item.name}...`);
+            const media = await uploadBase64(mUrl, 'image', false, item.name);
             newMedia.push(media);
             newMediaUrls.push(media.url);
             needsUpdate = true;

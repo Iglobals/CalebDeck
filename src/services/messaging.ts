@@ -96,3 +96,59 @@ export const onForegroundMessage = (callback: (payload: any) => void) => {
         callback(payload);
     });
 };
+
+/**
+ * Sends a push notification to a specific user using the /api/utils/send-push endpoint.
+ * Called by admin/rider clients when updating order status.
+ */
+export const sendOrderStatusPushNotification = async (
+    userId: string, 
+    status: string, 
+    orderId: string, 
+    idToken: string
+) => {
+    if (!userId || userId === 'admin') return;
+    
+    // Friendly customer-facing notification copy
+    const copyMap: Record<string, {title: string, body: string}> = {
+        'PAID': { title: 'Order confirmed', body: 'Your order has been confirmed.' },
+        'PREPARING': { title: 'Preparing', body: 'Your order is being prepared.' },
+        'ON_THE_WAY': { title: 'Your order is on the way 🚴', body: 'Almost there, odogwu. Your CalebDeck order is heading to you.' },
+        'OUT_FOR_DELIVERY': { title: 'Your order is on the way 🚴', body: 'Almost there, odogwu. Your CalebDeck order is heading to you.' },
+        'DELIVERED': { title: 'Delivered 🎉', body: 'Your order has arrived. Enjoy, odogwu 😂' },
+        'READY_FOR_DELIVERY': { title: 'Ready for pickup', body: 'Your order is moving to the next stage.' },
+        'CONSOLIDATING': { title: 'Processing', body: 'Your order is moving to the next stage.' },
+        'PROCUREMENT': { title: 'Processing', body: 'Your order is moving to the next stage.' },
+        'ARRIVING_AT_CAMPUS': { title: 'Arriving soon', body: 'Your order is moving to the next stage.' }
+    };
+
+    const copy = copyMap[status];
+    if (!copy) return;
+
+    try {
+        // Fetch user's tokens
+        const { getDoc } = await import('firebase/firestore');
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        if (!userDoc.exists()) return;
+        
+        const fcmTokens = userDoc.data().fcmTokens;
+        if (!fcmTokens || !Array.isArray(fcmTokens) || fcmTokens.length === 0) return;
+
+        // Call the serverless function securely
+        await fetch('/api/utils/send-push', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`
+            },
+            body: JSON.stringify({
+                title: copy.title,
+                body: copy.body,
+                tokens: fcmTokens,
+                link: `/my-orders`
+            })
+        });
+    } catch (err) {
+        console.warn('Failed to send push notification:', err);
+    }
+};
