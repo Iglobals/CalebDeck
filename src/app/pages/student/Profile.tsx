@@ -4,6 +4,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 import { getActiveHostels, Hostel } from '../../../services/db';
+import { requestNotificationPermissionAndSaveToken } from '../../../services/messaging';
 import { Button } from '../../components/design-system/Button';
 import { Card } from '../../components/design-system/Card';
 import { Input, Select, Textarea } from '../../components/design-system/Input';
@@ -45,8 +46,39 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
 
   const memojis = ['😎', '🤓', '🤠', '😇', '👾', '👻', '🤖', '👑', '🚀', '🌟', '🦄', '🦁', '🐶', '🦊', '🐼', '🐯'];
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    installPrompt.userChoice.then((choiceResult: any) => {
+      if (choiceResult.outcome === 'accepted') {
+        toast.success('App installation started');
+      }
+      setInstallPrompt(null);
+    });
+  };
+
+  const handleEnableNotifications = async () => {
+    if (!user) return;
+    try {
+      await requestNotificationPermissionAndSaveToken(user.uid, 'users');
+      toast.success("Push notifications enabled!");
+    } catch (e) {
+      toast.error("Could not enable notifications");
+    }
+  };
 
   useEffect(() => {
     if (user === null) {
@@ -320,6 +352,28 @@ export default function Profile() {
                     <ThemeToggle theme={studentTheme} onToggle={toggleStudentTheme} variant="inline" />
                   </div>
                 </div>
+
+                <div className="pt-4 border-t border-border mt-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-sm">Push Notifications</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">Enable notifications for order updates.</p>
+                    </div>
+                    <Button type="button" variant="outline" onClick={handleEnableNotifications}>Enable</Button>
+                  </div>
+                </div>
+
+                {installPrompt && (
+                  <div className="pt-4 border-t border-border mt-4 bg-primary/10 -mx-6 md:-mx-8 px-6 md:px-8 py-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-bold text-sm text-primary">Install CalebDeck App</p>
+                        <p className="text-sm text-muted-foreground mt-0.5">Add CalebDeck to your home screen for quick access.</p>
+                      </div>
+                      <Button type="button" variant="primary" onClick={handleInstallClick}>Install</Button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="pt-2 flex flex-col gap-4">
                   <Button type="submit" variant="primary" disabled={saving} className="w-full sm:w-auto py-3 px-8 text-sm">
