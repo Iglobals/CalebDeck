@@ -40,7 +40,7 @@ export const uploadMediaToCloudinary = async (
 
   // Get signature from our backend
   const timestamp = Math.round(new Date().getTime() / 1000);
-  const sigRes = await fetch('/api/cloudinary', {
+  const sigRes = await fetch('/api/utils/cloudinary', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -106,7 +106,7 @@ export const deleteMediaFromCloudinary = async (publicId: string, resourceType: 
   if (!auth.currentUser) throw new Error('Must be logged in to delete');
   const token = await auth.currentUser.getIdToken();
 
-  const res = await fetch(`/api/cloudinary?public_id=${encodeURIComponent(publicId)}&resource_type=${resourceType}`, {
+  const res = await fetch(`/api/utils/cloudinary?action=cloudinary&public_id=${encodeURIComponent(publicId)}&resource_type=${resourceType}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`
