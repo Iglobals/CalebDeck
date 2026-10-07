@@ -112,11 +112,6 @@ export default function FashionPDP() {
   const FASHION_DELIVERY_FEE = platformSettings?.fashionDeliveryFee || 1500;
 
   useEffect(() => {
-    if (!user) {
-      window.location.href = `/api/auth/login?return_to=${encodeURIComponent(window.location.origin + `/fashion/product/${id}`)}`;
-      return;
-    }
-    
     const unsubscribeItems = subscribeToFashionItems((fetchedItems, isFromCache, error) => {
       if (error) {
         setLoading(false);
