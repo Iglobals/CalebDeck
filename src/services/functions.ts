@@ -88,4 +88,26 @@ export const verifyPayment = async (data: { reference: string; orderData: any })
     return response.json();
 };
 
+export const dispatchHostelOrders = async (data: { hostelId: string }, authToken?: string) => {
+    if (import.meta.env.DEV) {
+        return { data: { success: true, message: "Mock Dispatch Sent" } };
+    }
 
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch('/api/dispatch-orders', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Dispatch failed: ${response.status}`);
+    }
+
+    return response.json();
+};

@@ -1400,21 +1400,7 @@ export const advanceFashionBatch = async (currentStatus: string, nextStatus: str
         
         await batch.commit();
         
-        // Send push notifications
-        try {
-            const token = await auth.currentUser?.getIdToken();
-            if (token) {
-                await Promise.all(snapshot.docs.map(async (docSnap) => {
-                    const data = docSnap.data();
-                    const userId = data.userId || data.iConId;
-                    if (userId) {
-                        await sendOrderStatusPushNotification(userId, nextStatus, docSnap.id, token);
-                    }
-                }));
-            }
-        } catch (pushErr) {
-            console.warn('Failed to send fashion batch push notifications:', pushErr);
-        }
+
 
         return snapshot.size;
     } catch (err) {
