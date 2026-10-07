@@ -67,17 +67,13 @@ export default function FashionCheckout() {
   }, [batchState, selectedBatch]);
 
   useEffect(() => {
-    if (!user) {
-      window.location.href = `/api/auth/login?return_to=${encodeURIComponent(window.location.origin + '/fashion/checkout')}`;
-      return;
-    }
     // Don't redirect if we're in the middle of processing a payment —
     // clearCart() empties items before navigate('/order-success') fires
     if (paymentProcessingRef.current) return;
     if (items.length === 0) {
       navigate('/fashion');
     }
-  }, [items, navigate, user]);
+  }, [items, navigate]);
 
   useEffect(() => {
     const fetchHostels = async () => {
@@ -419,6 +415,77 @@ export default function FashionCheckout() {
             <Button variant="primary" className="w-full py-6 text-xl rounded-2xl">Back to Fashion</Button>
           </Link>
         </Card>
+      </div>
+    );
+  }
+
+  if (!user || !user.icaSub) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <SEO
+          title="Become an i-CON - CalebDeck Fashion"
+          description="Create your free i-CON account to complete your CalebDeck order."
+          canonical="https://calebdeck.com/fashion/checkout"
+          robots="noindex,follow"
+        />
+        <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm transition-colors duration-300">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-4">
+            <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl transition-colors hover:bg-muted" aria-label="Go back">
+              <ArrowLeft className="w-6 h-6 text-foreground" />
+            </button>
+            <h1 className="text-xl font-bold text-foreground">Complete Your Order</h1>
+          </div>
+        </header>
+
+        <main className="flex-1 flex items-center justify-center p-6 pb-24">
+          <Card className="max-w-md w-full p-8 md:p-10 border-2 border-[#7C3AED]/20 dark:border-[#7C3AED]/30 bg-card">
+            <div className="w-20 h-20 bg-[#7C3AED]/10 rounded-full flex items-center justify-center mb-6">
+              <Shield className="w-10 h-10 text-[#7C3AED]" />
+            </div>
+            
+            <h1 className="text-2xl font-bold text-foreground mb-4">
+              Become an i-CON to complete your order
+            </h1>
+            
+            <p className="text-muted-foreground mb-8 text-lg">
+              Create your free i-CON account to complete your CalebDeck order and unlock:
+            </p>
+            
+            <ul className="space-y-4 mb-10">
+              {[
+                'CalebDeck Wallet',
+                'Order history & tracking',
+                'Push notifications',
+                'Personalized CalebDeck experience',
+                'Access to the wider CalebDeck ecosystem'
+              ].map((benefit, i) => (
+                <li key={i} className="flex items-center gap-3 text-foreground font-medium">
+                  <div className="w-6 h-6 rounded-full bg-[#7C3AED]/10 flex items-center justify-center flex-shrink-0">
+                    <div className="w-2 h-2 rounded-full bg-[#7C3AED]" />
+                  </div>
+                  {benefit}
+                </li>
+              ))}
+            </ul>
+
+            <div className="space-y-4">
+              <Button 
+                variant="primary" 
+                className="w-full py-6 text-lg rounded-2xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-bold"
+                onClick={() => window.location.href = `/api/auth/login?return_to=${encodeURIComponent(window.location.origin + '/fashion/checkout')}`}
+              >
+                Become an i-CON
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full py-6 text-lg rounded-2xl border-2 border-border hover:bg-muted font-bold text-foreground"
+                onClick={() => window.location.href = `/api/auth/login?return_to=${encodeURIComponent(window.location.origin + '/fashion/checkout')}`}
+              >
+                Already an i-CON? Sign in
+              </Button>
+            </div>
+          </Card>
+        </main>
       </div>
     );
   }

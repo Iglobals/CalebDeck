@@ -96,14 +96,15 @@ export const router = createBrowserRouter([
           { path: "business/dashboard", lazy: () => import("./pages/student/VendorDashboard").then(m => ({ Component: m.default })) },
           { path: "business/activate/:token", lazy: () => import("./pages/student/VendorActivation").then(m => ({ Component: m.default })) },
           
+          { path: "fashion", lazy: () => import("./pages/student/FashionPage").then(m => ({ Component: m.default })) },
+          { path: "fashion/product/:id", lazy: () => import("./pages/student/FashionPDP").then(m => ({ Component: m.default })) },
+          { path: "fashion/checkout", lazy: () => import("./pages/student/FashionCheckout").then(m => ({ Component: m.default })) },
+          
           /* ICON-Only Routes */
           {
             path: "",
             element: <IconGate />,
             children: [
-              { path: "fashion", lazy: () => import("./pages/student/FashionPage").then(m => ({ Component: m.default })) },
-              { path: "fashion/product/:id", lazy: () => import("./pages/student/FashionPDP").then(m => ({ Component: m.default })) },
-              { path: "fashion/checkout", lazy: () => import("./pages/student/FashionCheckout").then(m => ({ Component: m.default })) },
               { path: "profile", lazy: () => import("./pages/student/Profile").then(m => ({ Component: m.default })) },
               { path: "wallet", lazy: () => import("./pages/student/WalletPage").then(m => ({ Component: m.default })) },
             ]

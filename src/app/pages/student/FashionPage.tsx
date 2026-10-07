@@ -93,11 +93,6 @@ export default function FashionPage() {
   const { items: cartItems, addItem, updateQuantity, totalItems } = useMartCart();
 
   useEffect(() => {
-    if (!user) {
-      window.location.href = `/api/auth/login?return_to=${encodeURIComponent(window.location.origin + '/fashion')}`;
-      return;
-    }
-    
     const unsubscribeItems = subscribeToFashionItems((fetchedItems, isFromCache, error) => {
       if (error) {
         setLoading(false);

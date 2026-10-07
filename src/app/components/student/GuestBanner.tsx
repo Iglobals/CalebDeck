@@ -52,7 +52,7 @@ export function GuestBanner() {
               Unlock CalebDeck Fashion & More
             </h3>
             <p className="text-sm text-muted-foreground leading-relaxed font-medium">
-              CalebDeck Fashion is locked for <span className="text-[#7C3AED] font-bold">i-CONs</span> only. Become an i-CON to shop exclusive merch, save your hostel/phone details, and connect your activity across all iGLOBALS products.
+              Become an <span className="text-[#7C3AED] font-bold">i-CON</span> to complete Fashion orders, save your hostel/phone details, and connect your activity across all iGLOBALS products.
             </p>
           </div>
 
