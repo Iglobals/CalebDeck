@@ -15,6 +15,8 @@ import {
   Loader2
 } from 'lucide-react';
 import { subscribeToFashionItems, FashionItem, addFashionItem, updateFashionItem, deleteFashionItem, subscribeToFashionCategories, FashionCategory, addFashionCategory, deleteFashionCategory } from '../../../services/fashion';
+import { uploadMediaToCloudinary } from '../../../services/cloudinary';
+import { migrateFashionMediaToCloudinary } from '../../../services/migrateFashionMedia';
 import { useTheme } from '../../../context/ThemeContext';
 
 export default function AdminFashion() {
@@ -51,6 +53,8 @@ export default function AdminFashion() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [migrationStatus, setMigrationStatus] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { adminTheme } = useTheme();
 
@@ -85,34 +89,69 @@ export default function AdminFashion() {
   });
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'main' | 'media' | 'video' | 'sizeChart') => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    // For video, we might allow slightly larger files or just mock it for now
-    if (type !== 'video' && file.size > 5 * 1024 * 1024) { 
-      alert('Please select an image smaller than 5MB'); 
-      return; 
-    }
-    
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
     setProcessingImage(true);
+    setUploadProgress(0);
+
     try {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const result = ev.target?.result as string;
+      if (type === 'media') {
+        // Multi-upload for additional images in parallel
+        const newUrls: string[] = [];
+        let totalProgress = 0;
+        const progressArr = new Array(files.length).fill(0);
+
+        await Promise.all(files.map(async (f, idx) => {
+          try {
+            const res = await uploadMediaToCloudinary(f, (prog) => {
+              progressArr[idx] = prog;
+              totalProgress = Math.round(progressArr.reduce((a,b)=>a+b,0) / files.length);
+              setUploadProgress(totalProgress);
+            });
+            newUrls.push(res.url);
+          } catch(err) {
+            console.error('Failed to upload file', f.name, err);
+            alert(`Failed to upload ${f.name}`);
+          }
+        }));
+
+        setFormData(prev => ({ ...prev, mediaUrls: [...prev.mediaUrls, ...newUrls] }));
+      } else {
+        // Single upload
+        const file = files[0];
+        const res = await uploadMediaToCloudinary(file, setUploadProgress);
         setFormData(prev => {
-          if (type === 'main') return { ...prev, imageUrl: result };
-          if (type === 'video') return { ...prev, videoUrl: result };
-          if (type === 'sizeChart') return { ...prev, sizeChartUrl: result };
-          if (type === 'media') return { ...prev, mediaUrls: [...prev.mediaUrls, result] };
+          if (type === 'main') return { ...prev, imageUrl: res.url };
+          if (type === 'video') return { ...prev, videoUrl: res.url };
+          if (type === 'sizeChart') return { ...prev, sizeChartUrl: res.url };
           return prev;
         });
-      };
-      reader.onerror = () => {
-        alert('Failed to read file');
-      };
-      reader.readAsDataURL(file);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to upload media. Ensure you are an admin and signed in.');
     } finally {
       setProcessingImage(false);
+      setUploadProgress(0);
+      if (e.target) e.target.value = ''; // clear input
+    }
+  };
+
+  const handleRemoveMedia = (url: string, type: 'main'|'video'|'sizeChart'|'media') => {
+    setFormData(prev => {
+      if (type === 'main') return { ...prev, imageUrl: '' };
+      if (type === 'video') return { ...prev, videoUrl: '' };
+      if (type === 'sizeChart') return { ...prev, sizeChartUrl: '' };
+      if (type === 'media') return { ...prev, mediaUrls: prev.mediaUrls.filter(u => u !== url) };
+      return prev;
+    });
+  };
+
+  const runMigration = async () => {
+    if (window.confirm("This will migrate all base64 images in Firestore to Cloudinary. Make sure you don't refresh the page.")) {
+      setMigrationStatus("Starting migration...");
+      await migrateFashionMediaToCloudinary((msg) => setMigrationStatus(msg));
+      alert("Migration finished.");
     }
   };
 
@@ -236,6 +275,16 @@ export default function AdminFashion() {
           </div>
         </div>
 
+        {/* Cloudinary Migration Helper */}
+        <div className="bg-muted/20 p-4 rounded-xl border border-border flex justify-between items-center text-sm">
+          <div>
+            <strong>Firestore Migration</strong>
+            <p className="text-muted-foreground">Move existing base64 product images to Cloudinary to save Firestore space.</p>
+            {migrationStatus && <p className="text-[#7C3AED] font-bold mt-1">{migrationStatus}</p>}
+          </div>
+          <Button variant="outline" onClick={runMigration}>Run Migration</Button>
+        </div>
+
         {/* Category Filter */}
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
           {displayCategories.map(cat => (
@@ -334,15 +383,16 @@ export default function AdminFashion() {
                       disabled={processingImage}
                     >
                       {processingImage ? (
-                        <><Loader2 className="w-4 h-4 animate-spin" /> Processing Image...</>
+                        <><Loader2 className="w-4 h-4 animate-spin" /> Uploading ({uploadProgress}%)...</>
                       ) : (
                         <><Upload className="w-4 h-4" /> {formData.imageUrl ? 'Change Main Image' : 'Upload Main Image'}</>
                       )}
                     </Button>
                   </div>
                   {formData.imageUrl && (
-                    <div className="w-20 h-20 rounded-xl bg-muted/50 border-2 border-border overflow-hidden flex items-center justify-center flex-shrink-0">
+                    <div className="w-20 h-20 relative rounded-xl bg-muted/50 border-2 border-border overflow-hidden flex items-center justify-center flex-shrink-0 group">
                       <img src={formData.imageUrl} alt="Preview" className="w-full h-full object-cover rounded-xl" />
+                      <button type="button" onClick={() => handleRemoveMedia(formData.imageUrl, 'main')} className="absolute top-1 right-1 bg-red-500 rounded-full p-1 text-white opacity-0 group-hover:opacity-100 transition-opacity"><X className="w-3 h-3" /></button>
                     </div>
                   )}
                 </div>
@@ -352,15 +402,21 @@ export default function AdminFashion() {
                   <div>
                     <label className="block text-sm font-semibold mb-2">Product Video (Optional)</label>
                     <input type="file" accept="video/*" className="hidden" id="video-upload" onChange={(e) => handleImageUpload(e, 'video')} />
-                    <Button type="button" variant="outline" className="w-full flex items-center justify-center gap-2" onClick={() => document.getElementById('video-upload')?.click()}>
+                    <Button type="button" variant="outline" disabled={processingImage} className="w-full flex items-center justify-center gap-2" onClick={() => document.getElementById('video-upload')?.click()}>
                       <Upload className="w-4 h-4" /> {formData.videoUrl ? 'Change Video' : 'Upload Video'}
                     </Button>
+                    {formData.videoUrl && (
+                      <div className="mt-2 text-xs flex justify-between items-center px-2 py-1 bg-muted rounded">
+                        <span className="truncate flex-1 text-[#7C3AED] font-medium">Video added</span>
+                        <button type="button" onClick={() => handleRemoveMedia(formData.videoUrl, 'video')} className="text-red-500 hover:text-red-600"><X className="w-3 h-3" /></button>
+                      </div>
+                    )}
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold mb-2">Additional Images</label>
-                    <input type="file" accept="image/*" className="hidden" id="media-upload" onChange={(e) => handleImageUpload(e, 'media')} />
-                    <Button type="button" variant="outline" className="w-full flex items-center justify-center gap-2" onClick={() => document.getElementById('media-upload')?.click()}>
-                      <Plus className="w-4 h-4" /> Add Image
+                    <label className="block text-sm font-semibold mb-2">Additional Images (Multi)</label>
+                    <input type="file" multiple accept="image/*" className="hidden" id="media-upload" onChange={(e) => handleImageUpload(e, 'media')} />
+                    <Button type="button" variant="outline" disabled={processingImage} className="w-full flex items-center justify-center gap-2" onClick={() => document.getElementById('media-upload')?.click()}>
+                      <Plus className="w-4 h-4" /> Add Images
                     </Button>
                   </div>
                 </div>
@@ -368,9 +424,9 @@ export default function AdminFashion() {
                 {formData.mediaUrls.length > 0 && (
                   <div className="flex gap-2 overflow-x-auto py-2">
                     {formData.mediaUrls.map((url, idx) => (
-                      <div key={idx} className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0">
+                      <div key={idx} className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0 group">
                         <img src={url} alt={`Media ${idx}`} className="w-full h-full object-cover" />
-                        <button type="button" onClick={() => setFormData(p => ({...p, mediaUrls: p.mediaUrls.filter((_, i) => i !== idx)}))} className="absolute top-1 right-1 bg-red-500 rounded-full p-0.5 text-white">
+                        <button type="button" onClick={() => handleRemoveMedia(url, 'media')} className="absolute top-1 right-1 bg-red-500 rounded-full p-0.5 text-white opacity-0 group-hover:opacity-100 transition-opacity">
                           <X className="w-3 h-3" />
                         </button>
                       </div>

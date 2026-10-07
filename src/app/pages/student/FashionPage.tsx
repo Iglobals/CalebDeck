@@ -359,8 +359,8 @@ export default function FashionPage() {
         {/* Product Grid */}
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 animate-pulse">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="bg-card rounded-[32px] aspect-[4/5] p-4"></div>
+            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+              <div key={i} className="bg-muted/60 dark:bg-muted/20 rounded-[32px] aspect-[3/4] p-4"></div>
             ))}
           </div>
         ) : filteredItems.length === 0 ? (

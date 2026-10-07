@@ -11,6 +11,7 @@ import { subscribeToPlatformSettings, PlatformSettings } from '../../../services
 import { toast } from 'sonner';
 import { getFashionBatchState, isFashionCheckoutAllowed, formatArrivalDate, DEFAULT_FASHION_BATCH_CONFIG } from '../../../services/fashionBatch';
 import type { FashionBatchState } from '../../../services/fashionBatch';
+import { getHexColorName } from '../../../utils/formatColor';
 
 export default function FashionPDP() {
   const { id } = useParams<{ id: string }>();
@@ -254,15 +255,31 @@ export default function FashionPDP() {
 
   // Define media array including video, main image, and thumbnails
   const allMedia: {url: string, type: 'video' | 'image'}[] = [];
+  
+  // Add main image first
+  if (item.imageUrl) allMedia.push({url: item.imageUrl, type: 'image'});
+  
+  // Add video
   if (item.videoUrl) allMedia.push({url: item.videoUrl, type: 'video'});
-  if (item.mediaUrls && item.mediaUrls.length > 0) {
-    item.mediaUrls.forEach(url => allMedia.push({url, type: 'image'}));
-  } else {
-    allMedia.push({url: item.imageUrl, type: 'image'});
-    if (item.thumbnails) {
-      item.thumbnails.filter(t => t !== item.imageUrl).forEach(t => allMedia.push({url: t, type: 'image'}));
-    }
+  
+  // Add additional media
+  if (item.mediaUrls) {
+    item.mediaUrls.filter(url => url !== item.imageUrl).forEach(url => allMedia.push({url, type: 'image'}));
   }
+  
+  if (item.thumbnails) {
+    item.thumbnails.filter(t => t !== item.imageUrl && !allMedia.some(m => m.url === t)).forEach(t => allMedia.push({url: t, type: 'image'}));
+  }
+
+  const handleThumbnailClick = (mediaUrl: string) => {
+    setActiveThumbnail(mediaUrl);
+    if (item?.colorMedia) {
+      const matchedColor = Object.entries(item.colorMedia).find(([color, url]) => url === mediaUrl);
+      if (matchedColor) {
+        setSelectedColor(matchedColor[0]);
+      }
+    }
+  };
 
   const isDev = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   const currentHour = new Date().getHours();
@@ -383,13 +400,11 @@ export default function FashionPDP() {
         {/* Vertical Thumbnails (Right Side) */}
         {allMedia.length > 1 && (
           <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-20">
-            {allMedia.slice(0, 5).map((media, idx) => (
+            {allMedia.filter(m => m.url !== activeThumbnail).slice(0, 5).map((media, idx) => (
               <button
                 key={idx}
-                onClick={() => setActiveThumbnail(media.url)}
-                className={`w-12 h-12 rounded-xl bg-white/40 backdrop-blur-md overflow-hidden border-2 transition-all ${
-                  activeThumbnail === media.url ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:bg-white/60'
-                }`}
+                onClick={() => handleThumbnailClick(media.url)}
+                className="w-12 h-12 rounded-xl bg-white/40 backdrop-blur-md overflow-hidden border-2 border-transparent hover:bg-white/60 hover:scale-105 shadow-sm transition-all"
               >
                 {media.type === 'video' ? (
                    <div className="w-full h-full bg-black flex items-center justify-center">
@@ -406,15 +421,22 @@ export default function FashionPDP() {
 
       {/* Fullscreen Gallery */}
       {showFullscreenGallery && (
-        <div className="fixed inset-0 z-[200] bg-black text-white flex flex-col">
-           <div className="flex justify-between items-center p-4">
-             <span className="text-sm font-bold opacity-70">{galleryIndex + 1} / {allMedia.length}</span>
-             <button onClick={() => setShowFullscreenGallery(false)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+        <div 
+          className="fixed inset-0 z-[200] bg-black text-white flex flex-col"
+          onClick={() => setShowFullscreenGallery(false)}
+        >
+           <div 
+             className="flex justify-between items-center p-4"
+             style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))', paddingLeft: 'max(1rem, env(safe-area-inset-left))', paddingRight: 'max(1rem, env(safe-area-inset-right))' }}
+           >
+             <span className="text-sm font-bold opacity-70 bg-black/50 px-3 py-1 rounded-full">{galleryIndex + 1} / {allMedia.length}</span>
+             <button onClick={() => setShowFullscreenGallery(false)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
                <ArrowLeft className="w-5 h-5 text-white transform rotate-180" /> {/* Acts as X/Close */}
              </button>
            </div>
            
            <div className="flex-1 relative flex items-center justify-center overflow-hidden" 
+                onClick={(e) => e.stopPropagation()}
                 onTouchStart={(e) => {
                   const touchDown = e.touches[0].clientX;
                   e.currentTarget.dataset.touchDown = touchDown.toString();
@@ -443,6 +465,9 @@ export default function FashionPDP() {
                 <ArrowLeft className="w-6 h-6 transform rotate-180" />
               </button>
            </div>
+           
+           {/* Bottom Safe Area */}
+           <div style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} />
         </div>
       )}
 
@@ -675,7 +700,10 @@ export default function FashionPDP() {
                           {cartItem.color && (
                             <div className="flex items-center gap-1">
                               {cartItem.color.startsWith('#') ? (
-                                <span className="w-3.5 h-3.5 rounded-full border border-border shadow-sm" style={{ backgroundColor: cartItem.color }} title={cartItem.color} />
+                                <>
+                                  <span className="w-3.5 h-3.5 rounded-full border border-border shadow-sm" style={{ backgroundColor: cartItem.color }} title={cartItem.color} />
+                                  <span className="text-xs text-muted-foreground">{getHexColorName(cartItem.color)}</span>
+                                </>
                               ) : (
                                 <span className="text-xs text-muted-foreground">{cartItem.color}</span>
                               )}
