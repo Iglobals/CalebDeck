@@ -65,7 +65,11 @@ export default function AdminFashion() {
     return () => { unsubItems(); unsubCats(); };
   }, []);
 
-  const displayCategories = ['All', ...categories.map(c => c.name)];
+  const itemCategories = Array.from(new Set(items.map(i => i.category))).filter(Boolean);
+  const savedCategoryNames = categories.map(c => c.name);
+  const allUniqueCategoryNames = Array.from(new Set([...itemCategories, ...savedCategoryNames])).sort();
+  
+  const displayCategories = ['All', ...allUniqueCategoryNames];
 
   const handleAddCategory = async () => {
     if (newCategoryName.trim()) {
@@ -437,8 +441,8 @@ export default function AdminFashion() {
                       }`}
                     >
                       <option value="">Select Category</option>
-                      {categories.map(cat => (
-                        <option key={cat.id} value={cat.name}>{cat.name}</option>
+                      {allUniqueCategoryNames.map(catName => (
+                        <option key={catName} value={catName}>{catName}</option>
                       ))}
                     </select>
                   </div>
@@ -600,15 +604,21 @@ export default function AdminFashion() {
                   <Button variant="primary" onClick={handleAddCategory} className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white">Add</Button>
                 </div>
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-                  {categories.map(cat => (
-                    <div key={cat.id} className="flex justify-between items-center bg-muted/30 p-3 rounded-xl border border-border">
-                      <span className="font-semibold">{cat.name}</span>
-                      <button onClick={() => deleteFashionCategory(cat.id)} className="text-red-500 hover:bg-red-500/10 p-1.5 rounded-lg">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                  {allUniqueCategoryNames.map(catName => {
+                    const dbCat = categories.find(c => c.name === catName);
+                    return (
+                    <div key={catName} className="flex justify-between items-center bg-muted/30 p-3 rounded-xl border border-border">
+                      <span className="font-semibold">{catName}</span>
+                      {dbCat ? (
+                        <button onClick={() => deleteFashionCategory(dbCat.id)} className="text-red-500 hover:bg-red-500/10 p-1.5 rounded-lg" title="Delete Category">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground px-2 uppercase tracking-wider font-bold">In Use</span>
+                      )}
                     </div>
-                  ))}
-                  {categories.length === 0 && <p className="text-center text-muted-foreground py-4">No categories yet.</p>}
+                  )})}
+                  {allUniqueCategoryNames.length === 0 && <p className="text-center text-muted-foreground py-4">No categories yet.</p>}
                 </div>
               </div>
             </Card>

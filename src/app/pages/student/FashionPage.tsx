@@ -24,6 +24,7 @@ export default function FashionPage() {
   const [loading, setLoading] = useState(true);
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
   const [batchState, setBatchState] = useState<FashionBatchState | null>(null);
+  const [visibleCount, setVisibleCount] = useState(12);
 
   const FALLBACK_ITEMS: FashionItem[] = [
     {
@@ -138,6 +139,12 @@ export default function FashionPage() {
     return matchesCategory && matchesSearch && matchesPrice;
   });
 
+  const displayedItems = filteredItems.slice(0, visibleCount);
+
+  const handleLoadMore = () => {
+    setVisibleCount(prev => prev + 12);
+  };
+
   const getCartQuantity = (itemId: string) => {
     return cartItems.find(i => i.id === itemId)?.quantity || 0;
   };
@@ -204,7 +211,7 @@ export default function FashionPage() {
       )}
 
       {/* Header with Purple Gradient & Logo Watermark Zone */}
-      <header className="relative bg-gradient-to-b from-purple-900/10 via-purple-600/5 to-transparent border-b border-border/40 backdrop-blur-md pb-4 px-4 sm:px-6 overflow-hidden" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
+      <header className="relative bg-gradient-to-b from-purple-900/10 via-purple-600/5 to-transparent border-b border-border/40 backdrop-blur-md pb-4 px-4 sm:px-6 overflow-hidden" style={{ paddingTop: 'max(2.5rem, env(safe-area-inset-top))' }}>
         {/* Subtle Watermark Logo */}
         <img 
           src="/avaters/calebdeck-fashion-logo-transparent.png" 
@@ -363,56 +370,66 @@ export default function FashionPage() {
             <p className="text-muted-foreground">Adjust your filters or search query.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
-            {filteredItems.map((item) => {
-              return (
-                <Link to={`/fashion/product/${item.id}`} key={item.id} className="block group">
-                  <div className="bg-[#F8F9FA] dark:bg-[#1C1C1C] rounded-[32px] p-2 sm:p-2.5 shadow-sm border border-border/50 transition-all hover:shadow-md flex flex-col gap-2">
-                    {/* Image Area */}
-                    <div 
-                      className="relative aspect-square rounded-[24px] overflow-hidden flex items-center justify-center p-4 transition-colors bg-muted/20"
-                    >
-                      <div className="absolute top-3 right-3 text-[10px] font-bold px-3 py-1 rounded-full text-black shadow-sm z-10" style={{ backgroundColor: item.brandColor || '#FDBA74' }}>
-                        {item.brand}
-                      </div>
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+              {displayedItems.map((item) => {
+                return (
+                  <Link to={`/fashion/product/${item.id}`} key={item.id} className="block group">
+                    <div className="relative rounded-[24px] sm:rounded-[32px] overflow-hidden group border border-border/20 shadow-sm transition-all hover:shadow-md aspect-[3/4] bg-muted/20">
                       <ImageWithFallback 
-                        src={item.imageUrl} 
-                        alt={item.name}
-                        className="w-full h-full object-cover rounded-xl group-hover:scale-105 transition-transform duration-700 shadow-sm"
+                          src={item.imageUrl} 
+                          alt={item.name}
+                          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                       />
-                    {!item.inStock && (
-                        <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] flex items-center justify-center">
-                          <span className="bg-background font-bold px-4 py-2 text-xs uppercase tracking-wider rounded-full">Out of Stock</span>
-                        </div>
+                      
+                      {/* Top Badges */}
+                      <div className="absolute top-3 right-3 text-[10px] font-bold px-3 py-1 rounded-full text-black shadow-sm z-10" style={{ backgroundColor: item.brandColor || '#FDBA74' }}>
+                          {item.brand}
+                      </div>
+                      {item.inStock && batchState && batchState.isClosingSoon && batchState.isOpen && (
+                          <span className="absolute top-3 left-3 text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-400 text-amber-900 shadow-sm z-10">
+                            Closing Soon
+                          </span>
+                      )}
+
+                      {/* Out of stock overlays */}
+                      {!item.inStock && (
+                          <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] flex items-center justify-center z-10">
+                            <span className="bg-background font-bold px-4 py-2 text-xs uppercase tracking-wider rounded-full">Out of Stock</span>
+                          </div>
                       )}
                       {item.inStock && batchState && !batchState.isOpen && !batchState.isGracePeriod && (
-                        <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] flex items-center justify-center">
-                          <span className="bg-background font-bold px-4 py-2 text-xs uppercase tracking-wider rounded-full">Next Batch</span>
-                        </div>
+                          <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] flex items-center justify-center z-10">
+                            <span className="bg-background font-bold px-4 py-2 text-xs uppercase tracking-wider rounded-full">Next Batch</span>
+                          </div>
                       )}
-                      {item.inStock && batchState && batchState.isClosingSoon && batchState.isOpen && (
-                        <span className="absolute top-3 left-3 text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-400 text-amber-900 shadow-sm z-10">
-                          Closing Soon
-                        </span>
-                      )}
-                    </div>
 
-                    {/* Details Area */}
-                    <div className="flex justify-between items-start gap-2 bg-card p-4 rounded-[24px] shadow-sm border border-border/20">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight mb-1">{item.name}</h3>
-                        <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{item.category}</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider font-bold">Price</p>
-                        <p className="font-black text-sm sm:text-base text-primary">₦{item.price.toLocaleString()}</p>
+                      {/* Bottom overlay with text */}
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3 sm:p-4 pt-16 flex flex-col justify-end text-white z-10">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-white/20 text-white backdrop-blur-md uppercase tracking-widest">{item.category}</span>
+                            <p className="font-bold text-sm sm:text-base text-white ml-auto">₦{item.price.toLocaleString()}</p>
+                          </div>
+                          <h3 className="font-semibold text-xs sm:text-sm leading-tight truncate text-white/90">{item.name}</h3>
                       </div>
                     </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+                  </Link>
+                );
+              })}
+            </div>
+            
+            {visibleCount < filteredItems.length && (
+              <div className="mt-10 flex justify-center">
+                <Button 
+                  onClick={handleLoadMore}
+                  variant="outline"
+                  className="rounded-full px-8 py-3 text-sm font-bold shadow-sm"
+                >
+                  Load More Styles
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>

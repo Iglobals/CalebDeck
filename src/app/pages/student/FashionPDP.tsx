@@ -334,8 +334,8 @@ export default function FashionPDP() {
       >
         {/* Transparent Header with Safe Area Top */}
         <header 
-          className="absolute top-0 left-0 right-0 z-40 px-4 sm:px-6 flex items-center justify-between"
-          style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
+          className="absolute top-0 left-0 right-0 z-40 px-4 sm:px-6 flex items-center justify-between pt-8 md:pt-6"
+          style={{ paddingTop: 'max(2.5rem, env(safe-area-inset-top))' }}
         >
           <button 
             onClick={() => navigate('/fashion')}
