@@ -10,7 +10,7 @@ import { subscribeToFashionItems, FashionItem } from '../../../services/fashion'
 import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 import { getFashionBatchState, formatFashionCountdown, formatArrivalDate, DEFAULT_FASHION_BATCH_CONFIG } from '../../../services/fashionBatch';
 import type { FashionBatchState } from '../../../services/fashionBatch';
-
+import { getOptimizedDeliveryUrl } from '../../../services/cloudinary';
 // Categories will be dynamically generated based on available items
 
 export default function FashionPage() {
@@ -377,7 +377,7 @@ export default function FashionPage() {
                   <Link to={`/fashion/product/${item.id}`} key={item.id} className="block group">
                     <div className="relative rounded-[24px] sm:rounded-[32px] overflow-hidden group border border-border/20 shadow-sm transition-all hover:shadow-md aspect-[3/4] bg-muted/20">
                       <ImageWithFallback 
-                          src={item.imageUrl} 
+                          src={getOptimizedDeliveryUrl(item.imageUrl, 500)} 
                           alt={item.name}
                           className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                       />

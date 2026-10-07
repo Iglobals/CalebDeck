@@ -110,9 +110,9 @@ export default function AdminFashion() {
               setUploadProgress(totalProgress);
             });
             newUrls.push(res.url);
-          } catch(err) {
+          } catch(err: any) {
             console.error('Failed to upload file', f.name, err);
-            alert(`Failed to upload ${f.name}`);
+            alert(`Failed to upload ${f.name}: ${err.message || 'Validation failed'}`);
           }
         }));
 
