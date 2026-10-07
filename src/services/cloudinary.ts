@@ -14,14 +14,24 @@ export const uploadMediaToCloudinary = async (
 ): Promise<{ url: string; publicId: string; type: 'image' | 'video'; format: string; width: number; height: number }> => {
   if (!auth.currentUser) throw new Error('Must be logged in to upload');
   
-  // Compress image before upload
   let fileToUpload = file;
   if (file.type.startsWith('image/')) {
+    // Hard cap for image source: 10MB
+    if (file.size > 10 * 1024 * 1024) {
+      throw new Error('Image exceeds 10MB hard limit. Please select a smaller file.');
+    }
     fileToUpload = await compressImage(file);
+    if (fileToUpload.size > 1.2 * 1024 * 1024) {
+       throw new Error('Image could not be compressed under 1MB. Please use a smaller image.');
+    }
   } else if (file.type.startsWith('video/')) {
-    // 15MB limit for videos as an example sensible limit for short product clips
-    if (file.size > 15 * 1024 * 1024) {
-      throw new Error('Video must be less than 15MB');
+    // 20MB limit for videos and ~20s duration
+    if (file.size > 20 * 1024 * 1024) {
+      throw new Error('Video must be less than 20MB to conserve bandwidth.');
+    }
+    const duration = await getVideoDuration(file);
+    if (duration > 22) { // Allow slight 2s leeway
+      throw new Error(`Video is too long (${Math.round(duration)}s). Maximum allowed is 20 seconds.`);
     }
   }
 
@@ -30,7 +40,7 @@ export const uploadMediaToCloudinary = async (
 
   // Get signature from our backend
   const timestamp = Math.round(new Date().getTime() / 1000);
-  const sigRes = await fetch('/api/cloudinary', {
+  const sigRes = await fetch('/api/utils/cloudinary', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -96,7 +106,7 @@ export const deleteMediaFromCloudinary = async (publicId: string, resourceType: 
   if (!auth.currentUser) throw new Error('Must be logged in to delete');
   const token = await auth.currentUser.getIdToken();
 
-  const res = await fetch(`/api/cloudinary?public_id=${encodeURIComponent(publicId)}&resource_type=${resourceType}`, {
+  const res = await fetch(`/api/utils/cloudinary?action=cloudinary&public_id=${encodeURIComponent(publicId)}&resource_type=${resourceType}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`
@@ -133,7 +143,7 @@ const compressImage = (file: File): Promise<File> => {
     img.onload = () => {
       URL.revokeObjectURL(url);
       
-      const MAX_WIDTH = 1600;
+      const MAX_WIDTH = 1200; // Reduced from 1600 to ensure < 1MB
       let width = img.width;
       let height = img.height;
       
@@ -160,12 +170,31 @@ const compressImage = (file: File): Promise<File> => {
           lastModified: Date.now(),
         });
         resolve(newFile);
-      }, 'image/webp', 0.85); // 85% quality webp
+      }, 'image/webp', 0.80); // 80% quality webp
     };
     
     img.onerror = () => {
       URL.revokeObjectURL(url);
       resolve(file); // fallback to original if error
     };
+  });
+};
+
+const getVideoDuration = (file: File): Promise<number> => {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    
+    video.onloadedmetadata = () => {
+      window.URL.revokeObjectURL(video.src);
+      resolve(video.duration);
+    };
+    
+    video.onerror = () => {
+      window.URL.revokeObjectURL(video.src);
+      reject(new Error('Invalid video file'));
+    };
+    
+    video.src = URL.createObjectURL(file);
   });
 };

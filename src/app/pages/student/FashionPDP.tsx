@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { getFashionBatchState, isFashionCheckoutAllowed, formatArrivalDate, DEFAULT_FASHION_BATCH_CONFIG } from '../../../services/fashionBatch';
 import type { FashionBatchState } from '../../../services/fashionBatch';
 import { getHexColorName } from '../../../utils/formatColor';
+import { getOptimizedDeliveryUrl, getVideoPosterUrl } from '../../../services/cloudinary';
 
 export default function FashionPDP() {
   const { id } = useParams<{ id: string }>();
@@ -383,14 +384,13 @@ export default function FashionPDP() {
             <video
               src={activeThumbnail}
               controls
-              autoPlay
-              muted
-              loop
+              preload="none"
+              poster={getVideoPosterUrl(activeThumbnail)}
               className="w-full h-full object-cover rounded-2xl shadow-sm transition-all duration-300 cursor-pointer"
             />
           ) : (
             <ImageWithFallback
-              src={activeThumbnail}
+              src={getOptimizedDeliveryUrl(activeThumbnail, 800)}
               alt={item.name}
               className="w-full h-full object-cover rounded-2xl shadow-sm transition-all duration-300 cursor-pointer"
             />
@@ -411,7 +411,7 @@ export default function FashionPDP() {
                      <span className="text-[8px] font-bold text-white uppercase">Video</span>
                    </div>
                 ) : (
-                  <ImageWithFallback src={media.url} alt={`Thumbnail ${idx}`} className="w-full h-full object-cover rounded-xl shadow-sm" />
+                  <ImageWithFallback src={getOptimizedDeliveryUrl(media.url, 200)} alt={`Thumbnail ${idx}`} className="w-full h-full object-cover rounded-xl shadow-sm" />
                 )}
               </button>
             ))}
@@ -452,9 +452,9 @@ export default function FashionPDP() {
                 }}
             >
               {allMedia[galleryIndex].type === 'video' ? (
-                <video src={allMedia[galleryIndex].url} controls autoPlay className="w-full max-h-full object-contain" />
+                <video src={allMedia[galleryIndex].url} controls preload="none" poster={getVideoPosterUrl(allMedia[galleryIndex].url)} className="w-full max-h-full object-contain" />
               ) : (
-                <img src={allMedia[galleryIndex].url} className="w-full max-h-full object-contain pointer-events-none transition-transform" style={{ touchAction: 'pinch-zoom' }} />
+                <img src={getOptimizedDeliveryUrl(allMedia[galleryIndex].url, 1200)} className="w-full max-h-full object-contain pointer-events-none transition-transform" style={{ touchAction: 'pinch-zoom' }} />
               )}
               
               {/* Desktop Nav Arrows */}

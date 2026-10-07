@@ -808,7 +808,7 @@ export const createNotification = async (data: Omit<Notification, 'id' | 'create
                 // env keys are public and are not a security boundary.
                 const { getAuth } = await import('firebase/auth');
                 const idToken = await getAuth().currentUser?.getIdToken().catch(() => null);
-                fetch('/api/send-push', {
+                fetch('/api/utils/send-push', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
                     body: JSON.stringify({ tokens, title: data.title, body: data.message, link: data.link || '/' })
