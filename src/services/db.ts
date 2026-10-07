@@ -1,5 +1,6 @@
 import { collection, getDocs, query, where, doc, setDoc, updateDoc, onSnapshot, orderBy, addDoc, serverTimestamp, deleteDoc, getDoc, writeBatch, limit, Timestamp, runTransaction, arrayUnion } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, auth } from './firebase';
+import { sendOrderStatusPushNotification } from './messaging';
 import { DEFAULT_PREMIUM_HOSTELS } from './orderFees';
 import { resolveOrderVertical } from './orderVertical';
 
@@ -156,6 +157,23 @@ export const getOrdersBetween = async (start: Date, end: Date, max = 500): Promi
 export const updateOrder = async (orderId: string, updates: any) => {
     const orderRef = doc(db, 'orders', orderId);
     await updateDoc(orderRef, { ...updates, updatedAt: serverTimestamp() });
+    
+    // Trigger push notification if status changed
+    if (updates.status) {
+        try {
+            const snap = await getDoc(orderRef);
+            if (snap.exists()) {
+                const data = snap.data();
+                const userId = data.userId || data.iConId;
+                const token = await auth.currentUser?.getIdToken();
+                if (userId && token) {
+                    await sendOrderStatusPushNotification(userId, updates.status, orderId, token);
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to send push notification on updateOrder', e);
+        }
+    }
 };
 
 // Orders (Admin - by Hostel)
@@ -401,10 +419,25 @@ export const dispatchBatch = async (hostelId: string, hostelName: string, rider:
             });
         });
 
-        return { batchId, orderCount: batchOrders.length };
+        return { batchId, orderCount: batchOrders.length, batchOrders };
     });
 
     if (!result) return null;
+
+    // Send push notifications for all orders dispatched
+    try {
+        const token = await auth.currentUser?.getIdToken();
+        if (token) {
+            await Promise.all(result.batchOrders.map(async (o) => {
+                const userId = o.userId || o.iConId;
+                if (userId) {
+                    await sendOrderStatusPushNotification(userId, 'OUT_FOR_DELIVERY', o.id, token);
+                }
+            }));
+        }
+    } catch (e) {
+        console.warn('Failed to send push notifications for dispatchBatch', e);
+    }
 
     try {
         await createNotification({
@@ -1366,6 +1399,23 @@ export const advanceFashionBatch = async (currentStatus: string, nextStatus: str
         });
         
         await batch.commit();
+        
+        // Send push notifications
+        try {
+            const token = await auth.currentUser?.getIdToken();
+            if (token) {
+                await Promise.all(snapshot.docs.map(async (docSnap) => {
+                    const data = docSnap.data();
+                    const userId = data.userId || data.iConId;
+                    if (userId) {
+                        await sendOrderStatusPushNotification(userId, nextStatus, docSnap.id, token);
+                    }
+                }));
+            }
+        } catch (pushErr) {
+            console.warn('Failed to send fashion batch push notifications:', pushErr);
+        }
+
         return snapshot.size;
     } catch (err) {
         console.error('Failed to advance fashion batch', err);
