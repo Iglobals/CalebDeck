@@ -14,14 +14,17 @@ import {
   X,
   Loader2
 } from 'lucide-react';
-import { subscribeToFashionItems, FashionItem, addFashionItem, updateFashionItem, deleteFashionItem } from '../../../services/fashion';
+import { subscribeToFashionItems, FashionItem, addFashionItem, updateFashionItem, deleteFashionItem, subscribeToFashionCategories, FashionCategory, addFashionCategory, deleteFashionCategory } from '../../../services/fashion';
 import { useTheme } from '../../../context/ThemeContext';
-// Categories will be dynamically derived from items
 
 export default function AdminFashion() {
   const [items, setItems] = useState<FashionItem[]>([]);
+  const [categories, setCategories] = useState<FashionCategory[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
+  
+  const [isManagingCategories, setIsManagingCategories] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
   
   const [isAdding, setIsAdding] = useState(false);
   const [editingItem, setEditingItem] = useState<FashionItem | null>(null);
@@ -36,7 +39,13 @@ export default function AdminFashion() {
     description: '',
     inStock: true,
     sizesInput: '',
-    colors: [] as string[]
+    colors: [] as string[],
+    videoUrl: '',
+    mediaUrls: [] as string[],
+    colorMedia: {} as Record<string, string>,
+    variationName: '',
+    variationsInput: '',
+    sizeChartUrl: ''
   });
   
   const [loading, setLoading] = useState(true);
@@ -46,15 +55,24 @@ export default function AdminFashion() {
   const { adminTheme } = useTheme();
 
   useEffect(() => {
-    const unsub = subscribeToFashionItems((data) => {
+    const unsubItems = subscribeToFashionItems((data) => {
       setItems(data);
       setLoading(false);
     });
-    return () => unsub();
+    const unsubCats = subscribeToFashionCategories((data) => {
+      setCategories(data);
+    });
+    return () => { unsubItems(); unsubCats(); };
   }, []);
 
-  const dynamicCategories = Array.from(new Set(items.map(item => item.category))).filter(Boolean);
-  const displayCategories = ['All', ...dynamicCategories];
+  const displayCategories = ['All', ...categories.map(c => c.name)];
+
+  const handleAddCategory = async () => {
+    if (newCategoryName.trim()) {
+      await addFashionCategory(newCategoryName.trim());
+      setNewCategoryName('');
+    }
+  };
 
   const filteredItems = items.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.brand.toLowerCase().includes(searchQuery.toLowerCase());
@@ -62,11 +80,13 @@ export default function AdminFashion() {
     return matchesSearch && matchesCategory;
   });
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'main' | 'media' | 'video' | 'sizeChart') => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { 
-      alert('Please select an image smaller than 2MB'); 
+    
+    // For video, we might allow slightly larger files or just mock it for now
+    if (type !== 'video' && file.size > 5 * 1024 * 1024) { 
+      alert('Please select an image smaller than 5MB'); 
       return; 
     }
     
@@ -74,10 +94,17 @@ export default function AdminFashion() {
     try {
       const reader = new FileReader();
       reader.onload = (ev) => {
-        setFormData(prev => ({ ...prev, imageUrl: ev.target?.result as string }));
+        const result = ev.target?.result as string;
+        setFormData(prev => {
+          if (type === 'main') return { ...prev, imageUrl: result };
+          if (type === 'video') return { ...prev, videoUrl: result };
+          if (type === 'sizeChart') return { ...prev, sizeChartUrl: result };
+          if (type === 'media') return { ...prev, mediaUrls: [...prev.mediaUrls, result] };
+          return prev;
+        });
       };
       reader.onerror = () => {
-        alert('Failed to read image');
+        alert('Failed to read file');
       };
       reader.readAsDataURL(file);
     } finally {
@@ -101,7 +128,13 @@ export default function AdminFashion() {
         imageUrl: formData.imageUrl,
         inStock: formData.inStock,
         sizes: formData.sizesInput ? formData.sizesInput.split(',').map(s => s.trim()).filter(s => s !== '') : [],
-        colors: formData.colors
+        colors: formData.colors,
+        videoUrl: formData.videoUrl,
+        mediaUrls: formData.mediaUrls,
+        colorMedia: formData.colorMedia,
+        variationName: formData.variationName,
+        variations: formData.variationsInput ? formData.variationsInput.split(',').map(s => s.trim()).filter(s => s !== '') : [],
+        sizeChartUrl: formData.sizeChartUrl
       };
 
       if (editingItem) {
@@ -112,7 +145,7 @@ export default function AdminFashion() {
       
       setIsAdding(false);
       setEditingItem(null);
-      setFormData({ name: '', brand: '', brandColor: '#F97316', description: '', price: '', category: 'Apparel', imageUrl: '', inStock: true, sizesInput: '', colors: [] });
+      setFormData({ name: '', brand: '', brandColor: '#F97316', description: '', price: '', category: categories[0]?.name || 'Apparel', imageUrl: '', inStock: true, sizesInput: '', colors: [], videoUrl: '', mediaUrls: [], colorMedia: {}, variationName: '', variationsInput: '', sizeChartUrl: '' });
     } catch (err) {
       console.error("Error saving fashion item", err);
       alert("Failed to save item. Check console.");
@@ -132,7 +165,13 @@ export default function AdminFashion() {
       imageUrl: item.imageUrl || '',
       inStock: item.inStock,
       sizesInput: item.sizes ? item.sizes.join(', ') : '',
-      colors: item.colors || []
+      colors: item.colors || [],
+      videoUrl: item.videoUrl || '',
+      mediaUrls: item.mediaUrls || [],
+      colorMedia: item.colorMedia || {},
+      variationName: item.variationName || '',
+      variationsInput: item.variations ? item.variations.join(', ') : '',
+      sizeChartUrl: item.sizeChartUrl || ''
     });
     setEditingItem(item);
     setIsAdding(true);
@@ -171,17 +210,26 @@ export default function AdminFashion() {
             />
           </div>
           
-          <Button 
-            variant="primary" 
-            onClick={() => {
-              setEditingItem(null);
-              setFormData({ name: '', brand: '', brandColor: '#F97316', description: '', price: '', category: 'Apparel', imageUrl: '', inStock: true, sizesInput: '', colors: [] });
-              setIsAdding(true);
-            }}
-            className="flex items-center gap-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
-          >
-            <Plus className="w-5 h-5" /> Add New Item
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsManagingCategories(true)}
+              className="flex items-center gap-2"
+            >
+              Manage Categories
+            </Button>
+            <Button 
+              variant="primary" 
+              onClick={() => {
+                setEditingItem(null);
+                setFormData({ name: '', brand: '', brandColor: '#F97316', description: '', price: '', category: categories[0]?.name || 'Apparel', imageUrl: '', inStock: true, sizesInput: '', colors: [], videoUrl: '', mediaUrls: [], colorMedia: {}, variationName: '', variationsInput: '', sizeChartUrl: '' });
+                setIsAdding(true);
+              }}
+              className="flex items-center gap-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
+            >
+              <Plus className="w-5 h-5" /> Add New Item
+            </Button>
+          </div>
         </div>
 
         {/* Category Filter */}
@@ -266,13 +314,13 @@ export default function AdminFashion() {
               <form onSubmit={handleSave} className="p-4 sm:p-6 space-y-5 max-h-[80vh] overflow-y-auto custom-scrollbar">
                 <div className="flex gap-4 items-end">
                   <div className="flex-1">
-                    <label className="block text-sm font-semibold mb-2">Item Image</label>
+                    <label className="block text-sm font-semibold mb-2">Main Image (Required)</label>
                     <input 
                       type="file" 
                       accept="image/*" 
                       className="hidden" 
                       ref={fileInputRef}
-                      onChange={handleImageUpload}
+                      onChange={(e) => handleImageUpload(e, 'main')}
                     />
                     <Button 
                       type="button" 
@@ -284,7 +332,7 @@ export default function AdminFashion() {
                       {processingImage ? (
                         <><Loader2 className="w-4 h-4 animate-spin" /> Processing Image...</>
                       ) : (
-                        <><Upload className="w-4 h-4" /> {formData.imageUrl ? 'Change Image' : 'Upload Image'}</>
+                        <><Upload className="w-4 h-4" /> {formData.imageUrl ? 'Change Main Image' : 'Upload Main Image'}</>
                       )}
                     </Button>
                   </div>
@@ -294,6 +342,37 @@ export default function AdminFashion() {
                     </div>
                   )}
                 </div>
+
+                {/* Additional Media */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Product Video (Optional)</label>
+                    <input type="file" accept="video/*" className="hidden" id="video-upload" onChange={(e) => handleImageUpload(e, 'video')} />
+                    <Button type="button" variant="outline" className="w-full flex items-center justify-center gap-2" onClick={() => document.getElementById('video-upload')?.click()}>
+                      <Upload className="w-4 h-4" /> {formData.videoUrl ? 'Change Video' : 'Upload Video'}
+                    </Button>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Additional Images</label>
+                    <input type="file" accept="image/*" className="hidden" id="media-upload" onChange={(e) => handleImageUpload(e, 'media')} />
+                    <Button type="button" variant="outline" className="w-full flex items-center justify-center gap-2" onClick={() => document.getElementById('media-upload')?.click()}>
+                      <Plus className="w-4 h-4" /> Add Image
+                    </Button>
+                  </div>
+                </div>
+
+                {formData.mediaUrls.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto py-2">
+                    {formData.mediaUrls.map((url, idx) => (
+                      <div key={idx} className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0">
+                        <img src={url} alt={`Media ${idx}`} className="w-full h-full object-cover" />
+                        <button type="button" onClick={() => setFormData(p => ({...p, mediaUrls: p.mediaUrls.filter((_, i) => i !== idx)}))} className="absolute top-1 right-1 bg-red-500 rounded-full p-0.5 text-white">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -349,22 +428,19 @@ export default function AdminFashion() {
                   </div>
                   <div className="col-span-1">
                     <label className="block text-sm font-semibold mb-2">Category</label>
-                    <input
-                      type="text"
-                      list="category-options"
+                    <select
                       required
                       value={formData.category}
                       onChange={e => setFormData({...formData, category: e.target.value})}
-                      placeholder="Select or type..."
                       className={`w-full px-4 py-3 rounded-xl border-2 outline-none ${
                         isDark ? 'border-[#333333] bg-[#2A2A2A] focus:border-[#7C3AED]' : 'border-gray-200 focus:border-[#7C3AED]/50'
                       }`}
-                    />
-                    <datalist id="category-options">
-                      {dynamicCategories.map(cat => (
-                        <option key={cat} value={cat} />
+                    >
+                      <option value="">Select Category</option>
+                      {categories.map(cat => (
+                        <option key={cat.id} value={cat.name}>{cat.name}</option>
                       ))}
-                    </datalist>
+                    </select>
                   </div>
                 </div>
 
@@ -390,31 +466,81 @@ export default function AdminFashion() {
                     </label>
                     <div className="flex flex-wrap gap-2 items-center h-12">
                       {formData.colors.map((color, idx) => (
-                        <div key={idx} className="relative flex items-center group">
-                          <input
-                            type="color"
-                            value={color}
-                            onChange={(e) => {
-                              const newColors = [...formData.colors];
-                              newColors[idx] = e.target.value;
-                              setFormData({...formData, colors: newColors});
-                            }}
-                            className="w-10 h-10 p-1 rounded-xl cursor-pointer"
-                          />
-                          <button 
-                            type="button" 
-                            onClick={() => {
-                              const newColors = formData.colors.filter((_, i) => i !== idx);
-                              setFormData({...formData, colors: newColors});
-                            }} 
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                        <div key={idx} className="flex flex-col gap-1 items-center">
+                          <div className="relative flex items-center group">
+                            <input
+                              type="color"
+                              value={color}
+                              onChange={(e) => {
+                                const newColors = [...formData.colors];
+                                newColors[idx] = e.target.value;
+                                setFormData({...formData, colors: newColors});
+                              }}
+                              className="w-10 h-10 p-1 rounded-xl cursor-pointer"
+                            />
+                            <button 
+                              type="button" 
+                              onClick={() => {
+                                const newColors = formData.colors.filter((_, i) => i !== idx);
+                                setFormData({...formData, colors: newColors});
+                              }} 
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                          {/* Map color to an existing image */}
+                          <select 
+                            className="text-[10px] w-14 rounded border border-border bg-background px-1"
+                            value={formData.colorMedia[color] || ''}
+                            onChange={(e) => setFormData(p => ({ ...p, colorMedia: { ...p.colorMedia, [color]: e.target.value } }))}
                           >
-                            <X className="w-3 h-3" />
-                          </button>
+                            <option value="">Media</option>
+                            {formData.imageUrl && <option value={formData.imageUrl}>Main</option>}
+                            {formData.mediaUrls.map((url, i) => (
+                              <option key={url} value={url}>Img {i+1}</option>
+                            ))}
+                          </select>
                         </div>
                       ))}
                       {formData.colors.length === 0 && <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>No specific colors</span>}
                     </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Variation Name</label>
+                    <input
+                      type="text"
+                      value={formData.variationName}
+                      onChange={e => setFormData({...formData, variationName: e.target.value})}
+                      placeholder="e.g. Design, Material"
+                      className={`w-full px-4 py-3 rounded-xl border-2 outline-none ${isDark ? 'border-[#333333] bg-[#2A2A2A] focus:border-[#7C3AED]' : 'border-gray-200 focus:border-[#7C3AED]/50'}`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Variation Options</label>
+                    <input
+                      type="text"
+                      value={formData.variationsInput}
+                      onChange={e => setFormData({...formData, variationsInput: e.target.value})}
+                      placeholder="e.g. Cartoon Print A, Solid (Comma separated)"
+                      className={`w-full px-4 py-3 rounded-xl border-2 outline-none ${isDark ? 'border-[#333333] bg-[#2A2A2A] focus:border-[#7C3AED]' : 'border-gray-200 focus:border-[#7C3AED]/50'}`}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Size Chart Image (Optional)</label>
+                  <input type="file" accept="image/*" className="hidden" id="sizechart-upload" onChange={(e) => handleImageUpload(e, 'sizeChart')} />
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" className="flex items-center gap-2" onClick={() => document.getElementById('sizechart-upload')?.click()}>
+                      <Upload className="w-4 h-4" /> {formData.sizeChartUrl ? 'Change Size Chart' : 'Upload Size Chart'}
+                    </Button>
+                    {formData.sizeChartUrl && (
+                      <img src={formData.sizeChartUrl} alt="Size Chart" className="h-10 w-10 object-cover rounded border" />
+                    )}
                   </div>
                 </div>
 
@@ -448,6 +574,43 @@ export default function AdminFashion() {
                   </Button>
                 </div>
               </form>
+            </Card>
+          </div>
+        )}
+
+        {/* Categories Modal */}
+        {isManagingCategories && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <Card className="w-full max-w-md animate-in fade-in zoom-in duration-200">
+              <div className={`p-4 sm:p-6 border-b flex justify-between items-center ${isDark ? 'border-[#333333]' : 'border-gray-100'}`}>
+                <h2 className="text-xl font-bold">Manage Categories</h2>
+                <button onClick={() => setIsManagingCategories(false)} className="p-2 hover:bg-muted rounded-full">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-4 sm:p-6 space-y-4">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newCategoryName}
+                    onChange={e => setNewCategoryName(e.target.value)}
+                    placeholder="New category name..."
+                    className={`flex-1 px-4 py-2 rounded-xl border-2 outline-none ${isDark ? 'border-[#333333] bg-[#2A2A2A] focus:border-[#7C3AED]' : 'border-gray-200 focus:border-[#7C3AED]/50'}`}
+                  />
+                  <Button variant="primary" onClick={handleAddCategory} className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white">Add</Button>
+                </div>
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                  {categories.map(cat => (
+                    <div key={cat.id} className="flex justify-between items-center bg-muted/30 p-3 rounded-xl border border-border">
+                      <span className="font-semibold">{cat.name}</span>
+                      <button onClick={() => deleteFashionCategory(cat.id)} className="text-red-500 hover:bg-red-500/10 p-1.5 rounded-lg">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {categories.length === 0 && <p className="text-center text-muted-foreground py-4">No categories yet.</p>}
+                </div>
+              </div>
             </Card>
           </div>
         )}

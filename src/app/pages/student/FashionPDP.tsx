@@ -21,8 +21,12 @@ export default function FashionPDP() {
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('');
+  const [selectedVariation, setSelectedVariation] = useState<string>('');
   const [activeThumbnail, setActiveThumbnail] = useState<string>('');
   const [showCartOverlay, setShowCartOverlay] = useState(false);
+  const [showSizeChart, setShowSizeChart] = useState(false);
+  const [showFullscreenGallery, setShowFullscreenGallery] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
   const [batchState, setBatchState] = useState<FashionBatchState | null>(null);
   
@@ -148,9 +152,24 @@ export default function FashionPDP() {
     if (item) {
       if (item.sizes && item.sizes.length > 0) setSelectedSize(item.sizes[0]);
       if (item.colors && item.colors.length > 0) setSelectedColor(item.colors[0]);
-      setActiveThumbnail(item.imageUrl);
+      if (item.variations && item.variations.length > 0) setSelectedVariation(item.variations[0]);
+      
+      if (item.videoUrl) {
+        setActiveThumbnail(item.videoUrl);
+      } else if (item.mediaUrls && item.mediaUrls.length > 0) {
+        setActiveThumbnail(item.mediaUrls[0]);
+      } else {
+        setActiveThumbnail(item.imageUrl);
+      }
     }
   }, [item]);
+
+  // Connect Color Selection to Media
+  useEffect(() => {
+    if (item && selectedColor && item.colorMedia && item.colorMedia[selectedColor]) {
+      setActiveThumbnail(item.colorMedia[selectedColor]);
+    }
+  }, [selectedColor, item]);
 
   const handleAddToCart = () => {
     if (!item || !item.inStock) return;
@@ -159,19 +178,24 @@ export default function FashionPDP() {
       toast.error('Please select a size');
       return;
     }
+    if (item.variations && item.variations.length > 0 && !selectedVariation) {
+      toast.error(`Please select a ${item.variationName || 'variation'}`);
+      return;
+    }
     
-    const cartItemId = `${item.id}-${selectedSize || 'nosize'}-${selectedColor?.replace('#', '') || 'nocolor'}`;
+    const cartItemId = `${item.id}-${selectedSize || 'nosize'}-${selectedColor?.replace('#', '') || 'nocolor'}-${selectedVariation || 'novariation'}`;
     const existing = cartItems.find(i => i.id === cartItemId);
     if (!existing) {
       addItem({
         id: cartItemId,
         name: item.name,
         price: item.price,
-        imageUrl: item.imageUrl,
+        imageUrl: item.imageUrl, // We keep the base image for the cart
         category: item.category,
         productType: 'fashion',
         size: selectedSize,
-        color: selectedColor
+        color: selectedColor,
+        variation: selectedVariation
       });
       
       // Update quantity if greater than 1
@@ -228,8 +252,17 @@ export default function FashionPDP() {
     );
   }
 
-  // Define images array including the main image and thumbnails
-  const allImages = item.thumbnails?.length ? [item.imageUrl, ...item.thumbnails.filter(t => t !== item.imageUrl)] : [item.imageUrl];
+  // Define media array including video, main image, and thumbnails
+  const allMedia: {url: string, type: 'video' | 'image'}[] = [];
+  if (item.videoUrl) allMedia.push({url: item.videoUrl, type: 'video'});
+  if (item.mediaUrls && item.mediaUrls.length > 0) {
+    item.mediaUrls.forEach(url => allMedia.push({url, type: 'image'}));
+  } else {
+    allMedia.push({url: item.imageUrl, type: 'image'});
+    if (item.thumbnails) {
+      item.thumbnails.filter(t => t !== item.imageUrl).forEach(t => allMedia.push({url: t, type: 'image'}));
+    }
+  }
 
   const isDev = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   const currentHour = new Date().getHours();
@@ -323,34 +356,97 @@ export default function FashionPDP() {
           </Link>
         </header>
 
-        {/* Main Image */}
-        <div className="absolute inset-0 flex items-center justify-center pt-16 pb-12 px-12 md:relative md:h-[100vh]">
-          <ImageWithFallback
-            src={activeThumbnail}
-            alt={item.name}
-            className="w-full h-full object-cover rounded-2xl shadow-sm transition-all duration-300"
-          />
+        {/* Main Image/Video */}
+        <div className="absolute inset-0 flex items-center justify-center pt-16 pb-12 px-12 md:relative md:h-[100vh]" onClick={() => {
+          const idx = allMedia.findIndex(m => m.url === activeThumbnail);
+          setGalleryIndex(idx !== -1 ? idx : 0);
+          setShowFullscreenGallery(true);
+        }}>
+          {allMedia.find(m => m.url === activeThumbnail)?.type === 'video' ? (
+            <video
+              src={activeThumbnail}
+              controls
+              autoPlay
+              muted
+              loop
+              className="w-full h-full object-cover rounded-2xl shadow-sm transition-all duration-300 cursor-pointer"
+            />
+          ) : (
+            <ImageWithFallback
+              src={activeThumbnail}
+              alt={item.name}
+              className="w-full h-full object-cover rounded-2xl shadow-sm transition-all duration-300 cursor-pointer"
+            />
+          )}
         </div>
 
         {/* Vertical Thumbnails (Right Side) */}
-        {allImages.length > 1 && (
+        {allMedia.length > 1 && (
           <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-20">
-            {allImages.slice(0, 4).map((thumb, idx) => (
+            {allMedia.slice(0, 5).map((media, idx) => (
               <button
                 key={idx}
-                onClick={() => setActiveThumbnail(thumb)}
+                onClick={() => setActiveThumbnail(media.url)}
                 className={`w-12 h-12 rounded-xl bg-white/40 backdrop-blur-md overflow-hidden border-2 transition-all ${
-                  activeThumbnail === thumb ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:bg-white/60'
+                  activeThumbnail === media.url ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:bg-white/60'
                 }`}
               >
-                <ImageWithFallback src={thumb} alt={`Thumbnail ${idx}`} className="w-full h-full object-cover rounded-xl shadow-sm" />
+                {media.type === 'video' ? (
+                   <div className="w-full h-full bg-black flex items-center justify-center">
+                     <span className="text-[8px] font-bold text-white uppercase">Video</span>
+                   </div>
+                ) : (
+                  <ImageWithFallback src={media.url} alt={`Thumbnail ${idx}`} className="w-full h-full object-cover rounded-xl shadow-sm" />
+                )}
               </button>
             ))}
           </div>
         )}
       </div>
 
-      {/* Bottom Card: Info Panel (Stacked Container 2 - Fixed position, internal scroll only) */}
+      {/* Fullscreen Gallery */}
+      {showFullscreenGallery && (
+        <div className="fixed inset-0 z-[200] bg-black text-white flex flex-col">
+           <div className="flex justify-between items-center p-4">
+             <span className="text-sm font-bold opacity-70">{galleryIndex + 1} / {allMedia.length}</span>
+             <button onClick={() => setShowFullscreenGallery(false)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+               <ArrowLeft className="w-5 h-5 text-white transform rotate-180" /> {/* Acts as X/Close */}
+             </button>
+           </div>
+           
+           <div className="flex-1 relative flex items-center justify-center overflow-hidden" 
+                onTouchStart={(e) => {
+                  const touchDown = e.touches[0].clientX;
+                  e.currentTarget.dataset.touchDown = touchDown.toString();
+                }}
+                onTouchEnd={(e) => {
+                  const touchDown = parseFloat(e.currentTarget.dataset.touchDown || '0');
+                  const touchUp = e.changedTouches[0].clientX;
+                  if (touchDown - touchUp > 50) {
+                     setGalleryIndex((prev) => Math.min(prev + 1, allMedia.length - 1));
+                  } else if (touchDown - touchUp < -50) {
+                     setGalleryIndex((prev) => Math.max(prev - 1, 0));
+                  }
+                }}
+            >
+              {allMedia[galleryIndex].type === 'video' ? (
+                <video src={allMedia[galleryIndex].url} controls autoPlay className="w-full max-h-full object-contain" />
+              ) : (
+                <img src={allMedia[galleryIndex].url} className="w-full max-h-full object-contain pointer-events-none transition-transform" style={{ touchAction: 'pinch-zoom' }} />
+              )}
+              
+              {/* Desktop Nav Arrows */}
+              <button onClick={(e) => { e.stopPropagation(); setGalleryIndex(Math.max(0, galleryIndex - 1))}} className="hidden md:flex absolute left-4 w-12 h-12 bg-white/10 rounded-full items-center justify-center hover:bg-white/20">
+                <ArrowLeft className="w-6 h-6" />
+              </button>
+              <button onClick={(e) => { e.stopPropagation(); setGalleryIndex(Math.min(allMedia.length - 1, galleryIndex + 1))}} className="hidden md:flex absolute right-4 w-12 h-12 bg-white/10 rounded-full items-center justify-center hover:bg-white/20">
+                <ArrowLeft className="w-6 h-6 transform rotate-180" />
+              </button>
+           </div>
+        </div>
+      )}
+
+      {/* Bottom Card: Info Panel */}
       <div className="absolute top-[48dvh] bottom-0 left-0 right-0 md:top-0 md:h-[100dvh] md:left-[50%] md:w-1/2 bg-card border-t border-border/60 rounded-t-[32px] md:rounded-none shadow-[0_-10px_30px_rgba(0,0,0,0.08)] md:shadow-none flex flex-col z-10 overflow-hidden">
         <div className="flex-1 overflow-y-auto px-6 pt-8 pb-32 space-y-6">
         
@@ -410,8 +506,15 @@ export default function FashionPDP() {
 
         {/* Size Selection (Pills) */}
         {item.sizes && item.sizes.length > 0 && (
-          <div className="mb-8">
-            <p className="font-semibold mb-3">Select Size</p>
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <p className="font-semibold">Select Size</p>
+              {item.sizeChartUrl && (
+                <button onClick={() => setShowSizeChart(true)} className="text-sm font-bold text-primary hover:underline">
+                  Size Chart
+                </button>
+              )}
+            </div>
             <div className="flex flex-wrap gap-2">
               {item.sizes.map(size => (
                 <button
@@ -430,15 +533,54 @@ export default function FashionPDP() {
           </div>
         )}
 
+        {/* Variation Selection (Pills) */}
+        {item.variations && item.variations.length > 0 && (
+          <div className="mb-8">
+            <p className="font-semibold mb-3">Select {item.variationName || 'Option'}</p>
+            <div className="flex flex-wrap gap-2">
+              {item.variations.map(variation => (
+                <button
+                  key={variation}
+                  onClick={() => setSelectedVariation(variation)}
+                  className={`px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 ${
+                    selectedVariation === variation
+                      ? 'bg-primary text-primary-foreground shadow-sm scale-105'
+                      : 'bg-muted/50 text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {variation}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Description */}
         <div className="mb-8">
           <p className="font-semibold mb-2">Description</p>
-          <p className="text-muted-foreground text-sm leading-relaxed">
+          <p className="text-muted-foreground text-sm leading-relaxed whitespace-pre-line">
             {item.description || 'Premium exclusive fashion item.'}
           </p>
         </div>
       </div>
     </div>
+
+    {/* Size Chart Modal */}
+    {showSizeChart && item.sizeChartUrl && (
+      <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowSizeChart(false)}>
+        <div className="bg-card w-full max-w-md rounded-[32px] p-6 shadow-2xl animate-fade-in-up" onClick={e => e.stopPropagation()}>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold">Size Chart</h3>
+            <button onClick={() => setShowSizeChart(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-muted text-muted-foreground hover:text-foreground">
+              &times;
+            </button>
+          </div>
+          <div className="relative w-full aspect-auto rounded-xl overflow-hidden bg-muted/20">
+             <img src={item.sizeChartUrl} alt="Size Chart" className="w-full h-auto object-contain" />
+          </div>
+        </div>
+      </div>
+    )}
 
       {/* Delivery Timing + Sticky Bottom Actions */}
       <div 
@@ -527,8 +669,8 @@ export default function FashionPDP() {
                     
                     <div className="flex-1 min-w-0 pr-2">
                       <h3 className="font-bold text-sm leading-tight text-foreground">{cartItem.name}</h3>
-                      {(cartItem.size || cartItem.color) && (
-                        <div className="flex items-center gap-2 mt-1">
+                      {(cartItem.size || cartItem.color || cartItem.variation) && (
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
                           {cartItem.size && <span className="text-xs text-muted-foreground font-semibold px-1.5 py-0.5 bg-muted rounded-md">{cartItem.size}</span>}
                           {cartItem.color && (
                             <div className="flex items-center gap-1">
@@ -539,6 +681,7 @@ export default function FashionPDP() {
                               )}
                             </div>
                           )}
+                          {cartItem.variation && <span className="text-xs text-muted-foreground font-semibold px-1.5 py-0.5 bg-muted rounded-md border border-border/50">{cartItem.variation}</span>}
                         </div>
                       )}
                     </div>

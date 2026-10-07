@@ -363,7 +363,7 @@ export default function FashionPage() {
             <p className="text-muted-foreground">Adjust your filters or search query.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
             {filteredItems.map((item) => {
               return (
                 <Link to={`/fashion/product/${item.id}`} key={item.id} className="block group">

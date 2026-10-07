@@ -14,6 +14,13 @@ export interface FashionItem {
   sizes?: string[];
   colors?: string[];
   thumbnails?: string[];
+  // New features
+  videoUrl?: string;
+  mediaUrls?: string[];
+  colorMedia?: Record<string, string>; // Maps color hex to media URL
+  variationName?: string;
+  variations?: string[];
+  sizeChartUrl?: string;
   createdAt: any;
 }
 
@@ -55,5 +62,40 @@ export const updateFashionItem = async (id: string, data: Partial<FashionItem>) 
 
 export const deleteFashionItem = async (id: string) => {
   const docRef = doc(db, 'fashion_inventory', id);
+  return deleteDoc(docRef);
+};
+
+export interface FashionCategory {
+  id: string;
+  name: string;
+}
+
+export const subscribeToFashionCategories = (
+  callback: (categories: FashionCategory[]) => void
+) => {
+  const q = query(collection(db, 'fashion_categories'));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const cats = snapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name
+      }));
+      callback(cats);
+    },
+    (error) => {
+      console.error('Error fetching fashion categories:', error);
+      callback([]);
+    }
+  );
+};
+
+export const addFashionCategory = async (name: string) => {
+  const colRef = collection(db, 'fashion_categories');
+  return addDoc(colRef, { name });
+};
+
+export const deleteFashionCategory = async (id: string) => {
+  const docRef = doc(db, 'fashion_categories', id);
   return deleteDoc(docRef);
 };
