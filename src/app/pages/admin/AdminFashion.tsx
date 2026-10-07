@@ -151,7 +151,6 @@ export default function AdminFashion() {
     if (window.confirm("This will migrate all base64 images in Firestore to Cloudinary. Make sure you don't refresh the page.")) {
       setMigrationStatus("Starting migration...");
       await migrateFashionMediaToCloudinary((msg) => setMigrationStatus(msg));
-      alert("Migration finished.");
     }
   };
 
@@ -276,14 +275,30 @@ export default function AdminFashion() {
         </div>
 
         {/* Cloudinary Migration Helper */}
-        <div className="bg-muted/20 p-4 rounded-xl border border-border flex justify-between items-center text-sm">
-          <div>
-            <strong>Firestore Migration</strong>
-            <p className="text-muted-foreground">Move existing base64 product images to Cloudinary to save Firestore space.</p>
-            {migrationStatus && <p className="text-[#7C3AED] font-bold mt-1">{migrationStatus}</p>}
+        {!migrationStatus.includes('complete') && !migrationStatus.includes('complete!') && (
+          <div className="bg-muted/20 p-4 rounded-xl border border-border flex justify-between items-center text-sm">
+            <div>
+              <strong>Firestore Migration</strong>
+              <p className="text-muted-foreground">Move existing base64 product images to Cloudinary to save Firestore space.</p>
+              {migrationStatus && <p className="text-[#7C3AED] font-bold mt-1">{migrationStatus}</p>}
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={runMigration}
+              disabled={!!migrationStatus && !migrationStatus.includes('ERROR')}
+            >
+              {migrationStatus && !migrationStatus.includes('ERROR') ? 'Migrating...' : 'Run Migration'}
+            </Button>
           </div>
-          <Button variant="outline" onClick={runMigration}>Run Migration</Button>
-        </div>
+        )}
+        {(migrationStatus.includes('complete') || migrationStatus.includes('complete!')) && (
+          <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-200 dark:border-green-900 flex justify-between items-center text-sm">
+            <div>
+              <strong className="text-green-700 dark:text-green-400">Migration Successful</strong>
+              <p className="text-green-600 dark:text-green-500 mt-1">{migrationStatus}</p>
+            </div>
+          </div>
+        )}
 
         {/* Category Filter */}
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
