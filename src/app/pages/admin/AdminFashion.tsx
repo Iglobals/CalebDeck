@@ -15,9 +15,23 @@ import {
   Loader2
 } from 'lucide-react';
 import { subscribeToFashionItems, FashionItem, addFashionItem, updateFashionItem, deleteFashionItem, subscribeToFashionCategories, FashionCategory, addFashionCategory, deleteFashionCategory } from '../../../services/fashion';
-import { uploadMediaToCloudinary } from '../../../services/cloudinary';
+import { deleteCloudinaryMediaByUrl, deleteMediaFromCloudinary, uploadMediaToCloudinary } from '../../../services/cloudinary';
 import { migrateFashionMediaToCloudinary, type FashionMigrationProgress } from '../../../services/migrateFashionMedia';
 import { useTheme } from '../../../context/ThemeContext';
+
+interface PendingMediaUpload {
+  file: File;
+  publicId: string;
+}
+
+const getItemMediaUrls = (item: Partial<FashionItem>) => [
+  item.imageUrl,
+  item.videoUrl,
+  item.sizeChartUrl,
+  ...(item.mediaUrls || []),
+  ...(item.media || []).map(media => media.url),
+  ...Object.values(item.colorMedia || {})
+].filter((url): url is string => typeof url === 'string' && url.length > 0);
 
 export default function AdminFashion() {
   const [items, setItems] = useState<FashionItem[]>([]);
@@ -53,8 +67,8 @@ export default function AdminFashion() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
-  const [uploadingType, setUploadingType] = useState<'main' | 'media' | 'video' | 'sizeChart' | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [pendingUploads, setPendingUploads] = useState<Record<string, PendingMediaUpload>>({});
   const [migrationProgress, setMigrationProgress] = useState<FashionMigrationProgress | null>(null);
   const [migrationBusy, setMigrationBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -90,63 +104,61 @@ export default function AdminFashion() {
     return matchesSearch && matchesCategory;
   });
 
+  const clearPendingUploads = (urls: string[] = Object.keys(pendingUploads)) => {
+    urls.forEach(url => {
+      if (pendingUploads[url]) URL.revokeObjectURL(url);
+    });
+    setPendingUploads(current => {
+      const next = { ...current };
+      urls.forEach(url => delete next[url]);
+      return next;
+    });
+  };
+
+  const closeItemModal = () => {
+    clearPendingUploads();
+    setIsAdding(false);
+    setEditingItem(null);
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'main' | 'media' | 'video' | 'sizeChart') => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    setProcessingImage(true);
-    setUploadingType(type);
-    setUploadProgress(0);
+    const selectedFiles = type === 'media' ? files : files.slice(0, 1);
+    const selected = selectedFiles.map(file => {
+      const url = URL.createObjectURL(file);
+      return [url, { file, publicId: `fashion_items/${crypto.randomUUID()}` }] as const;
+    });
+    const replacedUrl = type === 'main' ? formData.imageUrl : type === 'video' ? formData.videoUrl : type === 'sizeChart' ? formData.sizeChartUrl : '';
+    if (replacedUrl) clearPendingUploads([replacedUrl]);
 
-    try {
-      if (type === 'media') {
-        // Multi-upload for additional images in parallel
-        const newUrls: string[] = [];
-        let totalProgress = 0;
-        const progressArr = new Array(files.length).fill(0);
-
-        await Promise.all(files.map(async (f, idx) => {
-          try {
-            const res = await uploadMediaToCloudinary(f, (prog) => {
-              progressArr[idx] = prog;
-              totalProgress = Math.round(progressArr.reduce((a,b)=>a+b,0) / files.length);
-              setUploadProgress(totalProgress);
-            });
-            newUrls.push(res.url);
-          } catch(err: any) {
-            console.error('Failed to upload file', f.name, err);
-            alert(`Failed to upload ${f.name}: ${err.message || 'Validation failed'}`);
-          }
-        }));
-
-        setFormData(prev => ({ ...prev, mediaUrls: [...prev.mediaUrls, ...newUrls] }));
-      } else {
-        // Single upload
-        const file = files[0];
-        const res = await uploadMediaToCloudinary(file, setUploadProgress);
-        setFormData(prev => {
-          if (type === 'main') return { ...prev, imageUrl: res.url };
-          if (type === 'video') return { ...prev, videoUrl: res.url };
-          if (type === 'sizeChart') return { ...prev, sizeChartUrl: res.url };
-          return prev;
-        });
-      }
-    } catch (err: any) {
-      alert(err.message || 'Failed to upload media. Ensure you are an admin and signed in.');
-    } finally {
-      setProcessingImage(false);
-      setUploadingType(null);
-      setUploadProgress(0);
-      if (e.target) e.target.value = ''; // clear input
-    }
+    setPendingUploads(current => ({ ...current, ...Object.fromEntries(selected) }));
+    setFormData(previous => {
+      const selectedUrls = selected.map(([url]) => url);
+      if (type === 'main') return {
+        ...previous,
+        imageUrl: selectedUrls[0],
+        colorMedia: Object.fromEntries(Object.entries(previous.colorMedia).map(([color, mediaUrl]) => [color, mediaUrl === replacedUrl ? selectedUrls[0] : mediaUrl]))
+      };
+      if (type === 'video') return { ...previous, videoUrl: selectedUrls[0] };
+      if (type === 'sizeChart') return { ...previous, sizeChartUrl: selectedUrls[0] };
+      return { ...previous, mediaUrls: [...previous.mediaUrls, ...selectedUrls] };
+    });
+    e.target.value = '';
   };
 
   const handleRemoveMedia = (url: string, type: 'main'|'video'|'sizeChart'|'media') => {
+    clearPendingUploads([url]);
     setFormData(prev => {
-      if (type === 'main') return { ...prev, imageUrl: '' };
+      if (type === 'main') return { ...prev, imageUrl: '', colorMedia: Object.fromEntries(Object.entries(prev.colorMedia).filter(([, mediaUrl]) => mediaUrl !== url)) };
       if (type === 'video') return { ...prev, videoUrl: '' };
       if (type === 'sizeChart') return { ...prev, sizeChartUrl: '' };
-      if (type === 'media') return { ...prev, mediaUrls: prev.mediaUrls.filter(u => u !== url) };
+      if (type === 'media') return {
+        ...prev,
+        mediaUrls: prev.mediaUrls.filter(mediaUrl => mediaUrl !== url),
+        colorMedia: Object.fromEntries(Object.entries(prev.colorMedia).filter(([, mediaUrl]) => mediaUrl !== url))
+      };
       return prev;
     });
   };
@@ -192,7 +204,21 @@ export default function AdminFashion() {
     if (!formData.name || !formData.price || !formData.imageUrl || !formData.brand) return;
 
     setSaving(true);
+    setProcessingImage(true);
+    setUploadProgress(0);
+    const uploadedAssets: Array<{ publicId: string; type: 'image' | 'video' }> = [];
     try {
+      const uploadedUrls = new Map<string, string>();
+      const stagedEntries = Object.entries(pendingUploads);
+      for (const [index, [previewUrl, pendingUpload]] of stagedEntries.entries()) {
+        const result = await uploadMediaToCloudinary(pendingUpload.file, progress => {
+          setUploadProgress(Math.round(((index + progress / 100) / stagedEntries.length) * 100));
+        }, { publicId: pendingUpload.publicId });
+        uploadedUrls.set(previewUrl, result.url);
+        uploadedAssets.push({ publicId: result.publicId, type: result.type });
+      }
+
+      const resolveUrl = (url: string) => uploadedUrls.get(url) || url;
       const itemData = {
         name: formData.name,
         brand: formData.brand,
@@ -200,16 +226,16 @@ export default function AdminFashion() {
         description: formData.description,
         price: Number(formData.price),
         category: formData.category,
-        imageUrl: formData.imageUrl,
+        imageUrl: resolveUrl(formData.imageUrl),
         inStock: formData.inStock,
         sizes: formData.sizesInput ? formData.sizesInput.split(',').map(s => s.trim()).filter(s => s !== '') : [],
         colors: formData.colors,
-        videoUrl: formData.videoUrl,
-        mediaUrls: formData.mediaUrls,
-        colorMedia: formData.colorMedia,
+        videoUrl: resolveUrl(formData.videoUrl),
+        mediaUrls: formData.mediaUrls.map(resolveUrl),
+        colorMedia: Object.fromEntries(Object.entries(formData.colorMedia).map(([color, url]) => [color, resolveUrl(url)])),
         variationName: formData.variationName,
         variations: formData.variationsInput ? formData.variationsInput.split(',').map(s => s.trim()).filter(s => s !== '') : [],
-        sizeChartUrl: formData.sizeChartUrl
+        sizeChartUrl: resolveUrl(formData.sizeChartUrl)
       };
 
       if (editingItem) {
@@ -217,19 +243,38 @@ export default function AdminFashion() {
       } else {
         await addFashionItem(itemData);
       }
+
+      if (editingItem) {
+        const currentUrls = new Set(getItemMediaUrls(itemData));
+        const retainedByOtherItems = new Set(
+          items
+            .filter(item => item.id !== editingItem.id)
+            .flatMap(getItemMediaUrls)
+        );
+        const removedUrls = [...new Set(getItemMediaUrls(editingItem))]
+          .filter(url => !currentUrls.has(url) && !retainedByOtherItems.has(url));
+        const cleanupResults = await Promise.allSettled(removedUrls.map(deleteCloudinaryMediaByUrl));
+        const cleanupFailures = cleanupResults.filter(result => result.status === 'rejected').length;
+        if (cleanupFailures) console.error(`Saved fashion item, but failed to remove ${cleanupFailures} replaced Cloudinary asset(s).`);
+      }
       
+      clearPendingUploads(Object.keys(pendingUploads));
       setIsAdding(false);
       setEditingItem(null);
       setFormData({ name: '', brand: '', brandColor: '#F97316', description: '', price: '', category: categories[0]?.name || 'Apparel', imageUrl: '', inStock: true, sizesInput: '', colors: [], videoUrl: '', mediaUrls: [], colorMedia: {}, variationName: '', variationsInput: '', sizeChartUrl: '' });
+      if (uploadedAssets.length) setUploadProgress(100);
     } catch (err) {
+      await Promise.allSettled(uploadedAssets.map(asset => deleteMediaFromCloudinary(asset.publicId, asset.type)));
       console.error("Error saving fashion item", err);
-      alert("Failed to save item. Check console.");
+      alert(err instanceof Error ? `Failed to save item: ${err.message}` : 'Failed to save item. Please try again.');
     } finally {
       setSaving(false);
+      setProcessingImage(false);
     }
   };
 
   const handleEdit = (item: FashionItem) => {
+    clearPendingUploads();
     setFormData({
       name: item.name,
       brand: item.brand,
@@ -254,7 +299,22 @@ export default function AdminFashion() {
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this fashion item?')) {
-      await deleteFashionItem(id);
+      const item = items.find(current => current.id === id);
+      try {
+        await deleteFashionItem(id);
+        if (item) {
+          const retainedByOtherItems = new Set(
+            items.filter(current => current.id !== id).flatMap(getItemMediaUrls)
+          );
+          const removableUrls = [...new Set(getItemMediaUrls(item))].filter(url => !retainedByOtherItems.has(url));
+          const cleanupResults = await Promise.allSettled(removableUrls.map(deleteCloudinaryMediaByUrl));
+          const cleanupFailures = cleanupResults.filter(result => result.status === 'rejected').length;
+          if (cleanupFailures) alert(`Item deleted, but ${cleanupFailures} Cloudinary asset(s) could not be removed. Check the console.`);
+        }
+      } catch (err) {
+        console.error('Failed to delete fashion item', err);
+        alert(err instanceof Error ? `Failed to delete item: ${err.message}` : 'Failed to delete item. Please try again.');
+      }
     }
   };
 
@@ -435,12 +495,31 @@ export default function AdminFashion() {
             <Card className="flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden animate-in fade-in zoom-in duration-200 sm:max-h-[calc(100dvh-2rem)]">
               <div className={`p-4 sm:p-6 border-b flex justify-between items-center ${isDark ? 'border-[#333333]' : 'border-gray-100'}`}>
                 <h2 className="text-lg sm:text-xl font-bold">{editingItem ? 'Edit Fashion Item' : 'Add New Fashion Item'}</h2>
-                <button onClick={() => setIsAdding(false)} className="p-2 hover:bg-muted rounded-full">
+                <button onClick={closeItemModal} disabled={saving} className="p-2 hover:bg-muted rounded-full disabled:opacity-50">
                   <X className="w-5 h-5" />
                 </button>
               </div>
               
               <form onSubmit={handleSave} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 custom-scrollbar">
+                {Object.keys(pendingUploads).length > 0 && !saving && (
+                  <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground" role="status">
+                    {Object.keys(pendingUploads).length} file(s) selected. They stay on this device until you save the item.
+                  </p>
+                )}
+                {saving && (
+                  <div className="rounded-lg border border-border bg-muted/30 px-3 py-2" role="status" aria-live="polite">
+                    <div className="mb-2 flex justify-between gap-3 text-sm">
+                      <span>{processingImage ? 'Uploading media and saving item...' : 'Saving item...'}</span>
+                      {Object.keys(pendingUploads).length > 0 && <span>{uploadProgress}%</span>}
+                    </div>
+                    {Object.keys(pendingUploads).length > 0 && (
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Saving item media" aria-valuemin={0} aria-valuemax={100} aria-valuenow={uploadProgress}>
+                        <div className="h-full bg-[#7C3AED] transition-[width] duration-200" style={{ width: `${uploadProgress}%` }} />
+                      </div>
+                    )}
+                  </div>
+                )}
+                <fieldset disabled={saving} className="contents">
                 <div className="flex gap-4 items-end">
                   <div className="flex-1">
                     <label className="block text-sm font-semibold mb-2">Main Image (Required)</label>
@@ -458,11 +537,7 @@ export default function AdminFashion() {
                       onClick={() => fileInputRef.current?.click()}
                       disabled={processingImage}
                     >
-                      {processingImage ? (
-                        <><Loader2 className="w-4 h-4 animate-spin" /> Uploading ({uploadProgress}%)...</>
-                      ) : (
-                        <><Upload className="w-4 h-4" /> {formData.imageUrl ? 'Change Main Image' : 'Upload Main Image'}</>
-                      )}
+                      <><Upload className="w-4 h-4" /> {formData.imageUrl ? (pendingUploads[formData.imageUrl] ? 'Change Selected Image' : 'Change Main Image') : 'Select Main Image'}</>
                     </Button>
                   </div>
                   {formData.imageUrl && (
@@ -479,7 +554,7 @@ export default function AdminFashion() {
                     <label className="block text-sm font-semibold mb-2">Product Video (Optional)</label>
                     <input type="file" accept="video/*" className="hidden" id="video-upload" onChange={(e) => handleImageUpload(e, 'video')} />
                     <Button type="button" variant="outline" disabled={processingImage} className="w-full flex items-center justify-center gap-2" onClick={() => document.getElementById('video-upload')?.click()}>
-                      <Upload className="w-4 h-4" /> {formData.videoUrl ? 'Change Video' : 'Upload Video'}
+                      <Upload className="w-4 h-4" /> {formData.videoUrl ? (pendingUploads[formData.videoUrl] ? 'Change Selected Video' : 'Change Video') : 'Select Video'}
                     </Button>
                     {formData.videoUrl && (
                       <div className="mt-2 text-xs flex justify-between items-center px-2 py-1 bg-muted rounded">
@@ -492,13 +567,8 @@ export default function AdminFashion() {
                     <label className="block text-sm font-semibold mb-2">Additional Images (Multi)</label>
                     <input type="file" multiple accept="image/*" className="hidden" id="media-upload" onChange={(e) => handleImageUpload(e, 'media')} />
                     <Button type="button" variant="outline" disabled={processingImage} className="w-full flex items-center justify-center gap-2" onClick={() => document.getElementById('media-upload')?.click()}>
-                      {uploadingType === 'media' ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading ({uploadProgress}%)</> : <><Plus className="w-4 h-4" /> Add Images</>}
+                      <Plus className="w-4 h-4" /> Add Images
                     </Button>
-                    {uploadingType === 'media' && (
-                      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Additional image upload progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={uploadProgress}>
-                        <div className="h-full bg-[#7C3AED] transition-[width] duration-200" style={{ width: `${uploadProgress}%` }} />
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -680,7 +750,7 @@ export default function AdminFashion() {
                   <input type="file" accept="image/*" className="hidden" id="sizechart-upload" onChange={(e) => handleImageUpload(e, 'sizeChart')} />
                   <div className="flex gap-2">
                     <Button type="button" variant="outline" className="flex items-center gap-2" onClick={() => document.getElementById('sizechart-upload')?.click()}>
-                      <Upload className="w-4 h-4" /> {formData.sizeChartUrl ? 'Change Size Chart' : 'Upload Size Chart'}
+                      <Upload className="w-4 h-4" /> {formData.sizeChartUrl ? (pendingUploads[formData.sizeChartUrl] ? 'Change Selected Size Chart' : 'Change Size Chart') : 'Select Size Chart'}
                     </Button>
                     {formData.sizeChartUrl && (
                       <img src={formData.sizeChartUrl} alt="Size Chart" className="h-10 w-10 object-cover rounded border" />
@@ -710,11 +780,12 @@ export default function AdminFashion() {
                   />
                   <label htmlFor="inStock" className="font-semibold cursor-pointer">In Stock</label>
                 </div>
+                </fieldset>
 
                 <div className="pt-4 border-t border-border flex justify-end gap-3 sticky bottom-0 bg-card py-2">
-                  <Button type="button" variant="ghost" onClick={() => setIsAdding(false)}>Cancel</Button>
+                  <Button type="button" variant="ghost" onClick={closeItemModal} disabled={saving}>Cancel</Button>
                   <Button type="submit" variant="primary" disabled={saving || processingImage || !formData.imageUrl} className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white min-w-[120px]">
-                    {saving ? 'Saving...' : 'Save Item'}
+                    {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{Object.keys(pendingUploads).length ? 'Uploading & Saving...' : 'Saving...'}</> : 'Save Item'}
                   </Button>
                 </div>
               </form>

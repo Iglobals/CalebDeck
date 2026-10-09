@@ -139,6 +139,24 @@ export const deleteMediaFromCloudinary = async (publicId: string, resourceType: 
   return res.json();
 };
 
+export const deleteCloudinaryMediaByUrl = async (url: string): Promise<boolean> => {
+  const match = url.match(/\/([\w-]+)\/upload\/(.+)$/);
+  if (!match || !url.includes('res.cloudinary.com')) return false;
+
+  const resourceType = match[1];
+  if (resourceType !== 'image' && resourceType !== 'video') return false;
+
+  const pathSegments = match[2].split('/');
+  const versionIndex = pathSegments.findIndex(segment => /^v\d+$/.test(segment));
+  if (versionIndex < 0 || versionIndex === pathSegments.length - 1) return false;
+
+  const publicId = pathSegments.slice(versionIndex + 1).join('/').replace(/\.[^/.]+$/, '');
+  if (!publicId) return false;
+
+  await deleteMediaFromCloudinary(publicId, resourceType);
+  return true;
+};
+
 export const getOptimizedDeliveryUrl = (url: string, width?: number) => {
   if (!url.includes('cloudinary.com')) return url;
   
