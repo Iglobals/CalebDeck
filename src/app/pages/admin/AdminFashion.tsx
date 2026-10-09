@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { subscribeToFashionItems, FashionItem, addFashionItem, updateFashionItem, deleteFashionItem, subscribeToFashionCategories, FashionCategory, addFashionCategory, deleteFashionCategory } from '../../../services/fashion';
 import { uploadMediaToCloudinary } from '../../../services/cloudinary';
-import { migrateFashionMediaToCloudinary } from '../../../services/migrateFashionMedia';
+import { migrateFashionMediaToCloudinary, type FashionMigrationProgress } from '../../../services/migrateFashionMedia';
 import { useTheme } from '../../../context/ThemeContext';
 
 export default function AdminFashion() {
@@ -53,8 +53,10 @@ export default function AdminFashion() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
+  const [uploadingType, setUploadingType] = useState<'main' | 'media' | 'video' | 'sizeChart' | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [migrationStatus, setMigrationStatus] = useState('');
+  const [migrationProgress, setMigrationProgress] = useState<FashionMigrationProgress | null>(null);
+  const [migrationBusy, setMigrationBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { adminTheme } = useTheme();
 
@@ -93,6 +95,7 @@ export default function AdminFashion() {
     if (!files.length) return;
 
     setProcessingImage(true);
+    setUploadingType(type);
     setUploadProgress(0);
 
     try {
@@ -132,6 +135,7 @@ export default function AdminFashion() {
       alert(err.message || 'Failed to upload media. Ensure you are an admin and signed in.');
     } finally {
       setProcessingImage(false);
+      setUploadingType(null);
       setUploadProgress(0);
       if (e.target) e.target.value = ''; // clear input
     }
@@ -149,8 +153,21 @@ export default function AdminFashion() {
 
   const runMigration = async () => {
     if (window.confirm("This will migrate all base64 images in Firestore to Cloudinary. Make sure you don't refresh the page.")) {
-      setMigrationStatus("Starting migration...");
-      await migrateFashionMediaToCloudinary((msg) => setMigrationStatus(msg));
+      setMigrationBusy(true);
+      setMigrationProgress({ message: 'Starting migration...', progress: 0, completed: 0, total: 0, status: 'running' });
+      try {
+        await migrateFashionMediaToCloudinary(setMigrationProgress);
+      } catch (err) {
+        setMigrationProgress(previous => ({
+          message: err instanceof Error ? `Migration failed: ${err.message}` : 'Migration failed unexpectedly. Please try again.',
+          progress: previous?.progress || 0,
+          completed: previous?.completed || 0,
+          total: previous?.total || 0,
+          status: 'error'
+        }));
+      } finally {
+        setMigrationBusy(false);
+      }
     }
   };
 
@@ -275,30 +292,41 @@ export default function AdminFashion() {
         </div>
 
         {/* Cloudinary Migration Helper */}
-        {!migrationStatus.includes('complete') && !migrationStatus.includes('complete!') && (
-          <div className="bg-muted/20 p-4 rounded-xl border border-border flex justify-between items-center text-sm">
-            <div>
+        <div className="bg-muted/20 p-4 rounded-xl border border-border text-sm">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+            <div className="min-w-0 flex-1">
               <strong>Firestore Migration</strong>
               <p className="text-muted-foreground">Move existing base64 product images to Cloudinary to save Firestore space.</p>
-              {migrationStatus && <p className="text-[#7C3AED] font-bold mt-1">{migrationStatus}</p>}
+              {migrationProgress && (
+                <div className="mt-2" aria-live="polite">
+                  <div className="flex justify-between gap-3">
+                    <p className={`font-semibold ${migrationProgress.status === 'error' ? 'text-red-600' : migrationProgress.status === 'complete' ? 'text-green-700' : 'text-[#7C3AED]'}`}>
+                      {migrationProgress.message}
+                    </p>
+                    {migrationProgress.total > 0 && <span className="shrink-0 tabular-nums">{migrationProgress.completed}/{migrationProgress.total}</span>}
+                  </div>
+                  <div
+                    className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted"
+                    role="progressbar"
+                    aria-label="Firestore media migration progress"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={migrationProgress.progress}
+                  >
+                    <div
+                      className={`h-full transition-[width] duration-300 ${migrationProgress.status === 'error' ? 'bg-red-500' : migrationProgress.status === 'complete' ? 'bg-green-500' : 'bg-[#7C3AED]'}`}
+                      style={{ width: `${migrationProgress.progress}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">{migrationProgress.progress}% complete</p>
+                </div>
+              )}
             </div>
-            <Button 
-              variant="outline" 
-              onClick={runMigration}
-              disabled={!!migrationStatus && !migrationStatus.includes('ERROR')}
-            >
-              {migrationStatus && !migrationStatus.includes('ERROR') ? 'Migrating...' : 'Run Migration'}
+            <Button variant="outline" onClick={runMigration} disabled={migrationBusy}>
+              {migrationBusy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Migrating...</> : migrationProgress?.status === 'complete' ? 'Run Again' : 'Run Migration'}
             </Button>
           </div>
-        )}
-        {(migrationStatus.includes('complete') || migrationStatus.includes('complete!')) && (
-          <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-200 dark:border-green-900 flex justify-between items-center text-sm">
-            <div>
-              <strong className="text-green-700 dark:text-green-400">Migration Successful</strong>
-              <p className="text-green-600 dark:text-green-500 mt-1">{migrationStatus}</p>
-            </div>
-          </div>
-        )}
+        </div>
 
         {/* Category Filter */}
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
@@ -431,8 +459,13 @@ export default function AdminFashion() {
                     <label className="block text-sm font-semibold mb-2">Additional Images (Multi)</label>
                     <input type="file" multiple accept="image/*" className="hidden" id="media-upload" onChange={(e) => handleImageUpload(e, 'media')} />
                     <Button type="button" variant="outline" disabled={processingImage} className="w-full flex items-center justify-center gap-2" onClick={() => document.getElementById('media-upload')?.click()}>
-                      <Plus className="w-4 h-4" /> Add Images
+                      {uploadingType === 'media' ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading ({uploadProgress}%)</> : <><Plus className="w-4 h-4" /> Add Images</>}
                     </Button>
+                    {uploadingType === 'media' && (
+                      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Additional image upload progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={uploadProgress}>
+                        <div className="h-full bg-[#7C3AED] transition-[width] duration-200" style={{ width: `${uploadProgress}%` }} />
+                      </div>
+                    )}
                   </div>
                 </div>
 
