@@ -125,9 +125,9 @@ export const migrateFashionMediaToCloudinary = async (
       if (needsUpdate) {
         reportProgress(`Saving migrated item ${item.name}...`, 1);
         await updateDoc(doc(db, 'fashion_inventory', item.id), {
-          imageUrl: item.imageUrl,
-          videoUrl: item.videoUrl,
-          mediaUrls: item.mediaUrls,
+          ...(item.imageUrl !== undefined && { imageUrl: item.imageUrl }),
+          ...(item.videoUrl !== undefined && { videoUrl: item.videoUrl }),
+          ...(item.mediaUrls !== undefined && { mediaUrls: item.mediaUrls }),
           media: newMedia
         });
         migratedCount++;
