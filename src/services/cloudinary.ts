@@ -16,13 +16,12 @@ export const uploadMediaToCloudinary = async (
   
   let fileToUpload = file;
   if (file.type.startsWith('image/')) {
-    // Hard cap for image source: 10MB
-    if (file.size > 10 * 1024 * 1024) {
-      throw new Error('Image exceeds 10MB hard limit. Please select a smaller file.');
+    if (file.size > 20 * 1024 * 1024) {
+      throw new Error('Image exceeds the 20MB upload limit. Please select a smaller file.');
     }
     fileToUpload = await compressImage(file);
-    if (fileToUpload.size > 1.2 * 1024 * 1024) {
-       throw new Error('Image could not be compressed under 1MB. Please use a smaller image.');
+    if (fileToUpload.size > 8 * 1024 * 1024) {
+       throw new Error('Image is still larger than 8MB after compression. Please select a smaller image.');
     }
   } else if (file.type.startsWith('video/')) {
     // 20MB limit for videos and ~20s duration
@@ -62,6 +61,7 @@ export const uploadMediaToCloudinary = async (
     const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
     
     xhr.open('POST', url, true);
+    xhr.timeout = 120000;
     
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onProgress) {
@@ -71,21 +71,34 @@ export const uploadMediaToCloudinary = async (
     
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        const response = JSON.parse(xhr.responseText);
-        resolve({
-          url: response.secure_url,
-          publicId: response.public_id,
-          type: response.resource_type as 'image' | 'video',
-          format: response.format,
-          width: response.width,
-          height: response.height
-        });
+        try {
+          const response = JSON.parse(xhr.responseText);
+          resolve({
+            url: response.secure_url,
+            publicId: response.public_id,
+            type: response.resource_type as 'image' | 'video',
+            format: response.format,
+            width: response.width,
+            height: response.height
+          });
+        } catch {
+          reject(new Error('Cloudinary returned an invalid upload response'));
+        }
       } else {
-        reject(new Error(`Upload failed: ${xhr.statusText}`));
+        let message = `Upload failed (${xhr.status}): ${xhr.statusText || 'Cloudinary request failed'}`;
+        try {
+          const response = JSON.parse(xhr.responseText);
+          message = response.error?.message || message;
+        } catch {
+          // Keep the HTTP error when Cloudinary returns a non-JSON response.
+        }
+        reject(new Error(message));
       }
     };
     
-    xhr.onerror = () => reject(new Error('Upload failed'));
+    xhr.onerror = () => reject(new Error('Network error while uploading to Cloudinary'));
+    xhr.ontimeout = () => reject(new Error('Cloudinary upload timed out. Please try again.'));
+    xhr.onabort = () => reject(new Error('Cloudinary upload was cancelled'));
 
     const formData = new FormData();
     formData.append('file', fileToUpload);
@@ -94,11 +107,7 @@ export const uploadMediaToCloudinary = async (
     formData.append('upload_preset', UPLOAD_PRESET);
     formData.append('signature', signature);
     
-    // We don't have the api_key on the frontend safely. 
-    // Wait, API_KEY is public in Cloudinary. The API_SECRET is the one that must be hidden.
-    // But since the user will set CLOUDINARY_API_KEY in Vercel, our API should return the api_key to use in the upload request.
-    
-    // Actually, I'll fetch the signature AND api_key from the API to avoid hardcoding it.
+    xhr.send(formData);
   });
 };
 
@@ -143,7 +152,7 @@ const compressImage = (file: File): Promise<File> => {
     img.onload = () => {
       URL.revokeObjectURL(url);
       
-      const MAX_WIDTH = 1200; // Reduced from 1600 to ensure < 1MB
+      const MAX_WIDTH = 2000;
       let width = img.width;
       let height = img.height;
       
@@ -170,7 +179,7 @@ const compressImage = (file: File): Promise<File> => {
           lastModified: Date.now(),
         });
         resolve(newFile);
-      }, 'image/webp', 0.80); // 80% quality webp
+      }, 'image/webp', 0.84);
     };
     
     img.onerror = () => {
