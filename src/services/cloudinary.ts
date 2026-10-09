@@ -8,9 +8,15 @@ export interface UploadProgressEvent {
   total: number;
 }
 
+export interface CloudinaryUploadOptions {
+  publicId?: string;
+  overwrite?: boolean;
+}
+
 export const uploadMediaToCloudinary = async (
   file: File, 
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
+  options: CloudinaryUploadOptions = {}
 ): Promise<{ url: string; publicId: string; type: 'image' | 'video'; format: string; width: number; height: number }> => {
   if (!auth.currentUser) throw new Error('Must be logged in to upload');
   
@@ -39,15 +45,20 @@ export const uploadMediaToCloudinary = async (
 
   // Get signature from our backend
   const timestamp = Math.round(new Date().getTime() / 1000);
+  const paramsToSign: Record<string, string | number | boolean> = {
+    timestamp,
+    upload_preset: UPLOAD_PRESET
+  };
+  if (options.publicId) paramsToSign.public_id = options.publicId;
+  if (options.overwrite !== undefined) paramsToSign.overwrite = options.overwrite;
+
   const sigRes = await fetch('/api/utils/cloudinary', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     },
-    body: JSON.stringify({
-      paramsToSign: { timestamp, upload_preset: UPLOAD_PRESET }
-    })
+    body: JSON.stringify({ paramsToSign })
   });
   
   if (!sigRes.ok) throw new Error('Failed to get upload signature');
@@ -106,6 +117,8 @@ export const uploadMediaToCloudinary = async (
     formData.append('timestamp', timestamp.toString());
     formData.append('upload_preset', UPLOAD_PRESET);
     formData.append('signature', signature);
+    if (options.publicId) formData.append('public_id', options.publicId);
+    if (options.overwrite !== undefined) formData.append('overwrite', String(options.overwrite));
     
     xhr.send(formData);
   });
