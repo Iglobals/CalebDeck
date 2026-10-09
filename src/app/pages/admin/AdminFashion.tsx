@@ -152,18 +152,34 @@ export default function AdminFashion() {
   };
 
   const runMigration = async () => {
-    if (window.confirm("This will migrate all base64 images in Firestore to Cloudinary. Make sure you don't refresh the page.")) {
+    const failedItems = migrationProgress?.failedItems || [];
+    const retryIds = migrationProgress?.status === 'error' && failedItems.length > 0
+      ? failedItems.map(item => item.id)
+      : undefined;
+    const confirmation = retryIds
+      ? `Retry migration for only these ${retryIds.length} failed item(s)? Previously uploaded assets will be reused.`
+      : "This will migrate all base64 images in Firestore to Cloudinary. Make sure you don't refresh the page.";
+
+    if (window.confirm(confirmation)) {
       setMigrationBusy(true);
-      setMigrationProgress({ message: 'Starting migration...', progress: 0, completed: 0, total: 0, status: 'running' });
+      setMigrationProgress({
+        message: retryIds ? `Retrying ${retryIds.length} failed item(s)...` : 'Starting migration...',
+        progress: 0,
+        completed: 0,
+        total: retryIds?.length || 0,
+        status: 'running',
+        failedItems
+      });
       try {
-        await migrateFashionMediaToCloudinary(setMigrationProgress);
+        await migrateFashionMediaToCloudinary(setMigrationProgress, retryIds);
       } catch (err) {
         setMigrationProgress(previous => ({
           message: err instanceof Error ? `Migration failed: ${err.message}` : 'Migration failed unexpectedly. Please try again.',
           progress: previous?.progress || 0,
           completed: previous?.completed || 0,
           total: previous?.total || 0,
-          status: 'error'
+          status: 'error',
+          failedItems: previous?.failedItems || []
         }));
       } finally {
         setMigrationBusy(false);
@@ -292,7 +308,7 @@ export default function AdminFashion() {
         </div>
 
         {/* Cloudinary Migration Helper */}
-        <div className="bg-muted/20 p-4 rounded-xl border border-border text-sm">
+        {migrationProgress?.status !== 'complete' && <div className="bg-muted/20 p-4 rounded-xl border border-border text-sm">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
             <div className="min-w-0 flex-1">
               <strong>Firestore Migration</strong>
@@ -319,14 +335,31 @@ export default function AdminFashion() {
                     />
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">{migrationProgress.progress}% complete</p>
+                  {migrationProgress.failedItems.length > 0 && (
+                    <div className="mt-3">
+                      <p className="font-semibold text-red-600">Failed items</p>
+                      <ul className="mt-1 max-h-36 space-y-2 overflow-y-auto">
+                        {migrationProgress.failedItems.map(item => (
+                          <li key={item.id} className="rounded border border-red-200 bg-red-50/70 p-2 dark:border-red-900 dark:bg-red-950/20">
+                            <p className="font-medium">{item.name || item.id}</p>
+                            <p className="break-words text-xs text-red-700 dark:text-red-300">{item.error}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
             <Button variant="outline" onClick={runMigration} disabled={migrationBusy}>
-              {migrationBusy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Migrating...</> : migrationProgress?.status === 'complete' ? 'Run Again' : 'Run Migration'}
+              {migrationBusy
+                ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Migrating...</>
+                : migrationProgress?.status === 'error' && migrationProgress.failedItems.length > 0
+                  ? `Retry failed (${migrationProgress.failedItems.length})`
+                  : 'Run Migration'}
             </Button>
           </div>
-        </div>
+        </div>}
 
         {/* Category Filter */}
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
