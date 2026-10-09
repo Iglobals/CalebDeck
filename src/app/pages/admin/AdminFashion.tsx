@@ -431,16 +431,16 @@ export default function AdminFashion() {
 
         {/* Add/Edit Modal */}
         {isAdding && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-            <Card className="w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-2 sm:p-4">
+            <Card className="flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden animate-in fade-in zoom-in duration-200 sm:max-h-[calc(100dvh-2rem)]">
               <div className={`p-4 sm:p-6 border-b flex justify-between items-center ${isDark ? 'border-[#333333]' : 'border-gray-100'}`}>
-                <h2 className="text-xl font-bold">{editingItem ? 'Edit Fashion Item' : 'Add New Fashion Item'}</h2>
+                <h2 className="text-lg sm:text-xl font-bold">{editingItem ? 'Edit Fashion Item' : 'Add New Fashion Item'}</h2>
                 <button onClick={() => setIsAdding(false)} className="p-2 hover:bg-muted rounded-full">
                   <X className="w-5 h-5" />
                 </button>
               </div>
               
-              <form onSubmit={handleSave} className="p-4 sm:p-6 space-y-5 max-h-[80vh] overflow-y-auto custom-scrollbar">
+              <form onSubmit={handleSave} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 custom-scrollbar">
                 <div className="flex gap-4 items-end">
                   <div className="flex-1">
                     <label className="block text-sm font-semibold mb-2">Main Image (Required)</label>
@@ -474,7 +474,7 @@ export default function AdminFashion() {
                 </div>
 
                 {/* Additional Media */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <label className="block text-sm font-semibold mb-2">Product Video (Optional)</label>
                     <input type="file" accept="video/*" className="hidden" id="video-upload" onChange={(e) => handleImageUpload(e, 'video')} />
@@ -515,7 +515,7 @@ export default function AdminFashion() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <label className="block text-sm font-semibold mb-2">Item Name</label>
                     <input
@@ -544,8 +544,8 @@ export default function AdminFashion() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="col-span-1">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <div>
                     <label className="block text-sm font-semibold mb-2">Brand Color</label>
                     <input
                       type="color"
@@ -554,7 +554,7 @@ export default function AdminFashion() {
                       className="w-full h-12 p-1 rounded-xl cursor-pointer"
                     />
                   </div>
-                  <div className="col-span-1">
+                  <div>
                     <label className="block text-sm font-semibold mb-2">Price (₦)</label>
                     <input
                       type="number"
@@ -567,7 +567,7 @@ export default function AdminFashion() {
                       }`}
                     />
                   </div>
-                  <div className="col-span-1">
+                  <div>
                     <label className="block text-sm font-semibold mb-2">Category</label>
                     <select
                       required
@@ -585,7 +585,7 @@ export default function AdminFashion() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <label className="block text-sm font-semibold mb-2">Available Sizes</label>
                     <input
@@ -599,16 +599,16 @@ export default function AdminFashion() {
                     />
                   </div>
                   <div>
-                    <label className="flex text-sm font-semibold mb-2 items-center justify-between">
-                      Available Colors
-                      <button type="button" onClick={() => setFormData({...formData, colors: [...formData.colors, '#000000']})} className="text-[#7C3AED] hover:text-[#6D28D9] text-xs font-bold flex items-center">
+                    <label className="flex text-sm font-semibold mb-2 items-center justify-between gap-2">
+                      <span>Available Colors</span>
+                      <button type="button" onClick={() => setFormData({...formData, colors: [...formData.colors, '#000000']})} className="shrink-0 text-[#7C3AED] hover:text-[#6D28D9] text-xs font-bold flex items-center">
                         <Plus className="w-3 h-3 mr-1"/> Add Color
                       </button>
                     </label>
-                    <div className="flex flex-wrap gap-2 items-center h-12">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                       {formData.colors.map((color, idx) => (
-                        <div key={idx} className="flex flex-col gap-1 items-center">
-                          <div className="relative flex items-center group">
+                        <div key={idx} className="min-w-0 rounded-lg border border-border bg-muted/20 p-2">
+                          <div className="mb-2 flex items-center justify-between">
                             <input
                               type="color"
                               value={color}
@@ -617,22 +617,25 @@ export default function AdminFashion() {
                                 newColors[idx] = e.target.value;
                                 setFormData({...formData, colors: newColors});
                               }}
-                              className="w-10 h-10 p-1 rounded-xl cursor-pointer"
+                              aria-label={`Color ${idx + 1}`}
+                              className="h-10 w-12 rounded-lg cursor-pointer"
                             />
                             <button 
                               type="button" 
+                              aria-label={`Remove color ${idx + 1}`}
                               onClick={() => {
                                 const newColors = formData.colors.filter((_, i) => i !== idx);
                                 setFormData({...formData, colors: newColors});
                               }} 
-                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="rounded-full bg-red-500 p-1 text-white"
                             >
                               <X className="w-3 h-3" />
                             </button>
                           </div>
                           {/* Map color to an existing image */}
                           <select 
-                            className="text-[10px] w-14 rounded border border-border bg-background px-1"
+                            aria-label={`Image for color ${idx + 1}`}
+                            className="w-full min-w-0 rounded border border-border bg-background px-2 py-1.5 text-xs"
                             value={formData.colorMedia[color] || ''}
                             onChange={(e) => setFormData(p => ({ ...p, colorMedia: { ...p.colorMedia, [color]: e.target.value } }))}
                           >
@@ -649,7 +652,7 @@ export default function AdminFashion() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <label className="block text-sm font-semibold mb-2">Variation Name</label>
                     <input
