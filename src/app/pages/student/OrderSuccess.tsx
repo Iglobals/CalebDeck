@@ -757,11 +757,12 @@ export default function OrderSuccess() {
                 <div key={idx} className="flex justify-between items-center py-3 border-b border-border/50 last:border-0">
                   <div className="flex-1">
                     <p className="font-bold">{item.name}</p>
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest mt-1">
-                      Qty: {item.quantity}
+                    <p className="text-xs text-muted-foreground font-medium mt-1">
+                      {[item.size && `Size: ${item.size}`, (item.colorName || item.color) && `Color: ${item.colorName || item.color}`, item.variation && `${item.variationName || 'Option'}: ${item.variation}`].filter(Boolean).join(' · ')}
                     </p>
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest mt-1">Qty: {item.quantity}</p>
                   </div>
-                  <p className="font-black">₦{item.price.toLocaleString()}</p>
+                  <p className="font-black">₦{((item.price || 0) * (item.quantity || 1)).toLocaleString()}</p>
                 </div>
               ))}
               <div className="pt-4 border-t border-border mt-4">

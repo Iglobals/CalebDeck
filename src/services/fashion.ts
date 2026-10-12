@@ -27,8 +27,11 @@ export interface FashionItem {
   videoUrl?: string;
   mediaUrls?: string[];
   colorMedia?: Record<string, string>; // Maps color hex to media URL
+  colorMediaByIndex?: Record<string, string>;
   variationName?: string;
   variations?: string[];
+  variationMediaByIndex?: Record<string, string>;
+  variationPricesByIndex?: Record<string, number>;
   sizeChartUrl?: string;
   // New structured media
   media?: FashionMedia[];

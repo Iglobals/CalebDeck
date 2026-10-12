@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '../server/firebase-admin.js';
+import { calculateServerOrderTotal } from '../server/order-utils.js';
 import { resolveOrderVertical } from '../src/services/orderVertical.js';
 import { isRateLimited, clientIp } from '../server/rate-limit.js';
 
@@ -60,6 +61,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const vertical = resolveOrderVertical(orderData);
         const isMartOrder = vertical === 'MART';
         const isFashionOrder = vertical === 'FASHION';
+        const { pricedItems } = isFashionOrder
+            ? await calculateServerOrderTotal(db, orderData)
+            : {};
 
         // ─── Delivery Type Validation (food orders only — fashion batches are managed separately) ───
         let batchInfo: {
@@ -289,7 +293,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (isFashionOrder) {
             orderDoc.type = 'fashion';
             orderDoc.orderType = 'FASHION';
-            orderDoc.items = orderData.items || [];
+            orderDoc.items = pricedItems || orderData.items || [];
             orderDoc.totalAmount = orderData.totalAmount || orderData.total || 0;
             orderDoc.subtotal = orderData.subtotal || 0;
             orderDoc.deliveryFee = orderData.deliveryFee || 1500;

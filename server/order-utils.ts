@@ -12,7 +12,7 @@ export async function calculateServerOrderTotal(
     db: firestore.Firestore,
     orderData: any,
     transaction?: firestore.Transaction
-): Promise<{ serverTotal: number; netDeliveryFee: number; itemsDocs?: any[]; comboDoc?: any; paidAmountExpected?: number }> {
+): Promise<{ serverTotal: number; netDeliveryFee: number; pricedItems?: any[]; itemsDocs?: any[]; comboDoc?: any; paidAmountExpected?: number }> {
     const vertical = resolveOrderVertical(orderData);
     const isMartOrder = vertical === 'MART';
     const isFashionOrder = vertical === 'FASHION';
@@ -38,6 +38,7 @@ export async function calculateServerOrderTotal(
             : (platformSettings!.fashionDeliveryFee || 1500);
         const items = orderData?.items || [];
         let fashionTotal = 0;
+        const pricedItems: any[] = [];
         if (items.length > 0) {
             const itemRefs = items.map((i: any) => db.collection('fashion_inventory').doc(i.id));
             let itemDocs: firestore.DocumentSnapshot[] = [];
@@ -49,12 +50,22 @@ export async function calculateServerOrderTotal(
             for (let idx = 0; idx < itemDocs.length; idx++) {
                 const doc = itemDocs[idx];
                 const qty = items[idx].quantity || 1;
-                const currentPrice = doc.exists ? (doc.data()!.price || 0) : (items[idx].price || 0);
+                const fashionData = doc.exists ? doc.data()! : null;
+                const variationIndex = items[idx].variationIndex;
+                const variationPrice = variationIndex !== undefined && variationIndex !== null
+                    ? Number(fashionData?.variationPricesByIndex?.[String(variationIndex)])
+                    : 0;
+                const currentPrice = variationPrice > 0
+                    ? variationPrice
+                    : fashionData
+                        ? Number(fashionData.price) || 0
+                        : (items[idx].price || 0);
                 fashionTotal += currentPrice * qty;
+                pricedItems.push({ ...items[idx], price: currentPrice });
             }
         }
         serverTotal = fashionTotal + fashionDeliveryFee;
-        return { serverTotal, netDeliveryFee: fashionDeliveryFee };
+        return { serverTotal, netDeliveryFee: fashionDeliveryFee, pricedItems };
     }
 
     if (isMartOrder) {

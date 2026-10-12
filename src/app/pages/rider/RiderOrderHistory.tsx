@@ -251,7 +251,7 @@ export default function RiderOrderHistory() {
                                                                                 {resolveOrderVertical(order) === 'FASHION' ? 'Fashion:' : 'Mart:'}
                                                                             </span>
                                                                             <span className={`text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
-                                                                                {order.items ? order.items.map((it: any) => `${it.quantity > 1 ? `${it.quantity}x ` : ''}${it.name}`).join(', ') : 'No items'}
+                                                                                {order.items ? order.items.map((it: any) => `${it.quantity > 1 ? `${it.quantity}x ` : ''}${it.name}${[it.size, it.colorName || it.color, it.variation].filter(Boolean).length ? ` (${[it.size, it.colorName || it.color, it.variation && `${it.variationName || 'Option'}: ${it.variation}`].filter(Boolean).join(', ')})` : ''}`).join(', ') : 'No items'}
                                                                             </span>
                                                                         </div>
                                                                     ) : order.type === 'combo' ? (

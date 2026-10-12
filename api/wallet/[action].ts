@@ -195,7 +195,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const userData = userDoc.data()!;
                 const walletBalance = Number(userData.walletBalance || 0);
 
-                const { serverTotal: rawTotal, netDeliveryFee } = await calculateServerOrderTotal(db, orderData, t);
+                const { serverTotal: rawTotal, netDeliveryFee, pricedItems } = await calculateServerOrderTotal(db, orderData, t);
                 const firstOrderEval = await evaluateFirstOrderDiscountTx(t, db, {
                     userId: uid,
                     userData,
@@ -292,7 +292,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 } else if (isFashionOrder) {
                     orderDocBase.type = 'fashion';
                     orderDocBase.orderType = 'FASHION';
-                    orderDocBase.items = orderData.items || [];
+                    orderDocBase.items = pricedItems || orderData.items || [];
                     orderDocBase.totalAmount = serverTotal;
                     orderDocBase.subtotal = orderData?.subtotal || (serverTotal - (orderData?.deliveryFee || 1500));
                     orderDocBase.deliveryFee = orderData?.deliveryFee || 1500;

@@ -335,8 +335,8 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                         ${isFashionOrder(order) ? `
                             ${(order.items || []).map((item: any) => `
                                 <div class="item-row">
-                                    <span>${item.name}</span>
-                                    <span>x${item.quantity || 1}</span>
+                                    <span>${item.name}${[item.size, item.colorName || item.color, item.variation].filter(Boolean).length ? `<div style="font-size:12px;color:#666;margin-top:4px;">${[item.size && `Size: ${item.size}`, (item.colorName || item.color) && `Color: ${item.colorName || item.color}`, item.variation && `${item.variationName || 'Option'}: ${item.variation}`].filter(Boolean).join(' · ')}</div>` : ''}</span>
+                                    <span>x${item.quantity || 1} · ₦${((item.price || 0) * (item.quantity || 1)).toLocaleString()}</span>
                                 </div>
                             `).join('')}
                         ` : order.type === 'combo' ? `
@@ -912,11 +912,19 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                             <div className="space-y-4">
                                                 {selectedOrder.items?.map((item: any, iidx: number) => (
                                                     <div key={iidx} className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10 last:border-0">
-                                                        <div>
-                                                            <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{item.name}</p>
-                                                            {item.category && (
-                                                                <p className="text-[10px] font-bold text-[#9C8F7F] mt-1 uppercase">{item.category}</p>
+                                                        <div className="flex min-w-0 items-start gap-3">
+                                                            {item.imageUrl && <img src={item.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-md border border-border object-cover" />}
+                                                            <div className="min-w-0">
+                                                                <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{item.name}</p>
+                                                                {item.category && (
+                                                                    <p className="text-[10px] font-bold text-[#9C8F7F] mt-1 uppercase">{item.category}</p>
+                                                                )}
+                                                            {[item.size && `Size: ${item.size}`, (item.colorName || item.color) && `Color: ${item.colorName || item.color}`, item.variation && `Option: ${item.variation}`].filter(Boolean).length > 0 && (
+                                                                <p className="mt-1 text-xs text-muted-foreground">
+                                                                    {[item.size && `Size: ${item.size}`, (item.colorName || item.color) && `Color: ${item.colorName || item.color}`, item.variation && `${item.variationName || 'Option'}: ${item.variation}`].filter(Boolean).join(' · ')}
+                                                                </p>
                                                             )}
+                                                            </div>
                                                         </div>
                                                         <div className="flex items-center gap-4">
                                                             <span className="text-xs font-black px-2 py-1 rounded bg-[#7C3AED]/10 text-[#7C3AED]">x{item.quantity}</span>

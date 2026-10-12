@@ -48,6 +48,22 @@ export default function FashionCheckout() {
   const isDev = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   const total = subtotal + FASHION_DELIVERY_FEE;
+  const checkoutItems = items.map(item => ({
+    id: item.productId || item.id,
+    cartItemId: item.id,
+    name: item.name,
+    price: item.price,
+    quantity: item.quantity,
+    category: item.category,
+    size: item.size || null,
+    color: item.color || null,
+    colorName: item.color ? getHexColorName(item.color) : null,
+    colorIndex: item.colorIndex ?? null,
+    variation: item.variation || null,
+    variationName: item.variationName || null,
+    variationIndex: item.variationIndex ?? null,
+    imageUrl: item.imageUrl
+  }));
   const orderId = React.useMemo(() => `CD-FASHION-${Math.floor(10000 + Math.random() * 90000)}`, []);
 
   const [isBatchPickerOpen, setIsBatchPickerOpen] = useState(false);
@@ -124,13 +140,7 @@ export default function FashionCheckout() {
       hostelName: selectedHostel?.name || '',
       instructions: formData.instructions,
       femaleHostelAgreement,
-      items: items.map(i => ({
-        id: i.id,
-        name: i.name + (i.size || i.color ? ` (${[i.size, getHexColorName(i.color || '')].filter(Boolean).join(', ')})` : ''),
-        price: i.price,
-        quantity: i.quantity,
-        category: i.category
-      })),
+      items: checkoutItems,
       deliveryFee: FASHION_DELIVERY_FEE,
       subtotal,
       totalAmount: total,
@@ -158,13 +168,7 @@ export default function FashionCheckout() {
       instructions: formData.instructions,
       femaleHostelAgreement,
       orderType: 'FASHION',
-      items: items.map(i => ({
-        id: i.id,
-        name: i.name + (i.size || i.color ? ` (${[i.size, getHexColorName(i.color || '')].filter(Boolean).join(', ')})` : ''),
-        price: i.price,
-        quantity: i.quantity,
-        category: i.category
-      })),
+      items: checkoutItems,
       deliveryFee: FASHION_DELIVERY_FEE,
       subtotal,
       totalAmount: total,
@@ -362,13 +366,7 @@ export default function FashionCheckout() {
       instructions: formData.instructions,
       femaleHostelAgreement,
       orderType: 'FASHION',
-      items: items.map(i => ({
-        id: i.id,
-        name: i.name + (i.size || i.color ? ` (${[i.size, getHexColorName(i.color || '')].filter(Boolean).join(', ')})` : ''),
-        price: i.price,
-        quantity: i.quantity,
-        category: i.category
-      })),
+      items: checkoutItems,
       deliveryFee: FASHION_DELIVERY_FEE,
       subtotal,
       totalAmount: total,
@@ -502,7 +500,7 @@ export default function FashionCheckout() {
       />
 
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm transition-colors duration-300">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-4">
           <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl transition-colors hover:bg-muted" aria-label="Go back">
             <ArrowLeft className="w-6 h-6 text-foreground" />
           </button>
@@ -510,8 +508,8 @@ export default function FashionCheckout() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-12">
-        <div className="grid lg:grid-cols-[1fr_450px] gap-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)] lg:gap-10">
           {/* Form - Left */}
           <div className="space-y-8">
             {/* Fashion Batch Status Bar */}
@@ -570,7 +568,7 @@ export default function FashionCheckout() {
               </div>
             )}
 
-            <Card className="p-6">
+            <Card className="p-4 sm:p-6">
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                 <User className="w-5 h-5 text-[#F97316]" />
                 Delivery Details
@@ -645,22 +643,24 @@ export default function FashionCheckout() {
             </Card>
           </div>
 
-          <div className="md:col-span-2 space-y-6">
-            <Card className="p-6 sticky top-24 border-[#7C3AED]/20 shadow-xl shadow-[#7C3AED]/5">
+          <div className="min-w-0 space-y-6">
+            <Card className="p-4 sm:p-6 lg:sticky lg:top-24 border-[#7C3AED]/20 shadow-xl shadow-[#7C3AED]/5">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                 <Shirt className="w-5 h-5 text-[#7C3AED]" /> Order Summary
               </h3>
               
               <div className="space-y-3 mb-6 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                 {items.map(item => (
-                  <div key={item.id} className="flex justify-between text-sm">
-                    <span className="text-muted-foreground truncate pr-2">
-                      {item.quantity}x {item.name}
-                      {(item.size || item.color) && (
-                        <span className="opacity-75"> ({[item.size, getHexColorName(item.color || '')].filter(Boolean).join(', ')})</span>
+                  <div key={item.id} className="flex items-start justify-between gap-3 text-sm">
+                    <div className="min-w-0">
+                      <p className="font-medium">{item.quantity}x {item.name}</p>
+                      {[item.size, item.color ? getHexColorName(item.color) : '', item.variation].filter(Boolean).length > 0 && (
+                        <p className="mt-1 break-words text-xs text-muted-foreground">
+                          {[item.size, item.color ? getHexColorName(item.color) : '', item.variation].filter(Boolean).join(' · ')}
+                        </p>
                       )}
-                    </span>
-                    <span className="font-medium shrink-0">₦{item.price * item.quantity}</span>
+                    </div>
+                    <span className="shrink-0 font-medium">₦{(item.price * item.quantity).toLocaleString()}</span>
                   </div>
                 ))}
               </div>

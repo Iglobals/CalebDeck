@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import { subscribeToFashionItems, FashionItem, addFashionItem, updateFashionItem, deleteFashionItem, subscribeToFashionCategories, FashionCategory, addFashionCategory, deleteFashionCategory } from '../../../services/fashion';
 import { deleteCloudinaryMediaByUrl, deleteMediaFromCloudinary, uploadMediaToCloudinary } from '../../../services/cloudinary';
-import { migrateFashionMediaToCloudinary, type FashionMigrationProgress } from '../../../services/migrateFashionMedia';
 import { useTheme } from '../../../context/ThemeContext';
 
 interface PendingMediaUpload {
@@ -30,7 +29,9 @@ const getItemMediaUrls = (item: Partial<FashionItem>) => [
   item.sizeChartUrl,
   ...(item.mediaUrls || []),
   ...(item.media || []).map(media => media.url),
-  ...Object.values(item.colorMedia || {})
+  ...Object.values(item.colorMedia || {}),
+  ...Object.values(item.colorMediaByIndex || {}),
+  ...Object.values(item.variationMediaByIndex || {})
 ].filter((url): url is string => typeof url === 'string' && url.length > 0);
 
 export default function AdminFashion() {
@@ -59,8 +60,11 @@ export default function AdminFashion() {
     videoUrl: '',
     mediaUrls: [] as string[],
     colorMedia: {} as Record<string, string>,
+    colorMediaByIndex: {} as Record<string, string>,
     variationName: '',
     variationsInput: '',
+    variationMediaByIndex: {} as Record<string, string>,
+    variationPricesByIndex: {} as Record<string, string>,
     sizeChartUrl: ''
   });
   
@@ -69,8 +73,6 @@ export default function AdminFashion() {
   const [processingImage, setProcessingImage] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [pendingUploads, setPendingUploads] = useState<Record<string, PendingMediaUpload>>({});
-  const [migrationProgress, setMigrationProgress] = useState<FashionMigrationProgress | null>(null);
-  const [migrationBusy, setMigrationBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { adminTheme } = useTheme();
 
@@ -90,6 +92,7 @@ export default function AdminFashion() {
   const allUniqueCategoryNames = Array.from(new Set([...itemCategories, ...savedCategoryNames])).sort();
   
   const displayCategories = ['All', ...allUniqueCategoryNames];
+  const variationOptions = formData.variationsInput.split(',').map(value => value.trim()).filter(Boolean);
 
   const handleAddCategory = async () => {
     if (newCategoryName.trim()) {
@@ -139,7 +142,9 @@ export default function AdminFashion() {
       if (type === 'main') return {
         ...previous,
         imageUrl: selectedUrls[0],
-        colorMedia: Object.fromEntries(Object.entries(previous.colorMedia).map(([color, mediaUrl]) => [color, mediaUrl === replacedUrl ? selectedUrls[0] : mediaUrl]))
+        colorMedia: Object.fromEntries(Object.entries(previous.colorMedia).map(([color, mediaUrl]) => [color, mediaUrl === replacedUrl ? selectedUrls[0] : mediaUrl])),
+        colorMediaByIndex: Object.fromEntries(Object.entries(previous.colorMediaByIndex).map(([index, mediaUrl]) => [index, mediaUrl === replacedUrl ? selectedUrls[0] : mediaUrl])),
+        variationMediaByIndex: Object.fromEntries(Object.entries(previous.variationMediaByIndex).map(([index, mediaUrl]) => [index, mediaUrl === replacedUrl ? selectedUrls[0] : mediaUrl]))
       };
       if (type === 'video') return { ...previous, videoUrl: selectedUrls[0] };
       if (type === 'sizeChart') return { ...previous, sizeChartUrl: selectedUrls[0] };
@@ -151,52 +156,24 @@ export default function AdminFashion() {
   const handleRemoveMedia = (url: string, type: 'main'|'video'|'sizeChart'|'media') => {
     clearPendingUploads([url]);
     setFormData(prev => {
-      if (type === 'main') return { ...prev, imageUrl: '', colorMedia: Object.fromEntries(Object.entries(prev.colorMedia).filter(([, mediaUrl]) => mediaUrl !== url)) };
+      if (type === 'main') return {
+        ...prev,
+        imageUrl: '',
+        colorMedia: Object.fromEntries(Object.entries(prev.colorMedia).filter(([, mediaUrl]) => mediaUrl !== url)),
+        colorMediaByIndex: Object.fromEntries(Object.entries(prev.colorMediaByIndex).filter(([, mediaUrl]) => mediaUrl !== url)),
+        variationMediaByIndex: Object.fromEntries(Object.entries(prev.variationMediaByIndex).filter(([, mediaUrl]) => mediaUrl !== url))
+      };
       if (type === 'video') return { ...prev, videoUrl: '' };
       if (type === 'sizeChart') return { ...prev, sizeChartUrl: '' };
       if (type === 'media') return {
         ...prev,
         mediaUrls: prev.mediaUrls.filter(mediaUrl => mediaUrl !== url),
-        colorMedia: Object.fromEntries(Object.entries(prev.colorMedia).filter(([, mediaUrl]) => mediaUrl !== url))
+        colorMedia: Object.fromEntries(Object.entries(prev.colorMedia).filter(([, mediaUrl]) => mediaUrl !== url)),
+        colorMediaByIndex: Object.fromEntries(Object.entries(prev.colorMediaByIndex).filter(([, mediaUrl]) => mediaUrl !== url)),
+        variationMediaByIndex: Object.fromEntries(Object.entries(prev.variationMediaByIndex).filter(([, mediaUrl]) => mediaUrl !== url))
       };
       return prev;
     });
-  };
-
-  const runMigration = async () => {
-    const failedItems = migrationProgress?.failedItems || [];
-    const retryIds = migrationProgress?.status === 'error' && failedItems.length > 0
-      ? failedItems.map(item => item.id)
-      : undefined;
-    const confirmation = retryIds
-      ? `Retry migration for only these ${retryIds.length} failed item(s)? Previously uploaded assets will be reused.`
-      : "This will migrate all base64 images in Firestore to Cloudinary. Make sure you don't refresh the page.";
-
-    if (window.confirm(confirmation)) {
-      setMigrationBusy(true);
-      setMigrationProgress({
-        message: retryIds ? `Retrying ${retryIds.length} failed item(s)...` : 'Starting migration...',
-        progress: 0,
-        completed: 0,
-        total: retryIds?.length || 0,
-        status: 'running',
-        failedItems
-      });
-      try {
-        await migrateFashionMediaToCloudinary(setMigrationProgress, retryIds);
-      } catch (err) {
-        setMigrationProgress(previous => ({
-          message: err instanceof Error ? `Migration failed: ${err.message}` : 'Migration failed unexpectedly. Please try again.',
-          progress: previous?.progress || 0,
-          completed: previous?.completed || 0,
-          total: previous?.total || 0,
-          status: 'error',
-          failedItems: previous?.failedItems || []
-        }));
-      } finally {
-        setMigrationBusy(false);
-      }
-    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -219,6 +196,10 @@ export default function AdminFashion() {
       }
 
       const resolveUrl = (url: string) => uploadedUrls.get(url) || url;
+      const legacyColorMedia = Object.fromEntries(formData.colors.flatMap((color, index) => {
+        const url = formData.colorMediaByIndex[String(index)] || formData.colorMedia[color];
+        return url ? [[color, resolveUrl(url)]] : [];
+      }));
       const itemData = {
         name: formData.name,
         brand: formData.brand,
@@ -232,9 +213,18 @@ export default function AdminFashion() {
         colors: formData.colors,
         videoUrl: resolveUrl(formData.videoUrl),
         mediaUrls: formData.mediaUrls.map(resolveUrl),
-        colorMedia: Object.fromEntries(Object.entries(formData.colorMedia).map(([color, url]) => [color, resolveUrl(url)])),
+        colorMedia: legacyColorMedia,
+        colorMediaByIndex: Object.fromEntries(Object.entries(formData.colorMediaByIndex)
+          .filter(([index]) => Number(index) < formData.colors.length)
+          .map(([index, url]) => [index, resolveUrl(url)])),
         variationName: formData.variationName,
-        variations: formData.variationsInput ? formData.variationsInput.split(',').map(s => s.trim()).filter(s => s !== '') : [],
+        variations: variationOptions,
+        variationMediaByIndex: Object.fromEntries(Object.entries(formData.variationMediaByIndex)
+          .filter(([index]) => Number(index) < variationOptions.length)
+          .map(([index, url]) => [index, resolveUrl(url)])),
+        variationPricesByIndex: Object.fromEntries(Object.entries(formData.variationPricesByIndex)
+          .filter(([index, price]) => Number(index) < variationOptions.length && price !== '')
+          .map(([index, price]) => [index, Number(price)])),
         sizeChartUrl: resolveUrl(formData.sizeChartUrl)
       };
 
@@ -261,7 +251,7 @@ export default function AdminFashion() {
       clearPendingUploads(Object.keys(pendingUploads));
       setIsAdding(false);
       setEditingItem(null);
-      setFormData({ name: '', brand: '', brandColor: '#F97316', description: '', price: '', category: categories[0]?.name || 'Apparel', imageUrl: '', inStock: true, sizesInput: '', colors: [], videoUrl: '', mediaUrls: [], colorMedia: {}, variationName: '', variationsInput: '', sizeChartUrl: '' });
+      setFormData({ name: '', brand: '', brandColor: '#F97316', description: '', price: '', category: categories[0]?.name || 'Apparel', imageUrl: '', inStock: true, sizesInput: '', colors: [], videoUrl: '', mediaUrls: [], colorMedia: {}, colorMediaByIndex: {}, variationName: '', variationsInput: '', variationMediaByIndex: {}, variationPricesByIndex: {}, sizeChartUrl: '' });
       if (uploadedAssets.length) setUploadProgress(100);
     } catch (err) {
       await Promise.allSettled(uploadedAssets.map(asset => deleteMediaFromCloudinary(asset.publicId, asset.type)));
@@ -289,8 +279,13 @@ export default function AdminFashion() {
       videoUrl: item.videoUrl || '',
       mediaUrls: item.mediaUrls || [],
       colorMedia: item.colorMedia || {},
+      colorMediaByIndex: Object.fromEntries((item.colors || []).map((color, index) => [
+        String(index), item.colorMediaByIndex?.[String(index)] || item.colorMedia?.[color] || ''
+      ])),
       variationName: item.variationName || '',
       variationsInput: item.variations ? item.variations.join(', ') : '',
+      variationMediaByIndex: item.variationMediaByIndex || {},
+      variationPricesByIndex: Object.fromEntries(Object.entries(item.variationPricesByIndex || {}).map(([index, price]) => [index, String(price)])),
       sizeChartUrl: item.sizeChartUrl || ''
     });
     setEditingItem(item);
@@ -357,7 +352,7 @@ export default function AdminFashion() {
               variant="primary" 
               onClick={() => {
                 setEditingItem(null);
-                setFormData({ name: '', brand: '', brandColor: '#F97316', description: '', price: '', category: categories[0]?.name || 'Apparel', imageUrl: '', inStock: true, sizesInput: '', colors: [], videoUrl: '', mediaUrls: [], colorMedia: {}, variationName: '', variationsInput: '', sizeChartUrl: '' });
+                setFormData({ name: '', brand: '', brandColor: '#F97316', description: '', price: '', category: categories[0]?.name || 'Apparel', imageUrl: '', inStock: true, sizesInput: '', colors: [], videoUrl: '', mediaUrls: [], colorMedia: {}, colorMediaByIndex: {}, variationName: '', variationsInput: '', variationMediaByIndex: {}, variationPricesByIndex: {}, sizeChartUrl: '' });
                 setIsAdding(true);
               }}
               className="flex items-center gap-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
@@ -366,60 +361,6 @@ export default function AdminFashion() {
             </Button>
           </div>
         </div>
-
-        {/* Cloudinary Migration Helper */}
-        {migrationProgress?.status !== 'complete' && <div className="bg-muted/20 p-4 rounded-xl border border-border text-sm">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
-            <div className="min-w-0 flex-1">
-              <strong>Firestore Migration</strong>
-              <p className="text-muted-foreground">Move existing base64 product images to Cloudinary to save Firestore space.</p>
-              {migrationProgress && (
-                <div className="mt-2" aria-live="polite">
-                  <div className="flex justify-between gap-3">
-                    <p className={`font-semibold ${migrationProgress.status === 'error' ? 'text-red-600' : migrationProgress.status === 'complete' ? 'text-green-700' : 'text-[#7C3AED]'}`}>
-                      {migrationProgress.message}
-                    </p>
-                    {migrationProgress.total > 0 && <span className="shrink-0 tabular-nums">{migrationProgress.completed}/{migrationProgress.total}</span>}
-                  </div>
-                  <div
-                    className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted"
-                    role="progressbar"
-                    aria-label="Firestore media migration progress"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={migrationProgress.progress}
-                  >
-                    <div
-                      className={`h-full transition-[width] duration-300 ${migrationProgress.status === 'error' ? 'bg-red-500' : migrationProgress.status === 'complete' ? 'bg-green-500' : 'bg-[#7C3AED]'}`}
-                      style={{ width: `${migrationProgress.progress}%` }}
-                    />
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">{migrationProgress.progress}% complete</p>
-                  {migrationProgress.failedItems.length > 0 && (
-                    <div className="mt-3">
-                      <p className="font-semibold text-red-600">Failed items</p>
-                      <ul className="mt-1 max-h-36 space-y-2 overflow-y-auto">
-                        {migrationProgress.failedItems.map(item => (
-                          <li key={item.id} className="rounded border border-red-200 bg-red-50/70 p-2 dark:border-red-900 dark:bg-red-950/20">
-                            <p className="font-medium">{item.name || item.id}</p>
-                            <p className="break-words text-xs text-red-700 dark:text-red-300">{item.error}</p>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-            <Button variant="outline" onClick={runMigration} disabled={migrationBusy}>
-              {migrationBusy
-                ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Migrating...</>
-                : migrationProgress?.status === 'error' && migrationProgress.failedItems.length > 0
-                  ? `Retry failed (${migrationProgress.failedItems.length})`
-                  : 'Run Migration'}
-            </Button>
-          </div>
-        </div>}
 
         {/* Category Filter */}
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
@@ -671,7 +612,11 @@ export default function AdminFashion() {
                   <div>
                     <label className="flex text-sm font-semibold mb-2 items-center justify-between gap-2">
                       <span>Available Colors</span>
-                      <button type="button" onClick={() => setFormData({...formData, colors: [...formData.colors, '#000000']})} className="shrink-0 text-[#7C3AED] hover:text-[#6D28D9] text-xs font-bold flex items-center">
+                      <button type="button" onClick={() => setFormData(previous => ({
+                        ...previous,
+                        colors: [...previous.colors, '#000000'],
+                        colorMediaByIndex: { ...previous.colorMediaByIndex, [String(previous.colors.length)]: '' }
+                      }))} className="shrink-0 text-[#7C3AED] hover:text-[#6D28D9] text-xs font-bold flex items-center">
                         <Plus className="w-3 h-3 mr-1"/> Add Color
                       </button>
                     </label>
@@ -682,11 +627,10 @@ export default function AdminFashion() {
                             <input
                               type="color"
                               value={color}
-                              onChange={(e) => {
-                                const newColors = [...formData.colors];
-                                newColors[idx] = e.target.value;
-                                setFormData({...formData, colors: newColors});
-                              }}
+                              onChange={e => setFormData(previous => ({
+                                ...previous,
+                                colors: previous.colors.map((current, colorIndex) => colorIndex === idx ? e.target.value : current)
+                              }))}
                               aria-label={`Color ${idx + 1}`}
                               className="h-10 w-12 rounded-lg cursor-pointer"
                             />
@@ -694,8 +638,13 @@ export default function AdminFashion() {
                               type="button" 
                               aria-label={`Remove color ${idx + 1}`}
                               onClick={() => {
-                                const newColors = formData.colors.filter((_, i) => i !== idx);
-                                setFormData({...formData, colors: newColors});
+                                setFormData(previous => ({
+                                  ...previous,
+                                  colors: previous.colors.filter((_, colorIndex) => colorIndex !== idx),
+                                  colorMediaByIndex: Object.fromEntries(Object.entries(previous.colorMediaByIndex)
+                                    .filter(([index]) => Number(index) !== idx)
+                                    .map(([index, url]) => [String(Number(index) > idx ? Number(index) - 1 : Number(index)), url]))
+                                }));
                               }} 
                               className="rounded-full bg-red-500 p-1 text-white"
                             >
@@ -706,8 +655,13 @@ export default function AdminFashion() {
                           <select 
                             aria-label={`Image for color ${idx + 1}`}
                             className="w-full min-w-0 rounded border border-border bg-background px-2 py-1.5 text-xs"
-                            value={formData.colorMedia[color] || ''}
-                            onChange={(e) => setFormData(p => ({ ...p, colorMedia: { ...p.colorMedia, [color]: e.target.value } }))}
+                            value={Object.hasOwn(formData.colorMediaByIndex, String(idx))
+                              ? formData.colorMediaByIndex[String(idx)]
+                              : formData.colorMedia[color] || ''}
+                            onChange={e => setFormData(previous => ({
+                              ...previous,
+                              colorMediaByIndex: { ...previous.colorMediaByIndex, [String(idx)]: e.target.value }
+                            }))}
                           >
                             <option value="">Media</option>
                             {formData.imageUrl && <option value={formData.imageUrl}>Main</option>}
@@ -744,6 +698,48 @@ export default function AdminFashion() {
                     />
                   </div>
                 </div>
+
+                {variationOptions.length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold">Variation settings</p>
+                    {variationOptions.map((variation, index) => (
+                      <div key={`${index}-${variation}`} className="grid grid-cols-1 gap-3 rounded-lg border border-border p-3 sm:grid-cols-[minmax(0,1fr)_160px]">
+                        <div className="min-w-0">
+                          <label className="mb-1 block truncate text-xs font-semibold" title={variation}>{variation} image</label>
+                          <select
+                            aria-label={`Image for variation ${variation}`}
+                            value={formData.variationMediaByIndex[String(index)] || ''}
+                            onChange={e => setFormData(previous => ({
+                              ...previous,
+                              variationMediaByIndex: { ...previous.variationMediaByIndex, [String(index)]: e.target.value }
+                            }))}
+                            className={`w-full min-w-0 rounded-lg border-2 px-3 py-2 outline-none ${isDark ? 'border-[#333333] bg-[#2A2A2A]' : 'border-gray-200 bg-white'}`}
+                          >
+                            <option value="">Use default image</option>
+                            {formData.imageUrl && <option value={formData.imageUrl}>Main image</option>}
+                            {formData.mediaUrls.map((url, mediaIndex) => <option key={`${url}-${mediaIndex}`} value={url}>Additional image {mediaIndex + 1}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold">Price override (optional)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            inputMode="numeric"
+                            placeholder={`Base: ₦${formData.price || '0'}`}
+                            value={formData.variationPricesByIndex[String(index)] || ''}
+                            onChange={e => setFormData(previous => ({
+                              ...previous,
+                              variationPricesByIndex: { ...previous.variationPricesByIndex, [String(index)]: e.target.value }
+                            }))}
+                            className={`w-full rounded-lg border-2 px-3 py-2 outline-none ${isDark ? 'border-[#333333] bg-[#2A2A2A]' : 'border-gray-200 bg-white'}`}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-semibold mb-2">Size Chart Image (Optional)</label>
