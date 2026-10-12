@@ -23,6 +23,7 @@ export default function FashionPDP() {
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('');
+  const [selectedColorIndex, setSelectedColorIndex] = useState(0);
   const [selectedVariation, setSelectedVariation] = useState<string>('');
   const [activeThumbnail, setActiveThumbnail] = useState<string>('');
   const [showCartOverlay, setShowCartOverlay] = useState(false);
@@ -148,7 +149,10 @@ export default function FashionPDP() {
   useEffect(() => {
     if (item) {
       if (item.sizes && item.sizes.length > 0) setSelectedSize(item.sizes[0]);
-      if (item.colors && item.colors.length > 0) setSelectedColor(item.colors[0]);
+      if (item.colors && item.colors.length > 0) {
+        setSelectedColor(item.colors[0]);
+        setSelectedColorIndex(0);
+      }
       if (item.variations && item.variations.length > 0) setSelectedVariation(item.variations[0]);
       
       if (item.videoUrl) {
@@ -161,12 +165,25 @@ export default function FashionPDP() {
     }
   }, [item]);
 
-  // Connect Color Selection to Media
+  const selectedVariationIndex = item?.variations?.indexOf(selectedVariation) ?? -1;
+  const selectedColorMediaUrl = item
+    ? item.colorMediaByIndex?.[String(selectedColorIndex)] || item.colorMedia?.[selectedColor]
+    : undefined;
+  const selectedVariationMediaUrl = selectedVariationIndex >= 0
+    ? item?.variationMediaByIndex?.[String(selectedVariationIndex)]
+    : undefined;
+  const selectedVariantImageUrl = selectedVariationMediaUrl || selectedColorMediaUrl || item?.imageUrl || '';
+  const configuredVariationPrice = selectedVariationIndex >= 0
+    ? item?.variationPricesByIndex?.[String(selectedVariationIndex)]
+    : undefined;
+  const selectedUnitPrice = configuredVariationPrice !== undefined && configuredVariationPrice > 0
+    ? configuredVariationPrice
+    : item?.price || 0;
+
+  // Connect selected options to their configured product media.
   useEffect(() => {
-    if (item && selectedColor && item.colorMedia && item.colorMedia[selectedColor]) {
-      setActiveThumbnail(item.colorMedia[selectedColor]);
-    }
-  }, [selectedColor, item]);
+    if (selectedVariantImageUrl) setActiveThumbnail(selectedVariantImageUrl);
+  }, [selectedVariantImageUrl]);
 
   const handleAddToCart = () => {
     if (!item || !item.inStock) return;
@@ -180,19 +197,23 @@ export default function FashionPDP() {
       return;
     }
     
-    const cartItemId = `${item.id}-${selectedSize || 'nosize'}-${selectedColor?.replace('#', '') || 'nocolor'}-${selectedVariation || 'novariation'}`;
+    const cartItemId = `${item.id}-${selectedSize || 'nosize'}-c${item.colors?.length ? selectedColorIndex : 'none'}-v${selectedVariationIndex >= 0 ? selectedVariationIndex : 'none'}`;
     const existing = cartItems.find(i => i.id === cartItemId);
     if (!existing) {
       addItem({
         id: cartItemId,
+        productId: item.id,
         name: item.name,
-        price: item.price,
-        imageUrl: item.imageUrl, // We keep the base image for the cart
+        price: selectedUnitPrice,
+        imageUrl: selectedVariantImageUrl,
         category: item.category,
         productType: 'fashion',
         size: selectedSize,
         color: selectedColor,
-        variation: selectedVariation
+        colorIndex: item.colors?.length ? selectedColorIndex : undefined,
+        variation: selectedVariation,
+        variationName: item.variationName || 'Option',
+        variationIndex: selectedVariationIndex >= 0 ? selectedVariationIndex : undefined
       });
       
       // Update quantity if greater than 1
@@ -270,11 +291,16 @@ export default function FashionPDP() {
   const handleThumbnailClick = (mediaUrl: string) => {
     setActiveThumbnail(mediaUrl);
     if (item?.colorMedia) {
-      const matchedColor = Object.entries(item.colorMedia).find(([color, url]) => url === mediaUrl);
-      if (matchedColor) {
-        setSelectedColor(matchedColor[0]);
+      const colorIndex = item.colors?.findIndex((color, index) =>
+        item.colorMediaByIndex?.[String(index)] === mediaUrl || item.colorMedia?.[color] === mediaUrl
+      ) ?? -1;
+      if (colorIndex >= 0 && item.colors?.[colorIndex]) {
+        setSelectedColorIndex(colorIndex);
+        setSelectedColor(item.colors[colorIndex]);
       }
     }
+    const variationIndex = item?.variations?.findIndex((_, index) => item.variationMediaByIndex?.[String(index)] === mediaUrl) ?? -1;
+    if (variationIndex >= 0 && item?.variations?.[variationIndex]) setSelectedVariation(item.variations[variationIndex]);
   };
 
   const isDev = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -498,24 +524,27 @@ export default function FashionPDP() {
         {/* Price & Color Row */}
         <div className="flex justify-between items-end mb-8">
           <div>
-            <p className="text-muted-foreground text-sm mb-1">From:</p>
-            <p className="text-2xl sm:text-3xl font-bold">₦{item.price.toLocaleString()}</p>
+            <p className="text-muted-foreground text-sm mb-1">Selected price:</p>
+            <p className="text-2xl sm:text-3xl font-bold">₦{selectedUnitPrice.toLocaleString()}</p>
           </div>
 
           {/* Color Selection (Circles) */}
           {item.colors && item.colors.length > 0 && (
             <div className="flex gap-2">
-              {item.colors.map(color => (
+              {item.colors.map((color, colorIndex) => (
                 <button
-                  key={color}
-                  onClick={() => setSelectedColor(color)}
+                  key={`${color}-${colorIndex}`}
+                  onClick={() => {
+                    setSelectedColor(color);
+                    setSelectedColorIndex(colorIndex);
+                  }}
                   className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full border-[3px] transition-all flex items-center justify-center ${
-                    selectedColor === color ? 'border-primary scale-110 shadow-sm' : 'border-transparent shadow-sm'
+                    selectedColorIndex === colorIndex ? 'border-primary scale-110 shadow-sm' : 'border-transparent shadow-sm'
                   }`}
                   style={{ backgroundColor: color }}
                   aria-label={`Select color ${color}`}
                 >
-                  {selectedColor === color && (
+                  {selectedColorIndex === colorIndex && (
                     <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 border-background mix-blend-difference" />
                   )}
                 </button>
@@ -558,9 +587,9 @@ export default function FashionPDP() {
           <div className="mb-8">
             <p className="font-semibold mb-3">Select {item.variationName || 'Option'}</p>
             <div className="flex flex-wrap gap-2">
-              {item.variations.map(variation => (
+              {item.variations.map((variation, variationIndex) => (
                 <button
-                  key={variation}
+                  key={`${variation}-${variationIndex}`}
                   onClick={() => setSelectedVariation(variation)}
                   className={`px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 ${
                     selectedVariation === variation
@@ -568,7 +597,10 @@ export default function FashionPDP() {
                       : 'bg-muted/50 text-foreground hover:bg-muted'
                   }`}
                 >
-                  {variation}
+                  <span>{variation}</span>
+                  {item.variationPricesByIndex?.[String(variationIndex)] !== undefined && item.variationPricesByIndex[String(variationIndex)] > 0 && (
+                    <span className="ml-2 text-xs font-bold">₦{item.variationPricesByIndex[String(variationIndex)].toLocaleString()}</span>
+                  )}
                 </button>
               ))}
             </div>

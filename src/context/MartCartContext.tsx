@@ -10,7 +10,11 @@ export interface CartItem {
   productType?: 'mart' | 'fashion' | 'gadgets' | 'food' | 'MART' | 'FASHION';
   size?: string;
   color?: string;
+  colorIndex?: number;
   variation?: string;
+  variationName?: string;
+  variationIndex?: number;
+  productId?: string;
 }
 
 interface MartCartContextType {

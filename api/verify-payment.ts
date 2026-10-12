@@ -110,7 +110,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // 3. Recalculate total from Firestore prices (server-side validation)
-        const { serverTotal: rawTotal, netDeliveryFee, comboDoc } = await calculateServerOrderTotal(db, orderData);
+        const { serverTotal: rawTotal, netDeliveryFee, comboDoc, pricedItems } = await calculateServerOrderTotal(db, orderData);
         const discountUserId = orderData?.userId || orderData?.iConId || null;
         let firstOrderEval = {
             applied: false,
@@ -197,7 +197,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         } else if (isFashionOrder) {
             orderDoc.type = 'fashion';
             orderDoc.orderType = 'FASHION';
-            orderDoc.items = orderData.items || [];
+            orderDoc.items = pricedItems || orderData.items || [];
             orderDoc.totalAmount = paidAmount;
             orderDoc.subtotal = orderData?.subtotal || (paidAmount - (orderData?.deliveryFee || 1500));
             orderDoc.deliveryFee = orderData?.deliveryFee || 1500;
