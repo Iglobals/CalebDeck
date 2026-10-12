@@ -10,6 +10,8 @@ export interface FashionMedia {
   isMain?: boolean;
 }
 
+export const normalizeFashionCategory = (category: string) => category?.trim().replace(/\s+/g, ' ') || '';
+
 export interface FashionItem {
   id: string;
   name: string;
@@ -47,10 +49,14 @@ export const subscribeToFashionItems = (
     q,
     { includeMetadataChanges: true },
     (snapshot) => {
-      const items = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as FashionItem[];
+      const items = snapshot.docs.map(doc => {
+        const data = doc.data() as FashionItem;
+        return {
+          id: doc.id,
+          ...data,
+          category: normalizeFashionCategory(data.category || '')
+        };
+      }) as FashionItem[];
       
       callback(items, snapshot.metadata.fromCache);
     },
