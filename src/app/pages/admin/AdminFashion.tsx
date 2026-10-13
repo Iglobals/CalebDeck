@@ -219,7 +219,9 @@ export default function AdminFashion() {
         inStock: formData.inStock,
         sizes: formData.sizesInput ? formData.sizesInput.split(',').map(s => s.trim()).filter(s => s !== '') : [],
         colors: formData.colors,
-        colorName: formData.colors.length > 0 ? (formData.colorLabelsByIndex[String(0)] || '').trim() || getHexColorName(formData.colors[0]) : undefined,
+        ...(formData.colors.length > 0 ? {
+          colorName: (formData.colorLabelsByIndex[String(0)] || '').trim() || getHexColorName(formData.colors[0])
+        } : {}),
         colorNamesByIndex: colorLabelsByIndex,
         videoUrl: resolveUrl(formData.videoUrl),
         mediaUrls: formData.mediaUrls.map(resolveUrl),
@@ -261,7 +263,7 @@ export default function AdminFashion() {
       clearPendingUploads(Object.keys(pendingUploads));
       setIsAdding(false);
       setEditingItem(null);
-      setFormData({ name: '', brand: '', brandColor: '#F97316', description: '', price: '', category: categories[0]?.name || 'Apparel', imageUrl: '', inStock: true, sizesInput: '', colors: [], videoUrl: '', mediaUrls: [], colorMedia: {}, colorMediaByIndex: {}, variationName: '', variationsInput: '', variationMediaByIndex: {}, variationPricesByIndex: {}, sizeChartUrl: '' });
+              setFormData({ name: '', brand: '', brandColor: '#F97316', description: '', price: '', category: categories[0]?.name || 'Apparel', imageUrl: '', inStock: true, sizesInput: '', colors: [], colorLabelsByIndex: {}, videoUrl: '', mediaUrls: [], colorMedia: {}, colorMediaByIndex: {}, variationName: '', variationsInput: '', variationMediaByIndex: {}, variationPricesByIndex: {}, sizeChartUrl: '' });
       if (uploadedAssets.length) setUploadProgress(100);
     } catch (err) {
       await Promise.allSettled(uploadedAssets.map(asset => deleteMediaFromCloudinary(asset.publicId, asset.type)));
@@ -684,7 +686,7 @@ export default function AdminFashion() {
                           <select 
                             aria-label={`Image for color ${idx + 1}`}
                             className="w-full min-w-0 rounded border border-border bg-background px-2 py-1.5 text-xs"
-                            value={Object.hasOwn(formData.colorMediaByIndex, String(idx))
+                            value={Object.prototype.hasOwnProperty.call(formData.colorMediaByIndex, String(idx))
                               ? formData.colorMediaByIndex[String(idx)]
                               : formData.colorMedia[color] || ''}
                             onChange={e => setFormData(previous => ({
