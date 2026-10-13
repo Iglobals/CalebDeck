@@ -43,34 +43,39 @@ export function getHexColorName(hex: string): string {
   const targetRgb = hexToRgb(normalized);
   if (!targetRgb) return input;
 
-  const toHue = (rgb: { r: number; g: number; b: number }) => {
-    const r = rgb.r / 255;
-    const g = rgb.g / 255;
-    const b = rgb.b / 255;
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    const delta = max - min;
+  const r = targetRgb.r;
+  const g = targetRgb.g;
+  const b = targetRgb.b;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+  const brightness = (max + min) / 2;
+  const saturation = max === 0 ? 0 : (delta / max) * 100;
 
-    if (delta === 0) return 0;
-    let hue = 0;
+  let hue = 0;
+  if (delta !== 0) {
     if (max === r) hue = ((g - b) / delta) % 6;
     else if (max === g) hue = (b - r) / delta + 2;
     else hue = (r - g) / delta + 4;
-    return Math.round((hue * 60 + 360) % 360);
-  };
+    hue *= 60;
+    if (hue < 0) hue += 360;
+  }
 
-  const hue = toHue(targetRgb);
-  const maxChannel = Math.max(targetRgb.r, targetRgb.g, targetRgb.b);
-  const minChannel = Math.min(targetRgb.r, targetRgb.g, targetRgb.b);
-  const saturation = maxChannel === 0 ? 0 : ((maxChannel - minChannel) / maxChannel) * 100;
+  if (hue <= 12 || hue >= 348) {
+    if (brightness < 80 && saturation < 55) return 'Dark Red';
+    return 'Red';
+  }
 
-  if (hue <= 20 || hue >= 340) return saturation > 25 ? 'Red' : 'Dark Red';
-  if (hue > 20 && hue <= 45) return 'Orange';
+  if (hue >= 20 && hue <= 45) {
+    if (brightness < 80 && saturation < 52) return 'Brown';
+    return 'Orange';
+  }
+
   if (hue > 45 && hue <= 70) return 'Yellow';
   if (hue > 70 && hue <= 170) return 'Green';
   if (hue > 170 && hue <= 220) return 'Blue';
   if (hue > 220 && hue <= 290) return 'Purple';
-  if (hue > 290 && hue <= 340) return 'Pink';
+  if (hue > 290 && hue <= 348) return 'Pink';
 
   const palette = Object.entries(exact).map(([key, label]) => ({ label, rgb: hexToRgb(key)! }));
   let closestName = input;
@@ -88,5 +93,5 @@ export function getHexColorName(hex: string): string {
     }
   }
 
-  return minDistance < 120 ? closestName : input;
+  return minDistance < 140 ? closestName : input;
 }

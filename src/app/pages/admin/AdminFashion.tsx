@@ -87,9 +87,9 @@ export default function AdminFashion() {
     return () => { unsubItems(); unsubCats(); };
   }, []);
 
-  const itemCategories = Array.from(new Set(items.map(i => i.category))).filter(Boolean);
-  const savedCategoryNames = categories.map(c => c.name);
-  const allUniqueCategoryNames = Array.from(new Set([...itemCategories, ...savedCategoryNames])).sort();
+  const itemCategories = Array.from(new Set(items.map(i => normalizeFashionCategory(i.category)).filter(Boolean))); 
+  const savedCategoryNames = categories.map(c => normalizeFashionCategory(c.name));
+  const allUniqueCategoryNames = Array.from(new Set([...itemCategories, ...savedCategoryNames])).filter(Boolean).sort();
   
   const displayCategories = ['All', ...allUniqueCategoryNames];
   const variationOptions = formData.variationsInput.split(',').map(value => value.trim()).filter(Boolean);
@@ -102,8 +102,10 @@ export default function AdminFashion() {
   };
 
   const filteredItems = items.filter(item => {
+    const normalizedCategory = normalizeFashionCategory(item.category);
+    const normalizedActiveCategory = normalizeFashionCategory(activeCategory);
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.brand.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = activeCategory === 'All' || item.category === activeCategory;
+    const matchesCategory = activeCategory === 'All' || normalizedCategory === normalizedActiveCategory;
     return matchesSearch && matchesCategory;
   });
 
