@@ -24,6 +24,8 @@ export interface FashionItem {
   description?: string;
   sizes?: string[];
   colors?: string[];
+  colorName?: string;
+  colorNamesByIndex?: Record<string, string>;
   thumbnails?: string[];
   // Legacy media features
   videoUrl?: string;

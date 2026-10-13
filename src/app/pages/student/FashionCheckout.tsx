@@ -57,7 +57,7 @@ export default function FashionCheckout() {
     category: item.category,
     size: item.size || null,
     color: item.color || null,
-    colorName: item.color ? getHexColorName(item.color) : null,
+    colorName: item.colorName || (item.color ? getHexColorName(item.color) : null),
     colorIndex: item.colorIndex ?? null,
     variation: item.variation || null,
     variationName: item.variationName || null,

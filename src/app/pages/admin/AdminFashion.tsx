@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { subscribeToFashionItems, FashionItem, addFashionItem, updateFashionItem, deleteFashionItem, subscribeToFashionCategories, FashionCategory, addFashionCategory, deleteFashionCategory, normalizeFashionCategory } from '../../../services/fashion';
 import { deleteCloudinaryMediaByUrl, deleteMediaFromCloudinary, uploadMediaToCloudinary } from '../../../services/cloudinary';
+import { getHexColorName } from '../../../utils/formatColor';
 import { useTheme } from '../../../context/ThemeContext';
 
 interface PendingMediaUpload {
@@ -57,6 +58,7 @@ export default function AdminFashion() {
     inStock: true,
     sizesInput: '',
     colors: [] as string[],
+    colorLabelsByIndex: {} as Record<string, string>,
     videoUrl: '',
     mediaUrls: [] as string[],
     colorMedia: {} as Record<string, string>,
@@ -202,6 +204,10 @@ export default function AdminFashion() {
         const url = formData.colorMediaByIndex[String(index)] || formData.colorMedia[color];
         return url ? [[color, resolveUrl(url)]] : [];
       }));
+      const colorLabelsByIndex = Object.fromEntries(formData.colors.map((color, index) => {
+        const explicit = (formData.colorLabelsByIndex[String(index)] || '').trim();
+        return [String(index), explicit || getHexColorName(color)];
+      }));
       const itemData = {
         name: formData.name,
         brand: formData.brand,
@@ -213,6 +219,8 @@ export default function AdminFashion() {
         inStock: formData.inStock,
         sizes: formData.sizesInput ? formData.sizesInput.split(',').map(s => s.trim()).filter(s => s !== '') : [],
         colors: formData.colors,
+        colorName: formData.colors.length > 0 ? (formData.colorLabelsByIndex[String(0)] || '').trim() || getHexColorName(formData.colors[0]) : undefined,
+        colorNamesByIndex: colorLabelsByIndex,
         videoUrl: resolveUrl(formData.videoUrl),
         mediaUrls: formData.mediaUrls.map(resolveUrl),
         colorMedia: legacyColorMedia,
@@ -278,6 +286,9 @@ export default function AdminFashion() {
       inStock: item.inStock,
       sizesInput: item.sizes ? item.sizes.join(', ') : '',
       colors: item.colors || [],
+      colorLabelsByIndex: Object.fromEntries((item.colors || []).map((color, index) => [
+        String(index), item.colorNamesByIndex?.[String(index)] || item.colorName || getHexColorName(color)
+      ])),
       videoUrl: item.videoUrl || '',
       mediaUrls: item.mediaUrls || [],
       colorMedia: item.colorMedia || {},
@@ -354,7 +365,7 @@ export default function AdminFashion() {
               variant="primary" 
               onClick={() => {
                 setEditingItem(null);
-                setFormData({ name: '', brand: '', brandColor: '#F97316', description: '', price: '', category: categories[0]?.name || 'Apparel', imageUrl: '', inStock: true, sizesInput: '', colors: [], videoUrl: '', mediaUrls: [], colorMedia: {}, colorMediaByIndex: {}, variationName: '', variationsInput: '', variationMediaByIndex: {}, variationPricesByIndex: {}, sizeChartUrl: '' });
+                setFormData({ name: '', brand: '', brandColor: '#F97316', description: '', price: '', category: categories[0]?.name || 'Apparel', imageUrl: '', inStock: true, sizesInput: '', colors: [], colorLabelsByIndex: {}, videoUrl: '', mediaUrls: [], colorMedia: {}, colorMediaByIndex: {}, variationName: '', variationsInput: '', variationMediaByIndex: {}, variationPricesByIndex: {}, sizeChartUrl: '' });
                 setIsAdding(true);
               }}
               className="flex items-center gap-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
@@ -643,6 +654,9 @@ export default function AdminFashion() {
                                 setFormData(previous => ({
                                   ...previous,
                                   colors: previous.colors.filter((_, colorIndex) => colorIndex !== idx),
+                                  colorLabelsByIndex: Object.fromEntries(Object.entries(previous.colorLabelsByIndex)
+                                    .filter(([index]) => Number(index) !== idx)
+                                    .map(([index, label]) => [String(Number(index) > idx ? Number(index) - 1 : Number(index)), label])),
                                   colorMediaByIndex: Object.fromEntries(Object.entries(previous.colorMediaByIndex)
                                     .filter(([index]) => Number(index) !== idx)
                                     .map(([index, url]) => [String(Number(index) > idx ? Number(index) - 1 : Number(index)), url]))
@@ -652,6 +666,19 @@ export default function AdminFashion() {
                             >
                               <X className="w-3 h-3" />
                             </button>
+                          </div>
+                          <div className="mb-2">
+                            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Label</label>
+                            <input
+                              type="text"
+                              value={formData.colorLabelsByIndex[String(idx)] ?? getHexColorName(color)}
+                              onChange={e => setFormData(previous => ({
+                                ...previous,
+                                colorLabelsByIndex: { ...previous.colorLabelsByIndex, [String(idx)]: e.target.value }
+                              }))}
+                              placeholder={getHexColorName(color)}
+                              className={`w-full rounded border border-border bg-background px-2 py-1.5 text-xs ${isDark ? 'text-foreground' : 'text-foreground'}`}
+                            />
                           </div>
                           {/* Map color to an existing image */}
                           <select 
