@@ -161,6 +161,9 @@ export default function FashionPDP() {
   }, [item]);
 
   const selectedVariationIndex = item?.variations?.indexOf(selectedVariation) ?? -1;
+  const selectedColorName = item
+    ? item.colorNamesByIndex?.[String(selectedColorIndex)] || item.colorName || (selectedColor ? getHexColorName(selectedColor) : '')
+    : '';
   const selectedColorMediaUrl = item
     ? item.colorMediaByIndex?.[String(selectedColorIndex)] || item.colorMedia?.[selectedColor]
     : undefined;
@@ -222,6 +225,7 @@ export default function FashionPDP() {
         productType: 'fashion',
         size: selectedSize,
         color: selectedColor,
+        colorName: selectedColorName,
         colorIndex: item.colors?.length ? selectedColorIndex : undefined,
         variation: selectedVariation,
         variationName: item.variationName || 'Option',
@@ -744,7 +748,7 @@ export default function FashionPDP() {
                               {cartItem.color.startsWith('#') ? (
                                 <>
                                   <span className="w-3.5 h-3.5 rounded-full border border-border shadow-sm" style={{ backgroundColor: cartItem.color }} title={cartItem.color} />
-                                  <span className="text-xs text-muted-foreground">{getHexColorName(cartItem.color)}</span>
+                                  <span className="text-xs text-muted-foreground">{cartItem.colorName || getHexColorName(cartItem.color)}</span>
                                 </>
                               ) : (
                                 <span className="text-xs text-muted-foreground">{cartItem.color}</span>

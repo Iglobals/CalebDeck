@@ -131,7 +131,7 @@ export default function MartCart() {
                               {item.color.startsWith('#') ? (
                                 <>
                                   <span className="w-3.5 h-3.5 rounded-full border border-border shadow-sm" style={{ backgroundColor: item.color }} title={item.color} />
-                                  <span className="text-[10px] uppercase font-bold text-muted-foreground">{getHexColorName(item.color)}</span>
+                                  <span className="text-[10px] uppercase font-bold text-muted-foreground">{item.colorName || getHexColorName(item.color)}</span>
                                 </>
                               ) : (
                                 <span className="text-[10px] uppercase font-bold text-muted-foreground">{item.color}</span>

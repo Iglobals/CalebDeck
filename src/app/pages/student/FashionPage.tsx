@@ -20,7 +20,7 @@ export default function FashionPage() {
   const activeCategory = searchParams.get('category') || 'All';
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [priceRange, setPriceRange] = useState({ min: 0, max: 100000 });
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 1000000 });
   const [items, setItems] = useState<FashionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
@@ -100,7 +100,13 @@ export default function FashionPage() {
         setItems(FALLBACK_ITEMS);
         return;
       }
-      setItems(fetchedItems.length > 0 ? fetchedItems : FALLBACK_ITEMS);
+      const nextItems = fetchedItems.length > 0 ? fetchedItems : FALLBACK_ITEMS;
+      setItems(nextItems);
+      const highestPrice = nextItems.reduce((max, item) => Math.max(max, Number(item.price || 0)), 0);
+      setPriceRange(prev => ({
+        min: 0,
+        max: Math.max(prev.max, highestPrice, 1000000)
+      }));
       setLoading(false);
     });
 
