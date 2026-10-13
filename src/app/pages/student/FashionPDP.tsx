@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router';
 import { Button } from '../../components/design-system/Button';
 import { ArrowLeft, ShoppingBag, Plus, Minus, CalendarClock } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
@@ -16,6 +16,7 @@ import { getOptimizedDeliveryUrl, getVideoPosterUrl } from '../../../services/cl
 
 export default function FashionPDP() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [item, setItem] = useState<FashionItem | null>(null);
@@ -111,6 +112,7 @@ export default function FashionPDP() {
 
   const { items: cartItems, addItem, updateQuantity, removeItem, totalItems, subtotal } = useMartCart();
   const FASHION_DELIVERY_FEE = platformSettings?.fashionDeliveryFee || 1500;
+  const returnCategory = searchParams.get('category') || 'All';
 
   useEffect(() => {
     const unsubscribeItems = subscribeToFashionItems((fetchedItems, isFromCache, error) => {
@@ -154,14 +156,7 @@ export default function FashionPDP() {
         setSelectedColorIndex(0);
       }
       if (item.variations && item.variations.length > 0) setSelectedVariation(item.variations[0]);
-      
-      if (item.videoUrl) {
-        setActiveThumbnail(item.videoUrl);
-      } else if (item.mediaUrls && item.mediaUrls.length > 0) {
-        setActiveThumbnail(item.mediaUrls[0]);
-      } else {
-        setActiveThumbnail(item.imageUrl);
-      }
+      setActiveThumbnail(item.imageUrl || '');
     }
   }, [item]);
 
@@ -180,15 +175,32 @@ export default function FashionPDP() {
     ? configuredVariationPrice
     : item?.price || 0;
 
-  // Connect selected options to their configured product media.
-  useEffect(() => {
-    if (selectedVariantImageUrl) setActiveThumbnail(selectedVariantImageUrl);
-  }, [selectedVariantImageUrl]);
+  const applySelectedMedia = (nextColorIndex?: number, nextVariationIndex?: number) => {
+    const colorMedia = nextColorIndex !== undefined && item?.colorMediaByIndex?.[String(nextColorIndex)]
+      ? item.colorMediaByIndex[String(nextColorIndex)]
+      : nextColorIndex !== undefined && item?.colorMedia?.[item.colors?.[nextColorIndex] || '']
+        ? item.colorMedia[item.colors[nextColorIndex]]
+        : undefined;
+
+    const variationMedia = nextVariationIndex !== undefined && item?.variationMediaByIndex?.[String(nextVariationIndex)]
+      ? item.variationMediaByIndex[String(nextVariationIndex)]
+      : undefined;
+
+    if (variationMedia) {
+      setActiveThumbnail(variationMedia);
+      return;
+    }
+    if (colorMedia) {
+      setActiveThumbnail(colorMedia);
+      return;
+    }
+    setActiveThumbnail(item?.imageUrl || '');
+  };
 
   const handleAddToCart = () => {
     if (!item || !item.inStock) return;
     
-    if (item.sizes && !selectedSize) {
+    if (item.sizes && item.sizes.length > 0 && !selectedSize) {
       toast.error('Please select a size');
       return;
     }
@@ -377,7 +389,7 @@ export default function FashionPDP() {
           style={{ paddingTop: 'max(2.5rem, env(safe-area-inset-top))' }}
         >
           <button 
-            onClick={() => navigate('/fashion')}
+            onClick={() => navigate(returnCategory === 'All' ? '/fashion' : `/fashion?category=${encodeURIComponent(returnCategory)}`)}
             className="w-10 h-10 bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/50 transition-colors shadow-sm"
           >
             <ArrowLeft className="w-5 h-5 text-black" />
@@ -590,7 +602,10 @@ export default function FashionPDP() {
               {item.variations.map((variation, variationIndex) => (
                 <button
                   key={`${variation}-${variationIndex}`}
-                  onClick={() => setSelectedVariation(variation)}
+                  onClick={() => {
+                    setSelectedVariation(variation);
+                    applySelectedMedia(selectedColorIndex, variationIndex);
+                  }}
                   className={`px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 ${
                     selectedVariation === variation
                       ? 'bg-primary text-primary-foreground shadow-sm scale-105'

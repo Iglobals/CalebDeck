@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Button } from '../../components/design-system/Button';
 import { Search, ShoppingBag, Plus, Minus, ArrowLeft, Shirt, SlidersHorizontal, Clock, CalendarClock } from 'lucide-react';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { useAuth } from '../../../context/AuthContext';
 import SEO from '../../components/SEO';
 import { useMartCart } from '../../../context/MartCartContext';
-import { subscribeToFashionItems, FashionItem } from '../../../services/fashion';
+import { subscribeToFashionItems, FashionItem, normalizeFashionCategory } from '../../../services/fashion';
 import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 import { getFashionBatchState, formatFashionCountdown, formatArrivalDate, DEFAULT_FASHION_BATCH_CONFIG } from '../../../services/fashionBatch';
 import type { FashionBatchState } from '../../../services/fashionBatch';
@@ -16,7 +16,8 @@ import { getOptimizedDeliveryUrl } from '../../../services/cloudinary';
 export default function FashionPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeCategory, setActiveCategory] = useState('All');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeCategory = searchParams.get('category') || 'All';
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [priceRange, setPriceRange] = useState({ min: 0, max: 100000 });
@@ -123,11 +124,13 @@ export default function FashionPage() {
     return () => clearInterval(interval);
   }, [platformSettings]);
 
-  const dynamicCategories = Array.from(new Set(items.map(item => item.category))).filter(Boolean);
+  const dynamicCategories = Array.from(new Set(items.map(item => normalizeFashionCategory(item.category)).filter(Boolean))).sort();
   const displayCategories = ['All', ...dynamicCategories];
 
   const filteredItems = items.filter(item => {
-    const matchesCategory = activeCategory === 'All' || item.category === activeCategory;
+    const normalizedItemCategory = normalizeFashionCategory(item.category);
+    const normalizedActiveCategory = normalizeFashionCategory(activeCategory);
+    const matchesCategory = activeCategory === 'All' || normalizedItemCategory === normalizedActiveCategory;
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           item.brand.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesPrice = item.price >= priceRange.min && item.price <= priceRange.max;
@@ -246,7 +249,7 @@ export default function FashionPage() {
           {displayCategories.map(category => (
             <button
               key={category}
-              onClick={() => setActiveCategory(category)}
+              onClick={() => setSearchParams(category === 'All' ? {} : { category })}
               className={`whitespace-nowrap px-6 py-3 rounded-full text-sm font-semibold transition-all duration-300 ${
                 activeCategory === category
                   ? 'bg-purple-600 text-white shadow-sm'
@@ -369,7 +372,7 @@ export default function FashionPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
               {displayedItems.map((item) => {
                 return (
-                  <Link to={`/fashion/product/${item.id}`} key={item.id} className="block group">
+                  <Link to={`/fashion/product/${item.id}${activeCategory !== 'All' ? `?category=${encodeURIComponent(activeCategory)}` : ''}`} key={item.id} className="block group">
                     <div className="relative rounded-[24px] sm:rounded-[32px] overflow-hidden group border border-border/20 shadow-sm transition-all hover:shadow-md aspect-[3/4] bg-muted/20">
                       <ImageWithFallback 
                           src={getOptimizedDeliveryUrl(item.imageUrl, 500)} 

@@ -14,7 +14,7 @@ import {
   X,
   Loader2
 } from 'lucide-react';
-import { subscribeToFashionItems, FashionItem, addFashionItem, updateFashionItem, deleteFashionItem, subscribeToFashionCategories, FashionCategory, addFashionCategory, deleteFashionCategory } from '../../../services/fashion';
+import { subscribeToFashionItems, FashionItem, addFashionItem, updateFashionItem, deleteFashionItem, subscribeToFashionCategories, FashionCategory, addFashionCategory, deleteFashionCategory, normalizeFashionCategory } from '../../../services/fashion';
 import { deleteCloudinaryMediaByUrl, deleteMediaFromCloudinary, uploadMediaToCloudinary } from '../../../services/cloudinary';
 import { useTheme } from '../../../context/ThemeContext';
 
@@ -206,7 +206,7 @@ export default function AdminFashion() {
         brandColor: formData.brandColor,
         description: formData.description,
         price: Number(formData.price),
-        category: formData.category,
+        category: normalizeFashionCategory(formData.category),
         imageUrl: resolveUrl(formData.imageUrl),
         inStock: formData.inStock,
         sizes: formData.sizesInput ? formData.sizesInput.split(',').map(s => s.trim()).filter(s => s !== '') : [],
