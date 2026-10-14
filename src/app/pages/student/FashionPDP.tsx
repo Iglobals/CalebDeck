@@ -156,7 +156,8 @@ export default function FashionPDP() {
         setSelectedColorIndex(0);
       }
       if (item.variations && item.variations.length > 0) setSelectedVariation(item.variations[0]);
-      setActiveThumbnail(item.imageUrl || '');
+      // Video is frame 1 if present, otherwise main image
+      setActiveThumbnail(item.videoUrl || item.imageUrl || '');
     }
   }, [item]);
 
@@ -289,11 +290,11 @@ export default function FashionPDP() {
   // Define media array including video, main image, and thumbnails
   const allMedia: {url: string, type: 'video' | 'image'}[] = [];
   
-  // Add main image first
-  if (item.imageUrl) allMedia.push({url: item.imageUrl, type: 'image'});
-  
-  // Add video
+  // Add video FIRST so it shows as frame 1
   if (item.videoUrl) allMedia.push({url: item.videoUrl, type: 'video'});
+  
+  // Add main image
+  if (item.imageUrl) allMedia.push({url: item.imageUrl, type: 'image'});
   
   // Add additional media
   if (item.mediaUrls) {
@@ -303,6 +304,9 @@ export default function FashionPDP() {
   if (item.thumbnails) {
     item.thumbnails.filter(t => t !== item.imageUrl && !allMedia.some(m => m.url === t)).forEach(t => allMedia.push({url: t, type: 'image'}));
   }
+
+  // Thumbnails strip: only images, no video
+  const thumbnailMedia = allMedia.filter(m => m.type !== 'video');
 
   const handleThumbnailClick = (mediaUrl: string) => {
     setActiveThumbnail(mediaUrl);
@@ -435,21 +439,15 @@ export default function FashionPDP() {
         </div>
 
         {/* Vertical Thumbnails (Right Side) */}
-        {allMedia.length > 1 && (
+        {thumbnailMedia.length > 1 && (
           <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-20">
-            {allMedia.filter(m => m.url !== activeThumbnail).slice(0, 5).map((media, idx) => (
+            {thumbnailMedia.filter(m => m.url !== activeThumbnail).slice(0, 5).map((media, idx) => (
               <button
                 key={idx}
                 onClick={() => handleThumbnailClick(media.url)}
                 className="w-12 h-12 rounded-xl bg-white/40 backdrop-blur-md overflow-hidden border-2 border-transparent hover:bg-white/60 hover:scale-105 shadow-sm transition-all"
               >
-                {media.type === 'video' ? (
-                   <div className="w-full h-full bg-black flex items-center justify-center">
-                     <span className="text-[8px] font-bold text-white uppercase">Video</span>
-                   </div>
-                ) : (
-                  <ImageWithFallback src={getOptimizedDeliveryUrl(media.url, 200)} alt={`Thumbnail ${idx}`} className="w-full h-full object-cover rounded-xl shadow-sm" />
-                )}
+                <ImageWithFallback src={getOptimizedDeliveryUrl(media.url, 200)} alt={`Thumbnail ${idx}`} className="w-full h-full object-cover rounded-xl shadow-sm" />
               </button>
             ))}
           </div>
@@ -553,6 +551,7 @@ export default function FashionPDP() {
                   onClick={() => {
                     setSelectedColor(color);
                     setSelectedColorIndex(colorIndex);
+                    applySelectedMedia(colorIndex, selectedVariationIndex >= 0 ? selectedVariationIndex : undefined);
                   }}
                   className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full border-[3px] transition-all flex items-center justify-center ${
                     selectedColorIndex === colorIndex ? 'border-primary scale-110 shadow-sm' : 'border-transparent shadow-sm'
