@@ -109,6 +109,18 @@ export default function FashionCheckout() {
       }
     };
     fetchHostels();
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        fullName: prev.fullName || user.fullName || user.displayNameFromProfile || '',
+        phone: prev.phone || user.phone || user.phoneNumber || '',
+        state: user.fashionDeliveryState || prev.state || 'Lagos',
+        city: prev.city || user.fashionDeliveryCity || '',
+        areaId: prev.areaId || user.fashionDeliveryAreaId || '',
+        address: prev.address || user.fashionDeliveryAddress || '',
+        addressDetails: prev.addressDetails || user.fashionDeliveryAddressDetails || '',
+      }));
+    }
     
     const unsub = subscribeToPlatformSettings(setPlatformSettings);
     fetch('/api/fashion-delivery').then(res => res.ok ? res.json() : null).then(data => { if (data?.config) setFashionDeliveryConfig(data.config); }).catch(() => undefined);
@@ -222,6 +234,14 @@ export default function FashionCheckout() {
             updateData.fullName = formData.fullName;
             updateData.phone = formData.phone;
             updateData.hostel = formData.hostel;
+            if (customerType === 'GENERAL') {
+              updateData.fashionDeliveryEnabled = true;
+              updateData.fashionDeliveryState = formData.state;
+              updateData.fashionDeliveryCity = formData.city;
+              updateData.fashionDeliveryAreaId = formData.areaId;
+              updateData.fashionDeliveryAddress = formData.address;
+              updateData.fashionDeliveryAddressDetails = formData.addressDetails;
+            }
           }
           const { db } = await import('../../../services/firebase');
           await updateDoc(doc(db, 'users', user.uid), updateData);
