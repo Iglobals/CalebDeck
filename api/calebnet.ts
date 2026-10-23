@@ -13,6 +13,7 @@ import walletBalanceHandler from '../server/calebnet-handlers/wallet-balance.js'
 import walletFundingCreditHandler from '../server/calebnet-handlers/wallet-funding-credit.js';
 import walletProfileHandler from '../server/calebnet-handlers/wallet-profile.js';
 import walletUserDeleteHandler from '../server/calebnet-handlers/wallet-user-delete.js';
+import verifyCalebnetPaymentHandler from '../server/verify-calebnet-payment.js';
 
 function getPath(req: VercelRequest) {
     const queryPath = req.query.path;
@@ -49,6 +50,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     if (path === 'wallet-users/delete') return run(walletUserDeleteHandler(req, res));
     if (path === 'orders/mark-refunded') return run(markRefundedHandler(req, res));
     if (path === 'provider-status/reset') return run(resetProviderStatusHandler(req, res));
+    if (path === 'verify-payment') return run(verifyCalebnetPaymentHandler(req, res));
 
     return res.status(404).json({ error: 'CalebNet endpoint not found', path });
 }

@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
-import { adminDb } from '../server/firebase-admin.js';
-import { verifyUser } from '../server/verify-user.js';
-import { verifyAdmin } from '../server/verify-admin.js';
-import { findFashionDeliveryArea, getFashionDeliveryConfig } from '../server/fashion-delivery.js';
+import { adminDb } from './firebase-admin.js';
+import { verifyUser } from './verify-user.js';
+import { verifyAdmin } from './verify-admin.js';
+import { findFashionDeliveryArea, getFashionDeliveryConfig } from './fashion-delivery.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {

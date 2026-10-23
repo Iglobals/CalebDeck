@@ -1,6 +1,14 @@
 {
     "rewrites": [
         {
+            "source": "/api/fashion-delivery-request",
+            "destination": "/api/fashion-delivery?route=request"
+        },
+        {
+            "source": "/api/verify-calebnet-payment",
+            "destination": "/api/calebnet?path=verify-payment"
+        },
+        {
             "source": "/api/calebnet/(.*)",
             "destination": "/api/calebnet?path=$1"
         },
