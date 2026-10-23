@@ -61,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const vertical = resolveOrderVertical(orderData);
         const isMartOrder = vertical === 'MART';
         const isFashionOrder = vertical === 'FASHION';
-        const { pricedItems } = isFashionOrder
+        const { pricedItems, serverTotal: serverFashionTotal, netDeliveryFee: serverFashionDeliveryFee } = isFashionOrder
             ? await calculateServerOrderTotal(db, orderData)
             : {};
 
@@ -261,6 +261,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             hostel: orderData.hostel || '',
             hostelName: orderData.hostelName || '',
             instructions: orderData.instructions || '',
+            customerType: orderData.customerType || (orderData.hostel ? 'STUDENT' : 'GENERAL'),
+            state: orderData.state || '',
+            city: orderData.city || '',
+            areaId: orderData.areaId || '',
+            areaName: orderData.areaName || '',
+            zoneName: orderData.zoneName || '',
+            streetAddress: orderData.streetAddress || orderData.address || '',
+            addressDetails: orderData.addressDetails || '',
             total: (isMartOrder || isFashionOrder) ? undefined : (orderData.total || 0),
             cafeteria: orderData.cafeteria || '',
             cafeteriaId: orderData.cafeteriaId || '',
@@ -294,9 +302,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.type = 'fashion';
             orderDoc.orderType = 'FASHION';
             orderDoc.items = pricedItems || orderData.items || [];
-            orderDoc.totalAmount = orderData.totalAmount || orderData.total || 0;
+            orderDoc.totalAmount = serverFashionTotal || orderData.totalAmount || orderData.total || 0;
             orderDoc.subtotal = orderData.subtotal || 0;
-            orderDoc.deliveryFee = orderData.deliveryFee || 1500;
+            orderDoc.deliveryFee = serverFashionDeliveryFee || orderData.deliveryFee || 1500;
             orderDoc.fashionBatchName = orderData.fashionBatchName || null;
             orderDoc.expectedArrivalDate = orderData.expectedArrivalDate || null;
             orderDoc.fashionBatchStatus = orderData.fashionBatchStatus || null;

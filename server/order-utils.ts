@@ -1,6 +1,7 @@
 import type { firestore } from 'firebase-admin';
 import { resolveOrderVertical } from '../src/services/orderVertical.js';
 import { isPremiumHostel as sharedIsPremiumHostel } from '../src/services/orderFees.js';
+import { findFashionDeliveryArea, normaliseFashionDeliveryConfig } from './fashion-delivery.js';
 
 const FOOD_PLATE_FEE_FALLBACKS = { foodDeliveryFee: 750, foodGroupDeliveryFee: 580, premiumDeliveryFee: 1250 };
 
@@ -33,9 +34,15 @@ export async function calculateServerOrderTotal(
 
     if (isFashionOrder) {
         // Fashion is a flat per-order fee — it never inherits Food's premium hostel rate.
-        const fashionDeliveryFee = Number(orderData?.deliveryFee) > 0
-            ? Number(orderData.deliveryFee)
-            : (platformSettings!.fashionDeliveryFee || 1500);
+        let fashionDeliveryFee = Number(platformSettings!.fashionDeliveryFee) || 1500;
+        if (orderData?.customerType === 'GENERAL') {
+            const deliveryConfig = normaliseFashionDeliveryConfig(platformSettings?.fashionDeliveryConfig);
+            if (!deliveryConfig.nonStudentDeliveryEnabled || !deliveryConfig.pilotEnabled) throw new Error('GENERAL_FASHION_DELIVERY_DISABLED');
+            const match = findFashionDeliveryArea(deliveryConfig, String(orderData?.areaId || ''));
+            if (!match || !match.zone.enabled || !match.area.enabled) throw new Error('FASHION_DELIVERY_AREA_UNAVAILABLE');
+            if (match.area.pricingMode === 'RANGE') throw new Error('FASHION_DELIVERY_FEE_CONFIRMATION_REQUIRED');
+            fashionDeliveryFee = Number(match.area.fixedFee);
+        }
         const items = orderData?.items || [];
         let fashionTotal = 0;
         const pricedItems: any[] = [];

@@ -4,10 +4,12 @@ import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
-import { Settings, ShieldAlert, Store, Pizza, Clock, Wifi, Utensils, MessageSquare, Plus, Trash2, Edit3, ArrowUp, ArrowDown, Image as ImageIcon, Sparkles, Check, X, Gift } from 'lucide-react';
-import { subscribeToPlatformSettings, updatePlatformSettings, subscribeToFirstOrderDiscountClaims, PlatformSettings, PromoSlide, DEFAULT_PROMO_SLIDES, FirstOrderDiscountClaim } from '../../../services/db';
+import { Settings, ShieldAlert, Store, Pizza, Clock, Wifi, Utensils, MessageSquare, Plus, Trash2, Edit3, ArrowUp, ArrowDown, Image as ImageIcon, Sparkles, Check, X, Gift, Upload, Loader2 } from 'lucide-react';
+import { subscribeToPlatformSettings, updatePlatformSettings, subscribeToFirstOrderDiscountClaims, PlatformSettings, PromoSlide, DEFAULT_PROMO_SLIDES, FirstOrderDiscountClaim, FashionDeliveryConfig } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 import { FashionBatchConfig, DEFAULT_FASHION_BATCH_CONFIG } from '../../../services/fashionBatch';
+import { uploadMediaToCloudinary } from '../../../services/cloudinary';
+import { auth } from '../../../services/firebase';
 
 const CLOSED_MESSAGES = {
   global: [
@@ -94,9 +96,17 @@ export default function AdminSettings() {
   const [editingSlideId, setEditingSlideId] = useState<string | null>(null);
   const [isAddingSlide, setIsAddingSlide] = useState(false);
   const [savingPromos, setSavingPromos] = useState(false);
+  const [uploadingBannerImage, setUploadingBannerImage] = useState(false);
+  const [bannerUploadProgress, setBannerUploadProgress] = useState(0);
 
   // Fashion Batch State
   const [fashionBatchConfig, setFashionBatchConfig] = useState<FashionBatchConfig>(DEFAULT_FASHION_BATCH_CONFIG);
+  const [fashionDeliveryConfig, setFashionDeliveryConfig] = useState<FashionDeliveryConfig>({ nonStudentDeliveryEnabled: false, pilotEnabled: false, zones: [] });
+  const [savingFashionDelivery, setSavingFashionDelivery] = useState(false);
+  const [seedingFashionDelivery, setSeedingFashionDelivery] = useState(false);
+  const [fashionDeliveryRequests, setFashionDeliveryRequests] = useState<any[]>([]);
+  const [fashionDeliveryRequests, setFashionDeliveryRequests] = useState<any[]>([]);
+  const [loadingFashionRequests, setLoadingFashionRequests] = useState(false);
 
   const createEmptySlide = (): PromoSlide => ({
     id: `slide-${Date.now()}`,
@@ -126,6 +136,7 @@ export default function AdminSettings() {
       setCalebNetMessage(data.calebNetClosedMessage || DEFAULT_MESSAGES.calebNet);
       setPromoSlides(data.promoSlides || DEFAULT_PROMO_SLIDES);
       if (data.fashionBatchConfig) setFashionBatchConfig(data.fashionBatchConfig);
+      if (data.fashionDeliveryConfig) setFashionDeliveryConfig(data.fashionDeliveryConfig);
       
       setFees({
         foodDeliveryFee: data.foodDeliveryFee || 0,
@@ -149,8 +160,40 @@ export default function AdminSettings() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoadingFashionRequests(true);
+    (async () => {
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) return;
+        const response = await fetch('/api/fashion-delivery?view=requests', { headers: { Authorization: `Bearer ${token}` } });
+        const data = response.ok ? await response.json() : null;
+        if (!cancelled && data?.requests) setFashionDeliveryRequests(data.requests);
+      } catch { /* settings page remains usable when there are no pending requests */ }
+      finally { if (!cancelled) setLoadingFashionRequests(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [platformSettings?.fashionDeliveryConfig?.seedVersion]);
+
+  useEffect(() => {
     const unsub = subscribeToFirstOrderDiscountClaims(setFirstOrderClaims);
     return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) return;
+        const response = await fetch('/api/fashion-delivery-request', { headers: { Authorization: `Bearer ${token}` } });
+        if (response.ok) {
+          const data = await response.json();
+          if (!cancelled) setFashionDeliveryRequests(data.requests || []);
+        }
+      } catch { /* request management is supplementary to settings */ }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const isDark = adminTheme === 'dark';
@@ -352,6 +395,24 @@ export default function AdminSettings() {
     setEditingSlideId(null);
   };
 
+  const handleBannerImageUpload = async (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Please choose an image file.');
+      return;
+    }
+    setUploadingBannerImage(true);
+    setBannerUploadProgress(0);
+    try {
+      const result = await uploadMediaToCloudinary(file, setBannerUploadProgress, { overwrite: false });
+      setSlideDraft(prev => ({ ...prev, bgImage: result.url }));
+    } catch (error: any) {
+      alert(error?.message || 'The banner image could not be uploaded. Please try again.');
+    } finally {
+      setUploadingBannerImage(false);
+    }
+  };
+
   const handleToggleIPizza = async () => {
     if (!confirm(`Are you sure you want to ${isIPizzaComingSoon ? 'OPEN' : 'CLOSE'} iPizza?`)) return;
     try {
@@ -407,6 +468,70 @@ export default function AdminSettings() {
       console.error('Failed to update fees:', err);
       alert('Failed to update fees.');
     }
+  };
+
+  const callFashionDeliveryApi = async (body: any) => {
+    const token = await auth.currentUser?.getIdToken();
+    const response = await fetch('/api/fashion-delivery', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify(body),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'Fashion delivery settings could not be updated.');
+    return data;
+  };
+
+  const handleSeedFashionDelivery = async () => {
+    if (!confirm('Create the initial Lagos Fashion delivery coverage from the approved price list? Delivery will remain off until you enable it.')) return;
+    setSeedingFashionDelivery(true);
+    try {
+      const data = await callFashionDeliveryApi({ action: 'seed' });
+      setFashionDeliveryConfig(data.config);
+      alert('Initial Lagos delivery coverage was added. Review it before enabling non-student delivery.');
+    } catch (error: any) {
+      alert(error.message || 'The initial delivery coverage could not be added.');
+    } finally { setSeedingFashionDelivery(false); }
+  };
+
+  const handleSaveFashionDelivery = async () => {
+    setSavingFashionDelivery(true);
+    try {
+      const data = await callFashionDeliveryApi({ action: 'save', config: fashionDeliveryConfig });
+      setFashionDeliveryConfig(data.config);
+      alert('Fashion delivery settings saved.');
+    } catch (error: any) {
+      alert(error.message || 'Fashion delivery settings could not be saved.');
+    } finally { setSavingFashionDelivery(false); }
+  };
+
+  const handleConfirmFashionDeliveryRequest = async (request: any) => {
+    const suggested = Math.round((Number(request.estimatedMinFee) + Number(request.estimatedMaxFee)) / 2);
+    const entered = window.prompt(`Confirm a delivery fee between ₦${Number(request.estimatedMinFee).toLocaleString()} and ₦${Number(request.estimatedMaxFee).toLocaleString()}.`, String(suggested));
+    if (entered === null) return;
+    const fee = Number(entered);
+    if (!Number.isFinite(fee)) return alert('Please enter a valid delivery fee.');
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const response = await fetch('/api/fashion-delivery-request', { method: 'PATCH', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ requestId: request.id, confirmedFee: fee }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'The delivery fee could not be confirmed.');
+      if (data.success) setFashionDeliveryRequests(prev => prev.filter(item => item.id !== request.id));
+    } catch (error: any) { alert(error.message || 'The delivery fee could not be confirmed.'); }
+  };
+
+  const handleConfirmFashionRequest = async (request: any) => {
+    const value = window.prompt(`Confirm a delivery fee between ₦${Number(request.estimatedMinFee).toLocaleString()} and ₦${Number(request.estimatedMaxFee).toLocaleString()}.`);
+    if (value === null) return;
+    try {
+      await callFashionDeliveryApi({ action: 'confirm-request', requestId: request.id, confirmedFee: Number(value) });
+      setFashionDeliveryRequests(prev => prev.filter(item => item.id !== request.id));
+      alert('The delivery fee is ready for the customer to review.');
+    } catch (error: any) { alert(error.message || 'The delivery fee could not be confirmed.'); }
+  };
+
+  const updateFashionZone = (zoneIndex: number, patch: Partial<FashionDeliveryConfig['zones'][number]>) => {
+    setFashionDeliveryConfig(prev => ({ ...prev, zones: prev.zones.map((zone, index) => index === zoneIndex ? { ...zone, ...patch } : zone) }));
   };
 
   const handleSaveFirstOrderDiscount = async () => {
@@ -1056,6 +1181,85 @@ export default function AdminSettings() {
           </Card>
         </div>
 
+        {/* Fashion Delivery Settings */}
+        <div className="mt-10">
+          <Card className="p-6 md:p-8 border-l-4 border-l-orange-500 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+              <div>
+                <h2 className={`text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>Fashion Delivery Coverage</h2>
+                <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Manage approved Lagos areas and the delivery fee shown before payment. Coverage is off until you enable it.</p>
+              </div>
+              <Badge className={fashionDeliveryConfig.nonStudentDeliveryEnabled && fashionDeliveryConfig.pilotEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}>
+                {fashionDeliveryConfig.nonStudentDeliveryEnabled && fashionDeliveryConfig.pilotEnabled ? 'Pilot active' : 'Pilot off'}
+              </Badge>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+              <label className={`flex items-center gap-3 rounded-xl border p-4 text-sm font-bold ${isDark ? 'border-gray-700 text-white' : 'border-gray-200 text-gray-800'}`}>
+                <input type="checkbox" checked={fashionDeliveryConfig.nonStudentDeliveryEnabled} onChange={(e) => setFashionDeliveryConfig(prev => ({ ...prev, nonStudentDeliveryEnabled: e.target.checked }))} />
+                Allow non-student Fashion delivery
+              </label>
+              <label className={`flex items-center gap-3 rounded-xl border p-4 text-sm font-bold ${isDark ? 'border-gray-700 text-white' : 'border-gray-200 text-gray-800'}`}>
+                <input type="checkbox" checked={fashionDeliveryConfig.pilotEnabled} onChange={(e) => setFashionDeliveryConfig(prev => ({ ...prev, pilotEnabled: e.target.checked }))} />
+                Enable the approved delivery pilot
+              </label>
+            </div>
+            {fashionDeliveryConfig.seedVersion ? (
+              <p className={`mb-5 rounded-xl px-4 py-3 text-sm ${isDark ? 'bg-emerald-900/20 text-emerald-300' : 'bg-emerald-50 text-emerald-700'}`}>Initial coverage is seeded. You can edit these entries and save your changes; the seed will not replace them.</p>
+            ) : (
+              <Button variant="outline" onClick={handleSeedFashionDelivery} disabled={seedingFashionDelivery} className="mb-6">
+                {seedingFashionDelivery ? 'Adding initial coverage...' : 'Seed Initial Lagos Delivery Zones'}
+              </Button>
+            )}
+            {(loadingFashionRequests || fashionDeliveryRequests.length > 0) && <div className={`mb-6 rounded-2xl border p-4 ${isDark ? 'border-amber-800 bg-amber-900/10' : 'border-amber-200 bg-amber-50'}`}>
+              <h3 className="font-black text-sm mb-3">Delivery fee requests awaiting review</h3>
+              {loadingFashionRequests ? <p className="text-sm text-muted-foreground">Loading requests...</p> : fashionDeliveryRequests.map(request => <div key={request.id} className="flex flex-col gap-2 border-t border-amber-200/60 py-3 text-sm lg:flex-row lg:items-center lg:justify-between"><div><p className="font-bold">{request.customerName} · {request.city}</p><p className="text-xs text-muted-foreground">{request.areaName} · ₦{Number(request.estimatedMinFee).toLocaleString()}–₦{Number(request.estimatedMaxFee).toLocaleString()}</p><p className="text-xs text-muted-foreground break-words">{request.streetAddress}</p></div><Button size="sm" variant="outline" onClick={() => handleConfirmFashionRequest(request)}>Confirm fee</Button></div>)}
+            </div>}
+            <div className="space-y-4 max-h-[620px] overflow-y-auto pr-1">
+              {fashionDeliveryConfig.zones.map((zone, zoneIndex) => (
+                <div key={zone.id} className={`rounded-2xl border p-4 ${isDark ? 'border-gray-700 bg-[#1A1A1A]' : 'border-gray-200 bg-gray-50'}`}>
+                  <div className="flex flex-col sm:flex-row gap-3 sm:items-center mb-3">
+                    <input value={zone.name} onChange={(e) => updateFashionZone(zoneIndex, { name: e.target.value })} className={`flex-1 rounded-lg border px-3 py-2 text-sm font-bold ${isDark ? 'bg-[#2A2A2A] border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`} />
+                    <label className="flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={zone.enabled} onChange={(e) => updateFashionZone(zoneIndex, { enabled: e.target.checked })} /> Available</label>
+                  </div>
+                  <div className="space-y-2">
+                    {zone.areas.map((deliveryArea, areaIndex) => (
+                      <div key={deliveryArea.id} className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_110px_110px_110px_auto] gap-2 items-center">
+                        <input value={deliveryArea.name} onChange={(e) => setFashionDeliveryConfig(prev => ({ ...prev, zones: prev.zones.map((z, zi) => zi !== zoneIndex ? z : { ...z, areas: z.areas.map((a, ai) => ai === areaIndex ? { ...a, name: e.target.value } : a) }) }))} className={`min-w-0 rounded-lg border px-3 py-2 text-xs ${isDark ? 'bg-[#2A2A2A] border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`} />
+                        <select value={deliveryArea.pricingMode} onChange={(e) => setFashionDeliveryConfig(prev => ({ ...prev, zones: prev.zones.map((z, zi) => zi !== zoneIndex ? z : { ...z, areas: z.areas.map((a, ai) => ai === areaIndex ? { ...a, pricingMode: e.target.value as 'FIXED' | 'RANGE' } : a) }) }))} className={`rounded-lg border px-2 py-2 text-xs ${isDark ? 'bg-[#2A2A2A] border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`}><option value="FIXED">Fixed fee</option><option value="RANGE">Fee range</option></select>
+                        {deliveryArea.pricingMode === 'FIXED' ? <input type="number" min="1" value={deliveryArea.fixedFee || ''} onChange={(e) => setFashionDeliveryConfig(prev => ({ ...prev, zones: prev.zones.map((z, zi) => zi !== zoneIndex ? z : { ...z, areas: z.areas.map((a, ai) => ai === areaIndex ? { ...a, fixedFee: Number(e.target.value) } : a) }) }))} placeholder="Fee" className={`rounded-lg border px-3 py-2 text-xs ${isDark ? 'bg-[#2A2A2A] border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`} /> : <input type="number" min="1" value={deliveryArea.minFee || ''} onChange={(e) => setFashionDeliveryConfig(prev => ({ ...prev, zones: prev.zones.map((z, zi) => zi !== zoneIndex ? z : { ...z, areas: z.areas.map((a, ai) => ai === areaIndex ? { ...a, minFee: Number(e.target.value) } : a) }) }))} placeholder="Min" className={`rounded-lg border px-3 py-2 text-xs ${isDark ? 'bg-[#2A2A2A] border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`} />}
+                        {deliveryArea.pricingMode === 'RANGE' ? <input type="number" min="1" value={deliveryArea.maxFee || ''} onChange={(e) => setFashionDeliveryConfig(prev => ({ ...prev, zones: prev.zones.map((z, zi) => zi !== zoneIndex ? z : { ...z, areas: z.areas.map((a, ai) => ai === areaIndex ? { ...a, maxFee: Number(e.target.value) } : a) }) }))} placeholder="Max" className={`rounded-lg border px-3 py-2 text-xs ${isDark ? 'bg-[#2A2A2A] border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`} /> : <span className="hidden lg:block" />}
+                        <label className="flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={deliveryArea.enabled} onChange={(e) => setFashionDeliveryConfig(prev => ({ ...prev, zones: prev.zones.map((z, zi) => zi !== zoneIndex ? z : { ...z, areas: z.areas.map((a, ai) => ai === areaIndex ? { ...a, enabled: e.target.checked } : a) }) }))} /> On</label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {fashionDeliveryConfig.zones.length === 0 && <p className="text-sm text-muted-foreground">Seed the approved list to begin managing delivery coverage.</p>}
+            </div>
+            {fashionDeliveryConfig.zones.length > 0 && <Button variant="primary" onClick={handleSaveFashionDelivery} disabled={savingFashionDelivery} className="w-full mt-6 bg-orange-500 hover:bg-orange-600 text-white">{savingFashionDelivery ? 'Saving delivery settings...' : 'Save Fashion Delivery Settings'}</Button>}
+          </Card>
+        </div>
+
+        {fashionDeliveryRequests.length > 0 && <div className="mt-10">
+          <Card className="p-6 md:p-8 border-l-4 border-l-sky-500 shadow-xl">
+            <h2 className={`text-xl font-black mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>Delivery Fee Requests</h2>
+            <p className={`text-sm mb-5 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Review ranged-fee Fashion requests before the customer pays.</p>
+            <div className="space-y-3">
+              {fashionDeliveryRequests.map((request) => <div key={request.id} className={`rounded-xl border p-4 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div className="min-w-0 text-sm">
+                    <p className="font-bold">{request.customerName} · {request.phone}</p>
+                    <p className="text-muted-foreground">{request.areaName} · {request.city}</p>
+                    <p className="text-muted-foreground truncate">{request.streetAddress}</p>
+                    <p className="font-medium mt-1">Estimated fee: ₦{Number(request.estimatedMinFee).toLocaleString()}–₦{Number(request.estimatedMaxFee).toLocaleString()}</p>
+                  </div>
+                  <Button variant="primary" className="bg-sky-600 hover:bg-sky-700 text-white" onClick={() => handleConfirmFashionDeliveryRequest(request)}>Confirm fee</Button>
+                </div>
+              </div>)}
+            </div>
+          </Card>
+        </div>}
+
         {/* First Order Discount */}
         <div className="mt-10">
           <Card className="p-6 md:p-8 border-l-4 border-l-amber-500 shadow-xl">
@@ -1354,17 +1558,38 @@ export default function AdminSettings() {
                 />
               </div>
 
-              {/* Link & Button Text */}
+              {/* Destination & Button Text */}
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Target Route Link</label>
-                  <input
-                    type="text"
-                    value={slideDraft.link}
-                    onChange={(e) => setSlideDraft(prev => ({ ...prev, link: e.target.value }))}
-                    placeholder="e.g. /mart, /fashion, /calebnet"
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Banner Destination</label>
+                  <select
+                    value={slideDraft.destination || 'CUSTOM'}
+                    onChange={(e) => {
+                      const destination = e.target.value as PromoSlide['destination'];
+                      const links: Record<string, string> = {
+                        FOOD: '/cafeteria', MART: '/mart', FASHION: '/fashion', CALEBNET: '/calebnet',
+                        CAMPUS_BRAND: '/#campus-brand-section'
+                      };
+                      setSlideDraft(prev => ({ ...prev, destination, link: links[destination || ''] || prev.link }));
+                    }}
                     className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-semibold outline-none focus:ring-2 focus:ring-[#7C3AED] ${isDark ? 'bg-[#2A2A2A] border-gray-700' : 'bg-gray-50 border-gray-200'}`}
-                  />
+                  >
+                    <option value="FOOD">Food and cafeterias</option>
+                    <option value="MART">CalebDeck Mart</option>
+                    <option value="FASHION">CalebDeck Fashion</option>
+                    <option value="CALEBNET">CalebNet</option>
+                    <option value="CAMPUS_BRAND">Campus Brand section</option>
+                    <option value="CUSTOM">Custom link</option>
+                  </select>
+                  {(slideDraft.destination || 'CUSTOM') === 'CUSTOM' && (
+                    <input
+                      type="text"
+                      value={slideDraft.link}
+                      onChange={(e) => setSlideDraft(prev => ({ ...prev, link: e.target.value }))}
+                      placeholder="e.g. /mart or https://..."
+                      className={`mt-2 w-full px-3.5 py-2.5 rounded-xl border text-sm font-semibold outline-none focus:ring-2 focus:ring-[#7C3AED] ${isDark ? 'bg-[#2A2A2A] border-gray-700' : 'bg-gray-50 border-gray-200'}`}
+                    />
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Button Label</label>
@@ -1403,14 +1628,37 @@ export default function AdminSettings() {
                 />
               </div>
 
-              {/* Logo Asset URL */}
+              {/* Banner image */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Brand Logo / Image Overlay URL (Optional)</label>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-2 opacity-70">Banner Image</label>
+                <div className="rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 p-3">
+                  {slideDraft.bgImage ? (
+                    <div className="relative overflow-hidden rounded-xl bg-muted">
+                      <img src={slideDraft.bgImage} alt="Banner preview" className="h-32 w-full object-cover" />
+                      <button type="button" onClick={() => setSlideDraft(prev => ({ ...prev, bgImage: undefined }))} className="absolute right-2 top-2 rounded-lg bg-black/70 p-2 text-white" aria-label="Remove banner image">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="py-4 text-center text-sm text-muted-foreground">No banner image selected</p>
+                  )}
+                  <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 text-sm font-bold hover:bg-muted">
+                    {uploadingBannerImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                    {uploadingBannerImage ? `Uploading ${bannerUploadProgress}%` : slideDraft.bgImage ? 'Replace image' : 'Choose image'}
+                    <input type="file" accept="image/*" className="hidden" disabled={uploadingBannerImage} onChange={(e) => void handleBannerImageUpload(e.target.files?.[0])} />
+                  </label>
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">Images are stored securely and remain available after deployment.</p>
+              </div>
+
+              {/* Optional legacy logo overlay */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Brand Logo URL (Optional)</label>
                 <input
                   type="text"
                   value={slideDraft.logoUrl || ''}
                   onChange={(e) => setSlideDraft(prev => ({ ...prev, logoUrl: e.target.value }))}
-                  placeholder="e.g. /avaters/calebdeck-business-logo-transparent.png"
+                  placeholder="Optional legacy logo path"
                   className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-semibold outline-none focus:ring-2 focus:ring-[#7C3AED] ${isDark ? 'bg-[#2A2A2A] border-gray-700' : 'bg-gray-50 border-gray-200'}`}
                 />
               </div>
