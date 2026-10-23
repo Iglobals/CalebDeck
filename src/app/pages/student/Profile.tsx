@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router';
 import { useAuth } from '../../../context/AuthContext';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
-import { getActiveHostels, Hostel } from '../../../services/db';
+import { getActiveHostels, Hostel, FashionDeliveryConfig } from '../../../services/db';
 import { requestNotificationPermissionAndSaveToken } from '../../../services/messaging';
 import { Button } from '../../components/design-system/Button';
 import { Card } from '../../components/design-system/Card';
@@ -20,6 +20,12 @@ interface UserProfile {
   hostel: string;
   calebNetNumber: string;
   deliveryNotes: string;
+  fashionDeliveryEnabled: boolean;
+  fashionDeliveryState: string;
+  fashionDeliveryCity: string;
+  fashionDeliveryAreaId: string;
+  fashionDeliveryAddress: string;
+  fashionDeliveryAddressDetails: string;
   newsletterOptIn: boolean;
   productsUsed: string[];
   avatar?: string;
@@ -38,6 +44,12 @@ export default function Profile() {
     hostel: user?.hostel || '',
     calebNetNumber: user?.calebNetNumber || '',
     deliveryNotes: user?.deliveryNotes || '',
+    fashionDeliveryEnabled: user?.fashionDeliveryEnabled === true,
+    fashionDeliveryState: user?.fashionDeliveryState || 'Lagos',
+    fashionDeliveryCity: user?.fashionDeliveryCity || '',
+    fashionDeliveryAreaId: user?.fashionDeliveryAreaId || '',
+    fashionDeliveryAddress: user?.fashionDeliveryAddress || '',
+    fashionDeliveryAddressDetails: user?.fashionDeliveryAddressDetails || '',
     newsletterOptIn: user?.newsletterOptIn !== false,
     productsUsed: user?.productsUsed || [],
     avatar: user?.avatar || '',
@@ -48,6 +60,7 @@ export default function Profile() {
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [fashionDeliveryConfig, setFashionDeliveryConfig] = useState<FashionDeliveryConfig | null>(null);
 
   // OS detection for PWA install instructions
   const [isIOS, setIsIOS] = useState(false);
@@ -122,6 +135,11 @@ export default function Profile() {
       try {
         const activeHostels = await getActiveHostels();
         setHostels(activeHostels);
+        const deliveryResponse = await fetch('/api/fashion-delivery');
+        if (deliveryResponse.ok) {
+          const deliveryData = await deliveryResponse.json();
+          if (deliveryData?.config) setFashionDeliveryConfig(deliveryData.config);
+        }
       } catch (err) {
         toast.error('Could not load profile data');
       } finally {
@@ -153,6 +171,12 @@ export default function Profile() {
         hostel: profile.hostel,
         calebNetNumber: profile.calebNetNumber,
         deliveryNotes: profile.deliveryNotes,
+        fashionDeliveryEnabled: profile.fashionDeliveryEnabled,
+        fashionDeliveryState: profile.fashionDeliveryState,
+        fashionDeliveryCity: profile.fashionDeliveryCity,
+        fashionDeliveryAreaId: profile.fashionDeliveryAreaId,
+        fashionDeliveryAddress: profile.fashionDeliveryAddress,
+        fashionDeliveryAddressDetails: profile.fashionDeliveryAddressDetails,
         newsletterOptIn: profile.newsletterOptIn,
         avatar: profile.avatar || ''
       });
@@ -343,6 +367,44 @@ export default function Profile() {
                   ]}
                   className="bg-background"
                 />
+
+                <div className="rounded-2xl border border-border bg-muted/20 p-4 sm:p-5">
+                  <label className="flex cursor-pointer items-start gap-3">
+                    <input
+                      type="checkbox"
+                      name="fashionDeliveryEnabled"
+                      checked={profile.fashionDeliveryEnabled}
+                      onChange={handleChange}
+                      className="mt-1 h-4 w-4 accent-primary"
+                    />
+                    <span>
+                      <span className="block font-bold">Save Lagos delivery details</span>
+                      <span className="mt-1 block text-sm text-muted-foreground">Use these details to speed up Fashion orders delivered outside campus.</span>
+                    </span>
+                  </label>
+
+                  {profile.fashionDeliveryEnabled && (
+                    <div className="mt-5 space-y-4 border-t border-border pt-5">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <Input label="State" name="fashionDeliveryState" value={profile.fashionDeliveryState} onChange={handleChange} className="bg-background" />
+                        <Input label="City" name="fashionDeliveryCity" value={profile.fashionDeliveryCity} onChange={handleChange} placeholder="e.g. Lagos Island" className="bg-background" />
+                      </div>
+                      <Select
+                        label="Delivery area"
+                        name="fashionDeliveryAreaId"
+                        value={profile.fashionDeliveryAreaId}
+                        onChange={handleChange}
+                        options={[
+                          { value: '', label: fashionDeliveryConfig?.zones.length ? 'Select your delivery area' : 'Delivery areas are being prepared' },
+                          ...(fashionDeliveryConfig?.zones || []).filter(zone => zone.enabled).flatMap(zone => zone.areas.filter(area => area.enabled).map(area => ({ value: area.id, label: `${area.name} · ${area.pricingMode === 'FIXED' ? `₦${Number(area.fixedFee).toLocaleString()}` : `₦${Number(area.minFee).toLocaleString()}–₦${Number(area.maxFee).toLocaleString()}`}` })))
+                        ]}
+                        className="bg-background"
+                      />
+                      <Textarea label="Delivery address" name="fashionDeliveryAddress" value={profile.fashionDeliveryAddress} onChange={handleChange} placeholder="House number, street, estate or landmark" rows={2} className="bg-background" />
+                      <Textarea label="Address details (Optional)" name="fashionDeliveryAddressDetails" value={profile.fashionDeliveryAddressDetails} onChange={handleChange} placeholder="Gate instructions or a nearby landmark" rows={2} className="bg-background" />
+                    </div>
+                  )}
+                </div>
 
                 <Textarea
                   label="Saved Delivery Notes (Optional)"

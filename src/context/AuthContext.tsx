@@ -16,6 +16,12 @@ interface AppUser extends User {
     hostel?: string;
     calebNetNumber?: string;
     deliveryNotes?: string;
+    fashionDeliveryEnabled?: boolean;
+    fashionDeliveryState?: string;
+    fashionDeliveryCity?: string;
+    fashionDeliveryAreaId?: string;
+    fashionDeliveryAddress?: string;
+    fashionDeliveryAddressDetails?: string;
     newsletterOptIn?: boolean;
     productsUsed?: string[];
     avatar?: string;
@@ -107,6 +113,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             hostel: userData.hostel,
                             calebNetNumber: userData.calebNetNumber,
                             deliveryNotes: userData.deliveryNotes,
+                            fashionDeliveryEnabled: userData.fashionDeliveryEnabled === true,
+                            fashionDeliveryState: userData.fashionDeliveryState,
+                            fashionDeliveryCity: userData.fashionDeliveryCity,
+                            fashionDeliveryAreaId: userData.fashionDeliveryAreaId,
+                            fashionDeliveryAddress: userData.fashionDeliveryAddress,
+                            fashionDeliveryAddressDetails: userData.fashionDeliveryAddressDetails,
                             newsletterOptIn: userData.newsletterOptIn !== false,
                             productsUsed: userData.productsUsed || [],
                             avatar: userData.avatar,

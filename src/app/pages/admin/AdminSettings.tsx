@@ -4,7 +4,7 @@ import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
-import { Settings, ShieldAlert, Store, Pizza, Clock, Wifi, Utensils, MessageSquare, Plus, Trash2, Edit3, ArrowUp, ArrowDown, Image as ImageIcon, Sparkles, Check, X, Gift, Upload, Loader2 } from 'lucide-react';
+import { Settings, ShieldAlert, Store, Pizza, Clock, Wifi, Utensils, MessageSquare, Plus, Trash2, Edit3, ArrowUp, ArrowDown, Image as ImageIcon, Sparkles, Check, X, Gift, Upload, Loader2, ChevronDown } from 'lucide-react';
 import { subscribeToPlatformSettings, updatePlatformSettings, subscribeToFirstOrderDiscountClaims, PlatformSettings, PromoSlide, DEFAULT_PROMO_SLIDES, FirstOrderDiscountClaim, FashionDeliveryConfig } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
 import { FashionBatchConfig, DEFAULT_FASHION_BATCH_CONFIG } from '../../../services/fashionBatch';
@@ -102,6 +102,8 @@ export default function AdminSettings() {
   // Fashion Batch State
   const [fashionBatchConfig, setFashionBatchConfig] = useState<FashionBatchConfig>(DEFAULT_FASHION_BATCH_CONFIG);
   const [fashionDeliveryConfig, setFashionDeliveryConfig] = useState<FashionDeliveryConfig>({ nonStudentDeliveryEnabled: false, pilotEnabled: false, zones: [] });
+  const [savedFashionDeliveryConfig, setSavedFashionDeliveryConfig] = useState<FashionDeliveryConfig>({ nonStudentDeliveryEnabled: false, pilotEnabled: false, zones: [] });
+  const [fashionCoverageOpen, setFashionCoverageOpen] = useState(false);
   const [savingFashionDelivery, setSavingFashionDelivery] = useState(false);
   const [seedingFashionDelivery, setSeedingFashionDelivery] = useState(false);
   const [fashionDeliveryRequests, setFashionDeliveryRequests] = useState<any[]>([]);
@@ -135,7 +137,10 @@ export default function AdminSettings() {
       setCalebNetMessage(data.calebNetClosedMessage || DEFAULT_MESSAGES.calebNet);
       setPromoSlides(data.promoSlides || DEFAULT_PROMO_SLIDES);
       if (data.fashionBatchConfig) setFashionBatchConfig(data.fashionBatchConfig);
-      if (data.fashionDeliveryConfig) setFashionDeliveryConfig(data.fashionDeliveryConfig);
+      if (data.fashionDeliveryConfig) {
+        setFashionDeliveryConfig(data.fashionDeliveryConfig);
+        setSavedFashionDeliveryConfig(data.fashionDeliveryConfig);
+      }
       
       setFees({
         foodDeliveryFee: data.foodDeliveryFee || 0,
@@ -471,6 +476,8 @@ export default function AdminSettings() {
     try {
       const data = await callFashionDeliveryApi({ action: 'seed' });
       setFashionDeliveryConfig(data.config);
+      setSavedFashionDeliveryConfig(data.config);
+      setFashionCoverageOpen(true);
       alert('Initial Lagos delivery coverage was added. Review it before enabling non-student delivery.');
     } catch (error: any) {
       alert(error.message || 'The initial delivery coverage could not be added.');
@@ -482,6 +489,8 @@ export default function AdminSettings() {
     try {
       const data = await callFashionDeliveryApi({ action: 'save', config: fashionDeliveryConfig });
       setFashionDeliveryConfig(data.config);
+      setSavedFashionDeliveryConfig(data.config);
+      setFashionCoverageOpen(false);
       alert('Fashion delivery settings saved.');
     } catch (error: any) {
       alert(error.message || 'Fashion delivery settings could not be saved.');
@@ -501,6 +510,8 @@ export default function AdminSettings() {
   const updateFashionZone = (zoneIndex: number, patch: Partial<FashionDeliveryConfig['zones'][number]>) => {
     setFashionDeliveryConfig(prev => ({ ...prev, zones: prev.zones.map((zone, index) => index === zoneIndex ? { ...zone, ...patch } : zone) }));
   };
+
+  const fashionDeliveryHasChanges = JSON.stringify(fashionDeliveryConfig) !== JSON.stringify(savedFashionDeliveryConfig);
 
   const handleSaveFirstOrderDiscount = async () => {
     const percentOff = Math.min(100, Math.max(1, Math.round(Number(firstOrderDiscount.percentOff) || 0)));
@@ -1155,10 +1166,10 @@ export default function AdminSettings() {
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
               <div>
                 <h2 className={`text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>Fashion Delivery Coverage</h2>
-                <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Manage approved Lagos areas and the delivery fee shown before payment. Coverage is off until you enable it.</p>
+                <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Manage Lagos areas and delivery fees for customers outside campus.</p>
               </div>
               <Badge className={fashionDeliveryConfig.nonStudentDeliveryEnabled && fashionDeliveryConfig.pilotEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}>
-                {fashionDeliveryConfig.nonStudentDeliveryEnabled && fashionDeliveryConfig.pilotEnabled ? 'Pilot active' : 'Pilot off'}
+                {fashionDeliveryConfig.nonStudentDeliveryEnabled && fashionDeliveryConfig.pilotEnabled ? 'Lagos delivery active' : 'Lagos delivery off'}
               </Badge>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
@@ -1168,7 +1179,7 @@ export default function AdminSettings() {
               </label>
               <label className={`flex items-center gap-3 rounded-xl border p-4 text-sm font-bold ${isDark ? 'border-gray-700 text-white' : 'border-gray-200 text-gray-800'}`}>
                 <input type="checkbox" checked={fashionDeliveryConfig.pilotEnabled} onChange={(e) => setFashionDeliveryConfig(prev => ({ ...prev, pilotEnabled: e.target.checked }))} />
-                Enable the approved delivery pilot
+                Make Lagos delivery available to customers
               </label>
             </div>
             {fashionDeliveryConfig.seedVersion ? (
@@ -1182,7 +1193,15 @@ export default function AdminSettings() {
               <h3 className="font-black text-sm mb-3">Delivery fee requests awaiting review</h3>
               {loadingFashionRequests ? <p className="text-sm text-muted-foreground">Loading requests...</p> : fashionDeliveryRequests.map(request => <div key={request.id} className="flex flex-col gap-2 border-t border-amber-200/60 py-3 text-sm lg:flex-row lg:items-center lg:justify-between"><div><p className="font-bold">{request.customerName} · {request.city}</p><p className="text-xs text-muted-foreground">{request.areaName} · ₦{Number(request.estimatedMinFee).toLocaleString()}–₦{Number(request.estimatedMaxFee).toLocaleString()}</p><p className="text-xs text-muted-foreground break-words">{request.streetAddress}</p></div><Button size="sm" variant="outline" onClick={() => handleConfirmFashionRequest(request)}>Confirm fee</Button></div>)}
             </div>}
-            <div className="space-y-4 max-h-[620px] overflow-y-auto pr-1">
+            <div className={`rounded-2xl border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+              <button type="button" onClick={() => setFashionCoverageOpen(open => !open)} className={`flex w-full items-center justify-between gap-4 px-4 py-4 text-left ${isDark ? 'text-white' : 'text-gray-900'}`} aria-expanded={fashionCoverageOpen}>
+                <span>
+                  <span className="block font-black">Lagos locations and fees</span>
+                  <span className="mt-1 block text-xs font-medium text-muted-foreground">{fashionDeliveryConfig.zones.length} coverage zones configured</span>
+                </span>
+                <ChevronDown className={`h-5 w-5 transition-transform ${fashionCoverageOpen ? 'rotate-180' : ''}`} />
+              </button>
+            {fashionCoverageOpen && <div className="space-y-4 border-t border-inherit p-4 max-h-[620px] overflow-y-auto">
               {fashionDeliveryConfig.zones.map((zone, zoneIndex) => (
                 <div key={zone.id} className={`rounded-2xl border p-4 ${isDark ? 'border-gray-700 bg-[#1A1A1A]' : 'border-gray-200 bg-gray-50'}`}>
                   <div className="flex flex-col sm:flex-row gap-3 sm:items-center mb-3">
@@ -1204,7 +1223,9 @@ export default function AdminSettings() {
               ))}
               {fashionDeliveryConfig.zones.length === 0 && <p className="text-sm text-muted-foreground">Seed the approved list to begin managing delivery coverage.</p>}
             </div>
-            {fashionDeliveryConfig.zones.length > 0 && <Button variant="primary" onClick={handleSaveFashionDelivery} disabled={savingFashionDelivery} className="w-full mt-6 bg-orange-500 hover:bg-orange-600 text-white">{savingFashionDelivery ? 'Saving delivery settings...' : 'Save Fashion Delivery Settings'}</Button>}
+            }
+            </div>
+            {fashionDeliveryConfig.zones.length > 0 && <Button variant="primary" onClick={handleSaveFashionDelivery} disabled={savingFashionDelivery || !fashionDeliveryHasChanges} className={`w-full mt-6 ${fashionDeliveryHasChanges ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-muted text-muted-foreground'}`}>{savingFashionDelivery ? 'Saving delivery settings...' : fashionDeliveryHasChanges ? 'Save Fashion Delivery Settings' : 'Fashion Delivery Settings Saved'}</Button>}
           </Card>
         </div>
 
@@ -1614,7 +1635,8 @@ export default function AdminSettings() {
               {/* Live Card Preview */}
               <div className="pt-3 border-t border-gray-200 dark:border-gray-800">
                 <p className="text-xs font-bold uppercase tracking-wider mb-2 opacity-70">Live Preview</p>
-                <div className={`relative rounded-2xl overflow-hidden bg-gradient-to-r ${slideDraft.gradient || 'from-[#6D28D9] to-[#8B5CF6]'} text-white p-5 shadow-lg flex items-center min-h-[140px]`}>
+                  <div className={`relative rounded-2xl overflow-hidden bg-gradient-to-r ${slideDraft.gradient || 'from-[#6D28D9] to-[#8B5CF6]'} text-white p-5 shadow-lg flex items-center min-h-[140px]`}>
+                  {slideDraft.bgImage && <div className="absolute inset-0 bg-cover bg-center opacity-30" style={{ backgroundImage: `url(${slideDraft.bgImage})` }} />}
                   <div className="relative z-10 max-w-[70%]">
                     <span className="px-2.5 py-1 rounded-full bg-white/20 text-[10px] font-bold uppercase mb-2 inline-block">
                       {slideDraft.badge || 'BADGE'}
