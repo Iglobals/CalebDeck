@@ -3,8 +3,10 @@ import { adminDb } from '../server/firebase-admin.js';
 import { verifyAdmin } from '../server/verify-admin.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getFashionDeliveryConfig, normaliseFashionDeliveryConfig, seedFashionDeliveryConfig, validateFashionDeliveryConfig } from '../server/fashion-delivery.js';
+import fashionDeliveryRequestHandler from '../server/fashion-delivery-request.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.query?.route === 'request') return fashionDeliveryRequestHandler(req, res);
   try {
     const db = adminDb();
     if (req.method === 'GET') {

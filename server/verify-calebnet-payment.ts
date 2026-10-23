@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import axios from 'axios';
-import { adminDb } from '../server/firebase-admin.js';
+import { adminDb } from './firebase-admin.js';
 import {
     CalebNetNetwork,
     CalebNetType,
@@ -17,7 +17,7 @@ import {
     safePayload,
     setCors,
     updateProviderHealth,
-} from '../server/calebnet.js';
+} from './calebnet.js';
 
 const FALLBACK_AIRTIME_DISCOUNTS: Record<CalebNetNetwork, number> = {
     MTN: 3,
