@@ -575,6 +575,7 @@ export interface PromoSlide {
     bgImage?: string;
     logoUrl?: string;
     link: string;
+    destination?: 'FOOD' | 'MART' | 'FASHION' | 'CALEBNET' | 'CAMPUS_BRAND' | 'CUSTOM';
     buttonText: string;
     isActive?: boolean;
 }
@@ -674,6 +675,7 @@ export interface PlatformSettings {
       deliveryStartDay: number;
       deliveryEndDay: number;
     };
+    fashionDeliveryConfig?: FashionDeliveryConfig;
     // Promo Banners
     promoSlides?: PromoSlide[];
     // Launch promo: first N ICA food orders get % off delivery
@@ -682,6 +684,31 @@ export interface PlatformSettings {
     firstOrderDiscountMaxOrders?: number;
     firstOrderDiscountClaimedCount?: number;
     [key: string]: any;
+}
+
+export interface FashionDeliveryArea {
+    id: string;
+    name: string;
+    enabled: boolean;
+    pricingMode: 'FIXED' | 'RANGE';
+    fixedFee?: number;
+    minFee?: number;
+    maxFee?: number;
+}
+
+export interface FashionDeliveryZone {
+    id: string;
+    name: string;
+    enabled: boolean;
+    areas: FashionDeliveryArea[];
+}
+
+export interface FashionDeliveryConfig {
+    nonStudentDeliveryEnabled: boolean;
+    pilotEnabled: boolean;
+    seededAt?: any;
+    seedVersion?: string;
+    zones: FashionDeliveryZone[];
 }
 
 export const FIRST_ORDER_DISCOUNT_COLLECTION = 'first_order_discount_claims';

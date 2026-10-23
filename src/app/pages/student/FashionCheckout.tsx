@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../../../context/AuthContext';
 import { updateDoc, doc, arrayUnion } from 'firebase/firestore';
 import { useMartCart } from '../../../context/MartCartContext';
-import { getActiveHostels, Hostel, subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
+import { getActiveHostels, Hostel, subscribeToPlatformSettings, PlatformSettings, FashionDeliveryConfig } from '../../../services/db';
 import { verifyPayment } from '../../../services/functions';
 import { usePaystackPayment } from 'react-paystack';
 import { toast } from 'react-toastify';
@@ -20,6 +20,7 @@ import { FashionBatchPickerModal, SelectedFashionBatchInfo } from '../../compone
 import { PaymentSelector, PaymentMethod } from '../../components/student/PaymentSelector';
 import { BatchStatusBar } from '../../components/BatchStatusBar';
 import { BatchClock } from '../../components/BatchClock';
+import { auth } from '../../../services/firebase';
 
 export default function FashionCheckout() {
   const { items, subtotal, totalItems, clearCart } = useMartCart();
@@ -28,6 +29,7 @@ export default function FashionCheckout() {
   
   const [hostels, setHostels] = useState<Hostel[]>([]);
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+  const [fashionDeliveryConfig, setFashionDeliveryConfig] = useState<FashionDeliveryConfig | null>(null);
   const paymentProcessingRef = useRef(false);
   const paymentRef = useRef((new Date()).getTime().toString());
 
@@ -35,8 +37,9 @@ export default function FashionCheckout() {
     fullName: user?.fullName || user?.displayNameFromProfile || '',
     phone: user?.phone || '',
     hostel: user?.hostel || '',
-    instructions: ''
+    instructions: '', state: 'Lagos', city: '', areaId: '', address: '', addressDetails: ''
   });
+  const [customerType, setCustomerType] = useState<'STUDENT' | 'GENERAL'>(user?.icaSub ? 'STUDENT' : 'GENERAL');
   const [femaleHostelAgreement, setFemaleHostelAgreement] = useState(false);
   const [saveAsDefault, setSaveAsDefault] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PAYSTACK');
@@ -44,7 +47,10 @@ export default function FashionCheckout() {
 
   const selectedHostel = hostels.find(h => h.id === formData.hostel);
   const isFemaleHostelSelected = isPremiumHostel(formData.hostel, platformSettings);
-  const FASHION_DELIVERY_FEE = platformSettings?.fashionDeliveryFee || 1500; // Batch fulfillment delivery fee
+  const selectedDelivery = fashionDeliveryConfig?.zones.flatMap(zone => zone.areas.map(area => ({ zone, area }))).find(item => item.area.id === formData.areaId);
+  const FASHION_DELIVERY_FEE = customerType === 'GENERAL'
+    ? (selectedDelivery?.area.pricingMode === 'FIXED' ? Number(selectedDelivery.area.fixedFee) : 0)
+    : (platformSettings?.fashionDeliveryFee || 1500);
   const isDev = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   const total = subtotal + FASHION_DELIVERY_FEE;
@@ -103,6 +109,7 @@ export default function FashionCheckout() {
     fetchHostels();
     
     const unsub = subscribeToPlatformSettings(setPlatformSettings);
+    fetch('/api/fashion-delivery').then(res => res.ok ? res.json() : null).then(data => { if (data?.config) setFashionDeliveryConfig(data.config); }).catch(() => undefined);
     return () => unsub();
   }, []);
 
@@ -139,6 +146,14 @@ export default function FashionCheckout() {
       hostel: formData.hostel,
       hostelName: selectedHostel?.name || '',
       instructions: formData.instructions,
+      customerType,
+      state: formData.state,
+      city: formData.city,
+      areaId: formData.areaId,
+      areaName: selectedDelivery?.area.name || '',
+      zoneName: selectedDelivery?.zone.name || '',
+      address: formData.address,
+      addressDetails: formData.addressDetails,
       femaleHostelAgreement,
       items: checkoutItems,
       deliveryFee: FASHION_DELIVERY_FEE,
@@ -166,6 +181,14 @@ export default function FashionCheckout() {
       hostel: formData.hostel,
       hostelName: selectedHostel?.name || formData.hostel,
       instructions: formData.instructions,
+      customerType,
+      state: formData.state,
+      city: formData.city,
+      areaId: formData.areaId,
+      areaName: selectedDelivery?.area.name || '',
+      zoneName: selectedDelivery?.zone.name || '',
+      address: formData.address,
+      addressDetails: formData.addressDetails,
       femaleHostelAgreement,
       orderType: 'FASHION',
       items: checkoutItems,
@@ -295,7 +318,7 @@ export default function FashionCheckout() {
     paymentProcessingRef.current = true;
     toast.loading("Paying from your wallet...");
     try {
-      const token = await user?.getIdToken();
+      const token = await auth.currentUser?.getIdToken();
       const res = await fetch('/api/wallet/pay-order', {
         method: 'POST',
         headers: {
@@ -336,11 +359,28 @@ export default function FashionCheckout() {
     }
   };
 
-  const handlePay = () => {
+  const handlePay = async () => {
     if (!formData.fullName.trim()) return toast.error('Please enter your full name');
     if (!formData.phone.trim()) return toast.error('Please enter your phone number');
     if (formData.phone.length < 10) return toast.error('Please enter a valid phone number');
-    if (!formData.hostel) return toast.error('Please select your hostel');
+    if (customerType === 'STUDENT' && !formData.hostel) return toast.error('Please select your hostel');
+    if (customerType === 'GENERAL') {
+      if (!fashionDeliveryConfig?.nonStudentDeliveryEnabled || !fashionDeliveryConfig.pilotEnabled) return toast.error('Fashion delivery for this address is not available yet.');
+      if (!formData.city.trim() || !formData.areaId || !formData.address.trim()) return toast.error('Please complete your Lagos delivery address.');
+      if (!selectedDelivery || !selectedDelivery.zone.enabled || !selectedDelivery.area.enabled) return toast.error('Please select an available delivery area.');
+      if (selectedDelivery.area.pricingMode === 'RANGE') {
+        try {
+          const token = await auth.currentUser?.getIdToken();
+          const response = await fetch('/api/fashion-delivery-request', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ ...formData, streetAddress: formData.address, customerType, items: checkoutItems, subtotal }) });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || 'We could not submit your delivery request.');
+          toast.success('Delivery details received. We will confirm the final fee before payment.');
+          clearCart();
+          navigate('/fashion');
+        } catch (error: any) { toast.error(error.message || 'We could not submit your delivery request.'); }
+        return;
+      }
+    }
     if (isFemaleHostelSelected && !femaleHostelAgreement) {
       return toast.info('Please accept the female hostel delivery agreement before payment.');
     }
@@ -365,6 +405,14 @@ export default function FashionCheckout() {
       hostelName: selectedHostel?.name || formData.hostel,
       instructions: formData.instructions,
       femaleHostelAgreement,
+      customerType,
+      state: formData.state,
+      city: formData.city,
+      areaId: formData.areaId,
+      areaName: selectedDelivery?.area.name || '',
+      zoneName: selectedDelivery?.zone.name || '',
+      address: formData.address,
+      addressDetails: formData.addressDetails,
       orderType: 'FASHION',
       items: checkoutItems,
       deliveryFee: FASHION_DELIVERY_FEE,
@@ -417,7 +465,7 @@ export default function FashionCheckout() {
     );
   }
 
-  if (!user || !user.icaSub) {
+  if (!user) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <SEO
@@ -442,20 +490,20 @@ export default function FashionCheckout() {
             </div>
             
             <h1 className="text-2xl font-bold text-foreground mb-4">
-              Become an i-CON to complete your order
+              Sign in to complete your order
             </h1>
             
             <p className="text-muted-foreground mb-8 text-lg">
-              Create your free i-CON account to complete your CalebDeck order and unlock:
+              Sign in to continue with your CalebDeck order and keep your delivery details together.
             </p>
             
             <ul className="space-y-4 mb-10">
               {[
-                'CalebDeck Wallet',
+                'Secure order history',
                 'Order history & tracking',
                 'Push notifications',
                 'Personalized CalebDeck experience',
-                'Access to the wider CalebDeck ecosystem'
+                'Faster checkout next time'
               ].map((benefit, i) => (
                 <li key={i} className="flex items-center gap-3 text-foreground font-medium">
                   <div className="w-6 h-6 rounded-full bg-[#7C3AED]/10 flex items-center justify-center flex-shrink-0">
@@ -472,14 +520,14 @@ export default function FashionCheckout() {
                 className="w-full py-6 text-lg rounded-2xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-bold"
                 onClick={() => window.location.href = `/api/auth/login?return_to=${encodeURIComponent(window.location.origin + '/fashion/checkout')}`}
               >
-                Become an i-CON
+                Sign in
               </Button>
               <Button 
                 variant="outline" 
                 className="w-full py-6 text-lg rounded-2xl border-2 border-border hover:bg-muted font-bold text-foreground"
                 onClick={() => window.location.href = `/api/auth/login?return_to=${encodeURIComponent(window.location.origin + '/fashion/checkout')}`}
               >
-                Already an i-CON? Sign in
+                Create an account
               </Button>
             </div>
           </Card>
@@ -574,6 +622,10 @@ export default function FashionCheckout() {
                 Delivery Details
               </h2>
               <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted/50 p-1">
+                  <button type="button" onClick={() => setCustomerType('STUDENT')} className={`rounded-lg px-3 py-2 text-sm font-bold ${customerType === 'STUDENT' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}>Campus delivery</button>
+                  <button type="button" onClick={() => setCustomerType('GENERAL')} className={`rounded-lg px-3 py-2 text-sm font-bold ${customerType === 'GENERAL' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}>Lagos delivery</button>
+                </div>
                 <Input
                   label="Full Name"
                   placeholder="John Doe"
@@ -595,23 +647,29 @@ export default function FashionCheckout() {
                     <label htmlFor="saveAsDefault" className="text-sm font-medium">Save these details as default</label>
                   </div>
                 )}
-                <Select
-                  label="Select Hostel"
-                  value={formData.hostel}
-                  onChange={(e) => {
-                    setFemaleHostelAgreement(false);
-                    setFormData({ ...formData, hostel: e.target.value });
-                  }}
-                  options={hostels.map(h => ({ value: h.id, label: h.name }))}
-                  required
-                />
+                {customerType === 'STUDENT' ? <Select
+                    label="Select Hostel"
+                    value={formData.hostel}
+                    onChange={(e) => { setFemaleHostelAgreement(false); setFormData({ ...formData, hostel: e.target.value }); }}
+                    options={hostels.map(h => ({ value: h.id, label: h.name }))}
+                    required
+                  /> : <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Input label="State" value="Lagos" disabled />
+                      <Input label="City" placeholder="e.g. Lekki" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} required />
+                    </div>
+                    <Select label="Delivery area" value={formData.areaId} onChange={(e) => setFormData({ ...formData, areaId: e.target.value })} options={(fashionDeliveryConfig?.zones || []).filter(zone => zone.enabled).flatMap(zone => zone.areas.filter(area => area.enabled).map(area => ({ value: area.id, label: `${area.name} - ${area.pricingMode === 'FIXED' ? `₦${area.fixedFee?.toLocaleString()}` : `₦${area.minFee?.toLocaleString()}–₦${area.maxFee?.toLocaleString()}`}` })))} required />
+                    <Input label="Street address" placeholder="House number, street and landmark" value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} required />
+                    <Input label="Address details (Optional)" placeholder="Apartment, estate or gate details" value={formData.addressDetails} onChange={(e) => setFormData({ ...formData, addressDetails: e.target.value })} />
+                    {selectedDelivery?.area.pricingMode === 'RANGE' && <p className="rounded-xl bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-700 dark:text-amber-300">Delivery for this area is estimated at ₦{selectedDelivery.area.minFee?.toLocaleString()}–₦{selectedDelivery.area.maxFee?.toLocaleString()}. We will confirm the exact fee before you pay.</p>}
+                  </>}
                 <Textarea
                   label="Delivery Instructions (Optional)"
                   placeholder="E.g., Call me when you reach the gate..."
                   value={formData.instructions}
                   onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
                 />
-                {isFemaleHostelSelected && (
+                {customerType === 'STUDENT' && isFemaleHostelSelected && (
                   <div className="p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] bg-amber-500/10 border-2 border-amber-500/30 shadow-inner">
                     <div className="space-y-4">
                       <div className="flex items-center gap-3">
@@ -672,32 +730,32 @@ export default function FashionCheckout() {
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>Delivery Fee</span>
-                  <span className="font-medium text-foreground">₦{FASHION_DELIVERY_FEE}</span>
+                  <span className="font-medium text-foreground">{customerType === 'GENERAL' && selectedDelivery?.area.pricingMode === 'RANGE' ? `₦${selectedDelivery.area.minFee?.toLocaleString()}–₦${selectedDelivery.area.maxFee?.toLocaleString()}` : `₦${FASHION_DELIVERY_FEE.toLocaleString()}`}</span>
                 </div>
               </div>
 
               <div className="pt-4 border-t border-border mt-4 mb-6">
                 <div className="flex justify-between items-center mb-6">
                   <span className="font-bold">Total</span>
-                  <span className="text-2xl font-black text-[#F97316]">₦{total}</span>
+                  <span className="text-2xl font-black text-[#F97316]">{customerType === 'GENERAL' && selectedDelivery?.area.pricingMode === 'RANGE' ? 'Fee to be confirmed' : `₦${total.toLocaleString()}`}</span>
                 </div>
 
-                <PaymentSelector
+                {!(customerType === 'GENERAL' && selectedDelivery?.area.pricingMode === 'RANGE') && <PaymentSelector
                   amount={total}
                   selectedMethod={paymentMethod}
                   onSelect={setPaymentMethod}
                   disabled={isWalletPaying}
-                />
+                />}
               </div>
 
               <Button
                 variant="primary"
                 className="w-full py-4 text-lg text-white flex items-center justify-center gap-2 shadow-xl bg-gradient-to-r from-[#7C3AED] to-[#F97316] hover:opacity-90 border-none font-bold shadow-[#F97316]/20 disabled:bg-none disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none disabled:cursor-not-allowed transition-all"
                 onClick={handlePay}
-                disabled={isWalletPaying || !formData.fullName.trim() || !formData.phone.trim() || !formData.hostel || (isFemaleHostelSelected && !femaleHostelAgreement)}
+                disabled={isWalletPaying || !formData.fullName.trim() || !formData.phone.trim() || (customerType === 'STUDENT' ? !formData.hostel : !formData.areaId || !formData.city.trim() || !formData.address.trim()) || (isFemaleHostelSelected && !femaleHostelAgreement)}
               >
                 {isWalletPaying ? <Loader2 className="w-5 h-5 animate-spin" /> : <CreditCard className="w-5 h-5" />}
-                {isWalletPaying ? 'Processing...' : `Pay ₦${total}`}
+                {isWalletPaying ? 'Processing...' : (customerType === 'GENERAL' && selectedDelivery?.area.pricingMode === 'RANGE' ? 'Request delivery fee' : `Pay ₦${total.toLocaleString()}`)}
               </Button>
 
               <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">

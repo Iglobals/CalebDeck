@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../../../context/AuthContext';
 import { Card } from '../../components/design-system/Card';
@@ -66,6 +67,25 @@ export function SignedInHome() {
   const [loadingMart, setLoadingMart] = useState(true);
   const [loadingFashion, setLoadingFashion] = useState(true);
   const [loadingBusiness, setLoadingBusiness] = useState(true);
+
+  const campusBrandRef = React.useRef<HTMLDivElement>(null);
+
+  const handlePromoDestination = (slide: PromoSlide) => {
+    if (slide.destination === 'CAMPUS_BRAND') {
+      sessionStorage.setItem('calebdeck_promo_target', 'campus-brand-section');
+      if (window.location.pathname !== '/') navigate('/');
+      else campusBrandRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    navigate(slide.link || '/');
+  };
+
+  useEffect(() => {
+    if (loadingBusiness) return;
+    if (sessionStorage.getItem('calebdeck_promo_target') !== 'campus-brand-section') return;
+    sessionStorage.removeItem('calebdeck_promo_target');
+    requestAnimationFrame(() => campusBrandRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }, [loadingBusiness]);
 
   useEffect(() => {
     const unsubSettings = subscribeToPlatformSettings((s) => {
@@ -269,11 +289,11 @@ export function SignedInHome() {
                 </Badge>
                 <h2 className="text-2xl font-black mb-2 leading-tight drop-shadow-sm">{activeSlide.title}</h2>
                 <p className="font-medium text-white/90 mb-4 text-xs sm:text-sm leading-relaxed">{activeSlide.tagline}</p>
-                <Link to={activeSlide.link || '/'}>
+                <button type="button" onClick={() => handlePromoDestination(activeSlide)}>
                   <Button variant="secondary" className="bg-white text-gray-900 hover:bg-gray-100 border-none font-bold rounded-xl text-xs py-2.5 px-5 h-auto shadow-lg">
                     {activeSlide.buttonText || 'Explore'}
                   </Button>
-                </Link>
+                </button>
               </div>
 
               {/* Right Side Transparent Brand Asset */}
@@ -480,7 +500,7 @@ export function SignedInHome() {
         {/* CalebDeck Campus Brand */}
         {/* Campus Brand Section — show skeleton while loading, then content or nothing */}
         {(loadingBusiness || exploreBusinessItems.length > 0) && (
-          <div>
+          <div id="campus-brand-section" ref={campusBrandRef} className="scroll-mt-24">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-black">Campus Brand</h3>
             </div>

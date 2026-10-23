@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Button } from '../../components/design-system/Button';
 import { Search, ShoppingBag, Plus, Minus, ArrowLeft, Shirt, SlidersHorizontal, Clock, CalendarClock } from 'lucide-react';
@@ -26,6 +26,8 @@ export default function FashionPage() {
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
   const [batchState, setBatchState] = useState<FashionBatchState | null>(null);
   const [visibleCount, setVisibleCount] = useState(12);
+  const listingKey = `calebdeck_fashion_scroll_${activeCategory}`;
+  const hasRestoredScroll = useRef(false);
 
   const FALLBACK_ITEMS: FashionItem[] = [
     {
@@ -119,6 +121,29 @@ export default function FashionPage() {
       unsubscribeSettings();
     };
   }, [user]);
+
+  useEffect(() => {
+    if (loading || hasRestoredScroll.current) return;
+    const saved = sessionStorage.getItem(listingKey);
+    if (!saved) return;
+    let position = Number(saved);
+    try {
+      const state = JSON.parse(saved);
+      if (typeof state === 'object') {
+        position = Number(state.position);
+        if (typeof state.searchQuery === 'string') setSearchQuery(state.searchQuery);
+        if (state.priceRange) setPriceRange(state.priceRange);
+        if (Number(state.visibleCount) > 0) setVisibleCount(Number(state.visibleCount));
+      }
+    } catch { /* legacy position-only values remain supported */ }
+    if (!Number.isFinite(position) || position <= 0) return;
+    hasRestoredScroll.current = true;
+    requestAnimationFrame(() => window.scrollTo({ top: position, behavior: 'auto' }));
+  }, [loading, listingKey]);
+
+  useEffect(() => {
+    hasRestoredScroll.current = false;
+  }, [listingKey]);
 
   // Batch countdown — updates every 60s (no seconds digit, no anxiety)
   useEffect(() => {
@@ -378,7 +403,12 @@ export default function FashionPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
               {displayedItems.map((item) => {
                 return (
-                  <Link to={`/fashion/product/${item.id}${activeCategory !== 'All' ? `?category=${encodeURIComponent(activeCategory)}` : ''}`} key={item.id} className="block group">
+                  <Link
+                    to={`/fashion/product/${item.id}${activeCategory !== 'All' ? `?category=${encodeURIComponent(activeCategory)}` : ''}`}
+                    key={item.id}
+                    className="block group"
+                    onClick={() => sessionStorage.setItem(listingKey, JSON.stringify({ position: window.scrollY, searchQuery, priceRange, visibleCount }))}
+                  >
                     <div className="relative rounded-[24px] sm:rounded-[32px] overflow-hidden group border border-border/20 shadow-sm transition-all hover:shadow-md aspect-[3/4] bg-muted/20">
                       <ImageWithFallback 
                           src={getOptimizedDeliveryUrl(item.imageUrl, 500)} 
