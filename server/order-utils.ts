@@ -40,8 +40,13 @@ export async function calculateServerOrderTotal(
             if (!deliveryConfig.nonStudentDeliveryEnabled || !deliveryConfig.pilotEnabled) throw new Error('GENERAL_FASHION_DELIVERY_DISABLED');
             const match = findFashionDeliveryArea(deliveryConfig, String(orderData?.areaId || ''));
             if (!match || !match.zone.enabled || !match.area.enabled) throw new Error('FASHION_DELIVERY_AREA_UNAVAILABLE');
-            if (match.area.pricingMode === 'RANGE') throw new Error('FASHION_DELIVERY_FEE_CONFIRMATION_REQUIRED');
-            fashionDeliveryFee = Number(match.area.fixedFee);
+            if (match.area.pricingMode === 'RANGE') {
+                const confirmedFee = Number(orderData?.confirmedDeliveryFee);
+                if (!(confirmedFee >= Number(match.area.minFee) && confirmedFee <= Number(match.area.maxFee))) throw new Error('FASHION_DELIVERY_FEE_CONFIRMATION_REQUIRED');
+                fashionDeliveryFee = confirmedFee;
+            } else {
+                fashionDeliveryFee = Number(match.area.fixedFee);
+            }
         }
         const items = orderData?.items || [];
         let fashionTotal = 0;

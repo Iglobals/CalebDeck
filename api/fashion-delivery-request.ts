@@ -8,6 +8,13 @@ import { findFashionDeliveryArea, getFashionDeliveryConfig } from '../server/fas
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const db = adminDb();
+    if (req.method === 'GET' && req.query?.requestId) {
+      const user = await verifyUser(req);
+      if (!user) return res.status(401).json({ error: 'Please sign in to view this request.' });
+      const snap = await db.collection('fashion_delivery_requests').doc(String(req.query.requestId)).get();
+      if (!snap.exists || snap.data()?.userId !== user.uid) return res.status(404).json({ error: 'Delivery request not found.' });
+      return res.status(200).json({ success: true, request: { id: snap.id, ...snap.data() } });
+    }
     if (req.method === 'GET') {
       if (!(await verifyAdmin(req))) return res.status(403).json({ error: 'Administrator access is required.' });
       const snap = await db.collection('fashion_delivery_requests').where('status', '==', 'AWAITING_FEE_CONFIRMATION').limit(50).get();
