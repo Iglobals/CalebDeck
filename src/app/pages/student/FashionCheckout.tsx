@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../../../context/AuthContext';
 import { updateDoc, doc, arrayUnion } from 'firebase/firestore';
 import { useMartCart } from '../../../context/MartCartContext';
@@ -25,11 +25,13 @@ import { auth } from '../../../services/firebase';
 export default function FashionCheckout() {
   const { items, subtotal, totalItems, clearCart } = useMartCart();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   
   const [hostels, setHostels] = useState<Hostel[]>([]);
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
   const [fashionDeliveryConfig, setFashionDeliveryConfig] = useState<FashionDeliveryConfig | null>(null);
+  const [confirmedDeliveryRequest, setConfirmedDeliveryRequest] = useState<any>(null);
   const paymentProcessingRef = useRef(false);
   const paymentRef = useRef((new Date()).getTime().toString());
 
@@ -49,7 +51,7 @@ export default function FashionCheckout() {
   const isFemaleHostelSelected = isPremiumHostel(formData.hostel, platformSettings);
   const selectedDelivery = fashionDeliveryConfig?.zones.flatMap(zone => zone.areas.map(area => ({ zone, area }))).find(item => item.area.id === formData.areaId);
   const FASHION_DELIVERY_FEE = customerType === 'GENERAL'
-    ? (selectedDelivery?.area.pricingMode === 'FIXED' ? Number(selectedDelivery.area.fixedFee) : 0)
+    ? (confirmedDeliveryRequest?.confirmedFee || (selectedDelivery?.area.pricingMode === 'FIXED' ? Number(selectedDelivery.area.fixedFee) : 0))
     : (platformSettings?.fashionDeliveryFee || 1500);
   const isDev = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
@@ -110,8 +112,20 @@ export default function FashionCheckout() {
     
     const unsub = subscribeToPlatformSettings(setPlatformSettings);
     fetch('/api/fashion-delivery').then(res => res.ok ? res.json() : null).then(data => { if (data?.config) setFashionDeliveryConfig(data.config); }).catch(() => undefined);
+    const requestId = searchParams.get('deliveryRequest');
+    if (requestId) {
+      auth.currentUser?.getIdToken().then(token => fetch(`/api/fashion-delivery-request?requestId=${encodeURIComponent(requestId)}`, { headers: { Authorization: `Bearer ${token}` } }))
+        .then(response => response?.ok ? response.json() : null)
+        .then(data => {
+          if (data?.request?.status !== 'AWAITING_CUSTOMER_APPROVAL') return;
+          const request = data.request;
+          setConfirmedDeliveryRequest(request);
+          setCustomerType('GENERAL');
+          setFormData(prev => ({ ...prev, fullName: request.customerName || prev.fullName, phone: request.phone || prev.phone, state: request.state || 'Lagos', city: request.city || '', areaId: request.areaId || '', address: request.streetAddress || '', addressDetails: request.addressDetails || '', instructions: request.instructions || '' }));
+        }).catch(() => undefined);
+    }
     return () => unsub();
-  }, []);
+  }, [searchParams]);
 
   const currentHour = new Date().getHours();
   const fashionClosed = !!platformSettings && (
@@ -368,7 +382,7 @@ export default function FashionCheckout() {
       if (!fashionDeliveryConfig?.nonStudentDeliveryEnabled || !fashionDeliveryConfig.pilotEnabled) return toast.error('Fashion delivery for this address is not available yet.');
       if (!formData.city.trim() || !formData.areaId || !formData.address.trim()) return toast.error('Please complete your Lagos delivery address.');
       if (!selectedDelivery || !selectedDelivery.zone.enabled || !selectedDelivery.area.enabled) return toast.error('Please select an available delivery area.');
-      if (selectedDelivery.area.pricingMode === 'RANGE') {
+      if (selectedDelivery.area.pricingMode === 'RANGE' && !confirmedDeliveryRequest?.confirmedFee) {
         try {
           const token = await auth.currentUser?.getIdToken();
           const response = await fetch('/api/fashion-delivery-request', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ ...formData, streetAddress: formData.address, customerType, items: checkoutItems, subtotal }) });
@@ -413,6 +427,8 @@ export default function FashionCheckout() {
       zoneName: selectedDelivery?.zone.name || '',
       address: formData.address,
       addressDetails: formData.addressDetails,
+      confirmedDeliveryFee: confirmedDeliveryRequest?.confirmedFee || null,
+      deliveryRequestId: confirmedDeliveryRequest?.id || null,
       orderType: 'FASHION',
       items: checkoutItems,
       deliveryFee: FASHION_DELIVERY_FEE,
@@ -622,8 +638,8 @@ export default function FashionCheckout() {
                 Delivery Details
               </h2>
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted/50 p-1">
-                  <button type="button" onClick={() => setCustomerType('STUDENT')} className={`rounded-lg px-3 py-2 text-sm font-bold ${customerType === 'STUDENT' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}>Campus delivery</button>
+                <div className={`grid ${user?.icaSub ? 'grid-cols-2' : 'grid-cols-1'} gap-2 rounded-xl bg-muted/50 p-1`}>
+                  {user?.icaSub && <button type="button" onClick={() => setCustomerType('STUDENT')} className={`rounded-lg px-3 py-2 text-sm font-bold ${customerType === 'STUDENT' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}>Campus delivery</button>}
                   <button type="button" onClick={() => setCustomerType('GENERAL')} className={`rounded-lg px-3 py-2 text-sm font-bold ${customerType === 'GENERAL' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}>Lagos delivery</button>
                 </div>
                 <Input
@@ -661,7 +677,8 @@ export default function FashionCheckout() {
                     <Select label="Delivery area" value={formData.areaId} onChange={(e) => setFormData({ ...formData, areaId: e.target.value })} options={(fashionDeliveryConfig?.zones || []).filter(zone => zone.enabled).flatMap(zone => zone.areas.filter(area => area.enabled).map(area => ({ value: area.id, label: `${area.name} - ${area.pricingMode === 'FIXED' ? `₦${area.fixedFee?.toLocaleString()}` : `₦${area.minFee?.toLocaleString()}–₦${area.maxFee?.toLocaleString()}`}` })))} required />
                     <Input label="Street address" placeholder="House number, street and landmark" value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} required />
                     <Input label="Address details (Optional)" placeholder="Apartment, estate or gate details" value={formData.addressDetails} onChange={(e) => setFormData({ ...formData, addressDetails: e.target.value })} />
-                    {selectedDelivery?.area.pricingMode === 'RANGE' && <p className="rounded-xl bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-700 dark:text-amber-300">Delivery for this area is estimated at ₦{selectedDelivery.area.minFee?.toLocaleString()}–₦{selectedDelivery.area.maxFee?.toLocaleString()}. We will confirm the exact fee before you pay.</p>}
+                    {selectedDelivery?.area.pricingMode === 'RANGE' && !confirmedDeliveryRequest?.confirmedFee && <p className="rounded-xl bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-700 dark:text-amber-300">Delivery for this area is estimated at ₦{selectedDelivery.area.minFee?.toLocaleString()}–₦{selectedDelivery.area.maxFee?.toLocaleString()}. We will confirm the exact fee before you pay.</p>}
+                    {confirmedDeliveryRequest?.confirmedFee && <p className="rounded-xl bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-700 dark:text-emerald-300">Your delivery fee has been confirmed at ₦{Number(confirmedDeliveryRequest.confirmedFee).toLocaleString()}. Review the total below to continue.</p>}
                   </>}
                 <Textarea
                   label="Delivery Instructions (Optional)"
@@ -730,17 +747,17 @@ export default function FashionCheckout() {
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>Delivery Fee</span>
-                  <span className="font-medium text-foreground">{customerType === 'GENERAL' && selectedDelivery?.area.pricingMode === 'RANGE' ? `₦${selectedDelivery.area.minFee?.toLocaleString()}–₦${selectedDelivery.area.maxFee?.toLocaleString()}` : `₦${FASHION_DELIVERY_FEE.toLocaleString()}`}</span>
+                  <span className="font-medium text-foreground">{customerType === 'GENERAL' && selectedDelivery?.area.pricingMode === 'RANGE' && !confirmedDeliveryRequest?.confirmedFee ? `₦${selectedDelivery.area.minFee?.toLocaleString()}–₦${selectedDelivery.area.maxFee?.toLocaleString()}` : `₦${FASHION_DELIVERY_FEE.toLocaleString()}`}</span>
                 </div>
               </div>
 
               <div className="pt-4 border-t border-border mt-4 mb-6">
                 <div className="flex justify-between items-center mb-6">
                   <span className="font-bold">Total</span>
-                  <span className="text-2xl font-black text-[#F97316]">{customerType === 'GENERAL' && selectedDelivery?.area.pricingMode === 'RANGE' ? 'Fee to be confirmed' : `₦${total.toLocaleString()}`}</span>
+                  <span className="text-2xl font-black text-[#F97316]">{customerType === 'GENERAL' && selectedDelivery?.area.pricingMode === 'RANGE' && !confirmedDeliveryRequest?.confirmedFee ? 'Fee to be confirmed' : `₦${total.toLocaleString()}`}</span>
                 </div>
 
-                {!(customerType === 'GENERAL' && selectedDelivery?.area.pricingMode === 'RANGE') && <PaymentSelector
+                {!(customerType === 'GENERAL' && selectedDelivery?.area.pricingMode === 'RANGE' && !confirmedDeliveryRequest?.confirmedFee) && <PaymentSelector
                   amount={total}
                   selectedMethod={paymentMethod}
                   onSelect={setPaymentMethod}
@@ -755,7 +772,7 @@ export default function FashionCheckout() {
                 disabled={isWalletPaying || !formData.fullName.trim() || !formData.phone.trim() || (customerType === 'STUDENT' ? !formData.hostel : !formData.areaId || !formData.city.trim() || !formData.address.trim()) || (isFemaleHostelSelected && !femaleHostelAgreement)}
               >
                 {isWalletPaying ? <Loader2 className="w-5 h-5 animate-spin" /> : <CreditCard className="w-5 h-5" />}
-                {isWalletPaying ? 'Processing...' : (customerType === 'GENERAL' && selectedDelivery?.area.pricingMode === 'RANGE' ? 'Request delivery fee' : `Pay ₦${total.toLocaleString()}`)}
+                {isWalletPaying ? 'Processing...' : (customerType === 'GENERAL' && selectedDelivery?.area.pricingMode === 'RANGE' && !confirmedDeliveryRequest?.confirmedFee ? 'Request delivery fee' : `Pay ₦${total.toLocaleString()}`)}
               </Button>
 
               <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">

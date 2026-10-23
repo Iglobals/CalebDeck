@@ -105,7 +105,6 @@ export default function AdminSettings() {
   const [savingFashionDelivery, setSavingFashionDelivery] = useState(false);
   const [seedingFashionDelivery, setSeedingFashionDelivery] = useState(false);
   const [fashionDeliveryRequests, setFashionDeliveryRequests] = useState<any[]>([]);
-  const [fashionDeliveryRequests, setFashionDeliveryRequests] = useState<any[]>([]);
   const [loadingFashionRequests, setLoadingFashionRequests] = useState(false);
 
   const createEmptySlide = (): PromoSlide => ({
@@ -178,22 +177,6 @@ export default function AdminSettings() {
   useEffect(() => {
     const unsub = subscribeToFirstOrderDiscountClaims(setFirstOrderClaims);
     return () => unsub();
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const token = await auth.currentUser?.getIdToken();
-        if (!token) return;
-        const response = await fetch('/api/fashion-delivery-request', { headers: { Authorization: `Bearer ${token}` } });
-        if (response.ok) {
-          const data = await response.json();
-          if (!cancelled) setFashionDeliveryRequests(data.requests || []);
-        }
-      } catch { /* request management is supplementary to settings */ }
-    })();
-    return () => { cancelled = true; };
   }, []);
 
   const isDark = adminTheme === 'dark';
@@ -503,21 +486,6 @@ export default function AdminSettings() {
     } catch (error: any) {
       alert(error.message || 'Fashion delivery settings could not be saved.');
     } finally { setSavingFashionDelivery(false); }
-  };
-
-  const handleConfirmFashionDeliveryRequest = async (request: any) => {
-    const suggested = Math.round((Number(request.estimatedMinFee) + Number(request.estimatedMaxFee)) / 2);
-    const entered = window.prompt(`Confirm a delivery fee between ₦${Number(request.estimatedMinFee).toLocaleString()} and ₦${Number(request.estimatedMaxFee).toLocaleString()}.`, String(suggested));
-    if (entered === null) return;
-    const fee = Number(entered);
-    if (!Number.isFinite(fee)) return alert('Please enter a valid delivery fee.');
-    try {
-      const token = await auth.currentUser?.getIdToken();
-      const response = await fetch('/api/fashion-delivery-request', { method: 'PATCH', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ requestId: request.id, confirmedFee: fee }) });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'The delivery fee could not be confirmed.');
-      if (data.success) setFashionDeliveryRequests(prev => prev.filter(item => item.id !== request.id));
-    } catch (error: any) { alert(error.message || 'The delivery fee could not be confirmed.'); }
   };
 
   const handleConfirmFashionRequest = async (request: any) => {
@@ -1239,26 +1207,6 @@ export default function AdminSettings() {
             {fashionDeliveryConfig.zones.length > 0 && <Button variant="primary" onClick={handleSaveFashionDelivery} disabled={savingFashionDelivery} className="w-full mt-6 bg-orange-500 hover:bg-orange-600 text-white">{savingFashionDelivery ? 'Saving delivery settings...' : 'Save Fashion Delivery Settings'}</Button>}
           </Card>
         </div>
-
-        {fashionDeliveryRequests.length > 0 && <div className="mt-10">
-          <Card className="p-6 md:p-8 border-l-4 border-l-sky-500 shadow-xl">
-            <h2 className={`text-xl font-black mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>Delivery Fee Requests</h2>
-            <p className={`text-sm mb-5 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Review ranged-fee Fashion requests before the customer pays.</p>
-            <div className="space-y-3">
-              {fashionDeliveryRequests.map((request) => <div key={request.id} className={`rounded-xl border p-4 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                  <div className="min-w-0 text-sm">
-                    <p className="font-bold">{request.customerName} · {request.phone}</p>
-                    <p className="text-muted-foreground">{request.areaName} · {request.city}</p>
-                    <p className="text-muted-foreground truncate">{request.streetAddress}</p>
-                    <p className="font-medium mt-1">Estimated fee: ₦{Number(request.estimatedMinFee).toLocaleString()}–₦{Number(request.estimatedMaxFee).toLocaleString()}</p>
-                  </div>
-                  <Button variant="primary" className="bg-sky-600 hover:bg-sky-700 text-white" onClick={() => handleConfirmFashionDeliveryRequest(request)}>Confirm fee</Button>
-                </div>
-              </div>)}
-            </div>
-          </Card>
-        </div>}
 
         {/* First Order Discount */}
         <div className="mt-10">
