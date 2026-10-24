@@ -4,7 +4,7 @@ import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
-import { Settings, ShieldAlert, Store, Pizza, Clock, Wifi, Utensils, MessageSquare, Plus, Trash2, Edit3, ArrowUp, ArrowDown, Image as ImageIcon, Sparkles, Check, X, Gift, Upload, Loader2, ChevronDown, Building2, MapPin, AlertTriangle } from 'lucide-react';
+import { Settings, ShieldAlert, Store, Pizza, Clock, Wifi, Utensils, MessageSquare, Plus, Trash2, Edit3, ArrowUp, ArrowDown, Image as ImageIcon, Sparkles, Check, X, Gift, Upload, Loader2, ChevronDown, ChevronUp, Building2, MapPin, AlertTriangle, Search } from 'lucide-react';
 import { subscribeToPlatformSettings, updatePlatformSettings, subscribeToFirstOrderDiscountClaims, subscribeToAllHostels, saveHostelConfig, toggleHostelStatus, removeOrArchiveHostel, Hostel, PlatformSettings, PromoSlide, DEFAULT_PROMO_SLIDES, FirstOrderDiscountClaim, FashionDeliveryConfig } from '../../../services/db';
 import { HostelRuleType, slugifyHostelId, DAVID_HOSTEL_DEFAULT_MESSAGE, DAVID_HOSTEL_DEFAULT_CHECKBOX, DAVID_HOSTEL_DEFAULT_COLLECTION_INSTRUCTION, DAVID_HOSTEL_DEFAULT_PICKUP_POINT, FEMALE_HOSTEL_DEFAULT_MESSAGE, FEMALE_HOSTEL_DEFAULT_CHECKBOX } from '../../../services/hostels';
 import { toast } from 'react-toastify';
@@ -188,6 +188,9 @@ export default function AdminSettings() {
 
   // Hostel Management State
   const [hostels, setHostels] = useState<Hostel[]>([]);
+  const [isHostelsSectionOpen, setIsHostelsSectionOpen] = useState(true);
+  const [hostelSearchQuery, setHostelSearchQuery] = useState('');
+  const [hostelFilterTab, setHostelFilterTab] = useState<'ALL' | 'ACTIVE' | 'DISABLED' | 'ACK'>('ALL');
   const [isHostelModalOpen, setIsHostelModalOpen] = useState(false);
   const [editingHostelId, setEditingHostelId] = useState<string | null>(null);
   const [savingHostel, setSavingHostel] = useState(false);
@@ -464,6 +467,26 @@ export default function AdminSettings() {
   };
 
   const isDark = adminTheme === 'dark';
+
+  const totalHostelsCount = hostels.length;
+  const activeHostelsCount = hostels.filter(h => h.isActive !== false).length;
+  const disabledHostelsCount = hostels.filter(h => h.isActive === false).length;
+  const ackHostelsCount = hostels.filter(h => Boolean(h.requiresAcknowledgement)).length;
+
+  const filteredHostels = hostels.filter(hostel => {
+    const q = hostelSearchQuery.trim().toLowerCase();
+    const matchesSearch = !q ||
+      hostel.name.toLowerCase().includes(q) ||
+      hostel.id.toLowerCase().includes(q) ||
+      (hostel.pickupPoint && hostel.pickupPoint.toLowerCase().includes(q));
+
+    if (!matchesSearch) return false;
+
+    if (hostelFilterTab === 'ACTIVE') return hostel.isActive !== false;
+    if (hostelFilterTab === 'DISABLED') return hostel.isActive === false;
+    if (hostelFilterTab === 'ACK') return Boolean(hostel.requiresAcknowledgement);
+    return true;
+  });
   const isAcceptingOrders = platformSettings?.isAcceptingOrders !== false; // defaults to true
   const isFoodOrderingClosed = platformSettings?.isFoodOrderingClosed === true;
   const isMartComingSoon = platformSettings?.isMartComingSoon === true;
@@ -1442,141 +1465,274 @@ export default function AdminSettings() {
         {/* Hostel Management Configuration */}
         <div className="mt-10" id="hostel-management">
           <Card className="p-6 md:p-8 border-l-4 border-l-indigo-500 shadow-xl">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
               <div className="flex items-center space-x-3">
                 <div className={`p-3 rounded-2xl ${isDark ? 'bg-indigo-900/40 text-indigo-400' : 'bg-indigo-100 text-indigo-600'}`}>
                   <Building2 className="w-6 h-6" />
                 </div>
                 <div>
-                  <h2 className={`text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>Hostel Management</h2>
-                  <p className={`text-xs sm:text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Add, edit, enable, disable, or configure collection acknowledgements and pickup points for campus hostels.
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className={`text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>Hostel Management</h2>
+                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${isDark ? 'bg-indigo-950/80 text-indigo-300 border border-indigo-800' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'}`}>
+                      {totalHostelsCount} Hostels · {activeHostelsCount} Active
+                    </span>
+                  </div>
+                  <p className={`text-xs sm:text-sm mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Configure pickup locations, collection acknowledgements, and delivery availability for campus halls.
                   </p>
                 </div>
               </div>
-              <Button
-                onClick={handleOpenAddHostel}
-                variant="primary"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center gap-2 shrink-0"
-              >
-                <Plus className="w-4 h-4" /> Add Hostel
-              </Button>
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <Button
+                  onClick={handleOpenAddHostel}
+                  variant="primary"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center gap-2 shrink-0 text-xs sm:text-sm py-2 px-3.5"
+                >
+                  <Plus className="w-4 h-4" /> Add Hostel
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setIsHostelsSectionOpen(prev => !prev)}
+                  className={`p-2.5 rounded-xl border flex items-center gap-1.5 text-xs font-bold transition-all ${
+                    isDark 
+                      ? 'border-gray-700 hover:border-indigo-500 bg-[#222222] text-gray-200' 
+                      : 'border-gray-200 hover:border-indigo-500 bg-gray-50 text-gray-700'
+                  }`}
+                  aria-expanded={isHostelsSectionOpen}
+                  title={isHostelsSectionOpen ? "Collapse Hostel List" : "Expand Hostel List"}
+                >
+                  <span className="hidden xs:inline">{isHostelsSectionOpen ? 'Collapse' : 'Expand'}</span>
+                  {isHostelsSectionOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {hostels.map((hostel) => {
-                const isActive = hostel.isActive !== false;
-                const isBusy = hostelActionId === hostel.id;
-                return (
-                  <div
-                    key={hostel.id}
-                    className={`rounded-2xl border p-5 flex flex-col justify-between transition-all ${
-                      isDark
-                        ? isActive
-                          ? 'bg-[#1E1E1E] border-gray-800'
-                          : 'bg-[#171717] border-gray-800/60 opacity-75'
-                        : isActive
-                        ? 'bg-white border-gray-200 shadow-sm'
-                        : 'bg-gray-50 border-gray-200 opacity-75'
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className={`text-base font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                              {hostel.name}
-                            </h3>
-                            <span className={`text-[10px] font-mono px-2 py-0.5 rounded-md border ${isDark ? 'bg-gray-800 border-gray-700 text-gray-400' : 'bg-gray-100 border-gray-200 text-gray-600'}`}>
-                              ID: {hostel.id}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <Badge className={isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}>
-                            {isActive ? 'Active' : 'Disabled'}
-                          </Badge>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-1.5 mb-3">
-                        {hostel.requiresAcknowledgement ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-                            <AlertTriangle className="w-3 h-3" />
-                            Acknowledgement Required
-                          </span>
-                        ) : (
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${isDark ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-600'}`}>
-                            Standard Checkout
-                          </span>
-                        )}
-                        {hostel.isPremiumDelivery && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30">
-                            Premium Food Rate
-                          </span>
-                        )}
-                      </div>
-
-                      <div className={`rounded-xl p-3 text-xs space-y-1.5 mb-4 border ${isDark ? 'bg-[#141414] border-gray-800 text-gray-300' : 'bg-gray-50 border-gray-100 text-gray-700'}`}>
-                        <div className="flex items-start gap-2">
-                          <MapPin className="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5" />
-                          <span>
-                            <strong className="font-bold">Pickup Point:</strong>{' '}
-                            {hostel.pickupPoint || 'Front of your hostel/reception'}
-                          </span>
-                        </div>
-                        {hostel.requiresAcknowledgement && hostel.acknowledgementMessage && (
-                          <p className={`text-[11px] leading-relaxed pl-5 ${isDark ? 'text-amber-300/90' : 'text-amber-800'}`}>
-                            "{hostel.acknowledgementMessage}"
-                          </p>
-                        )}
-                        {hostel.collectionInstruction && (
-                          <p className={`text-[11px] leading-relaxed pl-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                            <strong className="font-semibold">Rider/Tracker Note:</strong> {hostel.collectionInstruction}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-2 pt-3 border-t border-gray-100 dark:border-gray-800">
-                      <Button
+            {isHostelsSectionOpen && (
+              <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
+                {/* Search & Filter Toolbar */}
+                <div className="my-4 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={hostelSearchQuery}
+                      onChange={(e) => setHostelSearchQuery(e.target.value)}
+                      placeholder="Search by hostel name, ID, or pickup point..."
+                      className={`w-full pl-9 pr-9 py-2 text-xs font-medium rounded-xl border outline-none transition-all focus:ring-2 focus:ring-indigo-500 ${
+                        isDark ? 'bg-[#1E1E1E] border-gray-700 text-white placeholder-gray-500' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
+                      }`}
+                    />
+                    {hostelSearchQuery && (
+                      <button
                         type="button"
-                        variant="outline"
-                        disabled={isBusy}
-                        onClick={() => handleToggleHostelActive(hostel)}
-                        className={`py-1.5 px-3 text-xs font-bold rounded-xl ${
-                          isActive
-                            ? 'border-amber-500 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10'
-                            : 'border-emerald-500 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
-                        }`}
+                        onClick={() => setHostelSearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400"
+                        title="Clear search"
                       >
-                        {isBusy ? 'Updating...' : isActive ? 'Disable' : 'Enable'}
-                      </Button>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          disabled={isBusy}
-                          onClick={() => handleOpenEditHostel(hostel)}
-                          className="px-3 py-1.5 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20 font-bold text-xs flex items-center gap-1.5 transition-colors"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" /> Edit Rules
-                        </button>
-                        <button
-                          type="button"
-                          disabled={isBusy}
-                          onClick={() => handleRemoveHostel(hostel)}
-                          className="p-1.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 font-bold text-xs transition-colors"
-                          title="Remove or Archive Hostel"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
-                );
-              })}
-            </div>
+
+                  {/* Filter chips */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none text-xs font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setHostelFilterTab('ALL')}
+                      className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+                        hostelFilterTab === 'ALL'
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : isDark ? 'bg-gray-800 text-gray-400 hover:text-white' : 'bg-gray-100 text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      All ({totalHostelsCount})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHostelFilterTab('ACTIVE')}
+                      className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+                        hostelFilterTab === 'ACTIVE'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : isDark ? 'bg-gray-800 text-gray-400 hover:text-white' : 'bg-gray-100 text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Active ({activeHostelsCount})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHostelFilterTab('DISABLED')}
+                      className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+                        hostelFilterTab === 'DISABLED'
+                          ? 'bg-amber-600 text-white shadow-sm'
+                          : isDark ? 'bg-gray-800 text-gray-400 hover:text-white' : 'bg-gray-100 text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Disabled ({disabledHostelsCount})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHostelFilterTab('ACK')}
+                      className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+                        hostelFilterTab === 'ACK'
+                          ? 'bg-purple-600 text-white shadow-sm'
+                          : isDark ? 'bg-gray-800 text-gray-400 hover:text-white' : 'bg-gray-100 text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Rules ({ackHostelsCount})
+                    </button>
+                  </div>
+                </div>
+
+                {/* Scrollable Fixed Container */}
+                <div className={`rounded-2xl border p-2 sm:p-3 max-h-[460px] md:max-h-[560px] overflow-y-auto overscroll-contain transition-all ${
+                  isDark ? 'bg-[#151515] border-gray-800/80' : 'bg-gray-50/70 border-gray-200/80'
+                }`}>
+                  {filteredHostels.length === 0 ? (
+                    <div className="py-12 px-4 text-center">
+                      <Building2 className="w-10 h-10 mx-auto mb-2 text-gray-400 opacity-60" />
+                      <p className={`font-bold text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {hostels.length === 0 ? 'No hostels added yet' : 'No matching hostels found'}
+                      </p>
+                      <p className={`text-xs mt-1 max-w-sm mx-auto ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                        {hostelSearchQuery ? `No hostels match "${hostelSearchQuery}". Try clearing your search query or switching filters.` : 'Click "Add Hostel" above to create your first campus delivery location.'}
+                      </p>
+                      {hostelSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => { setHostelSearchQuery(''); setHostelFilterTab('ALL'); }}
+                          className="mt-3 px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600/10 text-indigo-600 hover:bg-indigo-600/20"
+                        >
+                          Reset Filters
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                      {filteredHostels.map((hostel) => {
+                        const isActive = hostel.isActive !== false;
+                        const isBusy = hostelActionId === hostel.id;
+                        return (
+                          <div
+                            key={hostel.id}
+                            className={`rounded-xl border p-4 flex flex-col justify-between transition-all ${
+                              isDark
+                                ? isActive
+                                  ? 'bg-[#1E1E1E] border-gray-800 hover:border-gray-700'
+                                  : 'bg-[#171717] border-gray-800/60 opacity-75'
+                                : isActive
+                                ? 'bg-white border-gray-200 shadow-xs hover:border-gray-300'
+                                : 'bg-gray-50 border-gray-200 opacity-75'
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-start justify-between gap-3 mb-2">
+                                <div>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h3 className={`text-base font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                      {hostel.name}
+                                    </h3>
+                                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-md border ${isDark ? 'bg-gray-800 border-gray-700 text-gray-400' : 'bg-gray-100 border-gray-200 text-gray-600'}`}>
+                                      ID: {hostel.id}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <Badge className={isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}>
+                                    {isActive ? 'Active' : 'Disabled'}
+                                  </Badge>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap gap-1.5 mb-3">
+                                {hostel.requiresAcknowledgement ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                                    <AlertTriangle className="w-3 h-3" />
+                                    Acknowledgement Required
+                                  </span>
+                                ) : (
+                                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${isDark ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-600'}`}>
+                                    Standard Checkout
+                                  </span>
+                                )}
+                                {hostel.isPremiumDelivery && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30">
+                                    Premium Food Rate
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className={`rounded-xl p-3 text-xs space-y-1.5 mb-4 border ${isDark ? 'bg-[#141414] border-gray-800 text-gray-300' : 'bg-gray-50 border-gray-100 text-gray-700'}`}>
+                                <div className="flex items-start gap-2">
+                                  <MapPin className="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5" />
+                                  <span>
+                                    <strong className="font-bold">Pickup Point:</strong>{' '}
+                                    {hostel.pickupPoint || 'Front of your hostel/reception'}
+                                  </span>
+                                </div>
+                                {hostel.requiresAcknowledgement && hostel.acknowledgementMessage && (
+                                  <p className={`text-[11px] leading-relaxed pl-5 ${isDark ? 'text-amber-300/90' : 'text-amber-800'}`}>
+                                    "{hostel.acknowledgementMessage}"
+                                  </p>
+                                )}
+                                {hostel.collectionInstruction && (
+                                  <p className={`text-[11px] leading-relaxed pl-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                    <strong className="font-semibold">Rider/Tracker Note:</strong> {hostel.collectionInstruction}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2 pt-3 border-t border-gray-100 dark:border-gray-800">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                disabled={isBusy}
+                                onClick={() => handleToggleHostelActive(hostel)}
+                                className={`py-1.5 px-3 text-xs font-bold rounded-xl ${
+                                  isActive
+                                    ? 'border-amber-500 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10'
+                                    : 'border-emerald-500 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
+                                }`}
+                              >
+                                {isBusy ? 'Updating...' : isActive ? 'Disable' : 'Enable'}
+                              </Button>
+
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  disabled={isBusy}
+                                  onClick={() => handleOpenEditHostel(hostel)}
+                                  className="px-3 py-1.5 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20 font-bold text-xs flex items-center gap-1.5 transition-colors"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" /> Edit Rules
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isBusy}
+                                  onClick={() => handleRemoveHostel(hostel)}
+                                  className="p-1.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 font-bold text-xs transition-colors"
+                                  title="Remove or Archive Hostel"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Scroll Indicator Footer */}
+                {filteredHostels.length > 2 && (
+                  <div className="mt-2.5 flex items-center justify-between text-[11px] text-gray-400 dark:text-gray-500 px-1">
+                    <span>Showing {filteredHostels.length} of {hostels.length} hostels</span>
+                    <span>Scroll inside box to view all</span>
+                  </div>
+                )}
+              </div>
+            )}
           </Card>
         </div>
 
