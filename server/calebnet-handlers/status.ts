@@ -1,9 +1,19 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { adminDb } from '../firebase-admin.js';
 import { setCors } from '../calebnet.js';
 import { isRateLimited, clientIp } from '../rate-limit.js';
+import { confirmOrRepairCalebNetOrderRefund } from '../wallet.js';
 
-function studentOrder(data: any, id: string) {
+function studentOrder(data: any, id: string, refundState: { confirmed: boolean; refundTransactionId: string | null }) {
+    const isWalletRefunded = Boolean(
+        refundState.confirmed ||
+        data.paymentStatus === 'REFUNDED' ||
+        data.fulfillmentStatus === 'REFUNDED' ||
+        data.walletRefundTransactionId
+    );
+    const effectiveFulfillmentStatus = isWalletRefunded && data.fulfillmentStatus !== 'SUCCESSFUL'
+        ? 'REFUNDED'
+        : data.fulfillmentStatus;
+
     return {
         id,
         type: data.type,
@@ -11,8 +21,13 @@ function studentOrder(data: any, id: string) {
         phoneNumber: data.phoneNumber,
         planName: data.planName,
         amountPaid: data.amountPaid,
-        paymentStatus: data.paymentStatus,
-        fulfillmentStatus: data.fulfillmentStatus,
+        paymentStatus: isWalletRefunded ? 'REFUNDED' : data.paymentStatus,
+        fulfillmentStatus: effectiveFulfillmentStatus,
+        walletRefundTransactionId: refundState.refundTransactionId || data.walletRefundTransactionId || null,
+        walletRefundConfirmed: isWalletRefunded,
+        walletRefundAmount: data.walletRefundAmount ?? (isWalletRefunded ? data.amountPaid : null),
+        refundedAt: data.refundedAt || null,
+        providerRemark: data.providerRemark || null,
         createdAt: data.createdAt || null,
         updatedAt: data.updatedAt || null,
     };
@@ -31,9 +46,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const paymentReference = String(req.query.paymentReference || '').trim();
         if (!paymentReference) return res.status(400).json({ error: 'paymentReference is required' });
 
-        const doc = await adminDb().collection('calebnet_orders').doc(paymentReference).get();
-        if (!doc.exists) return res.status(404).json({ error: 'Order not found' });
-        return res.status(200).json({ success: true, order: studentOrder(doc.data(), doc.id) });
+        const verified = await confirmOrRepairCalebNetOrderRefund(paymentReference);
+        if (!verified) return res.status(404).json({ error: 'Order not found' });
+        return res.status(200).json({
+            success: true,
+            order: studentOrder(verified.order, verified.id, {
+                confirmed: verified.confirmed,
+                refundTransactionId: verified.refundTransactionId,
+            }),
+        });
     } catch (error: any) {
         console.error('[CalebNet Status]', error);
         return res.status(500).json({ error: 'Unable to fetch CalebNet order status' });

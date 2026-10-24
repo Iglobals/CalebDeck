@@ -16,7 +16,11 @@ export interface OrderHistoryEntry {
   summary: string;           // e.g. "3 plates from Old Cafeteria" or "MTN 2GB Data"
   total: number;
   status: string;
+  hostelId?: string;
   hostelName?: string;
+  pickupPoint?: string;
+  collectionInstruction?: string;
+  requiresHostelAcknowledgement?: boolean;
   createdAt: string;         // ISO string
 }
 
@@ -55,7 +59,11 @@ export function saveOrderToHistory(entry: OrderHistoryEntry) {
       orderId: existing.orderId || entry.orderId,
       total: entry.total || existing.total,
       status: entry.status || existing.status,
+      hostelId: entry.hostelId || existing.hostelId,
       hostelName: entry.hostelName || existing.hostelName,
+      pickupPoint: entry.pickupPoint || existing.pickupPoint,
+      collectionInstruction: entry.collectionInstruction || existing.collectionInstruction,
+      requiresHostelAcknowledgement: entry.requiresHostelAcknowledgement ?? existing.requiresHostelAcknowledgement,
       createdAt: existing.createdAt,
     };
     writeHistory(history);
@@ -112,7 +120,11 @@ export function buildFoodOrderEntry(orderState: any): OrderHistoryEntry {
     summary,
     total: orderState.total || orderState.totalAmount || 0,
     status: orderState.status || 'PAID',
+    hostelId: orderState.hostelId || orderState.hostel,
     hostelName: orderState.hostelName || orderState.hostel,
+    pickupPoint: orderState.pickupPoint || orderState.hostelAcknowledgement?.pickupPoint,
+    collectionInstruction: orderState.collectionInstruction || orderState.hostelAcknowledgement?.collectionInstruction,
+    requiresHostelAcknowledgement: Boolean(orderState.requiresHostelAcknowledgement || orderState.hostelAcknowledgement?.accepted || orderState.femaleHostelAgreement),
     createdAt: new Date().toISOString()
   };
 }
@@ -129,7 +141,11 @@ export function buildMartOrderEntry(orderState: any): OrderHistoryEntry {
     summary: `${totalQty} item${totalQty !== 1 ? 's' : ''} from CalebDeck Mart`,
     total: orderState.total || orderState.totalAmount || 0,
     status: orderState.status || 'PAID',
+    hostelId: orderState.hostelId || orderState.hostel,
     hostelName: orderState.hostelName || orderState.hostel,
+    pickupPoint: orderState.pickupPoint || orderState.hostelAcknowledgement?.pickupPoint,
+    collectionInstruction: orderState.collectionInstruction || orderState.hostelAcknowledgement?.collectionInstruction,
+    requiresHostelAcknowledgement: Boolean(orderState.requiresHostelAcknowledgement || orderState.hostelAcknowledgement?.accepted || orderState.femaleHostelAgreement),
     createdAt: new Date().toISOString()
   };
 }
@@ -142,6 +158,7 @@ export function buildCalebNetEntry(data: {
   phoneNumber: string;
   planName?: string;
   reference: string;
+  status?: string;
 }): OrderHistoryEntry {
   const summary = data.type === 'data'
     ? `${data.network} ${data.planName || 'Data'}`
@@ -153,7 +170,7 @@ export function buildCalebNetEntry(data: {
     type: 'calebnet',
     summary,
     total: data.amount,
-    status: 'PROCESSING',
+    status: data.status || 'PROCESSING',
     createdAt: new Date().toISOString()
   };
 }
@@ -170,7 +187,11 @@ export function buildFashionOrderEntry(orderState: any): OrderHistoryEntry {
     summary: `${totalQty} item${totalQty !== 1 ? 's' : ''} from CalebDeck Fashion`,
     total: orderState.total || orderState.totalAmount || 0,
     status: orderState.status || 'ORDER_PLACED',
+    hostelId: orderState.hostelId || orderState.hostel,
     hostelName: orderState.hostelName || orderState.hostel,
+    pickupPoint: orderState.pickupPoint || orderState.hostelAcknowledgement?.pickupPoint,
+    collectionInstruction: orderState.collectionInstruction || orderState.hostelAcknowledgement?.collectionInstruction,
+    requiresHostelAcknowledgement: Boolean(orderState.requiresHostelAcknowledgement || orderState.hostelAcknowledgement?.accepted || orderState.femaleHostelAgreement),
     createdAt: new Date().toISOString()
   };
 }
@@ -210,7 +231,11 @@ export function buildEntryFromFirestoreOrder(id: string, doc: any): OrderHistory
     summary,
     total: doc.totalAmount ?? doc.total ?? 0,
     status: doc.status || 'PAID',
+    hostelId: doc.hostelId || doc.hostel || undefined,
     hostelName: doc.hostelName || doc.hostel || undefined,
+    pickupPoint: doc.pickupPoint || doc.hostelAcknowledgement?.pickupPoint || undefined,
+    collectionInstruction: doc.collectionInstruction || doc.hostelAcknowledgement?.collectionInstruction || undefined,
+    requiresHostelAcknowledgement: Boolean(doc.requiresHostelAcknowledgement || doc.hostelAcknowledgement?.accepted || doc.femaleHostelAgreement),
     createdAt: created,
   };
 }

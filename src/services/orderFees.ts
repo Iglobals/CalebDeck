@@ -7,6 +7,7 @@
  * girls'-hostel premium — the premium only applies inside the FOOD branch.
  */
 import { resolveOrderVertical, type OrderVertical } from './orderVertical.js';
+import { findHostelConfig, isDavidHostelKey } from './hostels.js';
 
 export const DEFAULT_PREMIUM_HOSTELS = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'];
 
@@ -22,16 +23,28 @@ const normalizeHostelKey = (value: any) =>
     String(value ?? '')
         .trim()
         .toLowerCase()
+        .replace(/['’`]/g, '')
         .replace(/\s+/g, ' ')
-        .replace(/\s+hall$/, '');
+        .replace(/\s+(hall|hostel)$/, '');
 
-/** Girls'-hostel premium list is admin-editable via Platform Settings (`premiumHostels`). */
-export function isPremiumHostel(hostel: any, settings?: any): boolean {
+/** Girls'-hostel / premium delivery list is admin-editable via Platform Settings (`premiumHostels` & `hostelConfigs`). */
+export function isPremiumHostel(hostel: any, settings?: any, hostels?: any[]): boolean {
+    const key = normalizeHostelKey(hostel);
+    if (!key) return false;
+
+    const matchedConfig = findHostelConfig(String(hostel), hostels, settings);
+    if (matchedConfig && typeof matchedConfig.isPremiumDelivery === 'boolean') {
+        return matchedConfig.isPremiumDelivery;
+    }
+
+    if (isDavidHostelKey(key)) {
+        return false;
+    }
+
     const list: string[] =
         Array.isArray(settings?.premiumHostels) && settings.premiumHostels.length > 0
             ? settings.premiumHostels
             : DEFAULT_PREMIUM_HOSTELS;
-    const key = normalizeHostelKey(hostel);
     return list.some(h => normalizeHostelKey(h) === key);
 }
 

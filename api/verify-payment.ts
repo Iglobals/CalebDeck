@@ -3,7 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import axios from 'axios';
 import { adminDb } from '../server/firebase-admin.js';
 import { confirmFoodBatchReservation } from '../server/food-batch.js';
-import { calculateServerOrderTotal } from '../server/order-utils.js';
+import { calculateServerOrderTotal, validateAndResolveOrderHostel } from '../server/order-utils.js';
 import { claimFirstOrderDiscount, mergeDiscountOntoOrder } from '../server/first-order-discount.js';
 import { resolveOrderVertical } from '../src/services/orderVertical.js';
 import { isRateLimited, clientIp } from '../server/rate-limit.js';
@@ -74,9 +74,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
             // Webhook skeleton — fall through to overwrite with full data
-            if (existingData.source === 'webhook') {
+            if (existingDoc.data()!.source === 'webhook') {
                 console.log(`[verify-payment] Overwriting webhook skeleton for ref: ${reference}`);
             }
+        }
+
+        // Validate hostel & mandatory acknowledgement on the server
+        const mergedSourceOrder = existingDoc.exists
+            ? { ...existingDoc.data(), ...orderData }
+            : orderData;
+        const hostelValidation = await validateAndResolveOrderHostel(db, mergedSourceOrder, {
+            enforceActiveAndAck: !existingDoc.exists,
+        });
+        if (!hostelValidation.valid) {
+            return res.status(400).json({
+                error: hostelValidation.code || 'HOSTEL_VALIDATION_FAILED',
+                message: hostelValidation.message || 'Hostel collection acknowledgement is required.',
+            });
         }
 
         // 2. Verify with Paystack
@@ -156,6 +170,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             phone: orderData?.phone || '',
             hostel: orderData?.hostel || '',
             hostelName: orderData?.hostelName || '',
+            ...hostelValidation.hostelFields,
             instructions: orderData?.instructions || '',
             total: paidAmount, // Use Paystack-verified amount
             cafeteria: orderData?.cafeteria || '',

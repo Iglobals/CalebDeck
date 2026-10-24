@@ -438,10 +438,12 @@ export default function CalebNet() {
   const providerStatus = statuses[`${type}_${network}`] || 'HEALTHY';
   const airtimeAvailable = type !== 'AIRTIME' || plans.length > 0;
   const currentAmount = type === 'DATA' ? Number(selectedPlan?.sellingPrice || 0) : Number(amount || 0);
-  // The balance check must never run against not-yet-loaded data — that is what
-  // produced the false "Insufficient wallet balance" flash before the first
-  // realtime snapshot landed.
-  const insufficientBalance = walletBalanceLoaded && currentAmount > 0 && walletBalance < currentAmount;
+  // The balance check must never run against not-yet-loaded data or while an order
+  // is actively processing — while /api/calebnet/purchase is in-flight, the server
+  // debits the wallet in Firestore and the realtime snapshot updates walletBalance
+  // before the HTTP response returns, which would otherwise flash a false
+  // "Insufficient wallet balance" warning while the purchase is processing.
+  const insufficientBalance = !isProcessing && walletBalanceLoaded && currentAmount > 0 && walletBalance < currentAmount;
   const airtimeAmountError = type === 'AIRTIME' && amount !== ''
     ? currentAmount < 50
       ? 'Minimum airtime purchase is ₦50.'
@@ -691,7 +693,8 @@ export default function CalebNet() {
 
 
   const handlePurchase = async () => {
-    if (!valid || isProcessing) {
+    if (isProcessing) return;
+    if (!valid) {
       if (insufficientBalance) toast.error('Insufficient wallet balance. Please top up your wallet.');
       return;
     }
@@ -721,6 +724,7 @@ export default function CalebNet() {
         phoneNumber,
         planName: selectedPlan?.name || 'Airtime',
         reference: clientRequestId,
+        status: data.order?.fulfillmentStatus || 'PROCESSING',
       }));
 
       if (user?.uid) {
@@ -735,8 +739,11 @@ export default function CalebNet() {
       purchaseRef.current = `CDNETW-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
       // replace (not push): back from the status page must land on the page
       // before this purchase — never a CalebNet ↔ status history loop.
+      // Keep isProcessing = true through navigation so the post-debit balance
+      // snapshot never flashes "Insufficient wallet balance" before unmount.
       navigate(`/calebnet/status/${encodeURIComponent(clientRequestId)}`, { replace: true });
     } catch (error: any) {
+      setIsProcessing(false);
       const raw = error.message || '';
       // Never show raw Firestore / server internals to students
       const isTechnical = raw.includes('Firestore') || raw.includes('firebase') || raw.includes('undefined') || raw.includes('INTERNAL') || raw.length > 120;
@@ -744,8 +751,6 @@ export default function CalebNet() {
         ? 'Something went wrong processing your request. Please try again or contact support.'
         : raw || 'CalebNet purchase failed.';
       toast.error(friendly);
-    } finally {
-      setIsProcessing(false);
     }
   };
 
@@ -1050,7 +1055,7 @@ export default function CalebNet() {
                   <>
                     <Button onClick={handlePurchase} disabled={!valid || isProcessing} className="w-full py-4">
                       {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Shield className="h-5 w-5" />}
-                      Pay from Wallet
+                      {isProcessing ? 'Processing...' : 'Pay from Wallet'}
                     </Button>
                     {!valid && !isProcessing && payDisabledReason && (
                       <p className="mt-3 rounded-xl bg-amber-500/10 p-3 text-center text-xs font-bold text-amber-600">{payDisabledReason}</p>

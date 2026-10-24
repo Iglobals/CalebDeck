@@ -7,7 +7,8 @@ import { Badge } from '../../components/design-system/Badge';
 import { ProgressStepper } from '../../components/design-system/ProgressStepper';
 import { CheckCircle, MapPin, Clock, Phone, Sparkles, RefreshCw, AlertCircle, Timer, ShoppingBag, ArrowLeft, Package } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
-import { subscribeToOrderStatus, getRiderById, getHostelById, Rider, getOrderById, submitReview, subscribeToPlatformSettings } from '../../../services/db';
+import { subscribeToOrderStatus, getRiderById, getHostelById, Rider, getOrderById, submitReview, subscribeToPlatformSettings, subscribeToAllHostels, Hostel } from '../../../services/db';
+import { resolveOrderHostelInfo } from '../../../services/hostels';
 import { useAuth } from '../../../context/AuthContext';
 import { trackOrderTracked } from '../../../services/analytics';
 import { saveOrderToHistory, buildFoodOrderEntry, buildMartOrderEntry, buildCalebNetEntry, buildFashionOrderEntry } from '../../../services/orderHistory';
@@ -17,30 +18,12 @@ import { BatchTimeline } from '../../components/BatchTimeline';
 import { formatBatchTime } from '../../../context/BatchTimerContext';
 
 const TRACKING_STEPS = ['Received', 'Out for Delivery', 'On The Way', 'Delivered'];
-const MASS_COMM_PICKUP_HOSTELS = ['mary', 'mary hall', 'rebecca', 'rebecca hall', 'esme', 'esme hall', 'mercy', 'mercy hall', 'deborah', 'deborah hall'];
-const MEDICALS_PICKUP_HOSTELS = ['sussana', 'sussana hall', 'susanna', 'susanna hall'];
 
 const STATUS_TO_STEP: Record<string, number> = {
   PAID: 0,
   OUT_FOR_DELIVERY: 1,
   ON_THE_WAY: 2,
   DELIVERED: 3,
-};
-
-const getPickupPoint = (hostelId: string, hostelName: string) => {
-  const normalizedValues = [hostelId, hostelName]
-    .filter(Boolean)
-    .map(value => value.toLowerCase().trim());
-
-  if (normalizedValues.some(value => MASS_COMM_PICKUP_HOSTELS.includes(value))) {
-    return 'Front of Mass Comm Building';
-  }
-
-  if (normalizedValues.some(value => MEDICALS_PICKUP_HOSTELS.includes(value))) {
-    return 'Caleb Medicals';
-  }
-
-  return 'Front of your hostel/reception';
 };
 
 export default function OrderSuccess() {
@@ -111,12 +94,12 @@ export default function OrderSuccess() {
     }
   }, [location.state]);
 
-  const displayHostel = hostelName || hostel || 'Your Hostel';
-  const pickupPoint = getPickupPoint(hostel, hostelName);
   const [currentStep, setCurrentStep] = useState(0);
   const [showTracking, setShowTracking] = useState(orderData.showTracking === true);
   const [rider, setRider] = useState<Rider | null>(null);
   const [orderStatus, setOrderStatus] = useState<string>(status || 'PAID');
+  const [liveOrder, setLiveOrder] = useState<any>(null);
+  const [hostels, setHostels] = useState<Hostel[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
@@ -126,9 +109,21 @@ export default function OrderSuccess() {
   const [platformSettings, setPlatformSettings] = useState<any>(null);
   const enjoyMealRef = useRef<HTMLDivElement>(null);
 
+  const mergedOrderData = {
+    ...orderData,
+    ...(liveOrder || {}),
+  };
+  const hostelInfo = resolveOrderHostelInfo(mergedOrderData, hostels, platformSettings);
+  const displayHostel = hostelInfo.displayHostel;
+  const pickupPoint = hostelInfo.pickupPoint;
+
   useEffect(() => {
     const unsubSettings = subscribeToPlatformSettings(setPlatformSettings);
-    return () => unsubSettings();
+    const unsubHostels = subscribeToAllHostels(setHostels);
+    return () => {
+      unsubSettings();
+      unsubHostels();
+    };
   }, []);
 
   useEffect(() => {
@@ -154,8 +149,21 @@ export default function OrderSuccess() {
     
     const unsub = subscribeToOrderStatus(firestoreOrderId, (order) => {
       if (order) {
+        setLiveOrder(order);
         setOrderStatus(order.status);
         setCurrentStep(STATUS_TO_STEP[order.status] ?? 0);
+
+        try {
+          const prevSaved = localStorage.getItem('calebdeck_last_order');
+          const parsedPrev = prevSaved ? JSON.parse(prevSaved) : {};
+          localStorage.setItem('calebdeck_last_order', JSON.stringify({
+            ...parsedPrev,
+            ...order,
+            firestoreOrderId,
+          }));
+        } catch {
+          // ignore storage quota errors
+        }
         
         // Track order status updates
         trackOrderTracked(orderId, order.status);
@@ -194,6 +202,7 @@ export default function OrderSuccess() {
         const orderDataRaw = await getOrderById(firestoreOrderId);
         const order = orderDataRaw as any;
         if (order) {
+            setLiveOrder(order);
             setOrderStatus(order.status);
             setCurrentStep(STATUS_TO_STEP[order.status] ?? 0);
             if (order.assignedRiderId) {
@@ -464,6 +473,9 @@ export default function OrderSuccess() {
                           
                           <div className="text-gray-500 uppercase tracking-widest">Delivery</div>
                           <div className="text-right font-bold uppercase">{displayHostel}</div>
+
+                          <div className="text-gray-500 uppercase tracking-widest">Pickup Point</div>
+                          <div className="text-right font-bold uppercase">{pickupPoint}</div>
                           
                           <div className="text-gray-500 uppercase tracking-widest">Arrival</div>
                           <div className="text-right font-bold uppercase">
@@ -473,6 +485,13 @@ export default function OrderSuccess() {
                           <div className="text-gray-500 uppercase tracking-widest">Batch</div>
                           <div className="text-right font-bold uppercase">{orderData.fashionBatchName || 'Pending'}</div>
                         </div>
+
+                        {hostelInfo.requiresAcknowledgement && (
+                          <div className="rounded-xl bg-amber-50 border border-amber-300 p-3 text-left text-[11px] leading-snug text-amber-900">
+                            <p className="font-black uppercase tracking-wider mb-1">Collection Instruction ({displayHostel})</p>
+                            <p className="font-semibold">{hostelInfo.collectionInstruction || hostelInfo.studentNotice}</p>
+                          </div>
+                        )}
 
                         {/* Barcode Graphic */}
                         <div className="pt-10 pb-4 flex flex-col items-center justify-center opacity-70">
@@ -512,9 +531,26 @@ export default function OrderSuccess() {
                     <div>
                       <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Pickup Point</p>
                       <p className="text-xl font-bold">{pickupPoint}</p>
-                      <p className="text-sm text-muted-foreground font-medium mt-1">Meet your rider here when they call or arrive.</p>
+                      <p className="text-sm text-muted-foreground font-medium mt-1">
+                        {hostelInfo.requiresAcknowledgement
+                          ? (hostelInfo.collectionInstruction || hostelInfo.studentNotice)
+                          : 'Meet your rider here when they call or arrive.'}
+                      </p>
                     </div>
                   </div>
+                  {hostelInfo.requiresAcknowledgement && (
+                    <div className="rounded-2xl border-2 border-amber-500/30 bg-amber-500/10 p-4 flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-1">
+                          Important Collection Rule — {displayHostel}
+                        </p>
+                        <p className="text-sm font-bold text-foreground leading-relaxed">
+                          {hostelInfo.collectionInstruction || hostelInfo.studentNotice}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-start gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                       <Clock className="w-6 h-6 text-primary" />
@@ -730,9 +766,26 @@ export default function OrderSuccess() {
                 <div>
                   <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-1">Pickup Point</p>
                   <p className="text-lg font-bold">{pickupPoint}</p>
-                  <p className="text-sm text-muted-foreground font-medium">Meet your rider here when they call or arrive.</p>
+                  <p className="text-sm text-muted-foreground font-medium">
+                    {hostelInfo.requiresAcknowledgement
+                      ? (hostelInfo.collectionInstruction || hostelInfo.studentNotice)
+                      : 'Meet your rider here when they call or arrive.'}
+                  </p>
                 </div>
               </div>
+              {hostelInfo.requiresAcknowledgement && (
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 flex items-start gap-3">
+                  <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-0.5">
+                      Collection Requirement
+                    </p>
+                    <p className="text-xs font-bold text-foreground leading-relaxed">
+                      {hostelInfo.collectionInstruction || hostelInfo.studentNotice}
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className="flex items-start gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-1">Ordered At</p>

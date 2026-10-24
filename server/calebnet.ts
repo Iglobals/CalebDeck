@@ -1,13 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import axios from 'axios';
 import { adminDb } from './firebase-admin.js';
 
 export type CalebNetType = 'DATA' | 'AIRTIME';
 export type CalebNetNetwork = 'MTN' | 'GLO' | 'AIRTEL' | '9MOBILE';
 export type FulfillmentStatus =
     'NOT_STARTED' | 'PROCESSING' | 'ORDER_RECEIVED' | 'PENDING_PROVIDER' |
-    'SUCCESSFUL' | 'FAILED' | 'REFUND_REQUIRED' | 'CANCELLED';
+    'SUCCESSFUL' | 'FAILED' | 'REFUND_REQUIRED' | 'CANCELLED' | 'REFUNDED';
 
 export const NETWORK_CODES: Record<CalebNetNetwork, string> = {
     MTN: '01',
@@ -44,10 +43,14 @@ export function isValidNigerianPhone(phone: string) {
     return /^0[789][01]\d{8}$/.test(phone);
 }
 
+function cleanCredential(value: string | undefined): string {
+    return String(value || '').trim().replace(/^["']|["']$/g, '').trim();
+}
+
 export function getClubkonnectConfig() {
-    const userId = process.env.CLUBKONNECT_USER_ID;
-    const apiKey = process.env.CLUBKONNECT_API_KEY;
-    const baseUrl = (process.env.CLUBKONNECT_BASE_URL || 'https://www.nellobytesystems.com').replace(/\/$/, '');
+    const userId = cleanCredential(process.env.CLUBKONNECT_USER_ID);
+    const apiKey = cleanCredential(process.env.CLUBKONNECT_API_KEY);
+    const baseUrl = cleanCredential(process.env.CLUBKONNECT_BASE_URL || 'https://www.nellobytesystems.com').replace(/\/$/, '');
     if (!userId || !apiKey) throw new Error('Clubkonnect credentials are not configured');
     return { userId, apiKey, baseUrl };
 }
@@ -100,13 +103,13 @@ export function shouldPreserveSuccessful(current?: string, next?: string) {
 
 export function providerHealthOutcomeForStatus(status: FulfillmentStatus): 'success' | 'failure' | 'timeout' | 'pending' {
     if (status === 'SUCCESSFUL') return 'success';
-    if (status === 'FAILED' || status === 'REFUND_REQUIRED' || status === 'CANCELLED') return 'failure';
+    if (status === 'FAILED' || status === 'REFUND_REQUIRED' || status === 'CANCELLED' || status === 'REFUNDED') return 'failure';
     if (status === 'PENDING_PROVIDER') return 'timeout';
     return 'pending';
 }
 
 export function isRefundableProviderStatus(status: FulfillmentStatus) {
-    return status === 'FAILED' || status === 'REFUND_REQUIRED' || status === 'CANCELLED';
+    return status === 'FAILED' || status === 'REFUND_REQUIRED' || status === 'CANCELLED' || status === 'REFUNDED';
 }
 
 export function providerInvalidPlanReason(input: any) {
@@ -141,8 +144,44 @@ export async function disableCatalogPlanAfterProviderRejection(order: any, reaso
 
 export async function clubkonnectGet(path: string, params: Record<string, any>, timeout = 20000) {
     const { baseUrl } = getClubkonnectConfig();
-    const response = await axios.get(`${baseUrl}${path}`, { params, timeout });
-    return response.data;
+    const targetUrl = new URL(path.startsWith('/') ? path : `/${path}`, `${baseUrl}/`);
+    for (const [key, value] of Object.entries(params || {})) {
+        if (value !== undefined && value !== null) {
+            targetUrl.searchParams.set(key, String(value));
+        }
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+        const response = await fetch(targetUrl.toString(), {
+            method: 'GET',
+            headers: { Accept: 'application/json, text/plain, */*' },
+            signal: controller.signal,
+        });
+        const rawText = await response.text();
+        let parsedData: any = rawText;
+        try {
+            parsedData = rawText ? JSON.parse(rawText) : {};
+        } catch {
+            parsedData = rawText;
+        }
+        if (!response.ok) {
+            const httpErr: any = new Error(`Clubkonnect HTTP ${response.status}`);
+            httpErr.response = { status: response.status, data: parsedData };
+            throw httpErr;
+        }
+        return parsedData;
+    } catch (err: any) {
+        if (err?.name === 'AbortError' || err?.name === 'TimeoutError') {
+            const timeoutErr: any = new Error('Clubkonnect request timed out');
+            timeoutErr.code = 'ECONNABORTED';
+            throw timeoutErr;
+        }
+        throw err;
+    } finally {
+        clearTimeout(timer);
+    }
 }
 
 export async function updateProviderHealth(

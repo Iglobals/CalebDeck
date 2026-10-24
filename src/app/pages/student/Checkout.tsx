@@ -7,8 +7,9 @@ import { Badge } from '../../components/design-system/Badge';
 import { Input, Select, Textarea } from '../../components/design-system/Input';
 import { ArrowLeft, Lock, Shield, CreditCard, MapPin, User, AlertTriangle, Timer, Gift } from 'lucide-react';
 import { netDeliveryFeeFromBreakdown, previewFirstOrderDiscount } from '../../../services/firstOrderDiscount';
-import { getActiveHostels, Hostel, subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
+import { getActiveHostels, subscribeToHostels, Hostel, subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 import { isPremiumHostel } from '../../../services/orderFees';
+import { resolveHostelRestriction } from '../../../services/hostels';
 import { calculateOrderTotal, verifyPayment } from '../../../services/functions';
 import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
@@ -108,6 +109,8 @@ export default function Checkout() {
     instructions: ''
   });
   const [femaleHostelAgreement, setFemaleHostelAgreement] = useState(false);
+  const [acknowledgementError, setAcknowledgementError] = useState(false);
+  const acknowledgementRef = useRef<HTMLDivElement | null>(null);
 
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
 
@@ -148,30 +151,22 @@ export default function Checkout() {
     }
   }, [deliveryType, isBatchSystemActive, platformSettings?.instantOrderingEnabled]);
 
-  // Fetch Hostels
+  // Live subscription to active hostels so admin changes reflect immediately
   useEffect(() => {
-    const fetchHostels = async () => {
-      try {
-        const activeHostels = await getActiveHostels();
-        setHostels(activeHostels);
-        
-        // Track checkout view when hostels are loaded
-        if (orderTotal) {
-          trackCheckoutView(
-            orderTotal.totalAmount,
-            plates.length + Object.keys(drinksSnacks).length,
-            cafeteriaId,
-            cafeteria
-          );
+    setLoadingHostels(true);
+    const unsub = subscribeToHostels((activeHostels) => {
+      setHostels(activeHostels);
+      setLoadingHostels(false);
+      setFormData(prev => {
+        if (prev.hostel && !activeHostels.some(h => h.id === prev.hostel)) {
+          setFemaleHostelAgreement(false);
+          setAcknowledgementError(false);
+          return { ...prev, hostel: '' };
         }
-      } catch (error) {
-        console.error("Error fetching hostels:", error);
-        toast.error("Failed to load hostels");
-      } finally {
-        setLoadingHostels(false);
-      }
-    };
-    fetchHostels();
+        return prev;
+      });
+    });
+    return () => unsub();
   }, []);
 
   // Calculate Order Items for calculation and Paystack metadata
@@ -254,7 +249,28 @@ if (premium) {
 
   const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
   const selectedHostel = hostels.find(h => h.id === formData.hostel);
-  const isFemaleHostelSelected = isPremiumHostel(formData.hostel, platformSettings);
+  const hostelRestriction = React.useMemo(
+    () => resolveHostelRestriction(formData.hostel, hostels, platformSettings),
+    [formData.hostel, hostels, platformSettings]
+  );
+  const isRestrictedHostelSelected = hostelRestriction.required;
+  const isFemaleHostelSelected = isPremiumHostel(formData.hostel, platformSettings, hostels);
+  const hostelAcknowledgement = React.useMemo(
+    () => ({
+      required: isRestrictedHostelSelected,
+      accepted: isRestrictedHostelSelected ? Boolean(femaleHostelAgreement) : false,
+      acceptedAt: isRestrictedHostelSelected && femaleHostelAgreement ? new Date().toISOString() : undefined,
+      hostelId: hostelRestriction.hostelId || formData.hostel,
+      hostelName: selectedHostel?.name || hostelRestriction.hostelName || formData.hostel,
+      title: hostelRestriction.title,
+      message: hostelRestriction.message,
+      checkboxLabel: hostelRestriction.checkboxLabel,
+      collectionInstruction: hostelRestriction.collectionInstruction,
+      pickupPoint: hostelRestriction.pickupPoint,
+      ruleType: hostelRestriction.ruleType,
+    }),
+    [isRestrictedHostelSelected, femaleHostelAgreement, hostelRestriction, formData.hostel, selectedHostel?.name]
+  );
   const orderId = React.useMemo(() => `CD-${Math.floor(10000 + Math.random() * 90000)}`, []);
 
   const firstOrderPreview = React.useMemo(() => {
@@ -299,9 +315,13 @@ if (premium) {
       studentName: formData.fullName,
       phone: formData.phone,
       hostel: formData.hostel,
-      hostelName: selectedHostel?.name || formData.hostel,
+      hostelId: hostelRestriction.hostelId || formData.hostel,
+      hostelName: selectedHostel?.name || hostelRestriction.hostelName || formData.hostel,
+      pickupPoint: hostelRestriction.pickupPoint,
+      collectionInstruction: hostelRestriction.collectionInstruction,
       instructions: formData.instructions,
       femaleHostelAgreement,
+      hostelAcknowledgement,
       cafeteria,
       cafeteriaId,
       sectionId,
@@ -389,11 +409,11 @@ if (premium) {
       });
     } catch (err: any) {
       paymentProcessingRef.current = false;
+      setIsWalletPaying(false);
+      setIsSubmitting(false);
       toast.dismiss();
       toast.error(err.message || "Failed to process wallet payment");
       setPaymentMethod('PAYSTACK'); // fallback safely
-    } finally {
-      setIsWalletPaying(false);
     }
   };
 
@@ -408,7 +428,11 @@ if (premium) {
       source: 'CalebDeck',
       ...formData,
       studentName: formData.fullName,
-      hostelName: selectedHostel?.name || formData.hostel,
+      hostelId: hostelRestriction.hostelId || formData.hostel,
+      hostelName: selectedHostel?.name || hostelRestriction.hostelName || formData.hostel,
+      pickupPoint: hostelRestriction.pickupPoint,
+      collectionInstruction: hostelRestriction.collectionInstruction,
+      hostelAcknowledgement,
       total: payableTotal,
       breakdown: checkoutBreakdown,
       firstOrderDiscount: firstOrderPreview
@@ -569,6 +593,7 @@ if (premium) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     if (e.target.name === 'hostel') {
       setFemaleHostelAgreement(false);
+      setAcknowledgementError(false);
     }
 
     setFormData({
@@ -611,8 +636,16 @@ if (premium) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!orderTotal || isClosed || isSubmitting) return;
-    if (isFemaleHostelSelected && !femaleHostelAgreement) {
-      toast.info('Please accept the female hostel delivery agreement before payment.');
+    if (!formData.fullName.trim() || !formData.phone.trim() || !formData.hostel) {
+      toast.info('Please complete your name, phone number, and hostel selection.');
+      return;
+    }
+    if (isRestrictedHostelSelected && !femaleHostelAgreement) {
+      setAcknowledgementError(true);
+      acknowledgementRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      toast.warning(
+        `Please confirm that you understand and agree to the collection rule for ${selectedHostel?.name || hostelRestriction.hostelName} before continuing.`
+      );
       return;
     }
     
@@ -636,7 +669,11 @@ if (premium) {
       studentName: formData.fullName,
       phone: formData.phone,
       hostel: formData.hostel,
-      hostelName: selectedHostel?.name || formData.hostel,
+      hostelId: hostelRestriction.hostelId || formData.hostel,
+      hostelName: selectedHostel?.name || hostelRestriction.hostelName || formData.hostel,
+      pickupPoint: hostelRestriction.pickupPoint,
+      collectionInstruction: hostelRestriction.collectionInstruction,
+      hostelAcknowledgement,
       instructions: formData.instructions,
       total: payableTotal,
       breakdown: checkoutBreakdown,
@@ -744,7 +781,6 @@ if (premium) {
     // Wallet payments debit atomically server-side against the just-saved order.
     if (paymentMethod === 'WALLET') {
       await handleWalletPayment(preSaveData);
-      setIsSubmitting(false);
       return;
     }
 
@@ -754,7 +790,8 @@ if (premium) {
     });
   };
 
-  const canSubmit = formData.fullName && formData.phone && formData.hostel && orderTotal && !calculating && !isClosed && !isSubmitting && (!isFemaleHostelSelected || femaleHostelAgreement);
+  // Keep button clickable when fields are ready so clicking without checking the hostel agreement triggers explicit validation feedback
+  const canSubmit = formData.fullName && formData.phone && formData.hostel && orderTotal && !calculating && !isClosed && !isSubmitting;
 
 
   const hostelOptions = [
@@ -965,41 +1002,68 @@ if (premium) {
                       className="md:col-span-2 bg-background/80"
                     />
                   </div>
-                  {isFemaleHostelSelected && (
-                    <div className="p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] bg-amber-500/10 border-2 border-amber-500/30 shadow-inner">
+                  {isRestrictedHostelSelected && (
+                    <div
+                      ref={acknowledgementRef}
+                      data-testid="hostel-acknowledgement-box"
+                      className={`p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] border-2 shadow-inner transition-all ${
+                        acknowledgementError && !femaleHostelAgreement
+                          ? 'bg-red-500/10 border-red-500 ring-2 ring-red-500/30'
+                          : 'bg-amber-500/10 border-amber-500/30'
+                      }`}
+                    >
                       <div className="space-y-4">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-start gap-3">
                           <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
                             <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600 dark:text-amber-400" />
                           </div>
-                          <h4 className="font-black text-base sm:text-lg leading-tight">Female Hostel Delivery Notice</h4>
+                          <div>
+                            <h4 className="font-black text-base sm:text-lg leading-tight">
+                              {hostelRestriction.title || `${selectedHostel?.name || 'Hostel'} Collection Notice`}
+                            </h4>
+                            <p className="text-xs font-bold text-amber-700 dark:text-amber-400 mt-1 flex items-center gap-1.5">
+                              <MapPin className="w-3.5 h-3.5 shrink-0" />
+                              Pickup / Collection Point: {hostelRestriction.pickupPoint}
+                            </p>
+                          </div>
                         </div>
                         <div className="space-y-2">
                           <p className="text-sm sm:text-base text-muted-foreground font-medium leading-relaxed">
-                            You selected {selectedHostel?.name || 'a female hostel'}. CalebDeck currently does not have female delivery agents for female hostels, and school rules restrict male riders from those areas.
+                            {hostelRestriction.message}
                           </p>
-                          <p className="text-sm sm:text-base text-muted-foreground font-medium leading-relaxed">
-                            Please meet the rider yourself at the assigned safe pickup point. Do not send an unknown person to collect your order, because CalebDeck can only confirm delivery when the order is handed directly to you.
-                          </p>
+                          {hostelRestriction.ruleType === 'FEMALE_HOSTEL_PICKUP' && (
+                            <p className="text-xs sm:text-sm text-muted-foreground font-medium leading-relaxed">
+                              Please meet the rider yourself at the assigned safe pickup point ({hostelRestriction.pickupPoint}). Do not send an unknown person to collect your order.
+                            </p>
+                          )}
                         </div>
-                          <label className="flex items-start gap-3 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={femaleHostelAgreement}
-                              onChange={(e) => setFemaleHostelAgreement(e.target.checked)}
-                              className="mt-1 h-5 w-5 rounded border-2 border-amber-500 accent-amber-500"
-                            />
-                            <span className="text-sm sm:text-base font-bold leading-relaxed">
-                              Yes, I agree to meet the rider myself at a safe, school-approved pickup point.
-                            </span>
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => navigate('/')}
-                            className="text-sm font-bold text-muted-foreground hover:text-foreground underline underline-offset-4"
-                          >
-                            No, return to home
-                          </button>
+                        <label className="flex items-start gap-3 cursor-pointer p-3 rounded-xl bg-background/60 border border-amber-500/30 hover:border-amber-500 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={femaleHostelAgreement}
+                            onChange={(e) => {
+                              setFemaleHostelAgreement(e.target.checked);
+                              if (e.target.checked) setAcknowledgementError(false);
+                            }}
+                            className="mt-1 h-5 w-5 rounded border-2 border-amber-500 accent-amber-500 shrink-0"
+                          />
+                          <span className="text-sm sm:text-base font-bold leading-relaxed">
+                            {hostelRestriction.checkboxLabel}
+                          </span>
+                        </label>
+                        {acknowledgementError && !femaleHostelAgreement && (
+                          <p role="alert" className="text-xs sm:text-sm font-bold text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                            <AlertTriangle className="w-4 h-4 shrink-0" />
+                            You must confirm and accept this collection condition for {selectedHostel?.name || hostelRestriction.hostelName} before proceeding with checkout.
+                          </p>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => navigate('/')}
+                          className="text-sm font-bold text-muted-foreground hover:text-foreground underline underline-offset-4"
+                        >
+                          No, return to home
+                        </button>
                       </div>
                     </div>
                   )}
@@ -1163,6 +1227,8 @@ if (premium) {
                     amount={payableTotal}
                     selectedMethod={paymentMethod}
                     onSelect={setPaymentMethod}
+                    disabled={isSubmitting || isWalletPaying}
+                    isProcessing={isSubmitting || isWalletPaying}
                   />
                 </div>
               )}
@@ -1170,7 +1236,7 @@ if (premium) {
               {/* Payment Button */}
               <button
                 onClick={handleSubmit}
-                disabled={!canSubmit}
+                disabled={!canSubmit || isWalletPaying}
                 className="w-full py-6 bg-primary text-primary-foreground text-xl font-bold rounded-2xl shadow-xl shadow-primary/20 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:grayscale disabled:opacity-50 flex items-center justify-center gap-3"
               >
                 {calculating ? (
@@ -1181,7 +1247,7 @@ if (premium) {
                 ) : (
                   <>
                     <CreditCard className="w-6 h-6" />
-                    {isWalletPaying ? 'Processing...' : `Pay ₦${payableTotal.toLocaleString()}`}
+                    {(isSubmitting || isWalletPaying) ? 'Processing...' : `Pay ₦${payableTotal.toLocaleString()}`}
                   </>
                 )}
               </button>

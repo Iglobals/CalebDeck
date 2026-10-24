@@ -23,21 +23,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             await refundWalletForCalebNetOrder({
                 orderId: paymentReference,
                 reason: req.body?.remark || 'Marked refunded by admin',
-                fulfillmentStatus: 'CANCELLED',
+                fulfillmentStatus: 'REFUNDED',
             });
             const finalOrder = await orderSnap.ref.get();
-            await recordCalebNetAnalytics(orderSnap.ref, finalOrder.data(), 'CANCELLED');
+            await recordCalebNetAnalytics(orderSnap.ref, finalOrder.data(), 'REFUNDED');
             return res.status(200).json({ success: true });
         }
 
         await orderSnap.ref.set({
-            fulfillmentStatus: 'CANCELLED',
+            fulfillmentStatus: 'REFUNDED',
+            paymentStatus: 'REFUNDED',
             providerRemark: req.body?.remark || 'Marked refunded by admin',
             refundedAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
         }, { merge: true });
         const finalOrder = await orderSnap.ref.get();
-        await recordCalebNetAnalytics(orderSnap.ref, finalOrder.data(), 'CANCELLED');
+        await recordCalebNetAnalytics(orderSnap.ref, finalOrder.data(), 'REFUNDED');
 
         return res.status(200).json({ success: true });
     } catch (error: any) {

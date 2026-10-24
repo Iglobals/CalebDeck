@@ -19,8 +19,11 @@ import {
   subscribeToPlatformSettings,
   subscribeTodayBatchDays,
   FoodBatchDay,
-  subscribeToRiderDailyEarnings
+  subscribeToRiderDailyEarnings,
+  subscribeToAllHostels,
+  Hostel
 } from '../../../services/db';
+import { resolveOrderHostelInfo } from '../../../services/hostels';
 import { NotificationPanel } from '../../components/NotificationPanel';
 import { requestNotificationPermissionAndSaveToken, onForegroundMessage } from '../../../services/messaging';
 import { BankDetailsModal } from '../../components/BankDetailsModal';
@@ -35,6 +38,7 @@ export default function RiderDashboard() {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [riderStatus, setRiderStatus] = useState<'available' | 'offline'>('offline');
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+  const [hostels, setHostels] = useState<Hostel[]>([]);
   const [batchDays, setBatchDays] = useState<FoodBatchDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [showBankModal, setShowBankModal] = useState(false);
@@ -44,8 +48,9 @@ export default function RiderDashboard() {
 
   useEffect(() => {
     const unsub = subscribeToPlatformSettings(setPlatformSettings);
+    const unsubHostels = subscribeToAllHostels(setHostels);
     const unsubBatchDays = subscribeTodayBatchDays(setBatchDays);
-    return () => { unsub(); unsubBatchDays(); };
+    return () => { unsub(); unsubHostels(); unsubBatchDays(); };
   }, []);
 
   // "Wallet & Incentives" reads the same recorded earnings the Wallet page shows,
@@ -295,7 +300,24 @@ export default function RiderDashboard() {
                     <MapPin className="w-5 h-5 text-[#7C3AED]" />
                   </div>
                   <div>
-                    <h4 className={`text-base font-bold mb-1 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{batch.hostelName}</h4>
+                    {(() => {
+                      const sampleOrder = orders.find((order: any) => batch.orderIds?.includes(order.id));
+                      const batchHostelInfo = resolveOrderHostelInfo(
+                        sampleOrder || { hostel: (batch as any).hostelId, hostelName: batch.hostelName },
+                        hostels,
+                        platformSettings
+                      );
+                      return (
+                        <>
+                          <h4 className={`text-base font-bold mb-1 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{batchHostelInfo.displayHostel}</h4>
+                          {batchHostelInfo.requiresAcknowledgement && (
+                            <p className="text-[11px] font-bold text-amber-500 mb-1">
+                              Pickup: {batchHostelInfo.pickupPoint}
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
                     <div className={`flex items-center gap-2 text-xs font-medium ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                       <span>{batch.orderCount} Orders</span>
                       <span className={isDark ? 'text-[#333333]' : 'text-gray-200'}>|</span>

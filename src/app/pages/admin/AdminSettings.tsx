@@ -4,8 +4,10 @@ import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
-import { Settings, ShieldAlert, Store, Pizza, Clock, Wifi, Utensils, MessageSquare, Plus, Trash2, Edit3, ArrowUp, ArrowDown, Image as ImageIcon, Sparkles, Check, X, Gift, Upload, Loader2, ChevronDown } from 'lucide-react';
-import { subscribeToPlatformSettings, updatePlatformSettings, subscribeToFirstOrderDiscountClaims, PlatformSettings, PromoSlide, DEFAULT_PROMO_SLIDES, FirstOrderDiscountClaim, FashionDeliveryConfig } from '../../../services/db';
+import { Settings, ShieldAlert, Store, Pizza, Clock, Wifi, Utensils, MessageSquare, Plus, Trash2, Edit3, ArrowUp, ArrowDown, Image as ImageIcon, Sparkles, Check, X, Gift, Upload, Loader2, ChevronDown, Building2, MapPin, AlertTriangle } from 'lucide-react';
+import { subscribeToPlatformSettings, updatePlatformSettings, subscribeToFirstOrderDiscountClaims, subscribeToAllHostels, saveHostelConfig, toggleHostelStatus, removeOrArchiveHostel, Hostel, PlatformSettings, PromoSlide, DEFAULT_PROMO_SLIDES, FirstOrderDiscountClaim, FashionDeliveryConfig } from '../../../services/db';
+import { HostelRuleType, slugifyHostelId, DAVID_HOSTEL_DEFAULT_MESSAGE, DAVID_HOSTEL_DEFAULT_CHECKBOX, DAVID_HOSTEL_DEFAULT_COLLECTION_INSTRUCTION, DAVID_HOSTEL_DEFAULT_PICKUP_POINT, FEMALE_HOSTEL_DEFAULT_MESSAGE, FEMALE_HOSTEL_DEFAULT_CHECKBOX } from '../../../services/hostels';
+import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
 import { FashionBatchConfig, DEFAULT_FASHION_BATCH_CONFIG } from '../../../services/fashionBatch';
 import { uploadMediaToCloudinary } from '../../../services/cloudinary';
@@ -183,6 +185,283 @@ export default function AdminSettings() {
     const unsub = subscribeToFirstOrderDiscountClaims(setFirstOrderClaims);
     return () => unsub();
   }, []);
+
+  // Hostel Management State
+  const [hostels, setHostels] = useState<Hostel[]>([]);
+  const [isHostelModalOpen, setIsHostelModalOpen] = useState(false);
+  const [editingHostelId, setEditingHostelId] = useState<string | null>(null);
+  const [savingHostel, setSavingHostel] = useState(false);
+  const [hostelActionId, setHostelActionId] = useState<string | null>(null);
+  const [hostelDraft, setHostelDraft] = useState<{
+    id: string;
+    name: string;
+    isActive: boolean;
+    gender: 'male' | 'female' | 'mixed';
+    isPremiumDelivery: boolean;
+    requiresAcknowledgement: boolean;
+    ruleType: HostelRuleType;
+    pickupPoint: string;
+    acknowledgementTitle: string;
+    acknowledgementMessage: string;
+    acknowledgementCheckboxLabel: string;
+    collectionInstruction: string;
+  }>({
+    id: '',
+    name: '',
+    isActive: true,
+    gender: 'male',
+    isPremiumDelivery: false,
+    requiresAcknowledgement: false,
+    ruleType: 'NONE',
+    pickupPoint: 'Front of your hostel/reception',
+    acknowledgementTitle: '',
+    acknowledgementMessage: '',
+    acknowledgementCheckboxLabel: '',
+    collectionInstruction: 'Standard delivery to the front of the hostel/reception.',
+  });
+
+  useEffect(() => {
+    const unsubHostels = subscribeToAllHostels((list) => {
+      setHostels(list);
+    }, false);
+    return () => unsubHostels();
+  }, []);
+
+  const syncHostelConfigsToPlatformSettings = async (updatedHostels: Hostel[]) => {
+    try {
+      const premiumIds = updatedHostels
+        .filter(h => h.isPremiumDelivery && !h.isArchived)
+        .map(h => h.id);
+      const hostelConfigs = updatedHostels.map(h => ({
+        id: h.id,
+        name: h.name,
+        isActive: h.isActive,
+        isArchived: Boolean(h.isArchived),
+        gender: h.gender || 'mixed',
+        isPremiumDelivery: Boolean(h.isPremiumDelivery),
+        requiresAcknowledgement: Boolean(h.requiresAcknowledgement),
+        ruleType: h.ruleType || (h.requiresAcknowledgement ? 'CUSTOM' : 'NONE'),
+        pickupPoint: h.pickupPoint || 'Front of your hostel/reception',
+        acknowledgementTitle: h.acknowledgementTitle || '',
+        acknowledgementMessage: h.acknowledgementMessage || '',
+        acknowledgementCheckboxLabel: h.acknowledgementCheckboxLabel || '',
+        collectionInstruction: h.collectionInstruction || '',
+      }));
+      await updatePlatformSettings({
+        hostelConfigs,
+        ...(premiumIds.length > 0 ? { premiumHostels: premiumIds } : {}),
+      });
+    } catch (syncErr) {
+      console.warn('Non-blocking platform settings hostel sync warning:', syncErr);
+    }
+  };
+
+  const handleOpenAddHostel = () => {
+    setEditingHostelId(null);
+    setHostelDraft({
+      id: '',
+      name: '',
+      isActive: true,
+      gender: 'male',
+      isPremiumDelivery: false,
+      requiresAcknowledgement: false,
+      ruleType: 'NONE',
+      pickupPoint: 'Front of your hostel/reception',
+      acknowledgementTitle: '',
+      acknowledgementMessage: '',
+      acknowledgementCheckboxLabel: '',
+      collectionInstruction: 'Standard delivery to the front of the hostel/reception.',
+    });
+    setIsHostelModalOpen(true);
+  };
+
+  const handleOpenEditHostel = (hostel: Hostel) => {
+    setEditingHostelId(hostel.id);
+    setHostelDraft({
+      id: hostel.id,
+      name: hostel.name,
+      isActive: hostel.isActive !== false,
+      gender: hostel.gender || 'male',
+      isPremiumDelivery: Boolean(hostel.isPremiumDelivery),
+      requiresAcknowledgement: Boolean(hostel.requiresAcknowledgement),
+      ruleType: hostel.ruleType || (hostel.requiresAcknowledgement ? 'CUSTOM' : 'NONE'),
+      pickupPoint: hostel.pickupPoint || 'Front of your hostel/reception',
+      acknowledgementTitle: hostel.acknowledgementTitle || `${hostel.name} Collection Notice`,
+      acknowledgementMessage: hostel.acknowledgementMessage || '',
+      acknowledgementCheckboxLabel: hostel.acknowledgementCheckboxLabel || '',
+      collectionInstruction: hostel.collectionInstruction || 'Standard delivery to the front of the hostel/reception.',
+    });
+    setIsHostelModalOpen(true);
+  };
+
+  const applyHostelRulePreset = (preset: HostelRuleType, currentName?: string) => {
+    const label = (currentName ?? hostelDraft.name).trim() || "this hostel";
+    if (preset === 'DOWNSTAIRS_COLLECTION') {
+      setHostelDraft(prev => ({
+        ...prev,
+        requiresAcknowledgement: true,
+        ruleType: 'DOWNSTAIRS_COLLECTION',
+        pickupPoint: label.toLowerCase().includes('david')
+          ? DAVID_HOSTEL_DEFAULT_PICKUP_POINT
+          : `Downstairs at ${label} entrance`,
+        acknowledgementTitle: `${label} Collection Requirement`,
+        acknowledgementMessage: label.toLowerCase().includes('david')
+          ? DAVID_HOSTEL_DEFAULT_MESSAGE
+          : `Please note: Riders cannot enter ${label} unless they are authorized residents. If you select this hostel, you must come downstairs to collect your order. Please confirm that you understand and agree before continuing.`,
+        acknowledgementCheckboxLabel: label.toLowerCase().includes('david')
+          ? DAVID_HOSTEL_DEFAULT_CHECKBOX
+          : `I understand that riders cannot enter ${label} and I agree to come downstairs to collect my order.`,
+        collectionInstruction: label.toLowerCase().includes('david')
+          ? DAVID_HOSTEL_DEFAULT_COLLECTION_INSTRUCTION
+          : `Riders cannot enter ${label} unless they are authorized residents. Student must come downstairs to collect their order.`,
+      }));
+    } else if (preset === 'FEMALE_HOSTEL_PICKUP') {
+      setHostelDraft(prev => ({
+        ...prev,
+        requiresAcknowledgement: true,
+        ruleType: 'FEMALE_HOSTEL_PICKUP',
+        gender: 'female',
+        isPremiumDelivery: true,
+        pickupPoint: prev.pickupPoint === 'Front of your hostel/reception' ? 'Caleb Medicals' : prev.pickupPoint,
+        acknowledgementTitle: 'Female Hostel Delivery Notice',
+        acknowledgementMessage: FEMALE_HOSTEL_DEFAULT_MESSAGE,
+        acknowledgementCheckboxLabel: FEMALE_HOSTEL_DEFAULT_CHECKBOX,
+        collectionInstruction: `Riders cannot enter ${label}. Student must meet the rider at the designated external pickup point.`,
+      }));
+    } else if (preset === 'CUSTOM') {
+      setHostelDraft(prev => ({
+        ...prev,
+        requiresAcknowledgement: true,
+        ruleType: 'CUSTOM',
+        acknowledgementTitle: prev.acknowledgementTitle || `${label} Collection Notice`,
+        acknowledgementMessage:
+          prev.acknowledgementMessage ||
+          `Please note: Delivery to ${label} requires student collection at ${prev.pickupPoint || 'the designated pickup point'}. Please confirm that you understand and agree before continuing.`,
+        acknowledgementCheckboxLabel:
+          prev.acknowledgementCheckboxLabel ||
+          `I understand and agree to follow the collection instructions for ${label}.`,
+        collectionInstruction:
+          prev.collectionInstruction === 'Standard delivery to the front of the hostel/reception.'
+            ? `Student must collect order at ${prev.pickupPoint || 'the designated pickup point'}.`
+            : prev.collectionInstruction,
+      }));
+    } else {
+      setHostelDraft(prev => ({
+        ...prev,
+        requiresAcknowledgement: false,
+        ruleType: 'NONE',
+        pickupPoint: 'Front of your hostel/reception',
+        collectionInstruction: 'Standard delivery to the front of the hostel/reception.',
+      }));
+    }
+  };
+
+  const handleSaveHostelDraft = async () => {
+    const trimmedName = hostelDraft.name.trim();
+    if (!trimmedName) {
+      toast.error('Please enter a hostel display name.');
+      return;
+    }
+    const targetId = editingHostelId || hostelDraft.id.trim() || slugifyHostelId(trimmedName);
+    if (!targetId) {
+      toast.error('Could not generate a valid hostel ID.');
+      return;
+    }
+    if (!editingHostelId && hostels.some(h => h.id === targetId && !h.isArchived)) {
+      toast.error(`A hostel with ID "${targetId}" already exists. Edit the existing hostel or choose a distinct name.`);
+      return;
+    }
+    if (hostelDraft.requiresAcknowledgement && !hostelDraft.acknowledgementMessage.trim()) {
+      toast.error('Please enter the acknowledgement message shown to students at checkout.');
+      return;
+    }
+
+    setSavingHostel(true);
+    try {
+      const saved = await saveHostelConfig({
+        id: targetId,
+        name: trimmedName,
+        isActive: hostelDraft.isActive,
+        gender: hostelDraft.gender,
+        isPremiumDelivery: hostelDraft.isPremiumDelivery,
+        requiresAcknowledgement: hostelDraft.requiresAcknowledgement,
+        ruleType: hostelDraft.requiresAcknowledgement ? hostelDraft.ruleType : 'NONE',
+        pickupPoint: hostelDraft.pickupPoint.trim() || 'Front of your hostel/reception',
+        acknowledgementTitle: hostelDraft.acknowledgementTitle.trim() || `${trimmedName} Collection Notice`,
+        acknowledgementMessage: hostelDraft.acknowledgementMessage.trim(),
+        acknowledgementCheckboxLabel:
+          hostelDraft.acknowledgementCheckboxLabel.trim() ||
+          `I understand and agree to the collection instructions for ${trimmedName}.`,
+        collectionInstruction:
+          hostelDraft.collectionInstruction.trim() ||
+          (hostelDraft.requiresAcknowledgement
+            ? `Student must collect order at ${hostelDraft.pickupPoint.trim() || 'the designated pickup point'}.`
+            : 'Standard delivery to the front of the hostel/reception.'),
+      });
+
+      const nextList = editingHostelId
+        ? hostels.map(h => (h.id === saved.id ? saved : h))
+        : [...hostels.filter(h => h.id !== saved.id), saved];
+      setHostels(nextList);
+      await syncHostelConfigsToPlatformSettings(nextList);
+
+      toast.success(editingHostelId ? `${saved.name} updated.` : `${saved.name} added to CalebDeck.`);
+      setIsHostelModalOpen(false);
+    } catch (err: any) {
+      console.error('Failed to save hostel configuration:', err);
+      toast.error(err?.message || 'Could not save hostel configuration. Your changes are still in the form.');
+    } finally {
+      setSavingHostel(false);
+    }
+  };
+
+  const handleToggleHostelActive = async (hostel: Hostel) => {
+    const nextActive = !hostel.isActive;
+    setHostelActionId(hostel.id);
+    try {
+      await toggleHostelStatus(hostel.id, nextActive);
+      const nextList = hostels.map(h => (h.id === hostel.id ? { ...h, isActive: nextActive } : h));
+      setHostels(nextList);
+      await syncHostelConfigsToPlatformSettings(nextList);
+      toast.success(
+        nextActive
+          ? `${hostel.name} is now enabled for student checkout.`
+          : `${hostel.name} has been disabled for new orders. Historical orders remain intact.`
+      );
+    } catch (err: any) {
+      console.error('Failed to toggle hostel status:', err);
+      toast.error(err?.message || `Could not update status for ${hostel.name}.`);
+    } finally {
+      setHostelActionId(null);
+    }
+  };
+
+  const handleRemoveHostel = async (hostel: Hostel) => {
+    if (
+      !confirm(
+        `Remove "${hostel.name}" from active hostels? If this hostel has existing orders, it will be safely archived so historical orders and reports remain intact.`
+      )
+    ) {
+      return;
+    }
+    setHostelActionId(hostel.id);
+    try {
+      const result = await removeOrArchiveHostel(hostel.id, hostel.name);
+      const nextList = hostels.filter(h => h.id !== hostel.id);
+      setHostels(nextList);
+      await syncHostelConfigsToPlatformSettings(nextList);
+      if (result.mode === 'archived') {
+        toast.info(result.reason || `${hostel.name} was safely archived.`);
+      } else {
+        toast.success(`${hostel.name} was removed.`);
+      }
+    } catch (err: any) {
+      console.error('Failed to remove/archive hostel:', err);
+      toast.error(err?.message || `Could not remove ${hostel.name}.`);
+    } finally {
+      setHostelActionId(null);
+    }
+  };
 
   const isDark = adminTheme === 'dark';
   const isAcceptingOrders = platformSettings?.isAcceptingOrders !== false; // defaults to true
@@ -1160,6 +1439,147 @@ export default function AdminSettings() {
           </Card>
         </div>
 
+        {/* Hostel Management Configuration */}
+        <div className="mt-10" id="hostel-management">
+          <Card className="p-6 md:p-8 border-l-4 border-l-indigo-500 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center space-x-3">
+                <div className={`p-3 rounded-2xl ${isDark ? 'bg-indigo-900/40 text-indigo-400' : 'bg-indigo-100 text-indigo-600'}`}>
+                  <Building2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className={`text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>Hostel Management</h2>
+                  <p className={`text-xs sm:text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Add, edit, enable, disable, or configure collection acknowledgements and pickup points for campus hostels.
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={handleOpenAddHostel}
+                variant="primary"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center gap-2 shrink-0"
+              >
+                <Plus className="w-4 h-4" /> Add Hostel
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {hostels.map((hostel) => {
+                const isActive = hostel.isActive !== false;
+                const isBusy = hostelActionId === hostel.id;
+                return (
+                  <div
+                    key={hostel.id}
+                    className={`rounded-2xl border p-5 flex flex-col justify-between transition-all ${
+                      isDark
+                        ? isActive
+                          ? 'bg-[#1E1E1E] border-gray-800'
+                          : 'bg-[#171717] border-gray-800/60 opacity-75'
+                        : isActive
+                        ? 'bg-white border-gray-200 shadow-sm'
+                        : 'bg-gray-50 border-gray-200 opacity-75'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className={`text-base font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              {hostel.name}
+                            </h3>
+                            <span className={`text-[10px] font-mono px-2 py-0.5 rounded-md border ${isDark ? 'bg-gray-800 border-gray-700 text-gray-400' : 'bg-gray-100 border-gray-200 text-gray-600'}`}>
+                              ID: {hostel.id}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Badge className={isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}>
+                            {isActive ? 'Active' : 'Disabled'}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        {hostel.requiresAcknowledgement ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                            <AlertTriangle className="w-3 h-3" />
+                            Acknowledgement Required
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${isDark ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-600'}`}>
+                            Standard Checkout
+                          </span>
+                        )}
+                        {hostel.isPremiumDelivery && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30">
+                            Premium Food Rate
+                          </span>
+                        )}
+                      </div>
+
+                      <div className={`rounded-xl p-3 text-xs space-y-1.5 mb-4 border ${isDark ? 'bg-[#141414] border-gray-800 text-gray-300' : 'bg-gray-50 border-gray-100 text-gray-700'}`}>
+                        <div className="flex items-start gap-2">
+                          <MapPin className="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5" />
+                          <span>
+                            <strong className="font-bold">Pickup Point:</strong>{' '}
+                            {hostel.pickupPoint || 'Front of your hostel/reception'}
+                          </span>
+                        </div>
+                        {hostel.requiresAcknowledgement && hostel.acknowledgementMessage && (
+                          <p className={`text-[11px] leading-relaxed pl-5 ${isDark ? 'text-amber-300/90' : 'text-amber-800'}`}>
+                            "{hostel.acknowledgementMessage}"
+                          </p>
+                        )}
+                        {hostel.collectionInstruction && (
+                          <p className={`text-[11px] leading-relaxed pl-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            <strong className="font-semibold">Rider/Tracker Note:</strong> {hostel.collectionInstruction}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 pt-3 border-t border-gray-100 dark:border-gray-800">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isBusy}
+                        onClick={() => handleToggleHostelActive(hostel)}
+                        className={`py-1.5 px-3 text-xs font-bold rounded-xl ${
+                          isActive
+                            ? 'border-amber-500 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10'
+                            : 'border-emerald-500 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
+                        }`}
+                      >
+                        {isBusy ? 'Updating...' : isActive ? 'Disable' : 'Enable'}
+                      </Button>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => handleOpenEditHostel(hostel)}
+                          className="px-3 py-1.5 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20 font-bold text-xs flex items-center gap-1.5 transition-colors"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" /> Edit Rules
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => handleRemoveHostel(hostel)}
+                          className="p-1.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 font-bold text-xs transition-colors"
+                          title="Remove or Archive Hostel"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+
         {/* Fashion Delivery Settings */}
         <div className="mt-10">
           <Card className="p-6 md:p-8 border-l-4 border-l-orange-500 shadow-xl">
@@ -1182,9 +1602,7 @@ export default function AdminSettings() {
                 Make Lagos delivery available to customers
               </label>
             </div>
-            {fashionDeliveryConfig.seedVersion ? (
-              <p className={`mb-5 rounded-xl px-4 py-3 text-sm ${isDark ? 'bg-emerald-900/20 text-emerald-300' : 'bg-emerald-50 text-emerald-700'}`}>Initial coverage is seeded. You can edit these entries and save your changes; the seed will not replace them.</p>
-            ) : (
+            {!fashionDeliveryConfig.seedVersion && (
               <Button variant="outline" onClick={handleSeedFashionDelivery} disabled={seedingFashionDelivery} className="mb-6">
                 {seedingFashionDelivery ? 'Adding initial coverage...' : 'Seed Initial Lagos Delivery Zones'}
               </Button>
@@ -1664,6 +2082,303 @@ export default function AdminSettings() {
               </Button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Add / Edit Hostel Configuration Modal */}
+      {isHostelModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className={`relative w-full max-w-2xl rounded-3xl p-6 sm:p-8 shadow-2xl border ${isDark ? 'bg-[#1C1C1E] border-gray-800 text-white' : 'bg-white border-gray-200 text-gray-900'} max-h-[90vh] overflow-y-auto`}>
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 dark:border-gray-800">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-500">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black">{editingHostelId ? `Edit ${hostelDraft.name || 'Hostel'}` : 'Add Campus Hostel'}</h3>
+                  <p className="text-xs opacity-70 mt-0.5">Configure checkout display, pickup point, and student acknowledgement rules.</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setIsHostelModalOpen(false)} className="p-2 rounded-full hover:bg-muted text-gray-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              {/* Name & Stable ID */}
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Display Name *</label>
+                  <input
+                    type="text"
+                    value={hostelDraft.name}
+                    onChange={(e) => {
+                      const nextName = e.target.value;
+                      setHostelDraft(prev => ({
+                        ...prev,
+                        name: nextName,
+                        id: editingHostelId ? prev.id : slugifyHostelId(nextName),
+                      }));
+                    }}
+                    placeholder="e.g. David's Hostel, Daniel Hall"
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-500 ${isDark ? 'bg-[#2A2A2A] border-gray-700' : 'bg-gray-50 border-gray-200'}`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-1 opacity-70">
+                    Stable Hostel ID {editingHostelId ? '(Locked)' : '(Auto-generated)'}
+                  </label>
+                  <input
+                    type="text"
+                    value={hostelDraft.id || slugifyHostelId(hostelDraft.name)}
+                    disabled={Boolean(editingHostelId)}
+                    onChange={(e) => setHostelDraft(prev => ({ ...prev, id: slugifyHostelId(e.target.value) }))}
+                    placeholder="e.g. david"
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-mono outline-none ${
+                      editingHostelId ? 'opacity-60 cursor-not-allowed' : ''
+                    } ${isDark ? 'bg-[#2A2A2A] border-gray-700' : 'bg-gray-50 border-gray-200'}`}
+                  />
+                </div>
+              </div>
+
+              {/* Status, Gender & Premium Delivery */}
+              <div className="grid sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Checkout Status</label>
+                  <button
+                    type="button"
+                    onClick={() => setHostelDraft(prev => ({ ...prev, isActive: !prev.isActive }))}
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-bold transition-all ${
+                      hostelDraft.isActive
+                        ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        : isDark
+                        ? 'bg-[#2A2A2A] border-gray-700 text-gray-400'
+                        : 'bg-gray-100 border-gray-200 text-gray-600'
+                    }`}
+                  >
+                    {hostelDraft.isActive ? 'Enabled (Visible)' : 'Disabled (Hidden)'}
+                  </button>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Hostel Category</label>
+                  <select
+                    value={hostelDraft.gender}
+                    onChange={(e) => setHostelDraft(prev => ({ ...prev, gender: e.target.value as 'male' | 'female' | 'mixed' }))}
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-semibold outline-none ${isDark ? 'bg-[#2A2A2A] border-gray-700' : 'bg-gray-50 border-gray-200'}`}
+                  >
+                    <option value="male">Male Hostel</option>
+                    <option value="female">Female Hostel</option>
+                    <option value="mixed">General / Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Food Delivery Rate</label>
+                  <button
+                    type="button"
+                    onClick={() => setHostelDraft(prev => ({ ...prev, isPremiumDelivery: !prev.isPremiumDelivery }))}
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-bold transition-all ${
+                      hostelDraft.isPremiumDelivery
+                        ? 'border-purple-500 bg-purple-500/10 text-purple-600 dark:text-purple-400'
+                        : isDark
+                        ? 'bg-[#2A2A2A] border-gray-700 text-gray-300'
+                        : 'bg-gray-50 border-gray-200 text-gray-700'
+                    }`}
+                  >
+                    {hostelDraft.isPremiumDelivery ? 'Premium Rate' : 'Standard Rate'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Pickup Point */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-1 opacity-70">
+                  Designated Pickup / Collection Point *
+                </label>
+                <input
+                  type="text"
+                  value={hostelDraft.pickupPoint}
+                  onChange={(e) => setHostelDraft(prev => ({ ...prev, pickupPoint: e.target.value }))}
+                  placeholder="e.g. Downstairs at David's Hostel entrance, Front of Mass Comm Building, Caleb Medicals"
+                  className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-500 ${isDark ? 'bg-[#2A2A2A] border-gray-700' : 'bg-gray-50 border-gray-200'}`}
+                />
+                <p className="text-[11px] opacity-60 mt-1">
+                  Displayed to students in the Order Tracker and to riders on delivery manifests.
+                </p>
+              </div>
+
+              {/* Mandatory Checkout Acknowledgement Toggle & Rule Presets */}
+              <div className={`rounded-2xl border p-4 space-y-4 ${isDark ? 'bg-[#151517] border-gray-800' : 'bg-gray-50/80 border-gray-200'}`}>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h4 className="font-bold text-sm flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-500" />
+                      Mandatory Checkout Acknowledgement
+                    </h4>
+                    <p className="text-xs opacity-70 mt-0.5">
+                      Require students to read and accept a collection restriction before placing an order for this hostel.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextReq = !hostelDraft.requiresAcknowledgement;
+                      if (nextReq) {
+                        applyHostelRulePreset(
+                          hostelDraft.name.toLowerCase().includes('david')
+                            ? 'DOWNSTAIRS_COLLECTION'
+                            : hostelDraft.gender === 'female'
+                            ? 'FEMALE_HOSTEL_PICKUP'
+                            : 'DOWNSTAIRS_COLLECTION'
+                        );
+                      } else {
+                        applyHostelRulePreset('NONE');
+                      }
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider shrink-0 transition-all ${
+                      hostelDraft.requiresAcknowledgement
+                        ? 'bg-amber-500 text-white shadow-sm'
+                        : isDark
+                        ? 'bg-gray-800 text-gray-400'
+                        : 'bg-gray-200 text-gray-700'
+                    }`}
+                  >
+                    {hostelDraft.requiresAcknowledgement ? 'Required' : 'Not Required'}
+                  </button>
+                </div>
+
+                {hostelDraft.requiresAcknowledgement && (
+                  <div className="space-y-4 pt-3 border-t border-gray-200 dark:border-gray-800">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider mb-2 opacity-70">
+                        Quick Restriction Template
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => applyHostelRulePreset('DOWNSTAIRS_COLLECTION')}
+                          className={`p-2.5 rounded-xl border text-xs font-bold text-left transition-all ${
+                            hostelDraft.ruleType === 'DOWNSTAIRS_COLLECTION'
+                              ? 'border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                              : 'border-gray-200 dark:border-gray-700 opacity-75 hover:opacity-100'
+                          }`}
+                        >
+                          Downstairs Collection (David's Hostel)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => applyHostelRulePreset('FEMALE_HOSTEL_PICKUP')}
+                          className={`p-2.5 rounded-xl border text-xs font-bold text-left transition-all ${
+                            hostelDraft.ruleType === 'FEMALE_HOSTEL_PICKUP'
+                              ? 'border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                              : 'border-gray-200 dark:border-gray-700 opacity-75 hover:opacity-100'
+                          }`}
+                        >
+                          External Pickup Point (Girls' Hostel)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => applyHostelRulePreset('CUSTOM')}
+                          className={`p-2.5 rounded-xl border text-xs font-bold text-left transition-all ${
+                            hostelDraft.ruleType === 'CUSTOM'
+                              ? 'border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                              : 'border-gray-200 dark:border-gray-700 opacity-75 hover:opacity-100'
+                          }`}
+                        >
+                          Custom Restriction Rule
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider mb-1 opacity-70">
+                        Notice Title
+                      </label>
+                      <input
+                        type="text"
+                        value={hostelDraft.acknowledgementTitle}
+                        onChange={(e) => setHostelDraft(prev => ({ ...prev, acknowledgementTitle: e.target.value }))}
+                        placeholder="e.g. David's Hostel Collection Requirement"
+                        className={`w-full px-3.5 py-2 rounded-xl border text-sm font-semibold outline-none ${isDark ? 'bg-[#2A2A2A] border-gray-700' : 'bg-white border-gray-200'}`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider mb-1 opacity-70">
+                        Checkout Restriction Message *
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={hostelDraft.acknowledgementMessage}
+                        onChange={(e) => setHostelDraft(prev => ({ ...prev, acknowledgementMessage: e.target.value }))}
+                        placeholder="Explain clearly why the restriction applies and how the student must collect their order."
+                        className={`w-full px-3.5 py-2.5 rounded-xl border text-sm outline-none ${isDark ? 'bg-[#2A2A2A] border-gray-700' : 'bg-white border-gray-200'}`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider mb-1 opacity-70">
+                        Student Confirmation Checkbox Label *
+                      </label>
+                      <input
+                        type="text"
+                        value={hostelDraft.acknowledgementCheckboxLabel}
+                        onChange={(e) => setHostelDraft(prev => ({ ...prev, acknowledgementCheckboxLabel: e.target.value }))}
+                        placeholder="e.g. I understand that riders cannot enter David's Hostel and I agree to come downstairs to collect my order."
+                        className={`w-full px-3.5 py-2 rounded-xl border text-sm font-semibold outline-none ${isDark ? 'bg-[#2A2A2A] border-gray-700' : 'bg-white border-gray-200'}`}
+                      />
+                    </div>
+
+                    {/* Live Checkout Preview */}
+                    <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
+                        Student Checkout Preview
+                      </p>
+                      <p className="text-sm font-bold text-amber-700 dark:text-amber-400">
+                        {hostelDraft.acknowledgementTitle || `${hostelDraft.name || 'Hostel'} Collection Notice`}
+                      </p>
+                      <p className="text-xs text-amber-700/90 dark:text-amber-300/90 leading-relaxed">
+                        {hostelDraft.acknowledgementMessage}
+                      </p>
+                      <div className="flex items-start gap-2.5 pt-1">
+                        <input type="checkbox" checked readOnly className="mt-0.5 w-4 h-4 accent-amber-600 rounded" />
+                        <span className="text-xs font-semibold text-amber-800 dark:text-amber-200">
+                          {hostelDraft.acknowledgementCheckboxLabel}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-1 opacity-70">
+                    Order Tracker / Rider / PDF Manifest Collection Instruction
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={hostelDraft.collectionInstruction}
+                    onChange={(e) => setHostelDraft(prev => ({ ...prev, collectionInstruction: e.target.value }))}
+                    placeholder="e.g. Riders cannot enter David's Hostel unless authorized residents. Student must come downstairs to collect their order."
+                    className={`w-full px-3.5 py-2 rounded-xl border text-sm outline-none ${isDark ? 'bg-[#2A2A2A] border-gray-700' : 'bg-white border-gray-200'}`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-800">
+              <Button type="button" onClick={() => setIsHostelModalOpen(false)} variant="outline" className="rounded-xl px-5">
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSaveHostelDraft}
+                disabled={savingHostel}
+                variant="primary"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 font-bold"
+              >
+                {savingHostel ? 'Saving...' : editingHostelId ? 'Save Hostel Changes' : 'Add Hostel'}
+              </Button>
+            </div>
           </div>
         </div>
       )}

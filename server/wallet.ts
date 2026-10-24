@@ -166,7 +166,7 @@ export async function creditWallet(params: {
 export async function refundWalletForCalebNetOrder(params: {
     orderId: string;
     reason: string;
-    fulfillmentStatus?: 'FAILED' | 'CANCELLED' | 'REFUND_REQUIRED';
+    fulfillmentStatus?: 'FAILED' | 'CANCELLED' | 'REFUND_REQUIRED' | 'REFUNDED';
 }) {
     const db = adminDb();
     const orderRef = db.collection('calebnet_orders').doc(params.orderId);
@@ -186,8 +186,19 @@ export async function refundWalletForCalebNetOrder(params: {
             return { refunded: false, reason: 'non_wallet_order' };
         }
 
-        if (order.walletRefundTransactionId) {
-            return { refunded: false, reason: 'already_refunded', transactionId: order.walletRefundTransactionId };
+        const refundReference = String(order.walletRefundTransactionId || `${params.orderId}_refund`);
+        const refundRef = db.collection('wallet_transactions').doc(refundReference);
+        const refundSnap = await tx.get(refundRef);
+
+        if (order.walletRefundTransactionId && refundSnap.exists) {
+            if (order.fulfillmentStatus !== 'REFUNDED' || order.paymentStatus !== 'REFUNDED') {
+                tx.set(orderRef, {
+                    fulfillmentStatus: 'REFUNDED',
+                    paymentStatus: 'REFUNDED',
+                    updatedAt: FieldValue.serverTimestamp(),
+                }, { merge: true });
+            }
+            return { refunded: false, confirmed: true, reason: 'already_refunded', transactionId: order.walletRefundTransactionId };
         }
 
         const userId = String(order.userId || '');
@@ -196,9 +207,6 @@ export async function refundWalletForCalebNetOrder(params: {
         const amount = Number(order.amountPaid || order.amount || 0);
         if (!Number.isFinite(amount) || amount <= 0) throw new Error('Wallet refund amount is invalid');
 
-        const refundReference = `${params.orderId}_refund`;
-        const refundRef = db.collection('wallet_transactions').doc(refundReference);
-        const refundSnap = await tx.get(refundRef);
         const userRef = db.collection('users').doc(userId);
         const userSnap = await tx.get(userRef);
         const balanceBefore = Number(userSnap.data()?.walletBalance || 0);
@@ -206,12 +214,13 @@ export async function refundWalletForCalebNetOrder(params: {
         if (refundSnap.exists) {
             tx.set(orderRef, {
                 walletRefundTransactionId: refundReference,
-                fulfillmentStatus: params.fulfillmentStatus || 'FAILED',
+                fulfillmentStatus: 'REFUNDED',
+                paymentStatus: 'REFUNDED',
                 providerRemark: params.reason,
-                refundedAt: FieldValue.serverTimestamp(),
+                refundedAt: order.refundedAt || FieldValue.serverTimestamp(),
                 updatedAt: FieldValue.serverTimestamp(),
             }, { merge: true });
-            return { refunded: false, reason: 'refund_transaction_exists', transactionId: refundReference };
+            return { refunded: false, confirmed: true, reason: 'refund_transaction_exists', transactionId: refundReference };
         }
 
         const balanceAfter = Number((balanceBefore + amount).toFixed(2));
@@ -235,12 +244,79 @@ export async function refundWalletForCalebNetOrder(params: {
         });
         tx.set(orderRef, {
             walletRefundTransactionId: refundReference,
-            fulfillmentStatus: params.fulfillmentStatus || 'FAILED',
+            fulfillmentStatus: 'REFUNDED',
+            paymentStatus: 'REFUNDED',
             providerRemark: params.reason,
             refundedAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
         }, { merge: true });
 
-        return { refunded: true, transactionId: refundReference, balanceAfter };
+        return { refunded: true, confirmed: true, transactionId: refundReference, balanceAfter };
     });
+}
+
+/**
+ * Verifies against `wallet_transactions` whether a failed/refundable CalebNet
+ * wallet order has been refunded, repairs any order stuck at `REFUND_REQUIRED`
+ * once the refund is confirmed (or performs the refund if still pending), and
+ * returns the confirmed order state.
+ */
+export async function confirmOrRepairCalebNetOrderRefund(orderId: string) {
+    const db = adminDb();
+    const orderRef = db.collection('calebnet_orders').doc(orderId);
+    const orderSnap = await orderRef.get();
+    if (!orderSnap.exists) return null;
+
+    const order = orderSnap.data() || {};
+    const status = String(order.fulfillmentStatus || '');
+    const isFailedOrRefundable = ['REFUND_REQUIRED', 'FAILED', 'CANCELLED', 'REFUNDED'].includes(status);
+
+    if (order.paymentProvider === 'wallet' && (isFailedOrRefundable || order.walletRefundTransactionId)) {
+        const expectedRefundId = String(order.walletRefundTransactionId || `${orderId}_refund`);
+        let refundSnap = await db.collection('wallet_transactions').doc(expectedRefundId).get();
+
+        // If the order failed (`REFUND_REQUIRED` / `FAILED`) and hasn't been refunded yet, process the refund now
+        if (!refundSnap.exists && ['REFUND_REQUIRED', 'FAILED'].includes(status)) {
+            try {
+                await refundWalletForCalebNetOrder({
+                    orderId,
+                    reason: order.providerRemark || 'Transaction could not be completed. Wallet automatically refunded.',
+                    fulfillmentStatus: 'REFUNDED',
+                });
+                refundSnap = await db.collection('wallet_transactions').doc(expectedRefundId).get();
+            } catch (err) {
+                console.error('[CalebNet Refund Confirmation] Auto-refund failed:', err);
+            }
+        }
+
+        if (refundSnap.exists && refundSnap.data()?.status === 'SUCCESSFUL') {
+            const refundData = refundSnap.data() || {};
+            if (order.fulfillmentStatus !== 'REFUNDED' || !order.walletRefundTransactionId || order.paymentStatus !== 'REFUNDED') {
+                await orderRef.set({
+                    fulfillmentStatus: 'REFUNDED',
+                    paymentStatus: 'REFUNDED',
+                    walletRefundTransactionId: refundSnap.id,
+                    refundedAt: order.refundedAt || refundData.createdAt || FieldValue.serverTimestamp(),
+                    updatedAt: FieldValue.serverTimestamp(),
+                }, { merge: true });
+            }
+            const refreshedSnap = await orderRef.get();
+            const refreshedData = refreshedSnap.data() || order;
+            return {
+                order: { id: orderId, ...refreshedData, fulfillmentStatus: 'REFUNDED', paymentStatus: 'REFUNDED' },
+                walletRefundConfirmed: true,
+                walletRefundTransactionId: refundSnap.id,
+                walletRefundAmount: Number(refundData.amount || refreshedData.amountPaid || 0),
+                refundedAt: refreshedData.refundedAt || refundData.createdAt || null,
+            };
+        }
+    }
+
+    return {
+        order: { id: orderId, ...order },
+        walletRefundConfirmed: false,
+        walletRefundTransactionId: order.walletRefundTransactionId || null,
+        walletRefundAmount: null,
+        refundedAt: order.refundedAt || null,
+    };
 }

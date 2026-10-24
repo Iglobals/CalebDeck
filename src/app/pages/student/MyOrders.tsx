@@ -7,12 +7,14 @@ import { Button } from '../../components/design-system/Button';
 import { Card } from '../../components/design-system/Card';
 import SEO from '../../components/SEO';
 import { getOrderHistory, clearOrderHistory, OrderHistoryEntry, buildEntryFromFirestoreOrder, mergeHistory } from '../../../services/orderHistory';
-import { getOrderById } from '../../../services/db';
+import { getOrderById, subscribeToAllHostels, Hostel } from '../../../services/db';
+import { resolveOrderHostelInfo } from '../../../services/hostels';
 import { resolveOrderVertical } from '../../../services/orderVertical';
 import { useAuth } from '../../../context/AuthContext';
 import { collection, query, where, orderBy, limit, onSnapshot, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 import { openOrderStatement } from '../../../services/statements';
+import { toast } from 'sonner';
 
 const typeConfig: Record<string, { icon: React.ReactNode; color: string; bgColor: string; borderColor: string; label: string }> = {
   food: {
@@ -79,12 +81,15 @@ export default function MyOrders() {
   const { user } = useAuth();
   const isAuth = !!user;
   const [orders, setOrders] = useState<OrderHistoryEntry[]>([]);
+  const [hostels, setHostels] = useState<Hostel[]>([]);
   const [filter, setFilter] = useState<FilterType>('all');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [trackingOrderId, setTrackingOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     setOrders(getOrderHistory());
+    const unsubHostels = subscribeToAllHostels(setHostels);
+    return () => unsubHostels();
   }, []);
 
   // Signed-in users: merge their cloud orders (every device) with device history.
@@ -138,7 +143,7 @@ export default function MyOrders() {
       );
     } catch (err: any) {
       console.error('[MyOrders] Statement failed:', err);
-      alert('Could not generate your statement. Please try again.');
+      toast.error('Could not generate your statement. Please check your connection or allow popups and try again.');
     } finally {
       setStatementLoading(false);
     }
@@ -178,7 +183,12 @@ export default function MyOrders() {
           orderId: liveOrder?.orderId || order.orderId,
           total: liveOrder?.total || liveOrder?.totalAmount || order.total,
           status: liveOrder?.status || order.status,
+          hostel: liveOrder?.hostel || order.hostelId || order.hostelName,
+          hostelId: liveOrder?.hostelId || order.hostelId,
           hostelName: liveOrder?.hostelName || order.hostelName,
+          pickupPoint: liveOrder?.pickupPoint || order.pickupPoint,
+          collectionInstruction: liveOrder?.collectionInstruction || order.collectionInstruction,
+          requiresHostelAcknowledgement: liveOrder?.requiresHostelAcknowledgement ?? order.requiresHostelAcknowledgement,
           type: liveVertical === 'FOOD'
             ? (liveOrder?.type === 'combo' ? 'combo' : liveOrder?.type || 'plate')
             : liveOrder?.type || liveVertical.toLowerCase(),
@@ -194,7 +204,12 @@ export default function MyOrders() {
           orderId: order.orderId,
           total: order.total,
           status: order.status,
+          hostel: order.hostelId || order.hostelName,
+          hostelId: order.hostelId,
           hostelName: order.hostelName,
+          pickupPoint: order.pickupPoint,
+          collectionInstruction: order.collectionInstruction,
+          requiresHostelAcknowledgement: order.requiresHostelAcknowledgement,
           type: order.type,
           orderType: order.type === 'fashion' ? 'FASHION' : order.type === 'mart' ? 'MART' : undefined,
           showTracking: true,
@@ -360,6 +375,16 @@ export default function MyOrders() {
           <div className="space-y-3">
             {filtered.map((order, idx) => {
               const cfg = typeConfig[order.type] || typeConfig.food;
+              const orderHostelInfo = (order.hostelName || order.hostelId)
+                ? resolveOrderHostelInfo({
+                    hostel: order.hostelId || order.hostelName,
+                    hostelId: order.hostelId,
+                    hostelName: order.hostelName,
+                    pickupPoint: order.pickupPoint,
+                    collectionInstruction: order.collectionInstruction,
+                    requiresHostelAcknowledgement: order.requiresHostelAcknowledgement,
+                  }, hostels)
+                : null;
               return (
                 <div
                   key={order.id + idx}
@@ -386,7 +411,7 @@ export default function MyOrders() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="font-bold text-sm sm:text-base truncate">{order.summary}</p>
-                          <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
                             <span
                               className="text-xs font-bold px-2 py-0.5 rounded-full"
                               style={{
@@ -397,12 +422,17 @@ export default function MyOrders() {
                             >
                               {cfg.label}
                             </span>
-                            {order.hostelName && (
+                            {orderHostelInfo && (
                               <span className="text-xs text-muted-foreground truncate">
-                                → {order.hostelName}
+                                → {orderHostelInfo.displayHostel}
                               </span>
                             )}
                           </div>
+                          {orderHostelInfo?.requiresAcknowledgement && (
+                            <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 mt-1.5 leading-snug">
+                              Pickup: {orderHostelInfo.pickupPoint} — {orderHostelInfo.collectionInstruction}
+                            </p>
+                          )}
                         </div>
 
                         {/* Price */}
@@ -418,7 +448,7 @@ export default function MyOrders() {
                           {formatDate(order.createdAt)}
                         </div>
                         <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                          order.status === 'PAID' || order.status === 'SUCCESSFUL' || order.status === 'DELIVERED'
+                          order.status === 'PAID' || order.status === 'SUCCESSFUL' || order.status === 'DELIVERED' || order.status === 'REFUNDED'
                             ? isAuth ? 'bg-green-500/10 text-green-600 dark:text-green-400' : (studentTheme === 'dark' ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-700')
                             : order.status === 'PENDING' || order.status === 'PROCESSING'
                               ? isAuth ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' : (studentTheme === 'dark' ? 'bg-yellow-900/30 text-yellow-400' : 'bg-yellow-100 text-yellow-700')

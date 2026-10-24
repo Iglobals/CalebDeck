@@ -32,10 +32,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // FIXED: Fetch platform settings and items separately to avoid Promise.all destructuring bug
         const settingsDoc = await db.collection('settings').doc('platform').get();
+        const hostelSnap = hostelId
+            ? await db.collection('hostels').doc(String(hostelId)).get().catch(() => null)
+            : null;
         const itemRefs = items.map((i: any) => db!.collection('menu_items').doc(i.id));
         const itemDocs = await db.getAll(...itemRefs);
 
         const platformSettings = settingsDoc.exists ? settingsDoc.data() : {};
+        const firestoreHostels = hostelSnap && hostelSnap.exists ? [{ id: hostelSnap.id, ...hostelSnap.data() }] : undefined;
         const premiumDeliveryFee = platformSettings!.premiumDeliveryFee || 1250;
         const foodSoloFee = platformSettings!.foodDeliveryFee || 750;
         const foodGroupFee = platformSettings!.foodGroupDeliveryFee || 580;
@@ -64,7 +68,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const plateCount = typeof providedPlateCount === 'number' ? providedPlateCount : 1;
         const isGroup = deliveryMode === 'group' || deliveryMode === 'GROUP';
-        const isPremium = isPremiumHostel(hostelId, platformSettings);
+        const isPremium = isPremiumHostel(hostelId, platformSettings, firestoreHostels);
 
         // FIXED: Use base delivery fee for breakdown, and correctly calculate discount without double-discounting
         const baseDeliveryFee = isPremium ? premiumDeliveryFee : foodSoloFee;

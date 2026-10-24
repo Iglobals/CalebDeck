@@ -39,6 +39,8 @@ import {
     markRiderPaidOut
 } from '../../../services/db';
 import { useTheme } from '../../../context/ThemeContext';
+import { resolveHostelRestriction } from '../../../services/hostels';
+import { toast } from 'sonner';
 
 export default function RiderManagement() {
     const [riders, setRiders] = useState<Rider[]>([]);
@@ -149,7 +151,7 @@ export default function RiderManagement() {
             await markRiderPaidOut(rider.id, rider.name, amount);
             setPayoutConfirm(null);
         } catch (err: any) {
-            alert('Failed to mark payout: ' + (err.message || 'Unknown error'));
+            toast.error('Failed to mark payout: ' + (err.message || 'Unknown error'));
         } finally {
             setPayingOut(false);
         }
@@ -605,15 +607,25 @@ export default function RiderManagement() {
             ) : activeTab === 'assignment' ? (
                 /* Hostel Assignment Tab */
                 <div className="space-y-4">
-                    {hostels.length > 0 ? hostels.map(hostel => (
+                    {hostels.length > 0 ? hostels.map(hostel => {
+                        const restriction = resolveHostelRestriction(hostel.id, hostels, platformSettings);
+                        return (
                         <Card key={hostel.id} className={`${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'}`}>
                             <div className="flex flex-col md:flex-row md:items-center gap-5">
                                 <div className="flex-1">
-                                    <h4 className={`text-lg font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{hostel.name}</h4>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <h4 className={`text-lg font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{hostel.name}</h4>
+                                        {restriction.requiresAcknowledgement && (
+                                            <Badge variant="amber" className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5">
+                                                {restriction.ruleType === 'downstairs_collection' ? 'Downstairs Collection' : 'Collection Rule'}
+                                            </Badge>
+                                        )}
+                                    </div>
                                     <p className={`text-xs mt-1 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                                         {hostel.defaultRiderId
                                             ? `Default: ${activeRiders.find(r => r.id === hostel.defaultRiderId)?.name || 'Unknown'}`
                                             : 'No default rider assigned'}
+                                        {restriction.pickupPoint ? ` • Pickup: ${restriction.pickupPoint}` : ''}
                                     </p>
                                 </div>
                                 <div className="flex flex-col sm:flex-row gap-4">
@@ -654,7 +666,8 @@ export default function RiderManagement() {
                                 </div>
                             </div>
                         </Card>
-                    )) : (
+                        );
+                    }) : (
                         <div className={`p-12 text-center rounded-2xl border-2 border-dashed ${isDark ? 'border-[#333333] text-[#9C8F7F]' : 'border-gray-100 text-gray-400'}`}>
                             <MapPin className="w-12 h-12 mx-auto mb-4 opacity-20" />
                             <p className="font-black uppercase tracking-widest text-[10px]">No hostels configured</p>

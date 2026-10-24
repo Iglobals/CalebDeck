@@ -10,20 +10,25 @@ interface PaymentSelectorProps {
   onSelect: (method: PaymentMethod) => void;
   disabled?: boolean;
   walletDisabled?: boolean;
+  isProcessing?: boolean;
 }
 
-export function PaymentSelector({ amount, selectedMethod, onSelect, disabled, walletDisabled }: PaymentSelectorProps) {
-  const { user } = useAuth();
+export function PaymentSelector({ amount, selectedMethod, onSelect, disabled, walletDisabled, isProcessing }: PaymentSelectorProps) {
+  const { user, loading: authLoading } = useAuth();
+  const walletBalanceLoaded = !authLoading && (!user || typeof user.walletBalance === 'number');
   const walletBalance = Number(user?.walletBalance || 0);
-  const isInsufficient = walletBalance < amount;
+  // Never mark balance as insufficient while an order/wallet payment is actively processing,
+  // because the server debits walletBalance in Firestore before the HTTP response finishes
+  // and navigates, which would otherwise flash "Insufficient balance" mid-transaction.
+  const isInsufficient = !isProcessing && walletBalanceLoaded && walletBalance < amount;
 
   const handleWalletSelect = () => {
-    if (disabled || walletDisabled || isInsufficient) return;
+    if (disabled || walletDisabled || isProcessing || isInsufficient) return;
     onSelect('WALLET');
   };
 
   const handlePaystackSelect = () => {
-    if (disabled) return;
+    if (disabled || isProcessing) return;
     onSelect('PAYSTACK');
   };
 
@@ -64,13 +69,13 @@ export function PaymentSelector({ amount, selectedMethod, onSelect, disabled, wa
         {/* Ecosystem Wallet */}
         <button
           type="button"
-          disabled={disabled || walletDisabled || isInsufficient}
+          disabled={disabled || walletDisabled || isProcessing || isInsufficient}
           onClick={handleWalletSelect}
           className={`relative flex w-full items-center justify-between rounded-xl border-2 p-4 text-left transition-all ${
             selectedMethod === 'WALLET'
               ? 'border-[#10B981] bg-[#10B981]/5 shadow-sm'
               : 'border-border bg-card'
-          } ${(disabled || walletDisabled || isInsufficient) ? 'opacity-60 cursor-not-allowed' : 'hover:border-[#10B981]/50'}`}
+          } ${(disabled || walletDisabled || isProcessing || isInsufficient) ? 'opacity-60 cursor-not-allowed' : 'hover:border-[#10B981]/50'}`}
         >
           <div className="flex items-center gap-4">
             <div className={`flex h-10 w-10 items-center justify-center rounded-full ${selectedMethod === 'WALLET' ? 'bg-[#10B981] text-white' : 'bg-muted text-muted-foreground'}`}>
@@ -86,7 +91,9 @@ export function PaymentSelector({ amount, selectedMethod, onSelect, disabled, wa
                 </span>
               </div>
               
-              {isInsufficient ? (
+              {isProcessing && selectedMethod === 'WALLET' ? (
+                <p className="text-xs font-bold text-[#10B981] mt-0.5">Processing wallet payment...</p>
+              ) : isInsufficient ? (
                 <p className="flex items-center gap-1 mt-0.5 text-xs font-bold text-red-500">
                   <ShieldAlert className="w-3 h-3" /> Insufficient balance
                 </p>

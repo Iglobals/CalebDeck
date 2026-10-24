@@ -20,12 +20,14 @@ import {
     CreditCard,
     Gift
 } from 'lucide-react';
-import { subscribeToAllOrders, subscribeToHostels, Hostel, subscribeToRiders, Rider, dispatchBatch, markOrderRefunded, orderMatchesHostel, subscribeTodayBatchDays, advanceFashionBatch, FoodBatchDay, subscribeToPlatformSettings } from '../../../services/db';
+import { subscribeToAllOrders, subscribeToAllHostels, Hostel, subscribeToRiders, Rider, dispatchBatch, markOrderRefunded, orderMatchesHostel, subscribeTodayBatchDays, advanceFashionBatch, FoodBatchDay, subscribeToPlatformSettings } from '../../../services/db';
+import { resolveOrderHostelInfo } from '../../../services/hostels';
 import { resolveOrderVertical } from '../../../services/orderVertical';
 import { resolveDeliveryFee } from '../../../services/orderFees';
 import { formatDistanceToNow } from 'date-fns';
 import { useTheme } from '../../../context/ThemeContext';
 import { BatchOrderInfo, resolveOrderBatchInfo } from '../../components/BatchOrderInfo';
+import { toast } from 'sonner';
 
 type AdminOrdersProps = {
     orderType?: 'food' | 'mart' | 'fashion';
@@ -52,7 +54,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
             setOrders(newOrders);
             setLoading(false);
         });
-        const unsubHostels = subscribeToHostels(setHostels);
+        const unsubHostels = subscribeToAllHostels(setHostels);
         const unsubRiders = subscribeToRiders(setRiders);
         const unsubBatchDays = subscribeTodayBatchDays(setBatchDays);
         const unsubSettings = subscribeToPlatformSettings(setPlatformSettings);
@@ -196,7 +198,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
             await dispatchBatch(hostel.id, hostel.name, riderToAssign, dispatchableOrders, false);
         } catch (err) {
             console.error(err);
-            alert("Failed to dispatch batch");
+            toast.error('Could not dispatch batch. Please check your connection and try again.');
         } finally {
             setDispatching(null);
         }
@@ -218,7 +220,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
             await dispatchBatch(hostel.id, hostel.name, rider, dispatchableOrders, true);
         } catch (err) {
             console.error(err);
-            alert("Failed to emergency dispatch batch");
+            toast.error('Could not emergency dispatch batch. Please try again.');
         } finally {
             setDispatching(null);
         }
@@ -253,9 +255,10 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
 
     const handlePrint = (order: any) => {
         const batchInfo = resolveOrderBatchInfo(order, batchDays);
+        const hostelInfo = resolveOrderHostelInfo(order, hostels, platformSettings);
         const printWindow = window.open('', '_blank');
         if (!printWindow) {
-            alert('Please allow popups for this site to print tickets.');
+            toast.error('Popup blocked by your browser. Please allow popups for CalebDeck to print order tickets.');
             return;
         }
         const studentNote = (order.notes || order.instructions || '').trim();
@@ -305,9 +308,16 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                         ${studentNumber ? `<div style="font-size:13px;font-weight:700;margin-top:6px;color:#555;">Student No: ${studentNumber}</div>` : ''}
                     </div>
                     <div class="section">
-                        <div class="label">Delivery</div>
-                        <div class="value">${order.hostelName || order.hostel}</div>
+                        <div class="label">Delivery Destination</div>
+                        <div class="value">${hostelInfo.displayHostel}</div>
+                        <div style="font-size:13px;font-weight:700;margin-top:6px;color:#555;">Pickup Point: ${hostelInfo.pickupPoint}</div>
                     </div>
+                    ${hostelInfo.requiresAcknowledgement ? `
+                    <div class="section note-box">
+                        <div class="label">Hostel Collection Rule</div>
+                        <div class="note-text">${hostelInfo.collectionInstruction || hostelInfo.studentNotice}</div>
+                    </div>
+                    ` : ''}
                     ${batchInfo ? `
                     <div class="section" style="padding:14px;background:#f5f3ff;border-left:4px solid #7C3AED;border-radius:6px;">
                         <div class="label">Scheduled Delivery Batch</div>
@@ -424,12 +434,17 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
             </html>
         `;
 
-        printWindow.document.write(html);
-        printWindow.document.close();
-        setTimeout(() => {
-            printWindow.focus();
-            printWindow.print();
-        }, 800);
+        try {
+            printWindow.document.write(html);
+            printWindow.document.close();
+            setTimeout(() => {
+                printWindow.focus();
+                printWindow.print();
+            }, 800);
+        } catch (err) {
+            console.error('Could not print ticket:', err);
+            toast.error('Could not open the print preview. Please try again.');
+        }
     };
 
     return (
@@ -832,7 +847,27 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                         </div>
                                         <div className="space-y-2">
                                             <p className="text-[10px] font-black text-[#9C8F7F] uppercase tracking-[0.3em]">Delivery Location</p>
-                                            <h4 className={`text-2xl font-black uppercase tracking-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{selectedOrder.hostelName || selectedOrder.hostel}</h4>
+                                            {(() => {
+                                                const info = resolveOrderHostelInfo(selectedOrder, hostels, platformSettings);
+                                                return (
+                                                    <div className="space-y-2">
+                                                        <h4 className={`text-2xl font-black uppercase tracking-tight ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{info.displayHostel}</h4>
+                                                        <p className={`text-xs font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+                                                            Pickup Point: <span className={isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}>{info.pickupPoint}</span>
+                                                        </p>
+                                                        {info.requiresAcknowledgement && (
+                                                            <div className="mt-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs">
+                                                                <p className="font-black uppercase tracking-wider text-amber-500 mb-1">
+                                                                    Collection Rule (Student Acknowledged)
+                                                                </p>
+                                                                <p className={`font-semibold leading-relaxed ${isDark ? 'text-[#FAF9F6]' : 'text-gray-800'}`}>
+                                                                    {info.collectionInstruction || info.studentNotice}
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
 

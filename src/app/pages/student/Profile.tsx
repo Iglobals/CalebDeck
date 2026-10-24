@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router';
 import { useAuth } from '../../../context/AuthContext';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
-import { getActiveHostels, Hostel, FashionDeliveryConfig } from '../../../services/db';
+import { getActiveHostels, subscribeToHostels, Hostel, FashionDeliveryConfig } from '../../../services/db';
 import { requestNotificationPermissionAndSaveToken } from '../../../services/messaging';
 import { Button } from '../../components/design-system/Button';
 import { Card } from '../../components/design-system/Card';
@@ -131,6 +131,8 @@ export default function Profile() {
       return;
     }
 
+    const unsubHostels = subscribeToHostels(setHostels);
+
     const loadData = async () => {
       try {
         const activeHostels = await getActiveHostels();
@@ -148,6 +150,7 @@ export default function Profile() {
     };
 
     loadData();
+    return () => unsubHostels();
   }, [user, navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {

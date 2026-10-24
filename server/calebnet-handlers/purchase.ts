@@ -326,10 +326,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 updatedAt: FieldValue.serverTimestamp(),
             });
             await updateProviderHealth(network, type, isTimeout ? 'timeout' : 'failure', error.message || 'Provider request failed');
-            if (!isTimeout) await refundWalletForCalebNetOrder({ orderId: clientRequestId, reason: 'Provider request failed. Wallet refunded.' });
+            let refundResult: { refunded: boolean; confirmed?: boolean } | null = null;
+            if (!isTimeout) {
+                refundResult = await refundWalletForCalebNetOrder({
+                    orderId: clientRequestId,
+                    reason: 'Provider request failed. Wallet refunded.',
+                    fulfillmentStatus: 'REFUNDED',
+                });
+            }
 
             const afterFailure = await orderRef.get();
-            const failureStatus = isTimeout ? 'PENDING_PROVIDER' : 'FAILED';
+            const failureStatus = isTimeout
+                ? 'PENDING_PROVIDER'
+                : (refundResult?.confirmed || refundResult?.refunded ? 'REFUNDED' : 'FAILED');
             await recordCalebNetAnalytics(orderRef, afterFailure.data(), failureStatus);
 
             return res.status(200).json({ success: true, order: { id: afterFailure.id, ...afterFailure.data() } });
@@ -359,15 +368,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     ? 'Provider accepted the order but has not completed it yet.'
                     : null
         );
+        let refundResult: { refunded: boolean; confirmed?: boolean } | null = null;
         if (failedClearly) {
-            await refundWalletForCalebNetOrder({ orderId: clientRequestId, reason: 'Provider confirmed failure. Wallet refunded.', fulfillmentStatus: finalFailureStatus });
+            refundResult = await refundWalletForCalebNetOrder({
+                orderId: clientRequestId,
+                reason: 'Provider confirmed failure. Wallet refunded.',
+                fulfillmentStatus: 'REFUNDED',
+            });
         }
         if (invalidPlanReason) {
             await disableCatalogPlanAfterProviderRejection({ planId: catalogDoc?.id }, invalidPlanReason);
         }
 
         const finalOrder = await orderRef.get();
-        const finalStatus = failedClearly ? finalFailureStatus : fulfillmentStatus;
+        const finalStatus = failedClearly
+            ? (refundResult?.confirmed || refundResult?.refunded ? 'REFUNDED' : finalFailureStatus)
+            : fulfillmentStatus;
         await recordCalebNetAnalytics(orderRef, finalOrder.data(), finalStatus);
 
         return res.status(200).json({ success: true, order: { id: finalOrder.id, ...finalOrder.data() } });

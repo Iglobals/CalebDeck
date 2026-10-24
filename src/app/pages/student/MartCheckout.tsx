@@ -3,11 +3,11 @@ import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../../../context/AuthContext';
 import { updateDoc, doc, arrayUnion } from 'firebase/firestore';
 import { useMartCart } from '../../../context/MartCartContext';
-import { getActiveHostels, Hostel, subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
+import { getActiveHostels, subscribeToHostels, Hostel, subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 import { verifyPayment } from '../../../services/functions';
 import { usePaystackPayment } from 'react-paystack';
 import { toast } from 'react-toastify';
-import { ArrowLeft, User, Phone, Shield, CreditCard, ShoppingBag, Clock, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, User, Phone, Shield, CreditCard, ShoppingBag, Clock, AlertTriangle, MapPin } from 'lucide-react';
 import { Input, Select, Textarea } from '../../components/design-system/Input';
 import { Button } from '../../components/design-system/Button';
 import { Card } from '../../components/design-system/Card';
@@ -15,6 +15,7 @@ import SEO from '../../components/SEO';
 import { PaymentSelector, PaymentMethod } from '../../components/student/PaymentSelector';
 import { Loader2 } from 'lucide-react';
 import { isPremiumHostel } from '../../../services/orderFees';
+import { resolveHostelRestriction } from '../../../services/hostels';
 
 export default function MartCheckout() {
   const { items, subtotal, totalItems, clearCart } = useMartCart();
@@ -33,12 +34,35 @@ export default function MartCheckout() {
     instructions: ''
   });
   const [femaleHostelAgreement, setFemaleHostelAgreement] = useState(false);
+  const [acknowledgementError, setAcknowledgementError] = useState(false);
+  const acknowledgementRef = useRef<HTMLDivElement | null>(null);
   const [saveAsDefault, setSaveAsDefault] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PAYSTACK');
   const [isWalletPaying, setIsWalletPaying] = useState(false);
 
   const selectedHostel = hostels.find(h => h.id === formData.hostel);
-  const isFemaleHostelSelected = isPremiumHostel(formData.hostel, platformSettings);
+  const hostelRestriction = React.useMemo(
+    () => resolveHostelRestriction(formData.hostel, hostels, platformSettings),
+    [formData.hostel, hostels, platformSettings]
+  );
+  const isRestrictedHostelSelected = hostelRestriction.required;
+  const isFemaleHostelSelected = isPremiumHostel(formData.hostel, platformSettings, hostels);
+  const hostelAcknowledgement = React.useMemo(
+    () => ({
+      required: isRestrictedHostelSelected,
+      accepted: isRestrictedHostelSelected ? Boolean(femaleHostelAgreement) : false,
+      acceptedAt: isRestrictedHostelSelected && femaleHostelAgreement ? new Date().toISOString() : undefined,
+      hostelId: hostelRestriction.hostelId || formData.hostel,
+      hostelName: selectedHostel?.name || hostelRestriction.hostelName || formData.hostel,
+      title: hostelRestriction.title,
+      message: hostelRestriction.message,
+      checkboxLabel: hostelRestriction.checkboxLabel,
+      collectionInstruction: hostelRestriction.collectionInstruction,
+      pickupPoint: hostelRestriction.pickupPoint,
+      ruleType: hostelRestriction.ruleType,
+    }),
+    [isRestrictedHostelSelected, femaleHostelAgreement, hostelRestriction, formData.hostel, selectedHostel?.name]
+  );
   const MART_DELIVERY_FEE = platformSettings?.martDeliveryFee || 1500;
   const isDev = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
@@ -46,7 +70,7 @@ export default function MartCheckout() {
   const orderId = React.useMemo(() => `CD-MART-${Math.floor(10000 + Math.random() * 90000)}`, []);
 
   const hasFashionItems = items.some(item => ['Apparel', 'Accessories', 'Footwear', 'Merch'].includes(item.category));
-  const isWalletDisabled = (isFemaleHostelSelected && !femaleHostelAgreement) || isWalletPaying || hasFashionItems;
+  const isWalletDisabled = (isRestrictedHostelSelected && !femaleHostelAgreement) || isWalletPaying || hasFashionItems;
 
   useEffect(() => {
     // Don't redirect if we're in the middle of processing a payment —
@@ -58,18 +82,23 @@ export default function MartCheckout() {
   }, [items, navigate]);
 
   useEffect(() => {
-    const fetchHostels = async () => {
-      try {
-        const activeHostels = await getActiveHostels();
-        setHostels(activeHostels);
-      } catch (error) {
-        toast.error("Failed to load hostels");
-      }
-    };
-    fetchHostels();
-    
+    const unsubHostels = subscribeToHostels((activeHostels) => {
+      setHostels(activeHostels);
+      setFormData(prev => {
+        if (prev.hostel && !activeHostels.some(h => h.id === prev.hostel)) {
+          setFemaleHostelAgreement(false);
+          setAcknowledgementError(false);
+          return { ...prev, hostel: '' };
+        }
+        return prev;
+      });
+    });
+
     const unsub = subscribeToPlatformSettings(setPlatformSettings);
-    return () => unsub();
+    return () => {
+      unsubHostels();
+      unsub();
+    };
   }, []);
 
   const currentHour = new Date().getHours();
@@ -110,9 +139,13 @@ export default function MartCheckout() {
       studentName: formData.fullName,
       phone: formData.phone,
       hostel: formData.hostel,
-      hostelName: selectedHostel?.name || '',
+      hostelId: hostelRestriction.hostelId || formData.hostel,
+      hostelName: selectedHostel?.name || hostelRestriction.hostelName || '',
+      pickupPoint: hostelRestriction.pickupPoint,
+      collectionInstruction: hostelRestriction.collectionInstruction,
       instructions: formData.instructions,
       femaleHostelAgreement,
+      hostelAcknowledgement,
       items: items.map(i => ({
         id: i.id,
         name: i.name,
@@ -140,9 +173,13 @@ export default function MartCheckout() {
       studentName: formData.fullName,
       phone: formData.phone,
       hostel: formData.hostel,
-      hostelName: selectedHostel?.name || formData.hostel,
+      hostelId: hostelRestriction.hostelId || formData.hostel,
+      hostelName: selectedHostel?.name || hostelRestriction.hostelName || formData.hostel,
+      pickupPoint: hostelRestriction.pickupPoint,
+      collectionInstruction: hostelRestriction.collectionInstruction,
       instructions: formData.instructions,
       femaleHostelAgreement,
+      hostelAcknowledgement,
       orderType: 'MART',
       items: items.map(i => ({
         id: i.id,
@@ -310,26 +347,34 @@ export default function MartCheckout() {
 
     } catch (err: any) {
       paymentProcessingRef.current = false;
+      setIsWalletPaying(false);
       toast.dismiss();
       toast.error(err.message || "Failed to process wallet payment");
       setPaymentMethod('PAYSTACK'); // fallback safely
-    } finally {
-      setIsWalletPaying(false);
     }
   };
 
-  const handlePay = () => {
+  const handlePay = async () => {
+    if (isWalletPaying) return;
     if (!formData.fullName.trim()) return toast.error('Please enter your full name');
     if (!formData.phone.trim()) return toast.error('Please enter your phone number');
     if (formData.phone.length < 10) return toast.error('Please enter a valid phone number');
     if (!formData.hostel) return toast.error('Please select your hostel');
-    if (isFemaleHostelSelected && !femaleHostelAgreement) {
-      return toast.info('Please accept the female hostel delivery agreement before payment.');
+    if (isRestrictedHostelSelected && !femaleHostelAgreement) {
+      setAcknowledgementError(true);
+      acknowledgementRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return toast.warning(
+        `Please confirm that you understand and agree to the collection rule for ${selectedHostel?.name || hostelRestriction.hostelName} before continuing.`
+      );
     }
 
     if (isClosed) {
       toast.error(martClosedMessage);
       return;
+    }
+
+    if (paymentMethod === 'WALLET') {
+      setIsWalletPaying(true);
     }
 
     const preSaveData = {
@@ -339,9 +384,13 @@ export default function MartCheckout() {
       studentName: formData.fullName,
       phone: formData.phone,
       hostel: formData.hostel,
-      hostelName: selectedHostel?.name || formData.hostel,
+      hostelId: hostelRestriction.hostelId || formData.hostel,
+      hostelName: selectedHostel?.name || hostelRestriction.hostelName || formData.hostel,
+      pickupPoint: hostelRestriction.pickupPoint,
+      collectionInstruction: hostelRestriction.collectionInstruction,
       instructions: formData.instructions,
       femaleHostelAgreement,
+      hostelAcknowledgement,
       orderType: 'MART',
       items: items.map(i => ({
         id: i.id,
@@ -355,16 +404,29 @@ export default function MartCheckout() {
       totalAmount: total
     };
 
+    try {
+      const preSaveRes = await fetch('/api/pre-save-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reference: paymentRef.current, orderData: preSaveData })
+      });
+      if (!preSaveRes.ok) {
+        setIsWalletPaying(false);
+        const errData = await preSaveRes.json().catch(() => ({}));
+        toast.error(errData.message || 'We could not prepare this order for payment. Please try again.');
+        return;
+      }
+    } catch (err) {
+      setIsWalletPaying(false);
+      console.warn('[MartCheckout] Pre-save failed:', err);
+      toast.error('We could not securely prepare your order for payment. Check your connection and try again.');
+      return;
+    }
+
     if (paymentMethod === 'WALLET') {
       handleWalletPayment(preSaveData);
       return;
     }
-
-    fetch('/api/pre-save-order', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reference: paymentRef.current, orderData: preSaveData })
-    }).catch(err => console.warn('[MartCheckout] Pre-save failed (non-blocking):', err));
 
     initializePayment({
       onSuccess: (reference: any) => void onSuccess(reference),
@@ -453,9 +515,13 @@ export default function MartCheckout() {
                   value={formData.hostel}
                   onChange={(e) => {
                     setFemaleHostelAgreement(false);
+                    setAcknowledgementError(false);
                     setFormData({ ...formData, hostel: e.target.value });
                   }}
-                  options={hostels.map(h => ({ value: h.id, label: h.name }))}
+                  options={[
+                    { value: '', label: 'Select your hostel' },
+                    ...hostels.map(h => ({ value: h.id, label: h.name }))
+                  ]}
                   required
                 />
                 <Textarea
@@ -464,34 +530,56 @@ export default function MartCheckout() {
                   value={formData.instructions}
                   onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
                 />
-                {isFemaleHostelSelected && (
-                  <div className="p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] bg-amber-500/10 border-2 border-amber-500/30 shadow-inner">
+                {isRestrictedHostelSelected && (
+                  <div
+                    ref={acknowledgementRef}
+                    data-testid="hostel-acknowledgement-box"
+                    className={`p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] border-2 shadow-inner transition-all ${
+                      acknowledgementError && !femaleHostelAgreement
+                        ? 'bg-red-500/10 border-red-500 ring-2 ring-red-500/30'
+                        : 'bg-amber-500/10 border-amber-500/30'
+                    }`}
+                  >
                     <div className="space-y-4">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-start gap-3">
                         <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
                           <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600 dark:text-amber-400" />
                         </div>
-                        <h4 className="font-black text-base sm:text-lg leading-tight">Female Hostel Delivery Notice</h4>
+                        <div>
+                          <h4 className="font-black text-base sm:text-lg leading-tight">
+                            {hostelRestriction.title || `${selectedHostel?.name || 'Hostel'} Collection Notice`}
+                          </h4>
+                          <p className="text-xs font-bold text-amber-700 dark:text-amber-400 mt-1 flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5 shrink-0" />
+                            Pickup / Collection Point: {hostelRestriction.pickupPoint}
+                          </p>
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <p className="text-sm sm:text-base text-muted-foreground font-medium leading-relaxed">
-                          You selected {selectedHostel?.name || 'a female hostel'}. CalebDeck currently does not have female delivery agents for female hostels, and school rules restrict male riders from those areas.
-                        </p>
-                        <p className="text-sm sm:text-base text-muted-foreground font-medium leading-relaxed">
-                          Please meet the rider yourself at the assigned safe pickup point. Do not send an unknown person to collect your order, because CalebDeck can only confirm delivery when the order is handed directly to you.
+                          {hostelRestriction.message}
                         </p>
                       </div>
-                      <label className="flex items-start gap-3 cursor-pointer">
+                      <label className="flex items-start gap-3 cursor-pointer p-3 rounded-xl bg-background/60 border border-amber-500/30 hover:border-amber-500 transition-colors">
                         <input
                           type="checkbox"
                           checked={femaleHostelAgreement}
-                          onChange={(e) => setFemaleHostelAgreement(e.target.checked)}
-                          className="mt-1 h-5 w-5 rounded border-2 border-amber-500 accent-amber-500"
+                          onChange={(e) => {
+                            setFemaleHostelAgreement(e.target.checked);
+                            if (e.target.checked) setAcknowledgementError(false);
+                          }}
+                          className="mt-1 h-5 w-5 rounded border-2 border-amber-500 accent-amber-500 shrink-0"
                         />
                         <span className="text-sm sm:text-base font-bold leading-relaxed">
-                          Yes, I agree to meet the rider myself at a safe, school-approved pickup point.
+                          {hostelRestriction.checkboxLabel}
                         </span>
                       </label>
+                      {acknowledgementError && !femaleHostelAgreement && (
+                        <p role="alert" className="text-xs sm:text-sm font-bold text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                          <AlertTriangle className="w-4 h-4 shrink-0" />
+                          You must confirm and accept this collection condition for {selectedHostel?.name || hostelRestriction.hostelName} before proceeding with checkout.
+                        </p>
+                      )}
                       <button
                         type="button"
                         onClick={() => navigate('/')}
@@ -542,16 +630,17 @@ export default function MartCheckout() {
                   amount={total} 
                   selectedMethod={paymentMethod} 
                   onSelect={setPaymentMethod} 
-                  disabled={!formData.fullName.trim() || !formData.phone.trim() || !formData.hostel || (isFemaleHostelSelected && !femaleHostelAgreement)}
+                  disabled={isWalletPaying || !formData.fullName.trim() || !formData.phone.trim() || !formData.hostel || (isRestrictedHostelSelected && !femaleHostelAgreement)}
                   walletDisabled={isWalletDisabled} 
+                  isProcessing={isWalletPaying}
                 />
               </div>
 
               <Button 
                 variant="primary" 
                 className={`w-full py-4 text-lg text-white flex items-center justify-center gap-2 shadow-xl ${paymentMethod === 'WALLET' ? 'bg-[#10B981] hover:bg-[#059669] shadow-[#10B981]/20' : 'bg-primary hover:bg-primary/90 shadow-primary/20'}`}
-                onClick={handlePay}
-                disabled={!formData.fullName.trim() || !formData.phone.trim() || !formData.hostel || (isFemaleHostelSelected && !femaleHostelAgreement) || (paymentMethod === 'WALLET' && isWalletDisabled)}
+                onClick={() => void handlePay()}
+                disabled={isWalletPaying || !formData.fullName.trim() || !formData.phone.trim() || !formData.hostel || (paymentMethod === 'WALLET' && isWalletDisabled)}
               >
                 {isWalletPaying ? (
                   <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</>

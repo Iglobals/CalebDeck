@@ -5,24 +5,27 @@ import { MapPin, ChevronRight, CheckCircle, Package } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useTheme } from '../../../context/ThemeContext';
 import { useNavigate } from 'react-router';
-import { subscribeToBatches, Batch } from '../../../services/db';
+import { subscribeToBatches, subscribeToAllHostels, Batch, Hostel } from '../../../services/db';
+import { resolveOrderHostelInfo } from '../../../services/hostels';
 
 export default function RiderBatches() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { riderTheme } = useTheme();
     const [batches, setBatches] = useState<Batch[]>([]);
+    const [hostels, setHostels] = useState<Hostel[]>([]);
     const [loading, setLoading] = useState(true);
 
     const isDark = riderTheme === 'dark';
 
     useEffect(() => {
         if (!user) return;
+        const unsubHostels = subscribeToAllHostels(setHostels);
         const unsub = subscribeToBatches(user.uid, (data) => {
             setBatches(data);
             setLoading(false);
         });
-        return () => unsub();
+        return () => { unsub(); unsubHostels(); };
     }, [user]);
 
     const todayStr = new Date().toLocaleDateString();
@@ -84,7 +87,17 @@ export default function RiderBatches() {
                                         <MapPin className="w-5 h-5 text-[#7C3AED]" />
                                     </div>
                                     <div>
-                                        <h4 className={`text-base font-bold mb-1 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{batch.hostelName}</h4>
+                                        {(() => {
+                                            const info = resolveOrderHostelInfo({ hostel: (batch as any).hostelId, hostelName: batch.hostelName }, hostels);
+                                            return (
+                                                <>
+                                                    <h4 className={`text-base font-bold mb-1 ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{info.displayHostel}</h4>
+                                                    {info.requiresAcknowledgement && (
+                                                        <p className="text-[11px] font-bold text-amber-500 mb-1">Pickup: {info.pickupPoint}</p>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
                                         <div className={`flex items-center gap-2 text-xs font-medium ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                                             <span>{batch.orderCount} Orders</span>
                                             <span className={isDark ? 'text-[#333333]' : 'text-gray-200'}>|</span>
