@@ -74,7 +74,7 @@ export async function recordCalebNetAnalytics(
                     if (freshOrder.provider) {
                         setIncrement(`provider.${freshOrder.provider}.successCount`, 1 * multiplier);
                     }
-                } else if (status === 'FAILED') {
+                } else if (status === 'FAILED' || status === 'REFUNDED') {
                     setIncrement('failedTransactions', 1 * multiplier);
                     if (freshOrder.provider) setIncrement(`provider.${freshOrder.provider}.failedCount`, 1 * multiplier);
                 } else if (status === 'PENDING_PROVIDER') {

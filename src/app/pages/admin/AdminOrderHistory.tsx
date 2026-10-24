@@ -4,7 +4,8 @@ import { Card } from '../../components/design-system/Card';
 import { Badge } from '../../components/design-system/Badge';
 import { Button } from '../../components/design-system/Button';
 import { Download, Search, Filter, ChevronDown, Trash2, RotateCcw, AlertTriangle, CheckCircle, Package, Clock, Users, Loader2 } from 'lucide-react';
-import { getRecentOrderHistory, subscribeToRiders, trashOrder, recoverOrder, permanentlyDeleteOrder, Rider, subscribeTodayBatchDays, FoodBatchDay } from '../../../services/db';
+import { getRecentOrderHistory, subscribeToRiders, subscribeToAllHostels, orderMatchesHostel, trashOrder, recoverOrder, permanentlyDeleteOrder, Rider, Hostel, subscribeTodayBatchDays, FoodBatchDay } from '../../../services/db';
+import { resolveOrderHostelInfo } from '../../../services/hostels';
 import { resolveOrderVertical } from '../../../services/orderVertical';
 import { resolveDeliveryFee } from '../../../services/orderFees';
 import { useTheme } from '../../../context/ThemeContext';
@@ -16,9 +17,11 @@ type ViewMode = 'active' | 'trash';
 export default function AdminOrderHistory() {
     const [orders, setOrders] = useState<any[]>([]);
     const [riders, setRiders] = useState<Rider[]>([]);
+    const [hostels, setHostels] = useState<Hostel[]>([]);
     const [batchDays, setBatchDays] = useState<FoodBatchDay[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [hostelFilter, setHostelFilter] = useState('all');
     const [viewMode, setViewMode] = useState<ViewMode>('active');
     const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; status: string } | null>(null);
     const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false });
@@ -42,8 +45,9 @@ export default function AdminOrderHistory() {
             checkDone();
         });
         const unsubRiders = subscribeToRiders((data) => { setRiders(data); ridersLoaded = true; checkDone(); });
+        const unsubHostels = subscribeToAllHostels(setHostels);
         const unsubBatchDays = subscribeTodayBatchDays(setBatchDays);
-        return () => { mounted = false; unsubRiders(); unsubBatchDays(); };
+        return () => { mounted = false; unsubRiders(); unsubHostels(); unsubBatchDays(); };
     }, []);
 
     const isDark = adminTheme === 'dark';
@@ -66,12 +70,17 @@ export default function AdminOrderHistory() {
 
     const filteredOrders = currentOrders
         .filter(o => {
+            const hostelInfo = resolveOrderHostelInfo(o, hostels);
             const matchesSearch = !searchQuery ||
                 (o.fullName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (o.orderId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                (o.hostel || '').toLowerCase().includes(searchQuery.toLowerCase());
+                (o.hostel || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (o.hostelName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                hostelInfo.displayHostel.toLowerCase().includes(searchQuery.toLowerCase());
             const matchesStatus = viewMode === 'trash' || statusFilter === 'all' || o.status === statusFilter;
-            return matchesSearch && matchesStatus;
+            const selectedHostelObj = hostelFilter === 'all' ? null : hostels.find(h => h.id === hostelFilter);
+            const matchesHostel = hostelFilter === 'all' || (selectedHostelObj ? orderMatchesHostel(o, selectedHostelObj) : false);
+            return matchesSearch && matchesStatus && matchesHostel;
         })
         .sort((a, b) => {
             const da = parseDate(a.createdAt);
@@ -123,8 +132,12 @@ export default function AdminOrderHistory() {
 
     const handleDownloadPDF = (order: any) => {
         const batchInfo = resolveOrderBatchInfo(order, batchDays);
+        const hostelInfo = resolveOrderHostelInfo(order, hostels);
         const printWindow = window.open('', '_blank');
-        if (!printWindow) return;
+        if (!printWindow) {
+            showToast('Popup blocked. Please allow popups for CalebDeck to download receipts.');
+            return;
+        }
         const date = parseDate(order.createdAt);
         const riderName = order.assignedRiderId ? (riders.find(r => r.id === order.assignedRiderId)?.name || 'Unknown') : 'Unassigned';
         const html = `
@@ -159,8 +172,15 @@ export default function AdminOrderHistory() {
                 <div class="label">Student</div>
                 <div class="value">${order.fullName || 'N/A'}</div>
                 <div style="font-size:13px;font-weight:700;margin-top:4px">${order.phone || ''}</div>
-                <div class="label">Delivery</div>
-                <div class="value">${order.hostel || 'N/A'}</div>
+                <div class="label">Delivery Destination</div>
+                <div class="value">${hostelInfo.displayHostel}</div>
+                <div style="font-size:12px;font-weight:700;margin-top:4px;color:#555;">Pickup Point: ${hostelInfo.pickupPoint}</div>
+                ${hostelInfo.requiresAcknowledgement ? `
+                <div style="margin-top:12px;padding:12px;background:#fffbeb;border-left:4px solid #F59E0B;border-radius:6px;">
+                    <div class="label" style="margin-top:0;color:#B45309;">Hostel Collection Rule</div>
+                    <div style="font-size:12px;font-weight:700;color:#92400E;line-height:1.45;">${hostelInfo.collectionInstruction || hostelInfo.studentNotice}</div>
+                </div>
+                ` : ''}
                 ${batchInfo ? `
                 <div style="margin-top:18px;padding:12px;background:#f5f3ff;border-left:4px solid #7C3AED;border-radius:6px;">
                     <div class="label" style="margin-top:0;">Scheduled Delivery Batch</div>
@@ -320,21 +340,39 @@ export default function AdminOrderHistory() {
                         onChange={(e) => setSearchQuery(e.target.value)} />
                 </div>
                 {viewMode === 'active' && (
-                    <div className="relative">
-                        <Filter className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
-                        <select
-                            className={`pl-10 pr-10 py-4 rounded-xl border-2 outline-none text-sm font-bold appearance-none transition-all ${isDark
-                                ? 'bg-[#2A2A2A] border-[#333333] text-[#FAF9F6] focus:border-[#7C3AED]'
-                                : 'bg-white border-gray-100 text-gray-900 focus:border-[#7C3AED]/30 shadow-sm'}`}
-                            value={statusFilter}
-                            onChange={e => setStatusFilter(e.target.value)}
-                        >
-                            {activeStatuses.map(s => (
-                                <option key={s} value={s}>{s === 'all' ? 'All Statuses' : s.replace(/_/g, ' ')}</option>
-                            ))}
-                        </select>
-                        <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
-                    </div>
+                    <>
+                        <div className="relative">
+                            <Filter className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
+                            <select
+                                className={`pl-10 pr-10 py-4 rounded-xl border-2 outline-none text-sm font-bold appearance-none transition-all ${isDark
+                                    ? 'bg-[#2A2A2A] border-[#333333] text-[#FAF9F6] focus:border-[#7C3AED]'
+                                    : 'bg-white border-gray-100 text-gray-900 focus:border-[#7C3AED]/30 shadow-sm'}`}
+                                value={hostelFilter}
+                                onChange={e => setHostelFilter(e.target.value)}
+                            >
+                                <option value="all">All Hostels</option>
+                                {hostels.map(h => (
+                                    <option key={h.id} value={h.id}>{h.name}{h.isActive === false ? ' (Disabled)' : ''}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
+                        </div>
+                        <div className="relative">
+                            <Filter className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
+                            <select
+                                className={`pl-10 pr-10 py-4 rounded-xl border-2 outline-none text-sm font-bold appearance-none transition-all ${isDark
+                                    ? 'bg-[#2A2A2A] border-[#333333] text-[#FAF9F6] focus:border-[#7C3AED]'
+                                    : 'bg-white border-gray-100 text-gray-900 focus:border-[#7C3AED]/30 shadow-sm'}`}
+                                value={statusFilter}
+                                onChange={e => setStatusFilter(e.target.value)}
+                            >
+                                {activeStatuses.map(s => (
+                                    <option key={s} value={s}>{s === 'all' ? 'All Statuses' : s.replace(/_/g, ' ')}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${isDark ? 'text-[#9C8F7F]' : 'text-gray-400'}`} />
+                        </div>
+                    </>
                 )}
             </div>
 
@@ -424,7 +462,17 @@ export default function AdminOrderHistory() {
                                                             </div>
                                                         </td>
                                                         <td className={`hidden md:table-cell py-4 px-4 lg:px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>
-                                                            {order.hostelName || order.hostel || 'N/A'}
+                                                            {(() => {
+                                                                const info = resolveOrderHostelInfo(order, hostels);
+                                                                return (
+                                                                    <div>
+                                                                        <span>{info.displayHostel}</span>
+                                                                        {info.requiresAcknowledgement && (
+                                                                            <span className="block text-[10px] font-bold text-amber-500 mt-0.5">{info.pickupPoint}</span>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })()}
                                                         </td>
                                                         <td className="py-4 px-4 lg:px-6">
                                                             <span className="font-bold text-sm text-[#10B981]">₦{getOrderAmount(order).toLocaleString()}</span>

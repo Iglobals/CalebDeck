@@ -5,7 +5,7 @@ import { adminDb } from '../server/firebase-admin.js';
 import { confirmFoodBatchReservation } from '../server/food-batch.js';
 import { creditWallet, ensureWalletUser, WALLET_FUNDING_MAX, WALLET_FUNDING_MIN, resolveFundingAmount, markFundingIntentUsed } from '../server/wallet.js';
 import { resolveOrderVertical } from '../src/services/orderVertical.js';
-import { calculateServerOrderTotal } from '../server/order-utils.js';
+import { calculateServerOrderTotal, validateAndResolveOrderHostel } from '../server/order-utils.js';
 import { claimFirstOrderDiscount, mergeDiscountOntoOrder } from '../server/first-order-discount.js';
 
 function metadataValue(metadata: any, key: string) {
@@ -276,6 +276,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(200).json({ received: true, ignored: true, reason: 'failed_transaction' });
         }
 
+        const hostelValidation = await validateAndResolveOrderHostel(db, metadata, {
+            enforceActiveAndAck: false,
+        });
+
         const orderDoc: any = {
             orderId: metadata.orderId || `CD-WH-${Math.floor(10000 + Math.random() * 90000)}`,
             userId: metadataValue(metadata, 'userId') || null,
@@ -284,6 +288,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             phone: metadata.phone || '',
             hostel: metadata.hostel || '',
             hostelName: metadata.hostelName || '',
+            ...hostelValidation.hostelFields,
             instructions: metadata.instructions || '',
             total: paidAmount,
             cafeteria: metadata.cafeteria || '',

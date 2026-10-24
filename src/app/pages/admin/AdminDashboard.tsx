@@ -16,7 +16,8 @@ import {
   Zap,
   X
 } from 'lucide-react';
-import { subscribeToAllOrders, subscribeToRiders, subscribeToHostels, dispatchBatch, Rider, Hostel, subscribeToPlatformSettings, updatePlatformSettings, PlatformSettings, orderMatchesHostel, subscribeTodayBatchDays, BatchDay } from '../../../services/db';
+import { subscribeToAllOrders, subscribeToRiders, subscribeToAllHostels, dispatchBatch, Rider, Hostel, subscribeToPlatformSettings, updatePlatformSettings, PlatformSettings, orderMatchesHostel, subscribeTodayBatchDays, BatchDay } from '../../../services/db';
+import { resolveOrderHostelInfo } from '../../../services/hostels';
 import { resolveOrderVertical } from '../../../services/orderVertical';
 import { resolveDeliveryFee } from '../../../services/orderFees';
 import { useTheme } from '../../../context/ThemeContext';
@@ -40,7 +41,7 @@ export default function AdminDashboard() {
     const checkLoaded = () => { loaded++; if (loaded >= 4) setLoading(false); };
     const unsub = subscribeToAllOrders((data) => { setOrders(data); checkLoaded(); });
     const unsubRiders = subscribeToRiders((data) => { setRiders(data); checkLoaded(); });
-    const unsubHostels = subscribeToHostels((data) => { setHostels(data); checkLoaded(); });
+    const unsubHostels = subscribeToAllHostels((data) => { setHostels(data); checkLoaded(); });
     const unsubBatches = subscribeTodayBatchDays((data) => { setBatchDays(data); checkLoaded(); });
     const unsubPlatform = subscribeToPlatformSettings((data) => setPlatformSettings(data));
     return () => { unsub(); unsubRiders(); unsubHostels(); unsubBatches(); unsubPlatform(); };
@@ -141,8 +142,9 @@ export default function AdminDashboard() {
       defaultRider,
       assistantRider,
       dispatchRider,
+      totalTodayCount: hostelOrders.length,
     };
-  });
+  }).filter(card => card.hostel.isActive !== false || card.totalTodayCount > 0);
 
   const handleDispatch = async (card: typeof hostelCards[0]) => {
     if (dispatchingHostel || !card.dispatchRider || card.pendingCount === 0) return;
@@ -502,7 +504,19 @@ export default function AdminDashboard() {
                       <span className={`font-mono font-bold text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.orderId || '-'}</span>
                     </td>
                     <td className={`py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName || order.studentName || '-'}</td>
-                    <td className={`hidden sm:table-cell py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.hostelName || order.hostel || '-'}</td>
+                    <td className={`hidden sm:table-cell py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
+                      {(() => {
+                        const info = resolveOrderHostelInfo(order, hostels, platformSettings);
+                        return (
+                          <div>
+                            <span>{info.displayHostel}</span>
+                            {info.requiresAcknowledgement && (
+                              <span className="block text-[10px] font-bold text-amber-500 mt-0.5">{info.pickupPoint}</span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td className={`py-4 px-6 font-bold text-sm ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
                       <div>
                         <div className="flex items-center gap-2">

@@ -3,7 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import axios from 'axios';
 import { adminDb, ensureFirebaseAdmin } from '../../server/firebase-admin.js';
-import { calculateServerOrderTotal } from '../../server/order-utils.js';
+import { calculateServerOrderTotal, validateAndResolveOrderHostel } from '../../server/order-utils.js';
 import { evaluateFirstOrderDiscountTx, writeFirstOrderDiscountClaim, mergeDiscountOntoOrder } from '../../server/first-order-discount.js';
 import { setCors } from '../../server/calebnet.js';
 import { verifyUser } from '../../server/verify-user.js';
@@ -166,6 +166,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return res.status(400).json({ error: 'orderData is required' });
             }
 
+            const hostelValidation = await validateAndResolveOrderHostel(db, orderData, {
+                enforceActiveAndAck: true,
+            });
+            if (!hostelValidation.valid) {
+                return res.status(400).json({
+                    error: hostelValidation.message || 'Please complete the hostel requirement before proceeding.',
+                    code: hostelValidation.code || 'HOSTEL_VALIDATION_FAILED',
+                });
+            }
+
             const displayOrderId = orderData?.orderId || `CD-${Math.floor(10000 + Math.random() * 90000)}`;
             // Prefer the pre-save reference so batch reservations (keyed by that
             // doc id) get confirmed on the same order Paystack would have used.
@@ -249,6 +259,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     phone: orderData?.phone || '',
                     hostel: orderData?.hostel || '',
                     hostelName: orderData?.hostelName || '',
+                    ...hostelValidation.hostelFields,
                     instructions: orderData?.instructions || '',
                     total: serverTotal,
                     cafeteria: orderData?.cafeteria || '',

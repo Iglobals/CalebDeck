@@ -10,6 +10,7 @@ import { updateOrderHistoryStatus } from '../../../services/orderHistory';
 
 const MESSAGES: Record<string, { title: string; detail: string; icon: any; badge: 'green' | 'amber' | 'purple' | 'gray' }> = {
   SUCCESSFUL: { title: 'Top-up sent successfully', detail: 'Your CalebNet transaction has been confirmed.', icon: CheckCircle2, badge: 'green' },
+  REFUNDED: { title: 'Wallet refunded', detail: 'The network could not complete this transaction. We have confirmed that your money has been returned to your CalebNet wallet.', icon: CheckCircle2, badge: 'green' },
   ORDER_RECEIVED: { title: 'Processing your top-up', detail: 'The network has received your transaction and is processing it.', icon: Clock, badge: 'amber' },
   PROCESSING: { title: 'Processing your top-up', detail: 'We are confirming your transaction with the network.', icon: Clock, badge: 'amber' },
   PENDING_PROVIDER: { title: 'Network delay, we are confirming your transaction', detail: 'Please do not pay again. We are checking the network response and will update this page once it is confirmed.', icon: RefreshCcw, badge: 'amber' },
@@ -36,7 +37,9 @@ export default function CalebNetStatus() {
       // Keep the device-local Order History entry in sync with the live status —
       // otherwise a saved entry stays stuck on PROCESSING after a reload.
       const live = String(data.order?.fulfillmentStatus || '');
+      const isRefunded = live === 'REFUNDED' || Boolean((data.order?.walletRefundConfirmed || data.order?.walletRefundTransactionId) && live !== 'SUCCESSFUL');
       if (live === 'SUCCESSFUL') updateOrderHistoryStatus(paymentReference, 'SUCCESSFUL');
+      else if (isRefunded) updateOrderHistoryStatus(paymentReference, 'REFUNDED');
       else if (['FAILED', 'CANCELLED', 'REFUND_REQUIRED'].includes(live)) updateOrderHistoryStatus(paymentReference, 'FAILED');
     } catch (err: any) {
       setError(err.message || 'Unable to load order status');
@@ -45,20 +48,27 @@ export default function CalebNetStatus() {
     }
   };
 
+  const status = order?.fulfillmentStatus || 'PROCESSING';
+  const isRefundConfirmed = Boolean(
+    status === 'REFUNDED' ||
+    ((order?.walletRefundConfirmed || order?.walletRefundTransactionId || order?.paymentStatus === 'REFUNDED') && status !== 'SUCCESSFUL')
+  );
+  const effectiveStatus = isRefundConfirmed ? 'REFUNDED' : status;
+
   useEffect(() => {
     loadStatus();
+    if (effectiveStatus === 'SUCCESSFUL' || effectiveStatus === 'REFUNDED') return;
     const timer = window.setInterval(loadStatus, 15000);
     return () => window.clearInterval(timer);
-  }, [paymentReference]);
+  }, [paymentReference, effectiveStatus]);
 
-  const status = order?.fulfillmentStatus || 'PROCESSING';
-  const baseMessage = MESSAGES[status] || MESSAGES.PROCESSING;
+  const baseMessage = MESSAGES[effectiveStatus] || MESSAGES.PROCESSING;
   const serviceName = order?.type === 'AIRTIME' ? 'Airtime' : 'Data';
-  const message = status === 'SUCCESSFUL'
+  const message = effectiveStatus === 'SUCCESSFUL'
     ? { ...baseMessage, title: `${serviceName} sent successfully`, detail: `Your CalebNet ${serviceName.toLowerCase()} top-up has been confirmed.` }
-    : order?.walletRefundTransactionId && ['FAILED', 'REFUND_REQUIRED', 'CANCELLED'].includes(status)
-      ? { ...baseMessage, title: 'Wallet refunded', detail: `The network could not complete this ${serviceName.toLowerCase()} purchase, so the money has been returned to your CalebNet wallet.` }
-    : ['ORDER_RECEIVED', 'PROCESSING'].includes(status)
+    : effectiveStatus === 'REFUNDED'
+      ? { ...MESSAGES.REFUNDED, title: 'Wallet refunded', detail: `The network could not complete this ${serviceName.toLowerCase()} purchase. We have confirmed that ₦${Number(order?.walletRefundAmount || order?.amountPaid || 0).toLocaleString()} has been returned to your CalebNet wallet.` }
+    : ['ORDER_RECEIVED', 'PROCESSING'].includes(effectiveStatus)
       ? { ...baseMessage, title: `Processing your ${serviceName.toLowerCase()} purchase` }
       : baseMessage;
   const Icon = message.icon;
@@ -100,7 +110,7 @@ export default function CalebNetStatus() {
               <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#7C3AED]/10 text-[#7C3AED]">
                 <Icon className="h-8 w-8" />
               </div>
-              <Badge variant={message.badge} className="mb-4">{status}</Badge>
+              <Badge variant={message.badge} className="mb-4">{effectiveStatus}</Badge>
               <h1 className="mb-3 text-3xl font-black">{message.title}</h1>
               <p className="mb-8 text-muted-foreground">{message.detail}</p>
 
@@ -109,9 +119,15 @@ export default function CalebNetStatus() {
                 <div className="mb-2 flex justify-between"><span className="text-muted-foreground">Network</span><span className="font-bold">{order.network}</span></div>
                 <div className="mb-2 flex justify-between"><span className="text-muted-foreground">Phone</span><span className="font-mono font-bold">{order.phoneNumber}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Amount</span><span className="font-bold">₦{Number(order.amountPaid || 0).toLocaleString()}</span></div>
+                {isRefundConfirmed && (
+                  <div className="mt-2 flex justify-between border-t border-border pt-2">
+                    <span className="text-muted-foreground">Refund Status</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">Confirmed in wallet</span>
+                  </div>
+                )}
                 {order.walletRefundTransactionId && (
                   <div className="mt-2 grid grid-cols-[92px_1fr] gap-3 border-t border-border pt-2">
-                    <span className="text-muted-foreground">Refund</span>
+                    <span className="text-muted-foreground">Refund Ref</span>
                     <span className="min-w-0 break-all text-right font-mono font-bold">{order.walletRefundTransactionId}</span>
                   </div>
                 )}

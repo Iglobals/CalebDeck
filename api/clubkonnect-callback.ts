@@ -48,6 +48,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         };
         if (order.walletRefundTransactionId && nextStatus === 'SUCCESSFUL') {
             patch.providerRemark = `${patch.providerRemark || 'Provider later reported success'} (wallet had already been refunded)`;
+        } else if (order.walletRefundTransactionId && isRefundableProviderStatus(nextStatus)) {
+            patch.fulfillmentStatus = 'REFUNDED';
+            patch.paymentStatus = 'REFUNDED';
         } else if (!shouldPreserveSuccessful(order.fulfillmentStatus, nextStatus)) {
             patch.fulfillmentStatus = nextStatus;
         }
@@ -67,12 +70,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             await refundWalletForCalebNetOrder({
                 orderId: doc.id,
                 reason: 'Provider callback confirmed failure. Wallet refunded.',
-                fulfillmentStatus: nextStatus,
+                fulfillmentStatus: 'REFUNDED',
             });
         }
         
         const finalOrder = await doc.ref.get();
-        const finalStatus = patch.fulfillmentStatus || order.fulfillmentStatus;
+        const finalStatus = finalOrder.data()?.fulfillmentStatus || patch.fulfillmentStatus || order.fulfillmentStatus;
         await recordCalebNetAnalytics(doc.ref, finalOrder.data(), finalStatus);
 
         return res.status(200).json({ success: true });

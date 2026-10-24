@@ -8,11 +8,13 @@ import {
 import { useAuth } from '../../../context/AuthContext';
 import { useTheme } from '../../../context/ThemeContext';
 import { useNavigate, useParams } from 'react-router';
-import { subscribeToRiderOrders, subscribeToBatches, updateOrder, updateBatch, Batch, recordDelivery, subscribeToPlatformSettings, PlatformSettings, subscribeTodayBatchDays, FoodBatchDay } from '../../../services/db';
+import { subscribeToRiderOrders, subscribeToBatches, updateOrder, updateBatch, Batch, recordDelivery, subscribeToPlatformSettings, PlatformSettings, subscribeTodayBatchDays, FoodBatchDay, subscribeToAllHostels, Hostel } from '../../../services/db';
+import { resolveOrderHostelInfo } from '../../../services/hostels';
 import { resolveOrderVertical, getOrderItemCount } from '../../../services/orderVertical';
 import { riderEarningForOrder } from '../../../services/orderFees';
 import { format } from 'date-fns';
 import { BatchOrderInfo, resolveOrderBatchInfo } from '../../components/BatchOrderInfo';
+import { toast } from 'sonner';
 
 export default function RiderBatchDetails() {
     const { user } = useAuth();
@@ -25,11 +27,13 @@ export default function RiderBatchDetails() {
     const [initialized, setInitialized] = useState(false);
     const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
     const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+    const [hostels, setHostels] = useState<Hostel[]>([]);
     const [batchDays, setBatchDays] = useState<FoodBatchDay[]>([]);
 
     useEffect(() => {
         const unsub = subscribeToPlatformSettings(setPlatformSettings);
-        return unsub;
+        const unsubHostels = subscribeToAllHostels(setHostels);
+        return () => { unsub(); unsubHostels(); };
     }, []);
 
     const isDark = riderTheme === 'dark';
@@ -50,6 +54,11 @@ export default function RiderBatchDetails() {
 
     const batchOrders = batch ? orders.filter(o => batch.orderIds.includes(o.id) || o.batchId === batch.id) : [];
     const deliveryBatchInfo = resolveOrderBatchInfo(batchOrders[0], batchDays);
+    const batchHostelInfo = resolveOrderHostelInfo(
+        batchOrders[0] || { hostel: (batch as any)?.hostelId, hostelName: batch?.hostelName },
+        hostels,
+        platformSettings
+    );
 
     useEffect(() => {
         if (!initialized && batchOrders.length > 0) {
@@ -81,7 +90,7 @@ export default function RiderBatchDetails() {
             await updateOrder(orderId, { status: 'ON_THE_WAY' });
         } catch (err: any) {
             console.error('Failed to mark On The Way:', err);
-            alert('Failed to update order status. Please check your connection and try again.');
+            toast.error('Failed to update order status. Please check your connection and try again.');
         } finally {
             setLoadingActions(prev => ({ ...prev, [`on_the_way_${orderId}`]: false }));
         }
@@ -113,12 +122,12 @@ export default function RiderBatchDetails() {
                     await updateBatch(batch.id, { status: 'DELIVERED' });
                 } catch (batchErr) {
                     console.error('Failed to update batch status:', batchErr);
-                    alert('Order marked delivered, but batch status failed to update. Please contact admin.');
+                    toast.error('Order marked delivered, but batch status failed to update. Please contact admin.');
                 }
             }
         } catch (err: any) {
             console.error('Failed to mark Delivered:', err);
-            alert('Failed to update order. Please check your connection and try again.');
+            toast.error('Failed to update order. Please check your connection and try again.');
         } finally {
             setLoadingActions(prev => ({ ...prev, [`delivered_${orderId}`]: false }));
         }
@@ -136,7 +145,7 @@ export default function RiderBatchDetails() {
             }
         } catch (err: any) {
             console.error('Failed to mark batch On The Way:', err);
-            alert('Failed to update some orders. Please check your connection and try again.');
+            toast.error('Failed to update some orders. Please check your connection and try again.');
         } finally {
             setLoadingActions(prev => ({ ...prev, batch_on_the_way: false }));
         }
@@ -159,7 +168,7 @@ export default function RiderBatchDetails() {
             await updateBatch(batch.id, { status: 'DELIVERED' });
         } catch (err: any) {
             console.error('Failed to mark batch Delivered:', err);
-            alert('Failed to complete batch. Please check your connection and try again.');
+            toast.error('Failed to complete batch. Please check your connection and try again.');
         } finally {
             setLoadingActions(prev => ({ ...prev, batch_delivered: false }));
         }
@@ -169,7 +178,7 @@ export default function RiderBatchDetails() {
         e.stopPropagation();
         const printWindow = window.open('', '_blank');
         if (!printWindow) {
-            alert('Please allow popups for this site to print tickets.');
+            toast.error('Popup blocked by your browser. Please allow popups for CalebDeck to export the batch manifest.');
             return;
         }
 
@@ -201,15 +210,18 @@ export default function RiderBatchDetails() {
                     <div class="header">
                         <div class="logo">CALEB<span>DECK</span> RIDER</div>
                         <div class="order-id">
-                            BATCH — ${batch?.hostelName || 'N/A'}
+                            BATCH — ${batchHostelInfo.displayHostel}
                             ${batchOrders[0]?.foodBatchName ? ` — ${batchOrders[0].foodBatchName.toUpperCase()}` : ''}
                         </div>
-                        <div style="margin-top: 10px; font-size: 12px; font-weight: 700; color: #666;">${batchOrders.length} Orders Total</div>
+                        <div style="margin-top: 10px; font-size: 12px; font-weight: 700; color: #666;">${batchOrders.length} Orders Total • Pickup Point: ${batchHostelInfo.pickupPoint}</div>
+                        ${batchHostelInfo.requiresAcknowledgement ? `<div style="margin-top: 10px; padding: 10px; background: #fffbeb; border-left: 4px solid #F59E0B; border-radius: 6px; text-align: left; font-size: 12px; font-weight: 700; color: #92400E;">Collection Rule: ${batchHostelInfo.collectionInstruction || batchHostelInfo.studentNotice}</div>` : ''}
                         ${deliveryBatchInfo?.deliveryWindowStart && deliveryBatchInfo?.deliveryWindowEnd ? `<div style="margin-top:8px;font-size:13px;font-weight:900;color:#7C3AED;">${deliveryBatchInfo.batchName}: delivery ${deliveryBatchInfo.deliveryWindowStart} - ${deliveryBatchInfo.deliveryWindowEnd}</div>` : ''}
                         ${deliveryBatchInfo?.batchDayId || deliveryBatchInfo?.batchId ? `<div style="margin-top:5px;font-family:monospace;font-size:10px;font-weight:700;color:#777;">Batch reference: ${deliveryBatchInfo.batchDayId || deliveryBatchInfo.batchId}</div>` : ''}
                     </div>
                     
-                    ${batchOrders.map((order: any, index: number) => `
+                    ${batchOrders.map((order: any, index: number) => {
+                        const orderHostelInfo = resolveOrderHostelInfo(order, hostels, platformSettings);
+                        return `
                         <div class="section ${index < batchOrders.length - 1 ? 'page-break' : ''}">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                                 <div class="order-id" style="margin-top: 0; background: #FCD34D; color: #1A1A1A;">#${index + 1} • CD-${order.orderId?.slice(-6) || 'XXXXXX'}</div>
@@ -217,7 +229,8 @@ export default function RiderBatchDetails() {
                             
                             <div class="label">Student Details</div>
                             <div class="value" style="margin-bottom: 5px;">${order.fullName}</div>
-                            <div style="font-weight: 700; color: #666; font-size: 14px; margin-bottom: 15px;">📞 ${order.phone || 'N/A'}</div>
+                            <div style="font-weight: 700; color: #666; font-size: 14px; margin-bottom: 6px;">📞 ${order.phone || 'N/A'}</div>
+                            <div style="font-weight: 700; color: #444; font-size: 13px; margin-bottom: 15px;">📍 ${orderHostelInfo.displayHostel} — ${orderHostelInfo.pickupPoint}</div>
 
                             ${resolveOrderVertical(order) === 'FOOD' && (order.cafeteria || order.cafeteriaId) ? `
                                 <div style="margin-bottom: 15px; padding: 10px; background: #f8fafc; border-left: 3px solid #FCD34D; border-radius: 4px;">
@@ -281,7 +294,8 @@ export default function RiderBatchDetails() {
                                 </div>
                             ` : ''}
                         </div>
-                    `).join('')}
+                    `;
+                    }).join('')}
 
                     <div class="footer">CalebDeck Rider Operations — ${new Date().toLocaleDateString()}</div>
                     <button class="close-btn" onclick="closeReceipt()">Close Receipt</button>
@@ -366,6 +380,25 @@ export default function RiderBatchDetails() {
 
             <main className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto print:hidden">
                 <BatchOrderInfo order={batchOrders[0]} batchDays={batchDays} />
+
+                {batchHostelInfo.requiresAcknowledgement && (
+                    <Card className={`p-4 border-2 ${isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
+                        <div className="flex items-start gap-3">
+                            <MapPin className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                            <div>
+                                <p className="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-1">
+                                    Collection Instruction — {batchHostelInfo.displayHostel}
+                                </p>
+                                <p className={`text-sm font-bold leading-relaxed ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
+                                    {batchHostelInfo.collectionInstruction || batchHostelInfo.studentNotice}
+                                </p>
+                                <p className={`text-xs font-semibold mt-1.5 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>
+                                    Pickup Point: <strong className={isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}>{batchHostelInfo.pickupPoint}</strong>
+                                </p>
+                            </div>
+                        </div>
+                    </Card>
+                )}
 
                 {/* Batch Summary */}
                 <div className="grid grid-cols-3 gap-3">
@@ -536,8 +569,21 @@ export default function RiderBatchDetails() {
                                                         <div className="flex items-start gap-3 text-sm">
                                                             <MapPin className="w-4 h-4 text-purple-600 mt-0.5" />
                                                             <div>
-                                                                <p className={`text-xs font-bold uppercase tracking-widest mb-0.5 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Location</p>
-                                                                <p className={`font-medium ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.hostelName || order.hostel}</p>
+                                                                <p className={`text-xs font-bold uppercase tracking-widest mb-0.5 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Location & Pickup</p>
+                                                                {(() => {
+                                                                    const info = resolveOrderHostelInfo(order, hostels, platformSettings);
+                                                                    return (
+                                                                        <>
+                                                                            <p className={`font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{info.displayHostel}</p>
+                                                                            <p className={`text-xs font-semibold mt-0.5 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Pickup: {info.pickupPoint}</p>
+                                                                            {info.requiresAcknowledgement && (
+                                                                                <p className="text-xs font-bold text-amber-500 mt-1 leading-snug">
+                                                                                    {info.collectionInstruction || info.studentNotice}
+                                                                                </p>
+                                                                            )}
+                                                                        </>
+                                                                    );
+                                                                })()}
                                                             </div>
                                                         </div>
 

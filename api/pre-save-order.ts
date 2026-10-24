@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '../server/firebase-admin.js';
-import { calculateServerOrderTotal } from '../server/order-utils.js';
+import { calculateServerOrderTotal, validateAndResolveOrderHostel } from '../server/order-utils.js';
 import { resolveOrderVertical } from '../src/services/orderVertical.js';
 import { isRateLimited, clientIp } from '../server/rate-limit.js';
 
@@ -61,6 +61,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const vertical = resolveOrderVertical(orderData);
         const isMartOrder = vertical === 'MART';
         const isFashionOrder = vertical === 'FASHION';
+
+        // Trusted server-side hostel & mandatory acknowledgement validation
+        const hostelValidation = await validateAndResolveOrderHostel(db, orderData, {
+            enforceActiveAndAck: true,
+        });
+        if (!hostelValidation.valid) {
+            return res.status(400).json({
+                error: hostelValidation.code || 'HOSTEL_VALIDATION_FAILED',
+                message: hostelValidation.message || 'Please complete the hostel requirement before proceeding.',
+            });
+        }
+
         const { pricedItems, serverTotal: serverFashionTotal, netDeliveryFee: serverFashionDeliveryFee } = isFashionOrder
             ? await calculateServerOrderTotal(db, orderData)
             : {};
@@ -260,6 +272,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             phone: orderData.phone || '',
             hostel: orderData.hostel || '',
             hostelName: orderData.hostelName || '',
+            ...hostelValidation.hostelFields,
             instructions: orderData.instructions || '',
             customerType: orderData.customerType || (orderData.hostel ? 'STUDENT' : 'GENERAL'),
             state: orderData.state || '',

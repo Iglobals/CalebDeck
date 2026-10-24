@@ -77,10 +77,18 @@ function parseDate(value: any) {
 }
 
 function statusBadge(status: string) {
-  if (status === 'SUCCESSFUL' || status === 'HEALTHY') return <Badge variant="green"><CheckCircle2 className="mr-1 h-3 w-3" />{status}</Badge>;
+  if (status === 'SUCCESSFUL' || status === 'HEALTHY' || status === 'REFUNDED') return <Badge variant="green"><CheckCircle2 className="mr-1 h-3 w-3" />{status}</Badge>;
   if (['PROCESSING', 'ORDER_RECEIVED', 'PENDING_PROVIDER', 'DEGRADED'].includes(status)) return <Badge variant="amber"><Clock className="mr-1 h-3 w-3" />{status}</Badge>;
   if (['REFUND_REQUIRED', 'FAILED', 'CANCELLED', 'DOWN'].includes(status)) return <Badge variant="purple"><AlertCircle className="mr-1 h-3 w-3" />{status}</Badge>;
   return <Badge variant="gray">{status || 'UNKNOWN'}</Badge>;
+}
+
+function getEffectiveFulfillmentStatus(order: any): string {
+  if (order?.fulfillmentStatus === 'REFUNDED') return 'REFUNDED';
+  if ((order?.walletRefundTransactionId || order?.paymentStatus === 'REFUNDED') && order?.fulfillmentStatus !== 'SUCCESSFUL') {
+    return 'REFUNDED';
+  }
+  return order?.fulfillmentStatus || 'UNKNOWN';
 }
 
 interface DraftPlan {
@@ -217,8 +225,9 @@ export default function AdminCalebNet() {
   }, [tab]);
 
   const filteredOrders = useMemo(() => orders.filter((order) => {
+    const effectiveStatus = getEffectiveFulfillmentStatus(order);
     const haystack = `${order.id} ${order.network} ${order.phoneNumber} ${order.providerOrderId} ${order.providerRequestId}`.toLowerCase();
-    return haystack.includes(search.toLowerCase()) && (statusFilter === 'ALL' || order.fulfillmentStatus === statusFilter);
+    return haystack.includes(search.toLowerCase()) && (statusFilter === 'ALL' || effectiveStatus === statusFilter);
   }), [orders, search, statusFilter]);
 
   const filteredCatalog = useMemo(() => catalog.filter((plan) => {
@@ -584,6 +593,7 @@ export default function AdminCalebNet() {
                   <option value="ORDER_RECEIVED">Order received</option>
                   <option value="PENDING_PROVIDER">Pending provider</option>
                   <option value="REFUND_REQUIRED">Refund required</option>
+                  <option value="REFUNDED">Refunded</option>
                   <option value="CANCELLED">Cancelled/resolved</option>
                 </select>
               </div>
@@ -610,7 +620,8 @@ export default function AdminCalebNet() {
                 <tbody className="divide-y divide-border">
                   {filteredOrders.map((order) => {
                     const date = parseDate(order.createdAt);
-                    const needsRefundAction = ['REFUND_REQUIRED', 'FAILED', 'CANCELLED'].includes(order.fulfillmentStatus) && !order.walletRefundTransactionId;
+                    const effectiveFulfillmentStatus = getEffectiveFulfillmentStatus(order);
+                    const needsRefundAction = ['REFUND_REQUIRED', 'FAILED', 'CANCELLED'].includes(effectiveFulfillmentStatus) && !order.walletRefundTransactionId;
                     return (
                       <tr key={order.id} className="hover:bg-muted/30">
                         <td className="px-4 py-3 whitespace-nowrap">{date ? format(date, 'MMM d, h:mm a') : 'N/A'}</td>
@@ -621,13 +632,13 @@ export default function AdminCalebNet() {
                         <td className="px-4 py-3">₦{Number(order.providerCost || 0).toLocaleString()}</td>
                         <td className="px-4 py-3 text-emerald-600">₦{Number(order.profit || 0).toLocaleString()}</td>
                         <td className="px-4 py-3">
-                          {statusBadge(order.paymentStatus)}
+                          {statusBadge(order.walletRefundTransactionId ? 'REFUNDED' : order.paymentStatus)}
                           <span className="mt-1 block text-xs font-black uppercase text-muted-foreground">{order.paymentProvider || 'paystack'}</span>
                           {order.walletRefundTransactionId && (
-                            <span className="mt-1 block break-all text-[10px] font-black text-emerald-600">Refunded</span>
+                            <span className="mt-1 block break-all text-[10px] font-black text-emerald-600">Refund confirmed</span>
                           )}
                         </td>
-                        <td className="px-4 py-3">{statusBadge(order.fulfillmentStatus)}</td>
+                        <td className="px-4 py-3">{statusBadge(effectiveFulfillmentStatus)}</td>
                         <td className="px-4 py-3">
                           <span className="block min-w-[190px] break-all font-mono text-xs">{order.providerOrderId || 'No order ID'}</span>
                           <span className="block min-w-[190px] break-all font-mono text-xs text-muted-foreground">{order.providerRequestId}</span>

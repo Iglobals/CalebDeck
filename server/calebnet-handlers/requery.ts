@@ -21,6 +21,7 @@ function hasUsefulProviderStatus(response: any) {
 
 function adminRequeryMessage(status: string, response: any) {
     if (status === 'SUCCESSFUL') return 'Provider confirmed this transaction as successful.';
+    if (status === 'REFUNDED') return 'Provider confirmed this transaction did not complete. Wallet refund has been confirmed.';
     if (status === 'REFUND_REQUIRED' || status === 'FAILED' || status === 'CANCELLED') return 'Provider confirmed this transaction did not complete. Wallet refund/review has been handled where possible.';
     if (status === 'ORDER_RECEIVED' || status === 'PROCESSING' || status === 'PENDING_PROVIDER') {
         return 'Provider has not confirmed final delivery yet. Keep this order under review and do not retry blindly.';
@@ -85,6 +86,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (order.walletRefundTransactionId && nextStatus === 'SUCCESSFUL') {
             patch.providerRemark = `${patch.providerRemark || 'Provider later reported success'} (wallet had already been refunded)`;
+        } else if (order.walletRefundTransactionId && isRefundableProviderStatus(nextStatus)) {
+            patch.fulfillmentStatus = 'REFUNDED';
+            patch.paymentStatus = 'REFUNDED';
         } else if (!shouldPreserveSuccessful(order.fulfillmentStatus, nextStatus)) {
             patch.fulfillmentStatus = nextStatus;
         }
@@ -113,12 +117,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             await refundWalletForCalebNetOrder({
                 orderId: orderRef.id,
                 reason: 'Provider requery confirmed failure. Wallet refunded.',
-                fulfillmentStatus: nextStatus,
+                fulfillmentStatus: 'REFUNDED',
             });
         }
 
         const finalOrder = await orderRef.get();
-        const finalStatus = patch.fulfillmentStatus || order.fulfillmentStatus;
+        const finalStatus = finalOrder.data()?.fulfillmentStatus || patch.fulfillmentStatus || order.fulfillmentStatus;
         await recordCalebNetAnalytics(orderRef, finalOrder.data(), finalStatus);
 
         return res.status(200).json({

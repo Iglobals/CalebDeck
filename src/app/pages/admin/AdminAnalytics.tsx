@@ -5,17 +5,20 @@ import { Badge } from '../../components/design-system/Badge';
 import {
     PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { getRecentOrderHistory, subscribeToPlatformSettings } from '../../../services/db';
+import { getRecentOrderHistory, subscribeToPlatformSettings, subscribeToAllHostels, Hostel } from '../../../services/db';
+import { resolveOrderHostelInfo } from '../../../services/hostels';
 import { resolveOrderVertical } from '../../../services/orderVertical';
 import { resolveDeliveryFee } from '../../../services/orderFees';
-import { TrendingUp, ShoppingBag, Users, DollarSign, CalendarDays, Shield, Truck, CheckCircle, Printer } from 'lucide-react';
+import { TrendingUp, ShoppingBag, Users, DollarSign, CalendarDays, Shield, Truck, CheckCircle, Printer, MapPin } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { toast } from 'sonner';
 
 type TimeRange = 'today' | 'week' | 'month';
 
 export default function AdminAnalytics() {
     const [orders, setOrders] = useState<any[]>([]);
+    const [hostels, setHostels] = useState<Hostel[]>([]);
     const [platformSettings, setPlatformSettings] = useState<any>(null);
     const [timeRange, setTimeRange] = useState<TimeRange>('week');
     const [loading, setLoading] = useState(true);
@@ -32,9 +35,11 @@ export default function AdminAnalytics() {
             if (mounted) setLoading(false);
         });
         const unsubSettings = subscribeToPlatformSettings(setPlatformSettings);
+        const unsubHostels = subscribeToAllHostels(setHostels);
         return () => {
             mounted = false;
             unsubSettings();
+            unsubHostels();
         };
     }, []);
 
@@ -150,6 +155,29 @@ export default function AdminAnalytics() {
             .slice(0, 10);
     }, [filteredOrders]);
 
+    // Dynamic Hostel Breakdown (recognizes all configured & historical hostels without hardcoded lists)
+    const hostelBreakdown = useMemo(() => {
+        const byHostel: Record<string, { name: string; orders: number; revenue: number; pickupPoint: string; requiresAck: boolean }> = {};
+
+        filteredOrders.forEach(o => {
+            const info = resolveOrderHostelInfo(o, hostels, platformSettings);
+            const key = info.hostelId || info.displayHostel.toLowerCase();
+            if (!byHostel[key]) {
+                byHostel[key] = {
+                    name: info.displayHostel,
+                    orders: 0,
+                    revenue: 0,
+                    pickupPoint: info.pickupPoint,
+                    requiresAck: info.requiresAcknowledgement,
+                };
+            }
+            byHostel[key].orders += 1;
+            byHostel[key].revenue += getOrderAmount(o);
+        });
+
+        return Object.values(byHostel).sort((a, b) => b.orders - a.orders || b.revenue - a.revenue);
+    }, [filteredOrders, hostels, platformSettings]);
+
     const COLORS = ['#7C3AED', '#FCD34D', '#10B981', '#F87171', '#3B82F6', '#F97316'];
 
     const revenueData = useMemo(() => {
@@ -215,15 +243,17 @@ export default function AdminAnalytics() {
             return `<tr><td>${escapeHtml(type.name)}</td><td>${type.value}</td><td>${pct}%</td></tr>`;
         }).join('');
         const topRows = topMenuItems.map((item, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(item.name)}</td><td>${item.count}x</td></tr>`).join('');
+        const hostelRows = hostelBreakdown.map((h, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(h.name)}</td><td>${escapeHtml(h.pickupPoint)}</td><td>${h.orders}</td><td>NGN ${h.revenue.toLocaleString()}</td></tr>`).join('');
         const detailRows = filteredOrders.map(o => {
             const date = parseDate(o.createdAt);
             const verticalLabel = resolveOrderVertical(o) === 'FASHION' ? 'Fashion' : resolveOrderVertical(o) === 'MART' ? 'Mart' : (o.type === 'combo' ? 'Combo' : 'Food');
+            const info = resolveOrderHostelInfo(o, hostels, platformSettings);
             return `<tr>
                 <td>${date ? format(date, 'MMM d, h:mm a') : 'N/A'}</td>
                 <td>${escapeHtml(o.orderId || o.id)}</td>
                 <td>${escapeHtml(o.fullName || o.studentName || '')}</td>
                 <td>${escapeHtml(o.phone || '')}</td>
-                <td>${escapeHtml(o.hostelName || o.hostel || '')}</td>
+                <td>${escapeHtml(info.displayHostel)}</td>
                 <td>${escapeHtml(verticalLabel)}</td>
                 <td>${escapeHtml(o.status)}</td>
                 <td>NGN ${getOrderAmount(o).toLocaleString()}</td>
@@ -231,7 +261,10 @@ export default function AdminAnalytics() {
         }).join('');
         const emptyRow = '<tr><td colspan="8" class="empty">No data for this period</td></tr>';
         const printWindow = window.open('', '_blank');
-        if (!printWindow) return;
+        if (!printWindow) {
+            toast.error('Popup blocked by your browser. Please allow popups for CalebDeck to print analytics.');
+            return;
+        }
         printWindow.document.write(`
             <html>
               <head>
@@ -300,6 +333,8 @@ export default function AdminAnalytics() {
                     <table><thead><tr><th>Type</th><th>Orders</th><th>Share</th></tr></thead><tbody>${typeRows || '<tr><td colspan="3" class="empty">No order type data</td></tr>'}</tbody></table>
                   </section>
                 </div>
+                <h2>Orders &amp; Revenue by Hostel</h2>
+                <table><thead><tr><th>#</th><th>Hostel</th><th>Pickup Point</th><th>Orders</th><th>Revenue</th></tr></thead><tbody>${hostelRows || '<tr><td colspan="5" class="empty">No hostel data</td></tr>'}</tbody></table>
                 <h2>Top Ordered Items</h2>
                 <table><thead><tr><th>#</th><th>Item</th><th>Quantity</th></tr></thead><tbody>${topRows || '<tr><td colspan="3" class="empty">No item data</td></tr>'}</tbody></table>
                 <h2>Detailed Orders</h2>
@@ -561,6 +596,63 @@ export default function AdminAnalytics() {
                 </Card>
             </div>
 
+            {/* Hostel Breakdown & Top Ordered Items */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <Card className={`p-6 lg:p-8 border ${cardBg}`}>
+                <div className="mb-6">
+                    <h3 className={`text-lg font-black ${headingText} flex items-center gap-2`}>
+                        <MapPin className="w-5 h-5 text-[#7C3AED]" />
+                        Orders by Hostel
+                    </h3>
+                    <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${mutedText}`}>Dynamic hostel distribution {timeRangeLabel.toLowerCase()}</p>
+                </div>
+                {hostelBreakdown.length > 0 ? (
+                    <div className="space-y-3">
+                        {hostelBreakdown.map((h, idx) => {
+                            const maxOrders = hostelBreakdown[0]?.orders || 1;
+                            const pct = Math.round((h.orders / maxOrders) * 100);
+                            return (
+                                <div key={idx} className="flex items-center gap-4">
+                                    <span className={`text-xs font-black w-6 text-center ${idx < 3 ? 'text-[#7C3AED]' : mutedText}`}>
+                                        {idx + 1}
+                                    </span>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between mb-1 gap-2">
+                                            <div className="min-w-0 flex items-center gap-2">
+                                                <span className={`text-sm font-bold truncate ${headingText}`}>{h.name}</span>
+                                                {h.requiresAck && (
+                                                    <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 shrink-0">
+                                                        Restricted Pickup
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-3 shrink-0">
+                                                <span className={`text-xs font-black ${headingText}`}>{h.orders} order{h.orders === 1 ? '' : 's'}</span>
+                                                <span className="text-xs font-black text-[#10B981]">₦{h.revenue.toLocaleString()}</span>
+                                            </div>
+                                        </div>
+                                        <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-[#333333]' : 'bg-gray-100'}`}>
+                                            <div
+                                                className="h-full rounded-full transition-all duration-500"
+                                                style={{
+                                                    width: `${pct}%`,
+                                                    backgroundColor: idx === 0 ? '#7C3AED' : idx === 1 ? '#FCD34D' : idx === 2 ? '#10B981' : isDark ? '#555' : '#D1D5DB'
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <div className={`flex flex-col items-center justify-center py-12 ${mutedText}`}>
+                        <MapPin className="w-10 h-10 mb-3 opacity-20" />
+                        <p className="text-xs font-bold">No hostel orders {timeRangeLabel.toLowerCase()}</p>
+                    </div>
+                )}
+            </Card>
+
             {/* Top ordered items */}
             <Card className={`p-6 lg:p-8 border ${cardBg}`}>
                 <div className="mb-6">
@@ -603,6 +695,7 @@ export default function AdminAnalytics() {
                     </div>
                 )}
             </Card>
+            </div>
         </AdminLayout>
     );
 }

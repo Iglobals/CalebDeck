@@ -1,12 +1,114 @@
 import type { firestore } from 'firebase-admin';
 import { resolveOrderVertical } from '../src/services/orderVertical.js';
 import { isPremiumHostel as sharedIsPremiumHostel } from '../src/services/orderFees.js';
+import { resolveHostelRestriction, HostelConfig } from '../src/services/hostels.js';
 import { findFashionDeliveryArea, normaliseFashionDeliveryConfig } from './fashion-delivery.js';
 
 const FOOD_PLATE_FEE_FALLBACKS = { foodDeliveryFee: 750, foodGroupDeliveryFee: 580, premiumDeliveryFee: 1250 };
 
-function isPremiumHostelFor(orderData: any, platformSettings: any): boolean {
-    return sharedIsPremiumHostel(orderData?.hostel || orderData?.hostelName || orderData?.hostelId, platformSettings);
+function isPremiumHostelFor(orderData: any, platformSettings: any, hostels?: Partial<HostelConfig>[]): boolean {
+    return sharedIsPremiumHostel(orderData?.hostel || orderData?.hostelName || orderData?.hostelId, platformSettings, hostels);
+}
+
+export async function validateAndResolveOrderHostel(
+    db: firestore.Firestore,
+    orderData: any,
+    options?: { enforceActiveAndAck?: boolean }
+): Promise<{
+    valid: boolean;
+    code?: string;
+    message?: string;
+    hostelFields: Record<string, any>;
+}> {
+    const enforce = options?.enforceActiveAndAck ?? true;
+    const isOffCampus =
+        orderData?.customerType === 'GENERAL' ||
+        orderData?.deliveryRecipientType === 'NON_STUDENT' ||
+        Boolean(orderData?.isOffCampusDelivery);
+
+    if (isOffCampus) {
+        return { valid: true, hostelFields: {} };
+    }
+
+    const rawHostel = String(orderData?.hostelId || orderData?.hostel || orderData?.hostelName || '').trim();
+    if (!rawHostel) {
+        if (enforce) {
+            return {
+                valid: false,
+                code: 'HOSTEL_REQUIRED',
+                message: 'Please select a valid campus hostel before proceeding.',
+                hostelFields: {},
+            };
+        }
+        return { valid: true, hostelFields: {} };
+    }
+
+    const [settingsSnap, hostelsSnap] = await Promise.all([
+        db.collection('settings').doc('platform').get().catch(() => null),
+        db.collection('hostels').limit(100).get().catch(() => null),
+    ]);
+
+    const platformSettings = settingsSnap && settingsSnap.exists ? settingsSnap.data() : {};
+    const firestoreHostels: Partial<HostelConfig>[] = hostelsSnap
+        ? hostelsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Partial<HostelConfig>))
+        : [];
+
+    const restriction = resolveHostelRestriction(rawHostel, firestoreHostels, platformSettings as any);
+
+    if (enforce && !restriction.isActive) {
+        return {
+            valid: false,
+            code: 'HOSTEL_DISABLED',
+            message: `${restriction.hostelName || 'The selected hostel'} is currently unavailable for new orders. Please choose an active hostel.`,
+            hostelFields: {},
+        };
+    }
+
+    const clientAccepted =
+        Boolean(orderData?.hostelAcknowledgement?.accepted) ||
+        Boolean(orderData?.femaleHostelAgreement);
+
+    if (enforce && restriction.required && !clientAccepted) {
+        return {
+            valid: false,
+            code: 'HOSTEL_ACKNOWLEDGEMENT_REQUIRED',
+            message:
+                restriction.message ||
+                `Please confirm and accept the collection requirement for ${restriction.hostelName} before continuing.`,
+            hostelFields: {},
+        };
+    }
+
+    const hostelId = restriction.hostelId || String(orderData?.hostelId || orderData?.hostel || '').trim();
+    const hostelName =
+        restriction.hostelName || String(orderData?.hostelName || orderData?.hostel || '').trim();
+
+    const hostelFields: Record<string, any> = {
+        hostel: hostelId || rawHostel,
+        hostelId: hostelId || rawHostel,
+        hostelName: hostelName || rawHostel,
+        pickupPoint: restriction.pickupPoint || 'Front of your hostel/reception',
+        collectionInstruction: restriction.collectionInstruction || '',
+        requiresHostelAcknowledgement: restriction.required,
+        femaleHostelAgreement: restriction.required ? clientAccepted : false,
+        hostelAcknowledgement: {
+            required: restriction.required,
+            accepted: restriction.required ? clientAccepted : false,
+            acceptedAt:
+                orderData?.hostelAcknowledgement?.acceptedAt ||
+                (restriction.required && clientAccepted ? new Date().toISOString() : null),
+            hostelId: hostelId || rawHostel,
+            hostelName: hostelName || rawHostel,
+            title: restriction.title || '',
+            message: restriction.message || '',
+            checkboxLabel: restriction.checkboxLabel || '',
+            collectionInstruction: restriction.collectionInstruction || '',
+            pickupPoint: restriction.pickupPoint || 'Front of your hostel/reception',
+            ruleType: restriction.ruleType || 'NONE',
+        },
+    };
+
+    return { valid: true, hostelFields };
 }
 
 export async function calculateServerOrderTotal(

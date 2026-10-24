@@ -7,7 +7,7 @@ export const seedData = async () => {
     // 2. Riders
     const riders = [
         { id: 'rider_samuel', name: 'Samuel Alabi', phone: '08012345678', dept: 'Engineering', status: 'available', assignedHostelIds: ['deborah', 'mercy', 'mary'] },
-        { id: 'rider_daniel', name: 'Daniel Okon', phone: '08123456789', dept: 'Physical Sciences', status: 'busy', assignedHostelIds: ['levi', 'integrity', 'elisha'] },
+        { id: 'rider_daniel', name: 'Daniel Okon', phone: '08123456789', dept: 'Physical Sciences', status: 'busy', assignedHostelIds: ['david', 'levi', 'integrity', 'elisha'] },
         { id: 'rider_favour', name: 'Favour Adeeye', phone: '09034567890', dept: 'Arts', status: 'available', assignedHostelIds: ['sussana', 'rebecca', 'esme'] },
     ];
 
@@ -18,17 +18,34 @@ export const seedData = async () => {
 
     // Update Hostels with Rider IDs
     const hostelsWithRiders = [
-        { id: 'deborah', name: 'Deborah Hall', gender: 'female', assignedRiderIds: ['rider_samuel'] },
-        { id: 'mercy', name: 'Mercy Hall', gender: 'female', assignedRiderIds: ['rider_samuel'] },
-        { id: 'mary', name: 'Mary Hall', gender: 'female', assignedRiderIds: ['rider_samuel'] },
-        { id: 'esme', name: 'Esme Hall', gender: 'female', assignedRiderIds: ['rider_favour'] },
-        { id: 'rebecca', name: 'Rebecca Hall', gender: 'female', assignedRiderIds: ['rider_favour'] },
-        { id: 'sussana', name: 'Sussana Hall', gender: 'female', assignedRiderIds: ['rider_favour'] },
-        { id: 'levi', name: 'Levi Hall', gender: 'male', assignedRiderIds: ['rider_daniel'] },
-        { id: 'integrity', name: 'Integrity Hall', gender: 'male', assignedRiderIds: ['rider_daniel'] },
-        { id: 'elisha', name: 'Elisha Hall', gender: 'male', assignedRiderIds: ['rider_daniel'] },
-        { id: 'joseph', name: 'Joseph Hall', gender: 'male', assignedRiderIds: ['rider_daniel'] },
-        { id: 'joshua', name: 'Joshua Hall', gender: 'male', assignedRiderIds: ['rider_daniel'] },
+        {
+            id: 'david',
+            name: "David's Hostel",
+            gender: 'male',
+            assignedRiderIds: ['rider_daniel'],
+            isPremiumDelivery: false,
+            requiresAcknowledgement: true,
+            ruleType: 'DOWNSTAIRS_COLLECTION',
+            acknowledgementTitle: "David's Hostel Collection Requirement",
+            acknowledgementMessage:
+                "Please note: Riders cannot enter David’s Hostel unless they are authorized residents. If you select this hostel, you must come downstairs to collect your order. Please confirm that you understand and agree before continuing.",
+            acknowledgementCheckboxLabel:
+                "I understand that riders cannot enter David’s Hostel and I agree to come downstairs to collect my order.",
+            collectionInstruction:
+                "Riders cannot enter David’s Hostel unless they are authorized residents. Student must come downstairs to collect their order.",
+            pickupPoint: "Downstairs at David's Hostel entrance",
+        },
+        { id: 'deborah', name: 'Deborah Hall', gender: 'female', assignedRiderIds: ['rider_samuel'], isPremiumDelivery: true, requiresAcknowledgement: true, ruleType: 'FEMALE_HOSTEL_PICKUP', pickupPoint: 'Front of Mass Comm Building' },
+        { id: 'mercy', name: 'Mercy Hall', gender: 'female', assignedRiderIds: ['rider_samuel'], isPremiumDelivery: true, requiresAcknowledgement: true, ruleType: 'FEMALE_HOSTEL_PICKUP', pickupPoint: 'Front of Mass Comm Building' },
+        { id: 'mary', name: 'Mary Hall', gender: 'female', assignedRiderIds: ['rider_samuel'], isPremiumDelivery: true, requiresAcknowledgement: true, ruleType: 'FEMALE_HOSTEL_PICKUP', pickupPoint: 'Caleb Medicals' },
+        { id: 'esme', name: 'Esme Hall', gender: 'female', assignedRiderIds: ['rider_favour'], isPremiumDelivery: true, requiresAcknowledgement: true, ruleType: 'FEMALE_HOSTEL_PICKUP', pickupPoint: 'Caleb Medicals' },
+        { id: 'rebecca', name: 'Rebecca Hall', gender: 'female', assignedRiderIds: ['rider_favour'], isPremiumDelivery: true, requiresAcknowledgement: true, ruleType: 'FEMALE_HOSTEL_PICKUP', pickupPoint: 'Caleb Medicals' },
+        { id: 'sussana', name: 'Sussana Hall', gender: 'female', assignedRiderIds: ['rider_favour'], isPremiumDelivery: true, requiresAcknowledgement: true, ruleType: 'FEMALE_HOSTEL_PICKUP', pickupPoint: 'Caleb Medicals' },
+        { id: 'levi', name: 'Levi Hall', gender: 'male', assignedRiderIds: ['rider_daniel'], isPremiumDelivery: false, requiresAcknowledgement: false, ruleType: 'NONE', pickupPoint: 'Front of your hostel/reception' },
+        { id: 'integrity', name: 'Integrity Hall', gender: 'male', assignedRiderIds: ['rider_daniel'], isPremiumDelivery: false, requiresAcknowledgement: false, ruleType: 'NONE', pickupPoint: 'Front of your hostel/reception' },
+        { id: 'elisha', name: 'Elisha Hall', gender: 'male', assignedRiderIds: ['rider_daniel'], isPremiumDelivery: false, requiresAcknowledgement: false, ruleType: 'NONE', pickupPoint: 'Front of your hostel/reception' },
+        { id: 'joseph', name: 'Joseph Hall', gender: 'male', assignedRiderIds: ['rider_daniel'], isPremiumDelivery: false, requiresAcknowledgement: false, ruleType: 'NONE', pickupPoint: 'Front of your hostel/reception' },
+        { id: 'joshua', name: 'Joshua Hall', gender: 'male', assignedRiderIds: ['rider_daniel'], isPremiumDelivery: false, requiresAcknowledgement: false, ruleType: 'NONE', pickupPoint: 'Front of your hostel/reception' },
     ];
 
     hostelsWithRiders.forEach((hostel) => {

@@ -4,7 +4,8 @@ import { Badge } from '../../components/design-system/Badge';
 import { useAuth } from '../../../context/AuthContext';
 import { CheckCircle, MapPin, DollarSign, Calendar, ChevronDown, ChevronUp, Search, Filter, FileText, ChevronRight, History, Package, RotateCcw } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
-import { subscribeToRiderOrders, PlatformSettings, subscribeToPlatformSettings, subscribeTodayBatchDays, FoodBatchDay } from '../../../services/db';
+import { subscribeToRiderOrders, subscribeToAllHostels, Hostel, PlatformSettings, subscribeToPlatformSettings, subscribeTodayBatchDays, FoodBatchDay } from '../../../services/db';
+import { resolveOrderHostelInfo } from '../../../services/hostels';
 import { resolveOrderVertical, getOrderItemCount } from '../../../services/orderVertical';
 import { riderEarningForOrder } from '../../../services/orderFees';
 import { format } from 'date-fns';
@@ -14,6 +15,7 @@ export default function RiderOrderHistory() {
     const { user } = useAuth();
     const { riderTheme } = useTheme();
     const [orders, setOrders] = useState<any[]>([]);
+    const [hostels, setHostels] = useState<Hostel[]>([]);
     const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
     const [batchDays, setBatchDays] = useState<FoodBatchDay[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -23,8 +25,9 @@ export default function RiderOrderHistory() {
 
     useEffect(() => {
         const unsub = subscribeToPlatformSettings(setPlatformSettings);
+        const unsubHostels = subscribeToAllHostels(setHostels);
         const unsubBatchDays = subscribeTodayBatchDays(setBatchDays);
-        return () => { unsub(); unsubBatchDays(); };
+        return () => { unsub(); unsubHostels(); unsubBatchDays(); };
     }, []);
 
     useEffect(() => {
@@ -224,8 +227,19 @@ export default function RiderOrderHistory() {
                                                                 <div className={`rounded-xl p-4 border flex items-start gap-3 ${isDark ? 'bg-[#222222]/30 border-[#333333]' : 'bg-gray-50 border-gray-200'}`}>
                                                                     <MapPin className="w-4 h-4 text-purple-600 mt-0.5" />
                                                                     <div>
-                                                                        <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Full Address</p>
-                                                                        <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.hostelName || order.hostel}</p>
+                                                                        <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>Full Address & Pickup</p>
+                                                                        {(() => {
+                                                                            const info = resolveOrderHostelInfo(order, hostels, platformSettings);
+                                                                            return (
+                                                                                <>
+                                                                                    <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{info.displayHostel}</p>
+                                                                                    <p className={`text-xs font-semibold mt-0.5 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-600'}`}>Pickup: {info.pickupPoint}</p>
+                                                                                    {info.requiresAcknowledgement && (
+                                                                                        <p className="text-xs font-bold text-amber-500 mt-1">{info.collectionInstruction}</p>
+                                                                                    )}
+                                                                                </>
+                                                                            );
+                                                                        })()}
                                                                     </div>
                                                                 </div>
 

@@ -1,55 +1,59 @@
-import { createBrowserRouter, Outlet } from "react-router";
-import { Suspense, lazy } from 'react';
+import { createBrowserRouter } from "react-router";
+import { Suspense } from 'react';
 import { AdminRoleWrapper, RiderRoleWrapper } from './layouts/RoleWrappers';
 import StudentRoleWrapper from './layouts/StudentRoleWrapper';
 import { IconGate } from './layouts/IconGate';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { RouteErrorBoundary, FriendlyErrorFallback } from './components/RouteErrorBoundary';
 import { RootWrapper } from './components/RootWrapper';
+import { lazyWithRetry, lazyRoute, installVitePreloadErrorHandler } from '../utils/lazyWithRetry';
+
+installVitePreloadErrorHandler();
 
 // --- Lazy Load Student Pages ---
-const LandingPage = lazy(() => import("./pages/student/LandingPage"));
-const CafeteriaSelection = lazy(() => import("./pages/student/CafeteriaSelection"));
-const PlateBuilder = lazy(() => import("./pages/student/PlateBuilder"));
-const Checkout = lazy(() => import("./pages/student/Checkout"));
-const OrderSuccess = lazy(() => import("./pages/student/OrderSuccess"));
-const MartPage = lazy(() => import("./pages/student/MartPage"));
-const MartCart = lazy(() => import("./pages/student/MartCart"));
-const MartCheckout = lazy(() => import("./pages/student/MartCheckout"));
+const LandingPage = lazyWithRetry(() => import("./pages/student/LandingPage"), "LandingPage");
+const CafeteriaSelection = lazyWithRetry(() => import("./pages/student/CafeteriaSelection"), "CafeteriaSelection");
+const PlateBuilder = lazyWithRetry(() => import("./pages/student/PlateBuilder"), "PlateBuilder");
+const Checkout = lazyWithRetry(() => import("./pages/student/Checkout"), "Checkout");
+const OrderSuccess = lazyWithRetry(() => import("./pages/student/OrderSuccess"), "OrderSuccess");
+const MartPage = lazyWithRetry(() => import("./pages/student/MartPage"), "MartPage");
+const MartCart = lazyWithRetry(() => import("./pages/student/MartCart"), "MartCart");
+const MartCheckout = lazyWithRetry(() => import("./pages/student/MartCheckout"), "MartCheckout");
 
 // --- Lazy Load Fashion Pages ---
-const FashionPage = lazy(() => import("./pages/student/FashionPage"));
-const FashionPDP = lazy(() => import("./pages/student/FashionPDP"));
-const FashionCheckout = lazy(() => import("./pages/student/FashionCheckout"));
+const FashionPage = lazyWithRetry(() => import("./pages/student/FashionPage"), "FashionPage");
+const FashionPDP = lazyWithRetry(() => import("./pages/student/FashionPDP"), "FashionPDP");
+const FashionCheckout = lazyWithRetry(() => import("./pages/student/FashionCheckout"), "FashionCheckout");
 
 // --- Lazy Load Info & Legal Pages ---
-const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
-const TermsOfService = lazy(() => import("./pages/TermsOfService"));
-const Support = lazy(() => import("./pages/Support"));
-const LearnMore = lazy(() => import("./pages/LearnMore"));
+const PrivacyPolicy = lazyWithRetry(() => import("./pages/PrivacyPolicy"), "PrivacyPolicy");
+const TermsOfService = lazyWithRetry(() => import("./pages/TermsOfService"), "TermsOfService");
+const Support = lazyWithRetry(() => import("./pages/Support"), "Support");
+const LearnMore = lazyWithRetry(() => import("./pages/LearnMore"), "LearnMore");
 
 // --- Lazy Load Admin Pages ---
-const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
-const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
-const AdminOrders = lazy(() => import("./pages/admin/AdminOrders"));
-const RiderManagement = lazy(() => import("./pages/admin/RiderManagement"));
-const MenuManagement = lazy(() => import("./pages/admin/MenuManagement"));
-const AdminAnalytics = lazy(() => import("./pages/admin/AdminAnalytics"));
-const AdminOrderHistory = lazy(() => import("./pages/admin/AdminOrderHistory"));
-const AdminSetup = lazy(() => import("./pages/admin/AdminSetup"));
-const SeedData = lazy(() => import("./pages/admin/SeedData"));
-const AdminReviews = lazy(() => import("./pages/admin/AdminReviews"));
-const AdminMartInventory = lazy(() => import("./pages/admin/AdminMartInventory"));
-const AdminMartOrders = lazy(() => import("./pages/admin/AdminMartOrders"));
-const AdminFashion = lazy(() => import("./pages/admin/AdminFashion"));
-const AdminFashionOrders = lazy(() => import("./pages/admin/AdminFashionOrders"));
+const AdminLogin = lazyWithRetry(() => import("./pages/admin/AdminLogin"), "AdminLogin");
+const AdminDashboard = lazyWithRetry(() => import("./pages/admin/AdminDashboard"), "AdminDashboard");
+const AdminOrders = lazyWithRetry(() => import("./pages/admin/AdminOrders"), "AdminOrders");
+const RiderManagement = lazyWithRetry(() => import("./pages/admin/RiderManagement"), "RiderManagement");
+const MenuManagement = lazyWithRetry(() => import("./pages/admin/MenuManagement"), "MenuManagement");
+const AdminAnalytics = lazyWithRetry(() => import("./pages/admin/AdminAnalytics"), "AdminAnalytics");
+const AdminOrderHistory = lazyWithRetry(() => import("./pages/admin/AdminOrderHistory"), "AdminOrderHistory");
+const AdminSetup = lazyWithRetry(() => import("./pages/admin/AdminSetup"), "AdminSetup");
+const SeedData = lazyWithRetry(() => import("./pages/admin/SeedData"), "SeedData");
+const AdminReviews = lazyWithRetry(() => import("./pages/admin/AdminReviews"), "AdminReviews");
+const AdminMartInventory = lazyWithRetry(() => import("./pages/admin/AdminMartInventory"), "AdminMartInventory");
+const AdminMartOrders = lazyWithRetry(() => import("./pages/admin/AdminMartOrders"), "AdminMartOrders");
+const AdminFashion = lazyWithRetry(() => import("./pages/admin/AdminFashion"), "AdminFashion");
+const AdminFashionOrders = lazyWithRetry(() => import("./pages/admin/AdminFashionOrders"), "AdminFashionOrders");
 
 // --- Lazy Load Rider Pages ---
-const RiderLogin = lazy(() => import("./pages/rider/RiderLogin"));
-const RiderDashboard = lazy(() => import("./pages/rider/RiderDashboard"));
-const RiderOrderHistory = lazy(() => import("./pages/rider/RiderOrderHistory"));
-const RiderBatchDetails = lazy(() => import("./pages/rider/RiderBatchDetails"));
-const RiderBatches = lazy(() => import("./pages/rider/RiderBatches"));
-const RiderWallet = lazy(() => import("./pages/rider/RiderWallet"));
+const RiderLogin = lazyWithRetry(() => import("./pages/rider/RiderLogin"), "RiderLogin");
+const RiderDashboard = lazyWithRetry(() => import("./pages/rider/RiderDashboard"), "RiderDashboard");
+const RiderOrderHistory = lazyWithRetry(() => import("./pages/rider/RiderOrderHistory"), "RiderOrderHistory");
+const RiderBatchDetails = lazyWithRetry(() => import("./pages/rider/RiderBatchDetails"), "RiderBatchDetails");
+const RiderBatches = lazyWithRetry(() => import("./pages/rider/RiderBatches"), "RiderBatches");
+const RiderWallet = lazyWithRetry(() => import("./pages/rider/RiderWallet"), "RiderWallet");
 
 const SuspenseFallback = () => (
   <div className="min-h-screen bg-[#FAF9F6] dark:bg-[#121212] flex flex-col items-center justify-center gap-5">
@@ -66,6 +70,7 @@ const SuspenseFallback = () => (
 export const router = createBrowserRouter([
   {
     path: "/",
+    errorElement: <RouteErrorBoundary />,
     element: (
       <ErrorBoundary>
         <Suspense fallback={<SuspenseFallback />}>
@@ -78,6 +83,7 @@ export const router = createBrowserRouter([
       {
         path: "/",
         element: <StudentRoleWrapper />,
+        errorElement: <RouteErrorBoundary />,
         children: [
           { index: true, Component: LandingPage },
           { path: "cafeteria", Component: CafeteriaSelection },
@@ -87,37 +93,39 @@ export const router = createBrowserRouter([
           { path: "mart", Component: MartPage },
           { path: "cart", Component: MartCart },
           { path: "mart/checkout", Component: MartCheckout },
-          { path: "calebnet", lazy: () => import("./pages/student/CalebNet").then(m => ({ Component: m.default })) },
-          { path: "calebnet/status/:paymentReference", lazy: () => import("./pages/student/CalebNetStatus").then(m => ({ Component: m.default })) },
-          { path: "my-orders", lazy: () => import("./pages/student/MyOrders").then(m => ({ Component: m.default })) },
+          { path: "calebnet", lazy: lazyRoute(() => import("./pages/student/CalebNet"), "CalebNet") },
+          { path: "calebnet/status/:paymentReference", lazy: lazyRoute(() => import("./pages/student/CalebNetStatus"), "CalebNetStatus") },
+          { path: "my-orders", lazy: lazyRoute(() => import("./pages/student/MyOrders"), "MyOrders") },
           
-          { path: "business", lazy: () => import("./pages/student/BusinessPage").then(m => ({ Component: m.default })) },
-          { path: "business/product/:id", lazy: () => import("./pages/student/BusinessProductPage").then(m => ({ Component: m.default })) },
-          { path: "business/dashboard", lazy: () => import("./pages/student/VendorDashboard").then(m => ({ Component: m.default })) },
-          { path: "business/activate/:token", lazy: () => import("./pages/student/VendorActivation").then(m => ({ Component: m.default })) },
+          { path: "business", lazy: lazyRoute(() => import("./pages/student/BusinessPage"), "BusinessPage") },
+          { path: "business/product/:id", lazy: lazyRoute(() => import("./pages/student/BusinessProductPage"), "BusinessProductPage") },
+          { path: "business/dashboard", lazy: lazyRoute(() => import("./pages/student/VendorDashboard"), "VendorDashboard") },
+          { path: "business/activate/:token", lazy: lazyRoute(() => import("./pages/student/VendorActivation"), "VendorActivation") },
           
-          { path: "fashion", lazy: () => import("./pages/student/FashionPage").then(m => ({ Component: m.default })) },
-          { path: "fashion/product/:id", lazy: () => import("./pages/student/FashionPDP").then(m => ({ Component: m.default })) },
-          { path: "fashion/checkout", lazy: () => import("./pages/student/FashionCheckout").then(m => ({ Component: m.default })) },
+          { path: "fashion", Component: FashionPage },
+          { path: "fashion/product/:id", Component: FashionPDP },
+          { path: "fashion/checkout", Component: FashionCheckout },
           
           /* ICON-Only Routes */
           {
             path: "",
             element: <IconGate />,
+            errorElement: <RouteErrorBoundary />,
             children: [
-              { path: "profile", lazy: () => import("./pages/student/Profile").then(m => ({ Component: m.default })) },
-              { path: "wallet", lazy: () => import("./pages/student/WalletPage").then(m => ({ Component: m.default })) },
+              { path: "profile", lazy: lazyRoute(() => import("./pages/student/Profile"), "Profile") },
+              { path: "wallet", lazy: lazyRoute(() => import("./pages/student/WalletPage"), "WalletPage") },
             ]
           }
         ]
       },
 
       /* Admin Flow */
-      { path: "/admin/login", Component: AdminLogin },
-      { path: "/admin/setup", Component: AdminSetup },
+      { path: "/admin/login", Component: AdminLogin, errorElement: <RouteErrorBoundary /> },
+      { path: "/admin/setup", Component: AdminSetup, errorElement: <RouteErrorBoundary /> },
       {
         path: "/admin",
         element: <AdminRoleWrapper />,
+        errorElement: <RouteErrorBoundary />,
         children: [
           { index: true, Component: AdminDashboard },
           { path: "orders", Component: AdminOrders },
@@ -126,30 +134,31 @@ export const router = createBrowserRouter([
           { path: "analytics", Component: AdminAnalytics },
           { path: "history", Component: AdminOrderHistory },
           { path: "reviews", Component: AdminReviews },
-          { path: "directory", lazy: () => import('./pages/admin/AdminDirectory').then(m => ({ Component: m.default })) },
-          { path: "settings", lazy: () => import('./pages/admin/AdminSettings').then(m => ({ Component: m.default })) },
+          { path: "directory", lazy: lazyRoute(() => import('./pages/admin/AdminDirectory'), "AdminDirectory") },
+          { path: "settings", lazy: lazyRoute(() => import('./pages/admin/AdminSettings'), "AdminSettings") },
           { path: "seed", Component: SeedData },
           { path: "mart/inventory", Component: AdminMartInventory },
           { path: "mart/orders", Component: AdminMartOrders },
-          { path: "fashion", lazy: () => import("./pages/admin/AdminFashion").then(m => ({ Component: m.default })) },
+          { path: "fashion", Component: AdminFashion },
           { path: "fashion/orders", Component: AdminFashionOrders },
-          { path: "calebnet", lazy: () => import('./pages/admin/AdminCalebNet').then(m => ({ Component: m.default })) },
-          { path: "batches", lazy: () => import('./pages/admin/AdminBatchManager').then(m => ({ Component: m.default })) },
-          { path: "business", lazy: () => import('./pages/admin/AdminBusiness').then(m => ({ Component: m.default })) },
+          { path: "calebnet", lazy: lazyRoute(() => import('./pages/admin/AdminCalebNet'), "AdminCalebNet") },
+          { path: "batches", lazy: lazyRoute(() => import('./pages/admin/AdminBatchManager'), "AdminBatchManager") },
+          { path: "business", lazy: lazyRoute(() => import('./pages/admin/AdminBusiness'), "AdminBusiness") },
         ]
       },
 
       /* Rider Flow */
-      { path: "/rider/login", Component: RiderLogin },
-      { path: "/rider/signup", element: <RiderLogin initialMode="signup" /> },
+      { path: "/rider/login", Component: RiderLogin, errorElement: <RouteErrorBoundary /> },
+      { path: "/rider/signup", element: <RiderLogin initialMode="signup" />, errorElement: <RouteErrorBoundary /> },
       {
         path: "/rider",
         element: <RiderRoleWrapper />,
+        errorElement: <RouteErrorBoundary />,
         children: [
           { index: true, Component: RiderDashboard },
           { path: "history", Component: RiderOrderHistory },
           { path: "wallet", Component: RiderWallet },
-          { path: "analytics", lazy: () => import('./pages/rider/RiderAnalytics').then(m => ({ Component: m.default })) },
+          { path: "analytics", lazy: lazyRoute(() => import('./pages/rider/RiderAnalytics'), "RiderAnalytics") },
           { path: "batch/:batchId", Component: RiderBatchDetails },
           { path: "batches", Component: RiderBatches },
         ]
@@ -160,8 +169,9 @@ export const router = createBrowserRouter([
       { path: "/terms", Component: TermsOfService },
       { path: "/support", Component: Support },
       { path: "/learn-more", Component: LearnMore },
-      { path: "/calebdeck-mart", lazy: () => import("./pages/CalebDeckMartLanding").then(m => ({ Component: m.default })) },
-      { path: "/calebnet-info", lazy: () => import("./pages/CalebNetLanding").then(m => ({ Component: m.default })) },
+      { path: "/calebdeck-mart", lazy: lazyRoute(() => import("./pages/CalebDeckMartLanding"), "CalebDeckMartLanding") },
+      { path: "/calebnet-info", lazy: lazyRoute(() => import("./pages/CalebNetLanding"), "CalebNetLanding") },
+      { path: "*", element: <FriendlyErrorFallback error={{ status: 404 }} /> },
     ]
   },
 ]);

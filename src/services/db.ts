@@ -3,6 +3,15 @@ import { db, auth } from './firebase';
 import { sendOrderStatusPushNotification } from './messaging';
 import { DEFAULT_PREMIUM_HOSTELS } from './orderFees';
 import { resolveOrderVertical } from './orderVertical';
+import {
+    HostelConfig,
+    HostelRuleType,
+    DEFAULT_HOSTELS,
+    mergeHostelsWithDefaults,
+    findHostelConfig,
+    normalizeHostelKey as normalizeHostelIdKey,
+    slugifyHostelId,
+} from './hostels';
 
 // Types
 export interface MenuItem {
@@ -17,7 +26,7 @@ export interface MenuItem {
     sectionId?: 'front' | 'back' | 'none';
 }
 
-export interface Hostel {
+export interface Hostel extends HostelConfig {
     id: string;
     name: string;
     assignedRiderIds: string[];
@@ -26,11 +35,23 @@ export interface Hostel {
     isActive: boolean;
 }
 
-export const normalizeHostelKey = (value: any) => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+export const normalizeHostelKey = (value: any) =>
+    normalizeHostelIdKey(value);
 
 export const orderMatchesHostel = (order: any, hostel: Pick<Hostel, 'id' | 'name'>) => {
-    const orderKeys = [order.hostel, order.hostelId, order.hostelName].map(normalizeHostelKey).filter(Boolean);
-    const hostelKeys = [hostel.id, hostel.name, String(hostel.name || '').replace(/\s+hall$/i, '')].map(normalizeHostelKey).filter(Boolean);
+    const stripSuffix = (val: string) => val.replace(/\s+(hall|hostel)$/i, '').trim();
+    const orderKeys = [order?.hostel, order?.hostelId, order?.hostelName]
+        .flatMap(v => {
+            const norm = normalizeHostelKey(v);
+            return norm ? [norm, stripSuffix(norm)] : [];
+        })
+        .filter(Boolean);
+    const hostelKeys = [hostel.id, hostel.name]
+        .flatMap(v => {
+            const norm = normalizeHostelKey(v);
+            return norm ? [norm, stripSuffix(norm)] : [];
+        })
+        .filter(Boolean);
     return hostelKeys.some(key => orderKeys.includes(key));
 };
 
@@ -47,37 +68,199 @@ export interface Review {
 
 // Hostels
 export const getActiveHostels = async (): Promise<Hostel[]> => {
-    const q = query(collection(db, 'hostels'), where('isActive', '==', true), limit(50));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Hostel));
+    try {
+        const q = query(collection(db, 'hostels'), limit(100));
+        const snapshot = await getDocs(q);
+        const rawHostels = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Partial<Hostel>));
+        return mergeHostelsWithDefaults(rawHostels, null, { includeInactive: false, includeArchived: false }) as Hostel[];
+    } catch (err) {
+        console.error('getActiveHostels fallback to defaults:', err);
+        return mergeHostelsWithDefaults([], null, { includeInactive: false, includeArchived: false }) as Hostel[];
+    }
+};
+
+export const getAllHostels = async (includeArchived = false): Promise<Hostel[]> => {
+    try {
+        const q = query(collection(db, 'hostels'), limit(100));
+        const snapshot = await getDocs(q);
+        const rawHostels = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Partial<Hostel>));
+        return mergeHostelsWithDefaults(rawHostels, null, { includeInactive: true, includeArchived }) as Hostel[];
+    } catch (err) {
+        console.error('getAllHostels fallback to defaults:', err);
+        return mergeHostelsWithDefaults([], null, { includeInactive: true, includeArchived }) as Hostel[];
+    }
 };
 
 export const getHostelById = async (hostelId: string): Promise<Hostel | null> => {
-    const hostelRef = doc(db, 'hostels', hostelId);
-    const snapshot = await getDoc(hostelRef);
-    return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } as Hostel : null;
+    try {
+        const hostelRef = doc(db, 'hostels', hostelId);
+        const snapshot = await getDoc(hostelRef);
+        if (snapshot.exists()) {
+            const merged = mergeHostelsWithDefaults([{ id: snapshot.id, ...snapshot.data() }], null, {
+                includeInactive: true,
+                includeArchived: true,
+            });
+            return (merged.find(h => h.id === snapshot.id) || { id: snapshot.id, ...snapshot.data() }) as Hostel;
+        }
+    } catch (err) {
+        console.warn('getHostelById lookup fallback:', err);
+    }
+    const fallback = findHostelConfig(hostelId);
+    return fallback ? (fallback as Hostel) : null;
 };
 
-// Live hostel subscription (for admin dashboard real-time updates)
+// Live hostel subscription (active hostels for checkout & operational views)
 export const subscribeToHostels = (callback: (hostels: Hostel[]) => void) => {
-    const q = query(collection(db, 'hostels'), where('isActive', '==', true), limit(50));
+    const q = query(collection(db, 'hostels'), limit(100));
     return onSnapshot(q, (snapshot) => {
-        callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Hostel)));
+        const rawHostels = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Partial<Hostel>));
+        const merged = mergeHostelsWithDefaults(rawHostels, null, { includeInactive: false, includeArchived: false }) as Hostel[];
+        callback(merged);
     }, (error) => {
         console.error('subscribeToHostels error:', error);
-        callback([]);
+        callback(mergeHostelsWithDefaults([], null, { includeInactive: false, includeArchived: false }) as Hostel[]);
     });
+};
+
+// Live subscription to ALL hostels (active + disabled) for Admin Settings, Order Management & Analytics
+export const subscribeToAllHostels = (callback: (hostels: Hostel[]) => void, includeArchived = false) => {
+    const q = query(collection(db, 'hostels'), limit(100));
+    return onSnapshot(q, (snapshot) => {
+        const rawHostels = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Partial<Hostel>));
+        const merged = mergeHostelsWithDefaults(rawHostels, null, { includeInactive: true, includeArchived }) as Hostel[];
+        callback(merged);
+    }, (error) => {
+        console.error('subscribeToAllHostels error:', error);
+        callback(mergeHostelsWithDefaults([], null, { includeInactive: true, includeArchived }) as Hostel[]);
+    });
+};
+
+// Save or update a hostel configuration in Firestore (and sync with platform settings)
+export const saveHostelConfig = async (hostelInput: Partial<HostelConfig> & { name: string }): Promise<Hostel> => {
+    const trimmedName = String(hostelInput.name || '').trim();
+    if (!trimmedName) {
+        throw new Error('Hostel display name is required.');
+    }
+    const id = String(hostelInput.id || slugifyHostelId(trimmedName)).trim();
+    const existingRef = doc(db, 'hostels', id);
+    const existingSnap = await getDoc(existingRef);
+    const existingData = existingSnap.exists() ? existingSnap.data() : {};
+    const defaultMatch = DEFAULT_HOSTELS.find(h => h.id === id);
+
+    const requiresAcknowledgement = Boolean(hostelInput.requiresAcknowledgement);
+    const ruleType: HostelRuleType = requiresAcknowledgement
+        ? (hostelInput.ruleType && hostelInput.ruleType !== 'NONE' ? hostelInput.ruleType : 'CUSTOM')
+        : 'NONE';
+
+    const payload: Hostel = {
+        id,
+        name: trimmedName,
+        isActive: typeof hostelInput.isActive === 'boolean' ? hostelInput.isActive : (existingData.isActive ?? true),
+        isArchived: Boolean(hostelInput.isArchived ?? false),
+        gender: hostelInput.gender || existingData.gender || defaultMatch?.gender || 'mixed',
+        isPremiumDelivery: Boolean(hostelInput.isPremiumDelivery ?? existingData.isPremiumDelivery ?? defaultMatch?.isPremiumDelivery ?? false),
+        requiresAcknowledgement,
+        ruleType,
+        acknowledgementTitle: String(hostelInput.acknowledgementTitle ?? existingData.acknowledgementTitle ?? defaultMatch?.acknowledgementTitle ?? `${trimmedName} Collection Notice`).trim(),
+        acknowledgementMessage: String(hostelInput.acknowledgementMessage ?? existingData.acknowledgementMessage ?? defaultMatch?.acknowledgementMessage ?? '').trim(),
+        acknowledgementCheckboxLabel: String(hostelInput.acknowledgementCheckboxLabel ?? existingData.acknowledgementCheckboxLabel ?? defaultMatch?.acknowledgementCheckboxLabel ?? '').trim(),
+        collectionInstruction: String(hostelInput.collectionInstruction ?? existingData.collectionInstruction ?? defaultMatch?.collectionInstruction ?? 'Standard delivery to the front of the hostel/reception.').trim(),
+        pickupPoint: String(hostelInput.pickupPoint ?? existingData.pickupPoint ?? defaultMatch?.pickupPoint ?? 'Front of your hostel/reception').trim(),
+        assignedRiderIds: Array.isArray(hostelInput.assignedRiderIds)
+            ? hostelInput.assignedRiderIds
+            : (Array.isArray(existingData.assignedRiderIds) ? existingData.assignedRiderIds : []),
+        defaultRiderId: hostelInput.defaultRiderId !== undefined ? hostelInput.defaultRiderId : (existingData.defaultRiderId || undefined),
+        assistantRiderId: hostelInput.assistantRiderId !== undefined ? hostelInput.assistantRiderId : (existingData.assistantRiderId || undefined),
+        updatedAt: serverTimestamp(),
+    };
+
+    // Clean undefined keys before writing to Firestore
+    const firestoreDoc: Record<string, any> = { ...payload };
+    Object.keys(firestoreDoc).forEach(k => {
+        if (firestoreDoc[k] === undefined) delete firestoreDoc[k];
+    });
+
+    await setDoc(existingRef, firestoreDoc, { merge: true });
+    return payload;
+};
+
+export const toggleHostelStatus = async (hostelId: string, isActive: boolean): Promise<void> => {
+    const existing = await getHostelById(hostelId);
+    const ref = doc(db, 'hostels', hostelId);
+    await setDoc(
+        ref,
+        {
+            ...(existing || { id: hostelId, name: hostelId, assignedRiderIds: [] }),
+            id: hostelId,
+            isActive,
+            isArchived: false,
+            updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+    );
+};
+
+/**
+ * Safely removes or archives a hostel.
+ * If historical or active orders exist for this hostel (or if it is a built-in default hostel),
+ * it soft-archives/disables the hostel instead of destructively deleting the document,
+ * preserving all historical order references, manifests, and analytics.
+ */
+export const removeOrArchiveHostel = async (
+    hostelId: string,
+    hostelName?: string
+): Promise<{ mode: 'deleted' | 'archived'; reason?: string }> => {
+    const ordersRef = collection(db, 'orders');
+    const byIdSnap = await getDocs(query(ordersRef, where('hostel', '==', hostelId), limit(1)));
+    const byHostelIdSnap = byIdSnap.empty
+        ? await getDocs(query(ordersRef, where('hostelId', '==', hostelId), limit(1)))
+        : byIdSnap;
+    const byNameSnap =
+        byHostelIdSnap.empty && hostelName
+            ? await getDocs(query(ordersRef, where('hostelName', '==', hostelName), limit(1)))
+            : byHostelIdSnap;
+
+    const hasOrders = !byNameSnap.empty;
+    const isBuiltInDefault = DEFAULT_HOSTELS.some(h => h.id === hostelId);
+
+    const ref = doc(db, 'hostels', hostelId);
+    if (hasOrders || isBuiltInDefault) {
+        const existing = await getHostelById(hostelId);
+        await setDoc(
+            ref,
+            {
+                ...(existing || { id: hostelId, name: hostelName || hostelId, assignedRiderIds: [] }),
+                id: hostelId,
+                isActive: false,
+                isArchived: true,
+                updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+        );
+        return {
+            mode: 'archived',
+            reason: hasOrders
+                ? 'This hostel has existing order records, so it was safely archived and disabled for new checkouts while keeping historical orders intact.'
+                : 'This campus hostel was archived and hidden from checkout.',
+        };
+    }
+
+    await deleteDoc(ref);
+    return { mode: 'deleted' };
 };
 
 // Assign default + assistant rider to a hostel
 export const assignHostelRiders = async (hostelId: string, defaultRiderId: string | null, assistantRiderId: string | null) => {
+    const existing = await getHostelById(hostelId);
     const hostelRef = doc(db, 'hostels', hostelId);
     const riderIds = [defaultRiderId, assistantRiderId].filter(Boolean) as string[];
-    await updateDoc(hostelRef, {
+    await setDoc(hostelRef, {
+        ...(existing || { id: hostelId, name: hostelId, isActive: true }),
         defaultRiderId: defaultRiderId || null,
         assistantRiderId: assistantRiderId || null,
         assignedRiderIds: riderIds,
-    });
+        updatedAt: serverTimestamp(),
+    }, { merge: true });
 };
 
 // Menu
