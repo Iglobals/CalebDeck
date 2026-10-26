@@ -9,7 +9,7 @@ import { ArrowLeft, Lock, Shield, CreditCard, MapPin, User, AlertTriangle, Timer
 import { netDeliveryFeeFromBreakdown, previewFirstOrderDiscount } from '../../../services/firstOrderDiscount';
 import { getActiveHostels, subscribeToHostels, Hostel, subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 import { isPremiumHostel } from '../../../services/orderFees';
-import { resolveHostelRestriction } from '../../../services/hostels';
+import { resolveHostelRestriction, normalizeHostelKey } from '../../../services/hostels';
 import { calculateOrderTotal, verifyPayment } from '../../../services/functions';
 import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../../../services/firebase';

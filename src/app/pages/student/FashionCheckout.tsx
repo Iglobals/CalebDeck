@@ -16,7 +16,7 @@ import { Loader2 } from 'lucide-react';
 import { getHexColorName } from '../../../utils/formatColor';
 import { getFashionBatchState, DEFAULT_FASHION_BATCH_CONFIG } from '../../../services/fashionBatch';
 import { isPremiumHostel } from '../../../services/orderFees';
-import { resolveHostelRestriction } from '../../../services/hostels';
+import { resolveHostelRestriction, normalizeHostelKey } from '../../../services/hostels';
 import { FashionBatchPickerModal, SelectedFashionBatchInfo } from '../../components/FashionBatchPickerModal';
 import { PaymentSelector, PaymentMethod } from '../../components/student/PaymentSelector';
 import { BatchStatusBar } from '../../components/BatchStatusBar';

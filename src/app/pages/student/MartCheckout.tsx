@@ -15,7 +15,7 @@ import SEO from '../../components/SEO';
 import { PaymentSelector, PaymentMethod } from '../../components/student/PaymentSelector';
 import { Loader2 } from 'lucide-react';
 import { isPremiumHostel } from '../../../services/orderFees';
-import { resolveHostelRestriction } from '../../../services/hostels';
+import { resolveHostelRestriction, normalizeHostelKey } from '../../../services/hostels';
 
 export default function MartCheckout() {
   const { items, subtotal, totalItems, clearCart } = useMartCart();
