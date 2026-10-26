@@ -55,7 +55,9 @@ export default function RiderBatchDetails() {
     const batchOrders = batch ? orders.filter(o => batch.orderIds.includes(o.id) || o.batchId === batch.id) : [];
     const deliveryBatchInfo = resolveOrderBatchInfo(batchOrders[0], batchDays);
     const batchHostelInfo = resolveOrderHostelInfo(
-        batchOrders[0] || { hostel: (batch as any)?.hostelId, hostelName: batch?.hostelName },
+        batchOrders[0]
+            ? { ...batchOrders[0], hostel: batchOrders[0]?.hostel || (batch as any)?.hostelId, hostelName: batchOrders[0]?.hostelName || batch?.hostelName }
+            : { hostel: (batch as any)?.hostelId, hostelName: batch?.hostelName },
         hostels,
         platformSettings
     );

@@ -520,7 +520,13 @@ export function resolveHostelRestriction(
   hostels?: Partial<HostelConfig>[] | null,
   platformSettings?: { premiumHostels?: string[]; hostelConfigs?: Partial<HostelConfig>[] } | null
 ): ResolvedHostelRestriction {
-  const raw = String(hostelIdOrName || '').trim();
+  const clean = (val: any): string => {
+    if (val === null || val === undefined) return '';
+    const s = String(val).trim();
+    if (!s || s.toLowerCase() === 'undefined' || s.toLowerCase() === 'null') return '';
+    return s;
+  };
+  const raw = clean(hostelIdOrName);
   if (!raw) {
     return {
       required: false,
@@ -622,6 +628,8 @@ export function resolveHostelRestriction(
 export interface ResolvedOrderHostelInfo {
   hostelId: string;
   hostelName: string;
+  displayHostel: string;
+  hostel: string;
   requiresAcknowledgement: boolean;
   acknowledged: boolean;
   pickupPoint: string;
@@ -642,10 +650,19 @@ export function resolveOrderHostelInfo(
   hostels?: Partial<HostelConfig>[] | null,
   platformSettings?: { premiumHostels?: string[]; hostelConfigs?: Partial<HostelConfig>[] } | null
 ): ResolvedOrderHostelInfo {
+  const clean = (val: any): string => {
+    if (val === null || val === undefined) return '';
+    const s = String(val).trim();
+    if (!s || s.toLowerCase() === 'undefined' || s.toLowerCase() === 'null') return '';
+    return s;
+  };
+
   if (!order) {
     return {
       hostelId: '',
       hostelName: 'Campus Hostel',
+      displayHostel: 'Campus Hostel',
+      hostel: 'Campus Hostel',
       requiresAcknowledgement: false,
       acknowledged: false,
       pickupPoint: 'Front of your hostel/reception',
@@ -658,17 +675,32 @@ export function resolveOrderHostelInfo(
   }
 
   // Non-student / off-campus fashion delivery orders handle their own street address
-  if (order.deliveryRecipientType === 'NON_STUDENT' || order.isOffCampusDelivery) {
-    const areaLabel = [order.deliveryAreaName, order.deliveryCity, order.deliveryState]
-      .filter(Boolean)
-      .join(', ');
+  const isOffCampus =
+    order.customerType === 'GENERAL' ||
+    order.deliveryRecipientType === 'NON_STUDENT' ||
+    Boolean(order.isOffCampusDelivery);
+
+  if (isOffCampus) {
+    const area = clean(order.deliveryAreaName || order.areaName);
+    const city = clean(order.deliveryCity || order.city);
+    const state = clean(order.deliveryState || order.state);
+    const areaLabel = [area, city, state].filter(Boolean).join(', ');
+    const street = clean(order.deliveryAddress || order.address || order.streetAddress);
+    const fallbackHostel = clean(order.hostelName) || clean(order.hostel);
+
+    const displayName = areaLabel || street || fallbackHostel || 'Off-Campus Delivery';
+    const pickup = street || areaLabel || 'Customer delivery address';
+    const instruction = clean(order.deliveryAddressDetails || order.addressDetails);
+
     return {
       hostelId: 'off-campus',
-      hostelName: areaLabel || order.hostelName || order.hostel || 'Lagos Delivery',
+      hostelName: displayName,
+      displayHostel: displayName,
+      hostel: displayName,
       requiresAcknowledgement: false,
       acknowledged: false,
-      pickupPoint: order.deliveryAddress || areaLabel || 'Customer delivery address',
-      collectionInstruction: order.deliveryAddressDetails || '',
+      pickupPoint: pickup,
+      collectionInstruction: instruction,
       riderNotice: '',
       studentNotice: '',
       ruleType: 'NONE',
@@ -681,8 +713,8 @@ export function resolveOrderHostelInfo(
       ? order.hostelAcknowledgement
       : undefined;
 
-  const rawHostelId = String(order.hostelId || savedAck?.hostelId || order.hostel || '').trim();
-  const rawHostelName = String(order.hostelName || savedAck?.hostelName || order.hostel || '').trim();
+  const rawHostelId = clean(order.hostelId) || clean(savedAck?.hostelId) || clean(order.hostel);
+  const rawHostelName = clean(order.hostelName) || clean(savedAck?.hostelName) || clean(order.hostel);
 
   const restriction = resolveHostelRestriction(
     rawHostelId || rawHostelName,
@@ -701,7 +733,10 @@ export function resolveOrderHostelInfo(
     (!isRawNameJustSlug && rawHostelName) ||
     restriction.hostelName ||
     rawHostelId ||
+    clean(order.deliveryAddress) ||
     'Campus Hostel';
+
+  const displayHostel = hostelName || 'Campus Hostel';
 
   const requiresAcknowledgement =
     typeof savedAck?.required === 'boolean'
@@ -716,15 +751,16 @@ export function resolveOrderHostelInfo(
     Boolean(order.femaleHostelAgreement);
 
   const pickupPoint =
-    String(order.pickupPoint || savedAck?.pickupPoint || restriction.pickupPoint || 'Front of your hostel/reception').trim();
+    clean(order.pickupPoint) ||
+    clean(savedAck?.pickupPoint) ||
+    restriction.pickupPoint ||
+    'Front of your hostel/reception';
 
   const collectionInstruction =
-    String(
-      order.collectionInstruction ||
-        savedAck?.collectionInstruction ||
-        restriction.collectionInstruction ||
-        ''
-    ).trim();
+    clean(order.collectionInstruction) ||
+    clean(savedAck?.collectionInstruction) ||
+    restriction.collectionInstruction ||
+    '';
 
   const ruleType: HostelRuleType =
     savedAck?.ruleType ||
@@ -761,9 +797,13 @@ export function resolveOrderHostelInfo(
     }
   }
 
+  const resolvedHostelId = restriction.hostelId || rawHostelId || slugifyHostelId(hostelName);
+
   return {
-    hostelId: restriction.hostelId || rawHostelId || slugifyHostelId(hostelName),
+    hostelId: resolvedHostelId,
     hostelName,
+    displayHostel,
+    hostel: displayHostel,
     requiresAcknowledgement,
     acknowledged,
     pickupPoint,

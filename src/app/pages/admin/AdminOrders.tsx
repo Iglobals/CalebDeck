@@ -701,7 +701,7 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                 <div>
                                                     <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{order.fullName}</p>
                                                     <span className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
-                                                        {order.hostelName || order.hostel}
+                                                        {resolveOrderHostelInfo(order, hostels, platformSettings).displayHostel}
                                                     </span>
                                                     {order.cafeteria && (
                                                         <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5 ml-2 mt-1">{order.cafeteria}</Badge>

@@ -158,12 +158,19 @@ export default function Checkout() {
       setHostels(activeHostels);
       setLoadingHostels(false);
       setFormData(prev => {
-        if (prev.hostel && !activeHostels.some(h => h.id === prev.hostel)) {
-          setFemaleHostelAgreement(false);
-          setAcknowledgementError(false);
-          return { ...prev, hostel: '' };
+        if (!prev.hostel) return prev;
+        const matched = activeHostels.find(h =>
+          h.id === prev.hostel ||
+          h.name?.toLowerCase() === prev.hostel.toLowerCase() ||
+          normalizeHostelKey(h.id) === normalizeHostelKey(prev.hostel) ||
+          normalizeHostelKey(h.name) === normalizeHostelKey(prev.hostel)
+        );
+        if (matched) {
+          return prev.hostel === matched.id ? prev : { ...prev, hostel: matched.id };
         }
-        return prev;
+        setFemaleHostelAgreement(false);
+        setAcknowledgementError(false);
+        return { ...prev, hostel: '' };
       });
     });
     return () => unsub();
@@ -314,8 +321,8 @@ if (premium) {
       fullName: formData.fullName,
       studentName: formData.fullName,
       phone: formData.phone,
-      hostel: formData.hostel,
-      hostelId: hostelRestriction.hostelId || formData.hostel,
+      hostel: selectedHostel?.name || hostelRestriction.hostelName || formData.hostel,
+      hostelId: selectedHostel?.id || hostelRestriction.hostelId || formData.hostel,
       hostelName: selectedHostel?.name || hostelRestriction.hostelName || formData.hostel,
       pickupPoint: hostelRestriction.pickupPoint,
       collectionInstruction: hostelRestriction.collectionInstruction,
@@ -668,8 +675,8 @@ if (premium) {
       fullName: formData.fullName,
       studentName: formData.fullName,
       phone: formData.phone,
-      hostel: formData.hostel,
-      hostelId: hostelRestriction.hostelId || formData.hostel,
+      hostel: selectedHostel?.name || hostelRestriction.hostelName || formData.hostel,
+      hostelId: selectedHostel?.id || hostelRestriction.hostelId || formData.hostel,
       hostelName: selectedHostel?.name || hostelRestriction.hostelName || formData.hostel,
       pickupPoint: hostelRestriction.pickupPoint,
       collectionInstruction: hostelRestriction.collectionInstruction,

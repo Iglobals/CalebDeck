@@ -76,7 +76,7 @@ export default function AdminOrderHistory() {
                 (o.orderId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (o.hostel || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (o.hostelName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                hostelInfo.displayHostel.toLowerCase().includes(searchQuery.toLowerCase());
+                (hostelInfo?.displayHostel || '').toLowerCase().includes(searchQuery.toLowerCase());
             const matchesStatus = viewMode === 'trash' || statusFilter === 'all' || o.status === statusFilter;
             const selectedHostelObj = hostelFilter === 'all' ? null : hostels.find(h => h.id === hostelFilter);
             const matchesHostel = hostelFilter === 'all' || (selectedHostelObj ? orderMatchesHostel(o, selectedHostelObj) : false);

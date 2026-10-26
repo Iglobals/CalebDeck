@@ -20,17 +20,40 @@ export async function validateAndResolveOrderHostel(
     message?: string;
     hostelFields: Record<string, any>;
 }> {
-    const enforce = options?.enforceActiveAndAck ?? true;
+    const cleanStr = (val: any): string => {
+        if (val === null || val === undefined) return '';
+        const s = String(val).trim();
+        if (!s || s.toLowerCase() === 'undefined' || s.toLowerCase() === 'null') return '';
+        return s;
+    };
+
     const isOffCampus =
         orderData?.customerType === 'GENERAL' ||
         orderData?.deliveryRecipientType === 'NON_STUDENT' ||
         Boolean(orderData?.isOffCampusDelivery);
 
     if (isOffCampus) {
-        return { valid: true, hostelFields: {} };
+        const area = cleanStr(orderData?.deliveryAreaName || orderData?.areaName);
+        const city = cleanStr(orderData?.deliveryCity || orderData?.city);
+        const state = cleanStr(orderData?.deliveryState || orderData?.state);
+        const areaLabel = [area, city, state].filter(Boolean).join(', ');
+        const street = cleanStr(orderData?.deliveryAddress || orderData?.address || orderData?.streetAddress);
+        const displayName = areaLabel || street || cleanStr(orderData?.hostelName) || cleanStr(orderData?.hostel) || 'Off-Campus Delivery';
+        return {
+            valid: true,
+            hostelFields: {
+                hostel: displayName,
+                hostelId: 'off-campus',
+                hostelName: displayName,
+                pickupPoint: street || areaLabel || 'Customer delivery address',
+                collectionInstruction: cleanStr(orderData?.deliveryAddressDetails || orderData?.addressDetails),
+                requiresHostelAcknowledgement: false,
+                femaleHostelAgreement: false,
+            },
+        };
     }
 
-    const rawHostel = String(orderData?.hostelId || orderData?.hostel || orderData?.hostelName || '').trim();
+    const rawHostel = cleanStr(orderData?.hostelId) || cleanStr(orderData?.hostel) || cleanStr(orderData?.hostelName);
     if (!rawHostel) {
         if (enforce) {
             return {
@@ -79,12 +102,12 @@ export async function validateAndResolveOrderHostel(
         };
     }
 
-    const hostelId = restriction.hostelId || String(orderData?.hostelId || orderData?.hostel || '').trim();
+    const hostelId = cleanStr(restriction.hostelId) || cleanStr(orderData?.hostelId) || cleanStr(orderData?.hostel) || rawHostel;
     const hostelName =
-        restriction.hostelName || String(orderData?.hostelName || orderData?.hostel || '').trim();
+        cleanStr(restriction.hostelName) || cleanStr(orderData?.hostelName) || cleanStr(orderData?.hostel) || rawHostel || 'Campus Hostel';
 
     const hostelFields: Record<string, any> = {
-        hostel: hostelId || rawHostel,
+        hostel: hostelName || hostelId || rawHostel,
         hostelId: hostelId || rawHostel,
         hostelName: hostelName || rawHostel,
         pickupPoint: restriction.pickupPoint || 'Front of your hostel/reception',
