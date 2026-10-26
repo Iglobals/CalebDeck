@@ -39,15 +39,29 @@ export const normalizeHostelKey = (value: any) =>
     normalizeHostelIdKey(value);
 
 export const orderMatchesHostel = (order: any, hostel: Pick<Hostel, 'id' | 'name'>) => {
+    if (!order || !hostel) return false;
     const stripSuffix = (val: string) => val.replace(/\s+(hall|hostel)$/i, '').trim();
-    const orderKeys = [order?.hostel, order?.hostelId, order?.hostelName]
+    const clean = (val: any) => {
+        if (!val) return '';
+        const s = String(val).trim();
+        return s.toLowerCase() === 'undefined' || s.toLowerCase() === 'null' ? '' : s;
+    };
+    const orderKeys = [
+        clean(order.hostel),
+        clean(order.hostelId),
+        clean(order.hostelName),
+        clean(order.hostelAcknowledgement?.hostelId),
+        clean(order.hostelAcknowledgement?.hostelName),
+    ]
         .flatMap(v => {
+            if (!v) return [];
             const norm = normalizeHostelKey(v);
             return norm ? [norm, stripSuffix(norm)] : [];
         })
         .filter(Boolean);
-    const hostelKeys = [hostel.id, hostel.name]
+    const hostelKeys = [clean(hostel.id), clean(hostel.name)]
         .flatMap(v => {
+            if (!v) return [];
             const norm = normalizeHostelKey(v);
             return norm ? [norm, stripSuffix(norm)] : [];
         })

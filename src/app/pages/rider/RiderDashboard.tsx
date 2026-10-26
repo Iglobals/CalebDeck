@@ -303,7 +303,9 @@ export default function RiderDashboard() {
                     {(() => {
                       const sampleOrder = orders.find((order: any) => batch.orderIds?.includes(order.id));
                       const batchHostelInfo = resolveOrderHostelInfo(
-                        sampleOrder || { hostel: (batch as any).hostelId, hostelName: batch.hostelName },
+                        sampleOrder
+                          ? { ...sampleOrder, hostel: sampleOrder?.hostel || (batch as any)?.hostelId, hostelName: sampleOrder?.hostelName || batch?.hostelName }
+                          : { hostel: (batch as any).hostelId, hostelName: batch.hostelName },
                         hostels,
                         platformSettings
                       );

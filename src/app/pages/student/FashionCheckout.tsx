@@ -16,7 +16,7 @@ import { Loader2 } from 'lucide-react';
 import { getHexColorName } from '../../../utils/formatColor';
 import { getFashionBatchState, DEFAULT_FASHION_BATCH_CONFIG } from '../../../services/fashionBatch';
 import { isPremiumHostel } from '../../../services/orderFees';
-import { resolveHostelRestriction } from '../../../services/hostels';
+import { resolveHostelRestriction, normalizeHostelKey } from '../../../services/hostels';
 import { FashionBatchPickerModal, SelectedFashionBatchInfo } from '../../components/FashionBatchPickerModal';
 import { PaymentSelector, PaymentMethod } from '../../components/student/PaymentSelector';
 import { BatchStatusBar } from '../../components/BatchStatusBar';
@@ -127,12 +127,19 @@ export default function FashionCheckout() {
     const unsubHostels = subscribeToHostels((activeHostels) => {
       setHostels(activeHostels);
       setFormData(prev => {
-        if (prev.hostel && !activeHostels.some(h => h.id === prev.hostel)) {
-          setFemaleHostelAgreement(false);
-          setAcknowledgementError(false);
-          return { ...prev, hostel: '' };
+        if (!prev.hostel) return prev;
+        const matched = activeHostels.find(h =>
+          h.id === prev.hostel ||
+          h.name?.toLowerCase() === prev.hostel.toLowerCase() ||
+          normalizeHostelKey(h.id) === normalizeHostelKey(prev.hostel) ||
+          normalizeHostelKey(h.name) === normalizeHostelKey(prev.hostel)
+        );
+        if (matched) {
+          return prev.hostel === matched.id ? prev : { ...prev, hostel: matched.id };
         }
-        return prev;
+        setFemaleHostelAgreement(false);
+        setAcknowledgementError(false);
+        return { ...prev, hostel: '' };
       });
     });
     if (user) {

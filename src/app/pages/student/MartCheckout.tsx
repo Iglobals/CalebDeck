@@ -15,7 +15,7 @@ import SEO from '../../components/SEO';
 import { PaymentSelector, PaymentMethod } from '../../components/student/PaymentSelector';
 import { Loader2 } from 'lucide-react';
 import { isPremiumHostel } from '../../../services/orderFees';
-import { resolveHostelRestriction } from '../../../services/hostels';
+import { resolveHostelRestriction, normalizeHostelKey } from '../../../services/hostels';
 
 export default function MartCheckout() {
   const { items, subtotal, totalItems, clearCart } = useMartCart();
@@ -85,12 +85,19 @@ export default function MartCheckout() {
     const unsubHostels = subscribeToHostels((activeHostels) => {
       setHostels(activeHostels);
       setFormData(prev => {
-        if (prev.hostel && !activeHostels.some(h => h.id === prev.hostel)) {
-          setFemaleHostelAgreement(false);
-          setAcknowledgementError(false);
-          return { ...prev, hostel: '' };
+        if (!prev.hostel) return prev;
+        const matched = activeHostels.find(h =>
+          h.id === prev.hostel ||
+          h.name?.toLowerCase() === prev.hostel.toLowerCase() ||
+          normalizeHostelKey(h.id) === normalizeHostelKey(prev.hostel) ||
+          normalizeHostelKey(h.name) === normalizeHostelKey(prev.hostel)
+        );
+        if (matched) {
+          return prev.hostel === matched.id ? prev : { ...prev, hostel: matched.id };
         }
-        return prev;
+        setFemaleHostelAgreement(false);
+        setAcknowledgementError(false);
+        return { ...prev, hostel: '' };
       });
     });
 
@@ -123,7 +130,7 @@ export default function MartCheckout() {
 
   const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
 
-  const config = {
+  const config: any = {
     reference: paymentRef.current,
     email: formData.fullName
       ? `${formData.fullName.trim().toLowerCase().replace(/\s+/g, '.')}@calebdeck.com`
@@ -155,7 +162,19 @@ export default function MartCheckout() {
       })),
       deliveryFee: MART_DELIVERY_FEE,
       subtotal,
-      totalAmount: total
+      totalAmount: total,
+      custom_fields: [
+        {
+          display_name: "Student Name",
+          variable_name: "student_name",
+          value: formData.fullName
+        },
+        {
+          display_name: "Hostel",
+          variable_name: "hostel",
+          value: selectedHostel?.name || hostelRestriction.hostelName || formData.hostel
+        }
+      ]
     }
   };
 
