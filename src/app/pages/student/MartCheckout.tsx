@@ -130,7 +130,7 @@ export default function MartCheckout() {
 
   const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
 
-  const config = {
+  const config: any = {
     reference: paymentRef.current,
     email: formData.fullName
       ? `${formData.fullName.trim().toLowerCase().replace(/\s+/g, '.')}@calebdeck.com`
@@ -162,7 +162,19 @@ export default function MartCheckout() {
       })),
       deliveryFee: MART_DELIVERY_FEE,
       subtotal,
-      totalAmount: total
+      totalAmount: total,
+      custom_fields: [
+        {
+          display_name: "Student Name",
+          variable_name: "student_name",
+          value: formData.fullName
+        },
+        {
+          display_name: "Hostel",
+          variable_name: "hostel",
+          value: selectedHostel?.name || hostelRestriction.hostelName || formData.hostel
+        }
+      ]
     }
   };
 
