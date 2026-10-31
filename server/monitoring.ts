@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import { FieldValue, Timestamp, type Firestore } from 'firebase-admin/firestore';
 import { adminDb } from './firebase-admin.js';
+import { sendTelegramAlert } from './telegram.js';
 
 export const LOGS_COLLECTION = 'system_logs';
 export const LOG_GROUPS_COLLECTION = 'system_log_groups';
@@ -40,7 +41,7 @@ export interface LogEventInput {
 
 const WINDOW_MS = 15 * 60 * 1000;
 const RETENTION_DAYS = 14;
-const SENSITIVE_KEY = /secret|password|token|authorization|api[_-]?key|card|cvv|pin|private[_-]?key|bearer/i;
+const SENSITIVE_KEY = /secret|password|token|authorization|api[_-]?key|card|cvv|pin|private[_-]?key|bearer|telegram|chat[_-]?id/i;
 const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const PHONE_RE = /\b(?:\+?234|0)[789][01]\d{8}\b/g;
 
@@ -178,25 +179,38 @@ async function maybePrune(db: Firestore) {
     await batch.commit();
 }
 
-async function notifyAdmins(db: Firestore, incidentId: string, title: string, message: string) {
-    const existing = await db.collection('notifications')
-        .where('userId', '==', 'admin')
-        .where('incidentId', '==', incidentId)
-        .limit(1)
-        .get()
-        .catch(() => null);
-    if (existing && !existing.empty) return;
+async function notifyAdmins(
+    db: Firestore,
+    incidentId: string,
+    title: string,
+    message: string,
+    options?: { forceNew?: boolean; severity?: MonitoringSeverity }
+) {
+    if (!options?.forceNew) {
+        const existing = await db.collection('notifications')
+            .where('userId', '==', 'admin')
+            .where('incidentId', '==', incidentId)
+            .limit(1)
+            .get()
+            .catch(() => null);
+        if (existing && !existing.empty) return;
+    }
 
     await db.collection('notifications').add({
         userId: 'admin',
         title,
         message,
         type: 'incident',
+        severity: options?.severity || 'high',
         link: `/admin/monitoring?incident=${incidentId}`,
         incidentId,
         isRead: false,
         createdAt: FieldValue.serverTimestamp(),
     });
+}
+
+function queueTelegramAlert(input: Parameters<typeof sendTelegramAlert>[0]) {
+    void sendTelegramAlert(input).catch(() => {});
 }
 
 async function updateIncident(db: Firestore, input: LogEventInput, fingerprint: string, groupCount: number) {
@@ -223,6 +237,24 @@ async function updateIncident(db: Firestore, input: LogEventInput, fingerprint: 
         updatedAt: FieldValue.serverTimestamp(),
     };
 
+    const telegramPayload = {
+        severity: rule.severity,
+        service: rule.service,
+        title: rule.title,
+        summary: input.humanSummary || 'A critical platform issue was detected. Open System Health for details.',
+        incidentId: incidentRef.id,
+        fingerprint,
+        occurrenceCount: groupCount,
+        firstDetectedAt: new Date().toLocaleString('en-NG', {
+            timeZone: 'Africa/Lagos',
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        }),
+    };
+
     if (!existing.exists) {
         await incidentRef.set({
             ...payload,
@@ -230,13 +262,16 @@ async function updateIncident(db: Firestore, input: LogEventInput, fingerprint: 
             firstDetectedAt: FieldValue.serverTimestamp(),
             resolutionNotes: '',
             adminNotified: true,
+            telegramQueued: true,
         });
         await notifyAdmins(
             db,
             incidentRef.id,
             rule.title,
-            input.humanSummary || 'A critical platform issue was detected. Open System Health for details.'
+            input.humanSummary || 'A critical platform issue was detected. Open System Health for details.',
+            { severity: rule.severity }
         );
+        queueTelegramAlert({ kind: 'open', ...telegramPayload });
         return incidentRef.id;
     }
 
@@ -247,17 +282,25 @@ async function updateIncident(db: Firestore, input: LogEventInput, fingerprint: 
             status: 'open',
             reopenedAt: FieldValue.serverTimestamp(),
             adminNotified: true,
+            telegramQueued: true,
         }, { merge: true });
         await notifyAdmins(
             db,
             incidentRef.id,
             `Recurring: ${rule.title}`,
-            'A previously resolved incident is happening again.'
+            'A previously resolved incident is happening again.',
+            { forceNew: true, severity: rule.severity }
         );
+        queueTelegramAlert({ kind: 'reopen', ...telegramPayload, title: `Recurring: ${rule.title}` });
         return incidentRef.id;
     }
 
     await incidentRef.set(payload, { merge: true });
+    queueTelegramAlert({
+        kind: 'update',
+        ...telegramPayload,
+        summary: `${telegramPayload.summary} This incident is still open.`,
+    });
     return incidentRef.id;
 }
 
@@ -355,32 +398,24 @@ async function updateHealth(db: Firestore, input: LogEventInput) {
     }, { merge: true });
 }
 
-export async function ensurePaymentResolutionAnnouncement(published: boolean) {
+export async function ensurePaymentResolutionAnnouncement() {
     try {
         const db = adminDb();
         const ref = db.collection(ANNOUNCEMENTS_DOC.collection).doc(ANNOUNCEMENTS_DOC.id);
         const snap = await ref.get();
         const items = Array.isArray(snap.data()?.items) ? snap.data()!.items : [];
         const existing = items.find((item: any) => item.id === PAYMENT_RESOLUTION_ANNOUNCEMENT_ID);
-        if (existing) {
-            if (published && !existing.published && !existing.unpublishedByAdmin) {
-                const next = items.map((item: any) => item.id === PAYMENT_RESOLUTION_ANNOUNCEMENT_ID
-                    ? { ...item, published: true, publishedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-                    : item);
-                await ref.set({ items: next, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-            }
-            return;
-        }
+        if (existing) return;
         items.unshift({
             id: PAYMENT_RESOLUTION_ANNOUNCEMENT_ID,
             title: 'Payment Issues Resolved',
             body: "We're sorry for the inconvenience caused by the payment issues some of you experienced over the past few days.\n\nThe issue has now been resolved, and you can continue placing orders and making payments on CalebDeck.\n\nThank you for your patience and for bearing with us. We appreciate you!",
-            published,
+            published: false,
             dismissible: true,
             audience: 'all',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
-            publishedAt: published ? new Date().toISOString() : null,
+            publishedAt: null,
         });
         await ref.set({ items, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     } catch (error) {

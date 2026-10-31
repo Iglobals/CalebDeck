@@ -1031,6 +1031,8 @@ export interface Notification {
     title: string;
     message: string;
     type: 'order' | 'batch' | 'system' | 'incident';
+    severity?: string;
+    incidentId?: string;
     isRead: boolean;
     link?: string;
     createdAt: any;

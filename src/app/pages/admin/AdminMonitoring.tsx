@@ -8,10 +8,16 @@ import { AdminAnnouncementsCard } from './AdminAnnouncementsCard';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
 import {
+  AlertingStatus,
+  fetchMonitoringStatus,
   fetchSystemLogs,
   formatWat,
+  MonitoringStatusResponse,
   recordAdminTestEvent,
+  runAdminHealthCheck,
+  sendTelegramTestMessage,
   statusLabel,
+  subscribeToAlertingStatus,
   subscribeToIncidents,
   subscribeToLogGroups,
   subscribeToSystemHealth,
@@ -26,6 +32,7 @@ import { toast } from 'react-toastify';
 import {
   Activity,
   AlertTriangle,
+  Bell,
   CheckCircle2,
   CreditCard,
   Database,
@@ -127,15 +134,37 @@ export default function AdminMonitoring() {
   const [eventType, setEventType] = useState('');
   const [notes, setNotes] = useState('');
   const [testing, setTesting] = useState(false);
+  const [alerting, setAlerting] = useState<AlertingStatus | null>(null);
+  const [monitoringStatus, setMonitoringStatus] = useState<MonitoringStatusResponse | null>(null);
+  const [testingTelegram, setTestingTelegram] = useState(false);
+  const [runningHealth, setRunningHealth] = useState(false);
 
   useEffect(() => {
     const unsubHealth = subscribeToSystemHealth(setHealth);
     const unsubGroups = subscribeToLogGroups(setGroups);
+    const unsubAlerting = subscribeToAlertingStatus(setAlerting);
     return () => {
       unsubHealth();
       unsubGroups();
+      unsubAlerting();
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadStatus = async () => {
+      try {
+        const token = await user?.getIdToken();
+        if (!token) return;
+        const status = await fetchMonitoringStatus(token);
+        if (!cancelled) setMonitoringStatus(status);
+      } catch {
+        if (!cancelled) setMonitoringStatus(null);
+      }
+    };
+    loadStatus();
+    return () => { cancelled = true; };
+  }, [user]);
 
   useEffect(() => {
     const unsub = subscribeToIncidents(incidentFilter, setIncidents);
@@ -197,6 +226,48 @@ export default function AdminMonitoring() {
       toast.success(status === 'resolved' ? 'Incident marked resolved.' : 'Incident updated.');
     } catch (error: any) {
       toast.error(error.message || 'Could not update this incident.');
+    }
+  };
+
+  const handleTelegramTest = async () => {
+    setTestingTelegram(true);
+    try {
+      const token = await user?.getIdToken();
+      if (!token) throw new Error('Admin session expired');
+      const result = await sendTelegramTestMessage(token);
+      if (result.delivered) {
+        toast.success('Telegram test delivered. Check the private alert group.');
+      } else if (!result.configured) {
+        toast.error('Telegram is not configured. Add TELEGRAM_BOT_TOKEN and TELEGRAM_ALERT_CHAT_ID on Vercel.');
+      } else {
+        toast.error(result.reason || 'Telegram did not confirm delivery. The in-app alert still does not prove Telegram worked.');
+      }
+      const status = await fetchMonitoringStatus(token);
+      setMonitoringStatus(status);
+    } catch (error: any) {
+      toast.error(error.message || 'Could not send the Telegram test.');
+    } finally {
+      setTestingTelegram(false);
+    }
+  };
+
+  const handleHealthCheck = async () => {
+    setRunningHealth(true);
+    try {
+      const token = await user?.getIdToken();
+      if (!token) throw new Error('Admin session expired');
+      const result = await runAdminHealthCheck(token);
+      if (result.ok) {
+        toast.success('Health check passed. No customer charge was made.');
+      } else {
+        toast.error('Health check found a problem. Open the checks below for details.');
+      }
+      const status = await fetchMonitoringStatus(token);
+      setMonitoringStatus(status);
+    } catch (error: any) {
+      toast.error(error.message || 'Could not run the health check.');
+    } finally {
+      setRunningHealth(false);
     }
   };
 
@@ -333,6 +404,66 @@ export default function AdminMonitoring() {
               </Card>
             </div>
 
+            <Card className="p-6">
+              <div className="mb-4 flex items-start gap-3">
+                <div className={`rounded-xl p-3 ${isDark ? 'bg-[#2A2A2A]' : 'bg-gray-100'}`}>
+                  <Bell className="h-5 w-5 text-[#7C3AED]" />
+                </div>
+                <div>
+                  <h2 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Alerting and scheduled checks</h2>
+                  <p className={`text-sm ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+                    Credentials stay on the server. This screen shows configuration status and delivery results only.
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className={`rounded-2xl border p-4 ${isDark ? 'border-[#333]' : 'border-gray-100'}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Telegram</p>
+                    <Badge variant={monitoringStatus?.telegram.configured || alerting?.telegramConfigured ? 'green' : 'amber'}>
+                      {monitoringStatus?.telegram.configured || alerting?.telegramConfigured ? 'Configured' : 'Awaiting credentials'}
+                    </Badge>
+                  </div>
+                  <div className={`mt-3 space-y-1 text-sm ${isDark ? 'text-[#C4B8A8]' : 'text-gray-600'}`}>
+                    <p>Bot token: {monitoringStatus?.telegram.tokenPresent || alerting?.telegramTokenPresent ? 'present' : 'missing'}</p>
+                    <p>Alert chat ID: {monitoringStatus?.telegram.chatIdPresent || alerting?.telegramChatIdPresent ? 'present' : 'missing'}</p>
+                    <p>Last test: {alerting?.lastTelegramTestAt || monitoringStatus?.telegram.lastTestAt ? formatWat(alerting?.lastTelegramTestAt || monitoringStatus?.telegram.lastTestAt) : 'Never'}</p>
+                    <p>Last test result: {alerting?.lastTelegramTestOk === true || monitoringStatus?.telegram.lastTestSucceeded === true ? 'Delivered' : alerting?.lastTelegramTestOk === false || monitoringStatus?.telegram.lastTestSucceeded === false ? (alerting?.lastTelegramTestError || monitoringStatus?.telegram.lastTestError || 'Failed') : 'Not tested'}</p>
+                    <p>Last alert: {alerting?.lastAlertAt || monitoringStatus?.telegram.lastAlertAt ? formatWat(alerting?.lastAlertAt || monitoringStatus?.telegram.lastAlertAt) : 'None recorded'}</p>
+                    <p>Last delivery: {alerting?.lastAlertDelivered === true || monitoringStatus?.telegram.lastAlertDelivered === true ? 'Confirmed by Telegram' : alerting?.lastAlertDelivered === false || monitoringStatus?.telegram.lastAlertDelivered === false ? 'Failed' : 'Unknown'}</p>
+                    {(alerting?.lastDeliveryFailureReason || monitoringStatus?.telegram.lastDeliveryFailureReason) && (
+                      <p>Delivery failure: {alerting?.lastDeliveryFailureReason || monitoringStatus?.telegram.lastDeliveryFailureReason}</p>
+                    )}
+                  </div>
+                </div>
+                <div className={`rounded-2xl border p-4 ${isDark ? 'border-[#333]' : 'border-gray-100'}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Scheduled health checks</p>
+                    <Badge variant={alerting?.lastHealthCheckOk || monitoringStatus?.healthCheck.lastOk ? 'green' : alerting?.lastHealthCheckAt || monitoringStatus?.healthCheck.lastRunAt ? 'amber' : 'gray'}>
+                      {alerting?.lastHealthCheckOk || monitoringStatus?.healthCheck.lastOk ? 'Last run passed' : alerting?.lastHealthCheckAt || monitoringStatus?.healthCheck.lastRunAt ? 'Last run found issues' : 'Not run yet'}
+                    </Badge>
+                  </div>
+                  <div className={`mt-3 space-y-1 text-sm ${isDark ? 'text-[#C4B8A8]' : 'text-gray-600'}`}>
+                    <p>Vercel Cron: daily at 07:00 UTC (Hobby limit: once per day)</p>
+                    <p>Cron secret: {monitoringStatus?.healthCheck.cronSecretConfigured || alerting?.cronSecretConfigured ? 'configured' : 'missing'}</p>
+                    <p>Last run: {alerting?.lastHealthCheckAt || monitoringStatus?.healthCheck.lastRunAt ? `${formatWat(alerting?.lastHealthCheckAt || monitoringStatus?.healthCheck.lastRunAt)} (${alerting?.lastHealthCheckSource || monitoringStatus?.healthCheck.lastSource || 'unknown'})` : 'Never'}</p>
+                    <p>Last success: {alerting?.lastSuccessfulHealthCheckAt || monitoringStatus?.healthCheck.lastSuccessAt ? formatWat(alerting?.lastSuccessfulHealthCheckAt || monitoringStatus?.healthCheck.lastSuccessAt) : 'None recorded'}</p>
+                    <p>Summary: {alerting?.lastHealthCheckSummary || monitoringStatus?.healthCheck.lastSummary || 'Waiting for the first authenticated check.'}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                <Button variant="outline" disabled={testingTelegram} onClick={handleTelegramTest}>
+                  {testingTelegram ? 'Sending…' : 'Send Telegram test'}
+                </Button>
+                <Button variant="outline" disabled={runningHealth} onClick={handleHealthCheck}>
+                  {runningHealth ? 'Checking…' : 'Run health check now'}
+                </Button>
+              </div>
+              <p className={`mt-3 text-xs ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+                Writing an in-app notification is not proof that Telegram delivered. Use Send Telegram test and confirm the private group received it.
+              </p>
+            </Card>
             <AdminAnnouncementsCard />
             <Card className="p-6">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

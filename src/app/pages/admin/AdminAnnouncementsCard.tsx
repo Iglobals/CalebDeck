@@ -41,6 +41,12 @@ export function AdminAnnouncementsCard() {
       toast.error('Add a title and message before publishing.');
       return;
     }
+    if (nextPublished && !published) {
+      const confirmed = window.confirm(
+        'Publish this announcement only after:\n\n1. The root cause is identified.\n2. The fix is deployed to production.\n3. Production checkout was tested with a safe verification.\n4. Payment initialization and verification are working.\n5. Order creation and payment status updates are correct.\n\nStudents will see this immediately. Continue?'
+      );
+      if (!confirmed) return;
+    }
     setSaving(true);
     try {
       const now = new Date().toISOString();
@@ -104,7 +110,7 @@ export function AdminAnnouncementsCard() {
           </Button>
         </div>
         <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-          Students can dismiss this banner. It stays available under Profile → Service updates. Publishing updates Firestore immediately, without a new frontend deployment.
+          This announcement stays unpublished until an admin publishes it. Successful payments do not auto-publish it. Keep it unpublished while checkout is still broken. Students can dismiss the banner after it is published; it also stays under Profile → Service updates.
         </p>
       </div>
     </Card>

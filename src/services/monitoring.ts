@@ -44,6 +44,58 @@ export interface SystemHealth {
   updatedAt?: any;
 }
 
+export interface AlertingStatus {
+  telegramConfigured?: boolean;
+  telegramTokenPresent?: boolean;
+  telegramChatIdPresent?: boolean;
+  lastTelegramTestAt?: number | null;
+  lastTelegramTestOk?: boolean | null;
+  lastTelegramTestError?: string | null;
+  lastAlertAt?: number | null;
+  lastAlertKind?: string | null;
+  lastAlertIncidentId?: string | null;
+  lastAlertDelivered?: boolean | null;
+  lastTelegramDeliveryAt?: number | null;
+  lastDeliveryFailureAt?: number | null;
+  lastDeliveryFailureReason?: string | null;
+  lastHealthCheckAt?: number | null;
+  lastSuccessfulHealthCheckAt?: number | null;
+  lastHealthCheckOk?: boolean | null;
+  lastHealthCheckSource?: string | null;
+  lastHealthCheckSummary?: string | null;
+  cronSecretConfigured?: boolean;
+  cronSchedule?: string;
+  cronPlan?: string;
+  environment?: string;
+}
+
+export interface MonitoringStatusResponse {
+  environment?: string;
+  telegram: {
+    configured: boolean;
+    tokenPresent: boolean;
+    chatIdPresent: boolean;
+    lastTestAt: number | null;
+    lastTestSucceeded: boolean | null;
+    lastTestError: string | null;
+    lastAlertAt: number | null;
+    lastAlertKind: string | null;
+    lastAlertDelivered: boolean | null;
+    lastDeliveryFailureAt: number | null;
+    lastDeliveryFailureReason: string | null;
+  };
+  healthCheck: {
+    cronSecretConfigured: boolean;
+    schedule: string;
+    plan: string;
+    lastRunAt: number | null;
+    lastSuccessAt: number | null;
+    lastOk: boolean | null;
+    lastSource: string | null;
+    lastSummary: string | null;
+  };
+}
+
 export interface SystemLog {
   id: string;
   eventId?: string;
@@ -200,10 +252,70 @@ export async function recordAdminTestEvent(idToken: string) {
   }
 }
 
+export async function fetchMonitoringStatus(idToken: string): Promise<MonitoringStatusResponse> {
+  const response = await fetch('/api/utils/monitoring-status', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Could not load monitoring status');
+  }
+  return data as MonitoringStatusResponse;
+}
+
+export async function sendTelegramTestMessage(idToken: string) {
+  const response = await fetch('/api/utils/telegram-test', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${idToken}`,
+    },
+    body: JSON.stringify({}),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok && response.status !== 502) {
+    throw new Error(data.error || data.reason || 'Could not send the Telegram test');
+  }
+  return data as { configured: boolean; delivered: boolean; reason?: string | null; skipped?: string | null; tokenPresent?: boolean; chatIdPresent?: boolean };
+}
+
+export async function runAdminHealthCheck(idToken: string) {
+  const response = await fetch('/api/utils/health-check', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${idToken}`,
+    },
+    body: JSON.stringify({}),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (response.status === 401 || response.status === 429) {
+    throw new Error(data.error || 'Could not run the health check');
+  }
+  return data as {
+    ok: boolean;
+    source?: string;
+    durationMs?: number;
+    checks?: Record<string, { ok: boolean; latencyMs: number; note: string }>;
+    chargedCustomer?: boolean;
+    telegramConfigured?: boolean;
+    cronSecretConfigured?: boolean;
+  };
+}
+
 export const subscribeToSystemHealth = (callback: (health: SystemHealth | null) => void) => {
   return onSnapshot(
     doc(db, SYSTEM_HEALTH, 'current'),
     (snap) => callback(snap.exists() ? (snap.data() as SystemHealth) : null),
+    () => callback(null)
+  );
+};
+
+export const subscribeToAlertingStatus = (callback: (status: AlertingStatus | null) => void) => {
+  return onSnapshot(
+    doc(db, SYSTEM_HEALTH, 'alerting'),
+    (snap) => callback(snap.exists() ? (snap.data() as AlertingStatus) : null),
     () => callback(null)
   );
 };
