@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../../../context/AuthContext';
 import { Card } from '../../components/design-system/Card';
 import { Button } from '../../components/design-system/Button';
 import { StatusDot, Badge } from '../../components/design-system/Badge';
-import { Search, Wallet, Package, Clock, Utensils, ShoppingBag, Wifi, Shirt, TrendingUp, ChevronRight, ChevronLeft, Store, Plus, Minus } from 'lucide-react';
+import { Search, Wallet, Package, Clock, Utensils, ShoppingBag, Wifi, Shirt, TrendingUp, ChevronRight, ChevronLeft, Store, Plus, Minus, ArrowLeft } from 'lucide-react';
+import { CAFETERIA_OPTIONS, NEW_CAFETERIA_SECTIONS, cafeteriaNameForId } from '../../../services/cafeterias';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { subscribeToPlatformSettings, PlatformSettings, PromoSlide } from '../../../services/db';
 import { useMartCart } from '../../../context/MartCartContext';
@@ -69,6 +69,7 @@ export function SignedInHome() {
   const [loadingBusiness, setLoadingBusiness] = useState(true);
 
   const campusBrandRef = React.useRef<HTMLDivElement>(null);
+  const [selectedCafeteria, setSelectedCafeteria] = useState<string | null>(null);
 
   const handlePromoDestination = (slide: PromoSlide) => {
     if (slide.destination === 'CAMPUS_BRAND') {
@@ -164,29 +165,31 @@ export function SignedInHome() {
   const statusLabel = isClosed ? 'Closed' : 'Open now';
   const statusType = isClosed ? 'inactive' : 'active';
 
-  const cafeterias = [
-    {
-      id: 'old',
-      name: 'Old Cafeteria',
-      image: '/old-cafe-pic.jpeg',
-      prepTime: '12 min',
-      status: isClosed ? 'closed' : 'open',
-      popular: false
-    },
-    {
-      id: 'new',
-      name: 'New Cafeteria',
-      image: '/new-cafe pic.jpeg',
-      status: isClosed ? 'closed' : 'open',
-      popular: true
-    }
-  ];
+  const cafeterias = CAFETERIA_OPTIONS.map((cafeteria) => ({
+    ...cafeteria,
+    status: isClosed ? 'closed' : 'open',
+  }));
 
   const handleCafeteriaClick = (cafeteriaId: string) => {
     if (isClosed) return;
-    const cafeteriaName = cafeteriaId === 'old' ? 'Old Cafeteria' : 'New Cafeteria';
-    navigate(`/plate-builder/${cafeteriaId}`, {
-      state: { cafeteria: cafeteriaName, cafeteriaId, sectionId: 'none' }
+    const cafeteria = cafeterias.find((item) => item.id === cafeteriaId);
+    if (!cafeteria?.hasSections) {
+      navigate(`/plate-builder/${cafeteriaId}`, {
+        state: { cafeteria: cafeteria?.name || cafeteriaNameForId(cafeteriaId), cafeteriaId, sectionId: 'none' }
+      });
+      return;
+    }
+    setSelectedCafeteria(cafeteriaId);
+  };
+
+  const handleSectionSelect = (sectionId: string) => {
+    if (!selectedCafeteria) return;
+    navigate(`/plate-builder/${selectedCafeteria}`, {
+      state: {
+        cafeteria: cafeteriaNameForId(selectedCafeteria),
+        cafeteriaId: selectedCafeteria,
+        sectionId,
+      }
     });
   };
 
@@ -453,48 +456,85 @@ export function SignedInHome() {
         {/* Vendor Grid */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-black">Food Vendors</h3>
-            {/* "See all" link removed per IA changes */}
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {cafeterias.map((cafeteria) => (
-              <Card 
-                key={cafeteria.id} 
-                hover 
-                className={`relative overflow-hidden cursor-pointer border-border shadow-sm squircle group ${isClosed ? 'opacity-70' : ''}`}
-                onClick={() => handleCafeteriaClick(cafeteria.id)}
+            {selectedCafeteria ? (
+              <button
+                type="button"
+                onClick={() => setSelectedCafeteria(null)}
+                className="flex items-center gap-2 text-lg font-black"
+                aria-label="Back to cafeteria list"
               >
-                {cafeteria.popular && (
-                  <div className="absolute top-4 right-4 z-10">
-                    <Badge variant="gold" className="flex items-center gap-1 shadow-md bg-white text-black border-none">
-                      <TrendingUp className="w-3 h-3" /> Popular
-                    </Badge>
-                  </div>
-                )}
-                <div className="relative h-48 rounded-t-[1.25rem] overflow-hidden">
-                  <ImageWithFallback
-                    src={cafeteria.image}
-                    alt={cafeteria.name}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-                  <div className="absolute bottom-4 left-4">
-                    <h2 className="text-2xl font-black text-white mb-1">{cafeteria.name}</h2>
-                    <StatusDot status={statusType} label={statusLabel} className="text-white text-xs drop-shadow-md" />
-                  </div>
-                </div>
-                <div className="p-4 bg-card flex items-center justify-between border-t border-border/50">
-                  <div className="flex items-center gap-2 text-muted-foreground text-sm font-bold">
-                    <Clock className="w-4 h-4" />
-                    <span>{cafeteria.prepTime}</span>
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                    <Utensils className="w-4 h-4" />
-                  </div>
-                </div>
-              </Card>
-            ))}
+                <ArrowLeft className="w-5 h-5" />
+                Choose Your Serving Point
+              </button>
+            ) : (
+              <h3 className="text-lg font-black">Food Vendors</h3>
+            )}
           </div>
+          {!selectedCafeteria ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {cafeterias.map((cafeteria) => (
+                <Card 
+                  key={cafeteria.id} 
+                  hover 
+                  className={`relative overflow-hidden cursor-pointer border-border shadow-sm squircle group ${isClosed ? 'opacity-70' : ''}`}
+                  onClick={() => handleCafeteriaClick(cafeteria.id)}
+                >
+                  {cafeteria.popular && (
+                    <div className="absolute top-4 right-4 z-10">
+                      <Badge variant="gold" className="flex items-center gap-1 shadow-md bg-white text-black border-none">
+                        <TrendingUp className="w-3 h-3" /> Popular
+                      </Badge>
+                    </div>
+                  )}
+                  <div className="relative h-48 rounded-t-[1.25rem] overflow-hidden">
+                    <ImageWithFallback
+                      src={cafeteria.image}
+                      alt={cafeteria.name}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                    <div className="absolute bottom-4 left-4">
+                      <h2 className="text-2xl font-black text-white mb-1">{cafeteria.name}</h2>
+                      <StatusDot status={statusType} label={statusLabel} className="text-white text-xs drop-shadow-md" />
+                    </div>
+                  </div>
+                  <div className="p-4 bg-card flex items-center justify-between border-t border-border/50">
+                    <div className="flex items-center gap-2 text-muted-foreground text-sm font-bold">
+                      <Clock className="w-4 h-4" />
+                      <span>{cafeteria.prepTime}</span>
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                      <Utensils className="w-4 h-4" />
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {NEW_CAFETERIA_SECTIONS.map((section) => (
+                <Card
+                  key={section.id}
+                  hover
+                  className="relative overflow-hidden cursor-pointer border-border shadow-sm squircle group"
+                  onClick={() => handleSectionSelect(section.id)}
+                >
+                  <div className="p-6 text-center space-y-4">
+                    <div className="w-20 h-20 rounded-3xl bg-secondary/10 flex items-center justify-center mx-auto group-hover:bg-secondary group-hover:text-secondary-foreground transition-colors">
+                      <span className="text-3xl font-black">{section.name.charAt(0)}</span>
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-black mb-1">{section.name}</h2>
+                      <p className="text-sm text-muted-foreground font-medium">{section.description}</p>
+                    </div>
+                    <Button variant="primary" className="w-full">
+                      Select {section.name}
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* CalebDeck Campus Brand */}

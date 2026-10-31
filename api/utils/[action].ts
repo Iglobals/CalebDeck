@@ -13,6 +13,7 @@ import {
     ALERTING_DOC_ID,
     HEALTH_COLLECTION,
 } from '../../server/telegram.js';
+import { loadTrackedOrder } from '../../server/order-tracking.js';
 
 // --- CLOUDINARY HANDLERS ---
 cloudinary.config({
@@ -296,6 +297,29 @@ async function handleTelegramTest(req: VercelRequest, res: VercelResponse) {
     });
 }
 
+async function handleTrackOrder(req: VercelRequest, res: VercelResponse) {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    if (isRateLimited(`track-order:${clientIp(req)}`, 20, 60 * 1000)) {
+        return res.status(429).json({ error: 'Too many requests' });
+    }
+
+    const orderId = String(req.body?.orderId || '').trim();
+    const trackingToken = String(req.body?.trackingToken || '').trim();
+    if (!orderId || !trackingToken || orderId.length > 80 || trackingToken.length > 80) {
+        return res.status(400).json({ error: 'Missing tracking details' });
+    }
+
+    try {
+        ensureFirebaseAdmin();
+        const data = await loadTrackedOrder(orderId, trackingToken);
+        if (!data) return res.status(404).json({ error: 'Order not found' });
+        return res.status(200).json({ data });
+    } catch (error) {
+        console.error('[track-order] failed:', error);
+        return res.status(500).json({ error: 'Could not load tracking' });
+    }
+}
+
 async function handleMonitoringStatus(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET' && req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
@@ -363,6 +387,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (action === 'health-check') return await handleHealthCheck(req, res);
         if (action === 'telegram-test') return await handleTelegramTest(req, res);
         if (action === 'monitoring-status') return await handleMonitoringStatus(req, res);
+        if (action === 'track-order') return await handleTrackOrder(req, res);
 
         return res.status(404).json({ error: 'Util route not found', action });
     } catch (err: any) {

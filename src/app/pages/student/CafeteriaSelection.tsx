@@ -11,6 +11,7 @@ import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
 import SEO from '../../components/SEO';
 import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
+import { CAFETERIA_OPTIONS, NEW_CAFETERIA_SECTIONS, cafeteriaNameForId } from '../../../services/cafeterias';
 
 export default function CafeteriaSelection() {
   const [selectedCafeteria, setSelectedCafeteria] = useState<string | null>(null);
@@ -43,28 +44,11 @@ export default function CafeteriaSelection() {
       ? (platformSettings?.globalClosedMessage || 'CalebDeck is temporarily paused while we make a quick operational update. Please check back shortly.')
       : `CalebDeck food ordering hours are ${openingHour}:00 to ${closingHour}:00.`;
 
-  const cafeterias = [
-    {
-      id: 'old',
-      name: 'Old Cafeteria',
-      image: '/old-cafe-pic.jpeg',
-      prepTime: '12 min',
-      status: isClosed ? 'closed' : 'open',
-      popular: false
-    },
-    {
-      id: 'new',
-      name: 'New Cafeteria',
-      image: '/new-cafe pic.jpeg',
-      status: isClosed ? 'closed' : 'open',
-      popular: true
-    }
-  ];
-
-  const sections = [
-    { id: 'front', name: 'Front', description: 'Main serving area' },
-    { id: 'back', name: 'Back', description: 'Alternative counter' }
-  ];
+  const cafeterias = CAFETERIA_OPTIONS.map((cafeteria) => ({
+    ...cafeteria,
+    status: isClosed ? 'closed' : 'open',
+  }));
+  const sections = NEW_CAFETERIA_SECTIONS;
 
   const handleCafeteriaClick = (cafeteriaId: string) => {
     if (isClosed) {
@@ -74,8 +58,7 @@ export default function CafeteriaSelection() {
       return;
     }
     const caf = cafeterias.find(c => c.id === cafeteriaId);
-    // Old Cafe has no front/back — go directly to plate builder
-    if (cafeteriaId === 'old') {
+    if (!caf?.hasSections) {
       navigate(`/plate-builder/${cafeteriaId}`, {
         state: {
           cafeteria: caf?.name,
@@ -89,7 +72,7 @@ export default function CafeteriaSelection() {
   };
 
   const handleSectionSelect = (sectionId: string) => {
-    const cafeteriaName = cafeterias.find(c => c.id === selectedCafeteria)?.name;
+    const cafeteriaName = cafeteriaNameForId(selectedCafeteria || '');
     navigate(`/plate-builder/${selectedCafeteria}`, {
       state: {
         cafeteria: cafeteriaName,

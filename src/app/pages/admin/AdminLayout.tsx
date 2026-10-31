@@ -17,7 +17,8 @@ import {
     Star,
     Store,
     Shirt,
-    Activity
+    Activity,
+    Clock
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useTheme } from '../../../context/ThemeContext';
@@ -36,6 +37,7 @@ const SEARCHABLE_ITEMS = [
     { label: 'Dashboard', keywords: ['dashboard', 'home', 'overview', 'kpi', 'stats'], path: '/admin', icon: '📊' },
     { label: 'System Health', keywords: ['health', 'monitoring', 'logs', 'errors', 'incidents', 'status', 'paystack'], path: '/admin/monitoring', icon: '🩺' },
     { label: 'Orders', keywords: ['orders', 'pending', 'dispatch', 'paid', 'confirmed', 'preparing', 'delivery', 'batch'], path: '/admin/orders', icon: '🛒' },
+    { label: 'Food Batches', keywords: ['batches', 'batch', 'window', 'schedule', 'delivery window', 'food batch'], path: '/admin/batches', icon: '⏱️' },
     { label: 'Riders', keywords: ['riders', 'driver', 'delivery', 'available', 'online', 'offline', 'busy'], path: '/admin/riders', icon: '🏍️' },
     { label: 'Menu Management', keywords: ['menu', 'food', 'item', 'rice', 'pasta', 'swallow', 'protein', 'price', 'available', 'unavailable', 'cafeteria', 'section'], path: '/admin/menu', icon: '🍽️' },
     { label: 'Analytics', keywords: ['analytics', 'revenue', 'chart', 'report', 'trend', 'profit', 'sales'], path: '/admin/analytics', icon: '📈' },
@@ -72,6 +74,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
         { id: 'dashboard', path: '/admin', icon: <LayoutDashboard className="w-5 h-5" />, label: 'Dashboard' },
         { id: 'monitoring', path: '/admin/monitoring', icon: <Activity className="w-5 h-5" />, label: 'System Health' },
         { id: 'orders', path: '/admin/orders', icon: <ShoppingBag className="w-5 h-5" />, label: 'Food Orders' },
+        { id: 'batches', path: '/admin/batches', icon: <Clock className="w-5 h-5" />, label: 'Food Batches' },
         { id: 'mart-orders', path: '/admin/mart/orders', icon: <Store className="w-5 h-5" />, label: 'Mart Orders' },
         { id: 'mart-inventory', path: '/admin/mart/inventory', icon: <Package className="w-5 h-5" />, label: 'Mart Inventory' },
         { id: 'fashion-orders', path: '/admin/fashion/orders', icon: <ShoppingBag className="w-5 h-5" />, label: 'Fashion Orders' },

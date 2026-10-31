@@ -17,6 +17,7 @@ import { Loader2 } from 'lucide-react';
 import { isPremiumHostel } from '../../../services/orderFees';
 import { resolveHostelRestriction, normalizeHostelKey } from '../../../services/hostels';
 import { reportFrontendError } from '../../../services/monitoring';
+import { fetchTrackedOrder } from '../../../services/orderTracking';
 
 export default function MartCheckout() {
   const { items, subtotal, totalItems, clearCart } = useMartCart();
@@ -27,6 +28,7 @@ export default function MartCheckout() {
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
   const paymentProcessingRef = useRef(false);
   const paymentRef = useRef((new Date()).getTime().toString());
+  const trackingTokenRef = useRef<string | null>(null);
 
   const [formData, setFormData] = useState({
     fullName: user?.fullName || user?.displayNameFromProfile || '',
@@ -234,6 +236,7 @@ export default function MartCheckout() {
           firestoreOrderId: firestoreId,
           orderId: finalOrderId,
           paymentReference: reference.reference || paymentRef.current,
+          trackingToken: trackingTokenRef.current,
           totalAmount: total,
           total,
           cafeteria: 'CalebDeck Mart',
@@ -253,6 +256,7 @@ export default function MartCheckout() {
           firestoreOrderId: firestoreId,
           orderId,
           paymentReference: reference.reference || paymentRef.current,
+          trackingToken: trackingTokenRef.current,
           totalAmount: total,
           total,
           cafeteria: 'CalebDeck Mart',
@@ -269,6 +273,7 @@ export default function MartCheckout() {
       const response = await verifyPayment({ reference: reference.reference || paymentRef.current, orderData });
       const serverData = response.data || response;
       if (serverData && serverData.success) {
+        if (serverData.trackingToken) trackingTokenRef.current = serverData.trackingToken;
         goToSuccess(serverData.orderId || orderId, serverData.firestoreOrderId || reference.reference || paymentRef.current);
         return;
       }
@@ -280,6 +285,7 @@ export default function MartCheckout() {
         const response = await verifyPayment({ reference: reference.reference || paymentRef.current, orderData });
         const serverData = response.data || response;
         if (serverData && serverData.success) {
+          if (serverData.trackingToken) trackingTokenRef.current = serverData.trackingToken;
           goToSuccess(serverData.orderId || orderId, serverData.firestoreOrderId || reference.reference || paymentRef.current);
           return;
         }
@@ -288,27 +294,47 @@ export default function MartCheckout() {
       }
     }
 
-    // Both retries failed ΓÇö check Firestore directly. The webhook may have already created the order
     try {
-      const { getDoc, doc } = await import('firebase/firestore');
-      const { db } = await import('../../../services/firebase');
-      const orderSnap = await getDoc(doc(db, 'orders', reference.reference));
-      if (orderSnap.exists()) {
-        const existingOrder = orderSnap.data();
-        if (existingOrder.status === 'PAID' || existingOrder.source === 'verified' || existingOrder.source === 'webhook_confirmed') {
-          toast.success('Your payment was successful and your order is confirmed!', { autoClose: 5000 });
-          goToSuccess(existingOrder.orderId || orderId);
+      const fallbackRef = reference.reference || paymentRef.current;
+      if (trackingTokenRef.current) {
+        const tracked = await fetchTrackedOrder(fallbackRef, trackingTokenRef.current);
+        if (tracked) {
+          if (tracked.status === 'PAID' || tracked.status === 'OUT_FOR_DELIVERY' || tracked.status === 'ON_THE_WAY' || tracked.status === 'DELIVERED') {
+            toast.success('Your payment was successful and your order is confirmed!', { autoClose: 5000 });
+            goToSuccess(tracked.orderId || orderId, tracked.firestoreOrderId);
+            return;
+          }
+          toast.warning(
+            tracked.status === 'FAILED'
+              ? 'Payment did not go through. If your bank deducted money, it should be reversed by your bank or Paystack.'
+              : 'Your order details are saved, but payment is not confirmed yet. Try again with a stronger network.',
+            { autoClose: 9000 }
+          );
+          goToPaymentStatus(tracked.status || 'PENDING_PAYMENT', tracked.firestoreOrderId);
           return;
         }
+      }
+      if (user) {
+        const { getDoc, doc } = await import('firebase/firestore');
+        const { db } = await import('../../../services/firebase');
+        const orderSnap = await getDoc(doc(db, 'orders', fallbackRef));
+        if (orderSnap.exists()) {
+          const existingOrder = orderSnap.data();
+          if (existingOrder.status === 'PAID' || existingOrder.source === 'verified' || existingOrder.source === 'webhook_confirmed') {
+            toast.success('Your payment was successful and your order is confirmed!', { autoClose: 5000 });
+            goToSuccess(existingOrder.orderId || orderId);
+            return;
+          }
 
-        toast.warning(
-          existingOrder.status === 'FAILED'
-            ? 'Payment did not go through. If your bank deducted money, it should be reversed by your bank or Paystack.'
-            : 'Your order details are saved, but payment is not confirmed yet. Try again with a stronger network.',
-          { autoClose: 9000 }
-        );
-        goToPaymentStatus(existingOrder.status || 'PENDING_PAYMENT', orderSnap.id, existingOrder.paymentMessage);
-        return;
+          toast.warning(
+            existingOrder.status === 'FAILED'
+              ? 'Payment did not go through. If your bank deducted money, it should be reversed by your bank or Paystack.'
+              : 'Your order details are saved, but payment is not confirmed yet. Try again with a stronger network.',
+            { autoClose: 9000 }
+          );
+          goToPaymentStatus(existingOrder.status || 'PENDING_PAYMENT', orderSnap.id, existingOrder.paymentMessage);
+          return;
+        }
       }
     } catch (firestoreErr) {
       console.warn('Firestore fallback check failed:', firestoreErr);
@@ -351,12 +377,15 @@ export default function MartCheckout() {
 
       // Success
       toast.dismiss();
+      if (data.data?.trackingToken) trackingTokenRef.current = data.data.trackingToken;
       clearCart();
       navigate('/order-success', {
         state: {
           ...orderPayload,
           orderId: data.data.orderId,
+          firestoreOrderId: data.data.firestoreOrderId || data.data.orderId,
           paymentReference: `WALLET-${data.data.orderId}`,
+          trackingToken: trackingTokenRef.current,
           totalAmount: total,
           total,
           cafeteria: 'CalebDeck Mart',
@@ -430,16 +459,17 @@ export default function MartCheckout() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reference: paymentRef.current, orderData: preSaveData })
       });
+      const preSaveResult = await preSaveRes.json().catch(() => ({}));
+      if (preSaveResult?.trackingToken) trackingTokenRef.current = preSaveResult.trackingToken;
       if (!preSaveRes.ok) {
         setIsWalletPaying(false);
-        const errData = await preSaveRes.json().catch(() => ({}));
-        toast.error(errData.message || 'We could not prepare this order for payment. Please try again.');
+        toast.error(preSaveResult.message || 'We could not prepare this order for payment. Please try again.');
         reportFrontendError({
           eventType: 'payment_init_failed',
           humanTitle: 'Mart checkout could not prepare this order',
           humanSummary: 'The Mart order was not saved before payment, so Paystack was not opened.',
-          errorMessage: errData.message || errData.error,
-          errorCode: errData.error,
+          errorMessage: preSaveResult.message || preSaveResult.error,
+          errorCode: preSaveResult.error,
           component: 'MartCheckout',
           endpoint: '/api/pre-save-order',
           orderId,

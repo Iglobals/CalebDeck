@@ -1,13 +1,14 @@
 /// <reference types="vite/client" />
 
 import { isPremiumHostel } from './orderFees';
+import { premiumGroupDeliveryFee, resolveFoodGroupPricing } from './groupPricing';
 
 // In DEV: mock server-side calculations locally
 // In PRODUCTION: call Vercel API routes (server-side, secure)
 
 export const calculateOrderTotal = async (data: any) => {
     if (import.meta.env.DEV) {
-        const { items, deliveryMode, plateCount: providedPlateCount, hostelId } = data;
+        const { items, deliveryMode, plateCount: providedPlateCount, hostelId, groupSize } = data;
         let total = 0;
 
         items.forEach((item: any) => {
@@ -18,8 +19,9 @@ export const calculateOrderTotal = async (data: any) => {
             total += p * (item.quantity || 1);
         });
 
-        const plateCount = typeof providedPlateCount === 'number' ? providedPlateCount : 1;
-        const isGroup = deliveryMode === 'group' || deliveryMode === 'GROUP';
+        const foodGroup = resolveFoodGroupPricing({ deliveryMode, groupSize, plateCount: providedPlateCount });
+        const plateCount = foodGroup.plateCount;
+        const isGroup = foodGroup.isGroup;
 
         // This is a local mock for DEV. We don't have direct access to platform settings here so we use defaults,
         // but Checkout.tsx handles its own fallback if it needs it.
@@ -31,7 +33,7 @@ export const calculateOrderTotal = async (data: any) => {
         const baseDeliveryFee = isPremium ? premiumDeliveryFee : foodSoloFee;
         let discountPerPlate = 0;
         if (isGroup) {
-             discountPerPlate = isPremium ? (premiumDeliveryFee - Math.round(premiumDeliveryFee * 0.8)) : (foodSoloFee - foodGroupFee);
+             discountPerPlate = isPremium ? (premiumDeliveryFee - premiumGroupDeliveryFee(premiumDeliveryFee)) : (foodSoloFee - foodGroupFee);
         }
 
         const deliveryFee = baseDeliveryFee * plateCount;
@@ -63,7 +65,7 @@ export const calculateOrderTotal = async (data: any) => {
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Server error: ${response.status}`);
+        throw new Error(errorData.message || errorData.error || `Server error: ${response.status}`);
     }
 
     return response.json();

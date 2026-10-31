@@ -8,6 +8,7 @@
  */
 import { resolveOrderVertical, type OrderVertical } from './orderVertical.js';
 import { findHostelConfig, isDavidHostelKey } from './hostels.js';
+import { premiumGroupDeliveryFee } from './groupPricing.js';
 
 export const DEFAULT_PREMIUM_HOSTELS = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'];
 
@@ -91,8 +92,9 @@ export function resolveDeliveryFee(order: any, settings?: any): DeliveryFeeResul
         order?.plateCount ?? order?.quantity ?? (Array.isArray(order?.plates) ? order.plates.length : 1)
     ) || 1;
     const isGroup = String(order?.deliveryMode ?? '').trim().toLowerCase() === 'group';
+    const premiumFee = feeFromSettings(settings, 'premiumDeliveryFee', FEE_DEFAULTS.premiumDeliveryFee);
     const base = isPremium
-        ? feeFromSettings(settings, 'premiumDeliveryFee', FEE_DEFAULTS.premiumDeliveryFee)
+        ? (isGroup ? premiumGroupDeliveryFee(premiumFee) : premiumFee)
         : isGroup
             ? feeFromSettings(settings, 'foodGroupDeliveryFee', FEE_DEFAULTS.foodGroupDeliveryFee)
             : feeFromSettings(settings, 'foodDeliveryFee', FEE_DEFAULTS.foodDeliveryFee);

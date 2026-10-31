@@ -8,6 +8,8 @@ import { claimFirstOrderDiscount, mergeDiscountOntoOrder } from '../server/first
 import { resolveOrderVertical } from '../src/services/orderVertical.js';
 import { isRateLimited, clientIp } from '../server/rate-limit.js';
 import { recordEvent, monitoringFromError } from '../server/monitoring.js';
+import { GroupOrderError, resolveFoodGroupPricing } from '../src/services/groupPricing.js';
+import { createTrackingToken } from '../server/order-tracking.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
 
@@ -232,7 +234,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             cafeteriaId: orderData?.cafeteriaId || '',
             sectionId: orderData?.sectionId || 'none',
             deliveryMode: orderData?.deliveryMode || 'solo',
+            groupSize: 1,
             deliveryType: orderData?.deliveryType || 'INSTANT',
+            trackingToken: (existingDoc.exists ? existingDoc.data()?.trackingToken : null) || createTrackingToken(),
             paymentReference: reference,
             paymentMethod: 'PAYSTACK',
             assignedRiderId: null,
@@ -264,6 +268,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             delete orderDoc.cafeteriaId;
             delete orderDoc.sectionId;
             delete orderDoc.deliveryMode;
+            delete orderDoc.groupSize;
         } else if (isFashionOrder) {
             orderDoc.type = 'fashion';
             orderDoc.orderType = 'FASHION';
@@ -279,16 +284,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             delete orderDoc.cafeteriaId;
             delete orderDoc.sectionId;
             delete orderDoc.deliveryMode;
+            delete orderDoc.groupSize;
         } else if (isCombo) {
+            const foodGroup = resolveFoodGroupPricing(orderData);
             orderDoc.type = 'combo';
             orderDoc.orderType = 'FOOD';
             orderDoc.comboId = orderData.comboId;
             orderDoc.comboName = orderData.comboName;
             orderDoc.comboItems = orderData.comboItems || []; // Structured items array
-            orderDoc.quantity = orderData.quantity || 1;
-            orderDoc.plateCount = orderData.quantity || 1; // For generic calculation
+            orderDoc.quantity = foodGroup.plateCount;
+            orderDoc.plateCount = foodGroup.plateCount;
             orderDoc.basePrice = orderData.basePrice || 0; // Persist for dashboard pricing
+            orderDoc.deliveryMode = foodGroup.deliveryMode;
+            orderDoc.groupSize = foodGroup.groupSize;
         } else {
+            const foodGroup = resolveFoodGroupPricing(orderData);
+            orderDoc.deliveryMode = foodGroup.deliveryMode;
+            orderDoc.groupSize = foodGroup.groupSize;
+            orderDoc.plateCount = foodGroup.plateCount;
             orderDoc.type = 'plate';
             orderDoc.orderType = 'FOOD';
 
@@ -473,10 +486,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 amount: paidAmount,
                 paidAt: data.paid_at,
                 firestoreOrderId: reference,
-                orderId
+                orderId,
+                trackingToken: orderDoc.trackingToken,
             }
         });
     } catch (error: any) {
+        if (error instanceof GroupOrderError || error?.code === 'GROUP_SIZE_INVALID') {
+            return res.status(400).json({ error: 'GROUP_SIZE_INVALID', message: error.message });
+        }
         console.error('Payment verification error:', error);
         const parsed = monitoringFromError(error);
         await recordEvent({
