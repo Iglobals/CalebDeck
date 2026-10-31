@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { adminDb } from '../server/firebase-admin.js';
 import { isPremiumHostel } from '../src/services/orderFees.js';
 import { isRateLimited, clientIp } from '../server/rate-limit.js';
+import { recordEvent, monitoringFromError } from '../server/monitoring.js';
 
 const TAKEAWAY_FEE_PER_PLATE = 200;
 
@@ -97,6 +98,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
     } catch (error: any) {
         console.error('[calculate-total] Error:', error);
-        return res.status(500).json({ error: 'Failed to calculate total', details: error.message });
+        const parsed = monitoringFromError(error);
+        await recordEvent({
+            severity: 'high',
+            category: 'application',
+            service: 'checkout',
+            eventType: 'api_failure',
+            humanTitle: 'Checkout total could not be calculated',
+            humanSummary: 'Customers may be unable to complete checkout because the server could not calculate the order total.',
+            suggestedAction: 'Check Firebase menu prices and the calculate-total function logs.',
+            errorMessage: parsed.message,
+            errorCode: parsed.errorCode || 'CALCULATE_TOTAL_FAILED',
+            stack: parsed.stack,
+            endpoint: '/api/calculate-total',
+            httpStatus: 500,
+        });
+        return res.status(500).json({ error: 'Failed to calculate total' });
     }
 }

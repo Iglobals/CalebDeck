@@ -16,6 +16,7 @@ import { PaymentSelector, PaymentMethod } from '../../components/student/Payment
 import { Loader2 } from 'lucide-react';
 import { isPremiumHostel } from '../../../services/orderFees';
 import { resolveHostelRestriction, normalizeHostelKey } from '../../../services/hostels';
+import { reportFrontendError } from '../../../services/monitoring';
 
 export default function MartCheckout() {
   const { items, subtotal, totalItems, clearCart } = useMartCart();
@@ -145,9 +146,9 @@ export default function MartCheckout() {
       fullName: formData.fullName,
       studentName: formData.fullName,
       phone: formData.phone,
-      hostel: formData.hostel,
-      hostelId: hostelRestriction.hostelId || formData.hostel,
-      hostelName: selectedHostel?.name || hostelRestriction.hostelName || '',
+      hostel: selectedHostel?.name || hostelRestriction.hostelName || formData.hostel,
+      hostelId: selectedHostel?.id || hostelRestriction.hostelId || formData.hostel,
+      hostelName: selectedHostel?.name || hostelRestriction.hostelName || formData.hostel,
       pickupPoint: hostelRestriction.pickupPoint,
       collectionInstruction: hostelRestriction.collectionInstruction,
       instructions: formData.instructions,
@@ -191,8 +192,8 @@ export default function MartCheckout() {
       fullName: formData.fullName,
       studentName: formData.fullName,
       phone: formData.phone,
-      hostel: formData.hostel,
-      hostelId: hostelRestriction.hostelId || formData.hostel,
+      hostel: selectedHostel?.name || hostelRestriction.hostelName || formData.hostel,
+      hostelId: selectedHostel?.id || hostelRestriction.hostelId || formData.hostel,
       hostelName: selectedHostel?.name || hostelRestriction.hostelName || formData.hostel,
       pickupPoint: hostelRestriction.pickupPoint,
       collectionInstruction: hostelRestriction.collectionInstruction,
@@ -236,7 +237,7 @@ export default function MartCheckout() {
           totalAmount: total,
           total,
           cafeteria: 'CalebDeck Mart',
-          hostel: formData.hostel,
+          hostel: selectedHostel?.name || formData.hostel,
           hostelName: selectedHostel?.name || formData.hostel,
           status: 'PAID'
         },
@@ -255,7 +256,7 @@ export default function MartCheckout() {
           totalAmount: total,
           total,
           cafeteria: 'CalebDeck Mart',
-          hostel: formData.hostel,
+          hostel: selectedHostel?.name || formData.hostel,
           hostelName: selectedHostel?.name || formData.hostel,
           status,
           paymentMessage: message
@@ -402,8 +403,8 @@ export default function MartCheckout() {
       fullName: formData.fullName,
       studentName: formData.fullName,
       phone: formData.phone,
-      hostel: formData.hostel,
-      hostelId: hostelRestriction.hostelId || formData.hostel,
+      hostel: selectedHostel?.name || hostelRestriction.hostelName || formData.hostel,
+      hostelId: selectedHostel?.id || hostelRestriction.hostelId || formData.hostel,
       hostelName: selectedHostel?.name || hostelRestriction.hostelName || formData.hostel,
       pickupPoint: hostelRestriction.pickupPoint,
       collectionInstruction: hostelRestriction.collectionInstruction,
@@ -433,12 +434,33 @@ export default function MartCheckout() {
         setIsWalletPaying(false);
         const errData = await preSaveRes.json().catch(() => ({}));
         toast.error(errData.message || 'We could not prepare this order for payment. Please try again.');
+        reportFrontendError({
+          eventType: 'payment_init_failed',
+          humanTitle: 'Mart checkout could not prepare this order',
+          humanSummary: 'The Mart order was not saved before payment, so Paystack was not opened.',
+          errorMessage: errData.message || errData.error,
+          errorCode: errData.error,
+          component: 'MartCheckout',
+          endpoint: '/api/pre-save-order',
+          orderId,
+          paymentReference: paymentRef.current,
+        });
         return;
       }
     } catch (err) {
       setIsWalletPaying(false);
       console.warn('[MartCheckout] Pre-save failed:', err);
       toast.error('We could not securely prepare your order for payment. Check your connection and try again.');
+      reportFrontendError({
+        eventType: 'checkout_failed',
+        humanTitle: 'Mart checkout lost connection while preparing payment',
+        humanSummary: 'The student app could not reach the order pre-save service from Mart checkout.',
+        errorMessage: err instanceof Error ? err.message : String(err),
+        component: 'MartCheckout',
+        endpoint: '/api/pre-save-order',
+        orderId,
+        paymentReference: paymentRef.current,
+      });
       return;
     }
 
@@ -447,10 +469,35 @@ export default function MartCheckout() {
       return;
     }
 
-    initializePayment({
-      onSuccess: (reference: any) => void onSuccess(reference),
-      onClose: () => onClose()
-    });
+    if (!paystackKey) {
+      toast.error('Payments are temporarily unavailable. Please try again shortly.');
+      reportFrontendError({
+        eventType: 'payment_init_failed',
+        humanTitle: 'Paystack public key is missing',
+        humanSummary: 'Mart checkout could not start Paystack because the public key is not configured.',
+        component: 'MartCheckout',
+        orderId,
+      });
+      return;
+    }
+
+    try {
+      initializePayment({
+        onSuccess: (reference: any) => void onSuccess(reference),
+        onClose: () => onClose()
+      });
+    } catch (payErr: any) {
+      toast.error('We could not start payment. Please try again.');
+      reportFrontendError({
+        eventType: 'paystack_init_failed',
+        humanTitle: 'Paystack checkout could not be opened',
+        humanSummary: 'The Mart order was saved, but the payment popup did not start.',
+        errorMessage: payErr?.message || String(payErr),
+        component: 'MartCheckout',
+        orderId,
+        paymentReference: paymentRef.current,
+      });
+    }
   };
 
   if (isClosed) {

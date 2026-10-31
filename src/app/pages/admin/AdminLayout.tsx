@@ -16,13 +16,15 @@ import {
     ArrowRight,
     Star,
     Store,
-    Shirt
+    Shirt,
+    Activity
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
 import { NotificationPanel } from '../../components/NotificationPanel';
 import { requestNotificationPermissionAndSaveToken, onForegroundMessage } from '../../../services/messaging';
+import { subscribeToOpenIncidentCount } from '../../../services/monitoring';
 
 interface AdminLayoutProps {
     children: React.ReactNode;
@@ -32,6 +34,7 @@ interface AdminLayoutProps {
 // Define searchable routes for global search
 const SEARCHABLE_ITEMS = [
     { label: 'Dashboard', keywords: ['dashboard', 'home', 'overview', 'kpi', 'stats'], path: '/admin', icon: '📊' },
+    { label: 'System Health', keywords: ['health', 'monitoring', 'logs', 'errors', 'incidents', 'status', 'paystack'], path: '/admin/monitoring', icon: '🩺' },
     { label: 'Orders', keywords: ['orders', 'pending', 'dispatch', 'paid', 'confirmed', 'preparing', 'delivery', 'batch'], path: '/admin/orders', icon: '🛒' },
     { label: 'Riders', keywords: ['riders', 'driver', 'delivery', 'available', 'online', 'offline', 'busy'], path: '/admin/riders', icon: '🏍️' },
     { label: 'Menu Management', keywords: ['menu', 'food', 'item', 'rice', 'pasta', 'swallow', 'protein', 'price', 'available', 'unavailable', 'cafeteria', 'section'], path: '/admin/menu', icon: '🍽️' },
@@ -50,6 +53,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
     const [globalSearch, setGlobalSearch] = useState('');
     const [searchFocused, setSearchFocused] = useState(false);
     const [pushPermissionStatus, setPushPermissionStatus] = useState<string>('granted');
+    const [openIncidentCount, setOpenIncidentCount] = useState(0);
     const location = useLocation();
     const navigate = useNavigate();
     const { adminTheme, toggleAdminTheme } = useTheme();
@@ -66,6 +70,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
 
     const menuItems = [
         { id: 'dashboard', path: '/admin', icon: <LayoutDashboard className="w-5 h-5" />, label: 'Dashboard' },
+        { id: 'monitoring', path: '/admin/monitoring', icon: <Activity className="w-5 h-5" />, label: 'System Health' },
         { id: 'orders', path: '/admin/orders', icon: <ShoppingBag className="w-5 h-5" />, label: 'Food Orders' },
         { id: 'mart-orders', path: '/admin/mart/orders', icon: <Store className="w-5 h-5" />, label: 'Mart Orders' },
         { id: 'mart-inventory', path: '/admin/mart/inventory', icon: <Package className="w-5 h-5" />, label: 'Mart Inventory' },
@@ -110,6 +115,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
 
         return () => unsub();
     }, [user]);
+
+    useEffect(() => {
+        const unsub = subscribeToOpenIncidentCount(setOpenIncidentCount);
+        return () => unsub();
+    }, []);
 
     // Global search suggestions
     const searchResults = useMemo(() => {
@@ -174,6 +184,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
                                 >
                                     {item.icon}
                                     <span className="font-medium text-sm">{item.label}</span>
+                                    {item.id === 'monitoring' && openIncidentCount > 0 && (
+                                        <span className="ml-auto min-w-[18px] rounded-full bg-red-500 px-1.5 text-center text-[10px] font-bold text-white">
+                                            {openIncidentCount}
+                                        </span>
+                                    )}
                                 </Link>
                             );
                         })}

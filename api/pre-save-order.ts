@@ -4,6 +4,7 @@ import { adminDb } from '../server/firebase-admin.js';
 import { calculateServerOrderTotal, validateAndResolveOrderHostel } from '../server/order-utils.js';
 import { resolveOrderVertical } from '../src/services/orderVertical.js';
 import { isRateLimited, clientIp } from '../server/rate-limit.js';
+import { recordEvent, monitoringFromError, ensurePaymentResolutionAnnouncement } from '../server/monitoring.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
 const GRACE_PERIOD_MS = 5 * 60 * 1000; // 5 minutes grace after window closes
@@ -43,6 +44,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { reference, orderData } = req.body;
 
         if (!reference || !orderData) {
+            await recordEvent({
+                severity: 'medium',
+                category: 'order',
+                service: 'checkout',
+                eventType: 'invalid_checkout_payload',
+                humanTitle: 'Checkout sent an incomplete order',
+                humanSummary: 'An order could not be prepared because the payment reference or order details were missing.',
+                suggestedAction: 'Ask the customer to retry checkout. If this repeats, inspect the checkout payload.',
+                errorCode: 'MISSING_PRESAVE_FIELDS',
+                endpoint: '/api/pre-save-order',
+                httpStatus: 400,
+            });
             return res.status(400).json({ error: 'reference and orderData are required' });
         }
 
@@ -67,6 +80,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             enforceActiveAndAck: true,
         });
         if (!hostelValidation.valid) {
+            await recordEvent({
+                severity: hostelValidation.code === 'HOSTEL_REQUIRED' ? 'medium' : 'high',
+                category: 'order',
+                service: 'checkout',
+                eventType: hostelValidation.code === 'HOSTEL_REQUIRED' ? 'missing_hostel' : 'invalid_checkout_payload',
+                humanTitle: 'Hostel information was rejected before payment',
+                humanSummary: hostelValidation.message || 'Checkout could not continue because hostel details were incomplete or inactive.',
+                suggestedAction: 'Confirm the selected hostel is active and that restricted hostels require acknowledgement.',
+                errorCode: hostelValidation.code || 'HOSTEL_VALIDATION_FAILED',
+                endpoint: '/api/pre-save-order',
+                httpStatus: 400,
+                orderId: orderData.orderId,
+                paymentReference: reference,
+                correlationId: orderData.correlationId,
+            });
             return res.status(400).json({
                 error: hostelValidation.code || 'HOSTEL_VALIDATION_FAILED',
                 message: hostelValidation.message || 'Please complete the hostel requirement before proceeding.',
@@ -358,6 +386,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         await orderRef.set(orderDoc);
         console.log(`[pre-save] Saved order ${orderData.orderId} with ref: ${reference}${batchInfo ? ` [batch: ${batchInfo.batchName}]` : ''}`);
 
+        await ensurePaymentResolutionAnnouncement(false);
+        await recordEvent({
+            severity: 'info',
+            category: 'order',
+            service: 'checkout',
+            eventType: 'pre_save_success',
+            humanTitle: 'Order prepared for payment',
+            humanSummary: 'The order was saved and is waiting for Paystack payment.',
+            endpoint: '/api/pre-save-order',
+            orderId: orderData.orderId,
+            paymentReference: reference,
+            correlationId: orderData.correlationId,
+            persistDocument: false,
+        });
+
         return res.status(200).json({
             success: true,
             reference,
@@ -365,6 +408,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
     } catch (error: any) {
         console.error('[pre-save] Error:', error);
+        const parsed = monitoringFromError(error);
+        await recordEvent({
+            severity: 'critical',
+            category: 'order',
+            service: 'payment',
+            eventType: 'pre_save_failed',
+            humanTitle: 'Payment could not be initialized',
+            humanSummary: 'Customers may be unable to complete checkout. The server could not save the order before payment.',
+            suggestedAction: 'Inspect System Health logs for this error, confirm hostel validation and Firebase writes, then retry a test checkout in Paystack test mode.',
+            errorMessage: parsed.message,
+            errorCode: parsed.errorCode || 'PRE_SAVE_FAILED',
+            stack: parsed.stack,
+            httpStatus: 500,
+            endpoint: '/api/pre-save-order',
+            component: 'api/pre-save-order',
+        });
         return res.status(500).json({ error: 'Failed to pre-save order' });
     }
 }

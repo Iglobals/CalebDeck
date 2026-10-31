@@ -128,6 +128,7 @@ export const router = createBrowserRouter([
         errorElement: <RouteErrorBoundary />,
         children: [
           { index: true, Component: AdminDashboard },
+          { path: "monitoring", lazy: lazyRoute(() => import('./pages/admin/AdminMonitoring'), "AdminMonitoring") },
           { path: "orders", Component: AdminOrders },
           { path: "riders", Component: RiderManagement },
           { path: "menu", Component: MenuManagement },

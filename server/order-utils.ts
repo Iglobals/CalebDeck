@@ -20,6 +20,8 @@ export async function validateAndResolveOrderHostel(
     message?: string;
     hostelFields: Record<string, any>;
 }> {
+    const enforce = options?.enforceActiveAndAck ?? true;
+
     const cleanStr = (val: any): string => {
         if (val === null || val === undefined) return '';
         const s = String(val).trim();

@@ -1030,7 +1030,7 @@ export interface Notification {
     userId: string;
     title: string;
     message: string;
-    type: 'order' | 'batch' | 'system';
+    type: 'order' | 'batch' | 'system' | 'incident';
     isRead: boolean;
     link?: string;
     createdAt: any;

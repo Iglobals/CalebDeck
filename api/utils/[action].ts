@@ -3,6 +3,8 @@ import { v2 as cloudinary } from 'cloudinary';
 import { getMessaging } from 'firebase-admin/messaging';
 import { ensureFirebaseAdmin } from '../../server/firebase-admin.js';
 import { isRateLimited, clientIp } from '../../server/rate-limit.js';
+import { recordEvent } from '../../server/monitoring.js';
+import { verifyAdmin } from '../../server/verify-admin.js';
 
 // --- CLOUDINARY HANDLERS ---
 cloudinary.config({
@@ -134,6 +136,82 @@ async function handleSendPush(req: VercelRequest, res: VercelResponse) {
     }
 }
 
+const FRONTEND_EVENT_TYPES = new Set([
+    'frontend_error',
+    'unhandled_rejection',
+    'checkout_failed',
+    'payment_init_failed',
+    'paystack_init_failed',
+    'missing_hostel',
+    'invalid_checkout_payload',
+]);
+
+async function handleReportError(req: VercelRequest, res: VercelResponse) {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    if (isRateLimited(`report-error:${clientIp(req)}`, 12, 60 * 1000)) {
+        return res.status(429).json({ error: 'Too many requests' });
+    }
+
+    const body = req.body || {};
+    const eventType = FRONTEND_EVENT_TYPES.has(String(body.eventType)) ? String(body.eventType) : 'frontend_error';
+    const severity = eventType === 'payment_init_failed' || eventType === 'paystack_init_failed' || eventType === 'checkout_failed'
+        ? 'high'
+        : eventType === 'missing_hostel' || eventType === 'invalid_checkout_payload'
+            ? 'medium'
+            : 'medium';
+
+    await recordEvent({
+        severity,
+        category: eventType.includes('payment') || eventType.includes('paystack') ? 'payment' : eventType.includes('checkout') || eventType.includes('hostel') ? 'order' : 'application',
+        service: 'frontend',
+        eventType,
+        humanTitle: String(body.humanTitle || 'A customer-facing error occurred').slice(0, 140),
+        humanSummary: String(body.humanSummary || 'The app reported a problem from a student device.').slice(0, 400),
+        suggestedAction: String(body.suggestedAction || 'Open the log in System Health and inspect the component and stack trace.').slice(0, 400),
+        errorMessage: String(body.errorMessage || '').slice(0, 1500),
+        errorCode: body.errorCode ? String(body.errorCode).slice(0, 80) : undefined,
+        stack: body.stack ? String(body.stack).slice(0, 4000) : undefined,
+        endpoint: body.endpoint ? String(body.endpoint).slice(0, 200) : undefined,
+        component: body.component ? String(body.component).slice(0, 120) : undefined,
+        correlationId: body.correlationId ? String(body.correlationId).slice(0, 80) : undefined,
+        orderId: body.orderId ? String(body.orderId).slice(0, 80) : undefined,
+        paymentReference: body.paymentReference ? String(body.paymentReference).slice(0, 80) : undefined,
+        details: {
+            path: typeof body.path === 'string' ? body.path.slice(0, 200) : undefined,
+            userAgent: typeof req.headers['user-agent'] === 'string' ? String(req.headers['user-agent']).slice(0, 180) : undefined,
+        },
+    });
+
+    return res.status(202).json({ accepted: true });
+}
+
+async function handleAdminRecordEvent(req: VercelRequest, res: VercelResponse) {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    ensureFirebaseAdmin();
+    const admin = await verifyAdmin(req);
+    if (!admin) return res.status(401).json({ error: 'Unauthorized' });
+    if (isRateLimited(`record-event:${admin.uid}`, 10, 60 * 1000)) {
+        return res.status(429).json({ error: 'Too many requests' });
+    }
+
+    const body = req.body || {};
+    await recordEvent({
+        severity: body.severity === 'critical' ? 'high' : (body.severity || 'medium'),
+        category: body.category || 'application',
+        service: body.service || 'backend',
+        eventType: String(body.eventType || 'admin_test_event').slice(0, 80),
+        humanTitle: String(body.humanTitle || 'Admin test event').slice(0, 140),
+        humanSummary: String(body.humanSummary || 'An administrator recorded a controlled test event.').slice(0, 400),
+        suggestedAction: 'This is a controlled test. Resolve the related incident after confirming logging works.',
+        errorMessage: body.errorMessage ? String(body.errorMessage).slice(0, 500) : 'Controlled admin test event',
+        errorCode: 'ADMIN_TEST',
+        component: 'AdminMonitoring',
+        details: { triggeredBy: admin.uid, test: true },
+    });
+
+    return res.status(200).json({ success: true });
+}
+
 // --- ROUTER ---
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Shared CORS configuration
@@ -151,6 +229,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         if (action === 'cloudinary') return await handleCloudinary(req, res);
         if (action === 'send-push') return await handleSendPush(req, res);
+        if (action === 'report-error') return await handleReportError(req, res);
+        if (action === 'record-event') return await handleAdminRecordEvent(req, res);
 
         return res.status(404).json({ error: 'Util route not found', action });
     } catch (err: any) {

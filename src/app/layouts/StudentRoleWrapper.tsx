@@ -9,6 +9,7 @@ import { BatchTimerProvider } from '../../context/BatchTimerContext';
 import { MaintenanceGate } from './MaintenanceGate';
 import 'react-toastify/dist/ReactToastify.css';
 import { GuestBanner } from '../components/student/GuestBanner';
+import { AnnouncementBanner } from '../components/student/AnnouncementBanner';
 import { FloatingNav } from '../components/student/FloatingNav';
 
 export default function StudentRoleWrapper() {
@@ -36,6 +37,7 @@ export default function StudentRoleWrapper() {
                 <BatchTimerProvider>
                     <MaintenanceGate>
                         <Outlet />
+                        <AnnouncementBanner />
                         <GuestBanner />
                         {isIconUser && 
                          !location.pathname.startsWith('/calebnet') && 

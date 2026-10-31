@@ -7,6 +7,7 @@ import { calculateServerOrderTotal, validateAndResolveOrderHostel } from '../ser
 import { claimFirstOrderDiscount, mergeDiscountOntoOrder } from '../server/first-order-discount.js';
 import { resolveOrderVertical } from '../src/services/orderVertical.js';
 import { isRateLimited, clientIp } from '../server/rate-limit.js';
+import { recordEvent, monitoringFromError, ensurePaymentResolutionAnnouncement } from '../server/monitoring.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
 
@@ -30,6 +31,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { reference, orderData } = req.body;
 
         if (!reference) {
+            await recordEvent({
+                severity: 'medium',
+                category: 'payment',
+                service: 'payment',
+                eventType: 'payment_verify_failed',
+                humanTitle: 'Payment verification was missing a reference',
+                humanSummary: 'A verification request arrived without a Paystack reference, so the order could not be confirmed.',
+                suggestedAction: 'Ask the customer not to pay again. Search Paystack for a recent charge and match it manually if needed.',
+                errorCode: 'MISSING_REFERENCE',
+                endpoint: '/api/verify-payment',
+                httpStatus: 400,
+            });
             return res.status(400).json({ error: 'Payment reference is required' });
         }
 
@@ -87,6 +100,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             enforceActiveAndAck: !existingDoc.exists,
         });
         if (!hostelValidation.valid) {
+            await recordEvent({
+                severity: 'high',
+                category: 'order',
+                service: 'payment',
+                eventType: 'missing_hostel',
+                humanTitle: 'Payment verification was blocked by hostel validation',
+                humanSummary: 'A payment could not be confirmed because hostel details were incomplete or invalid.',
+                suggestedAction: 'Inspect the order payload and hostel configuration. Do not mark the order paid until hostel data is valid and Paystack is independently verified.',
+                errorCode: hostelValidation.code || 'HOSTEL_VALIDATION_FAILED',
+                errorMessage: hostelValidation.message,
+                endpoint: '/api/verify-payment',
+                paymentReference: reference,
+                orderId: orderData?.orderId,
+            });
             return res.status(400).json({
                 error: hostelValidation.code || 'HOSTEL_VALIDATION_FAILED',
                 message: hostelValidation.message || 'Hostel collection acknowledgement is required.',
@@ -96,7 +123,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // 2. Verify with Paystack
         const secretKey = process.env.PAYSTACK_SECRET_KEY;
         if (!secretKey) {
-            return res.status(500).json({ error: 'PAYSTACK_SECRET_KEY not configured on Vercel' });
+            await recordEvent({
+                severity: 'critical',
+                category: 'payment',
+                service: 'payment',
+                eventType: 'paystack_api_error',
+                humanTitle: 'Paystack secret is not configured',
+                humanSummary: 'Payment verification cannot run because the server is missing the Paystack secret key.',
+                suggestedAction: 'Check Vercel environment variables for PAYSTACK_SECRET_KEY and redeploy.',
+                errorCode: 'PAYSTACK_SECRET_MISSING',
+                endpoint: '/api/verify-payment',
+                paymentReference: reference,
+            });
+            return res.status(500).json({ error: 'Payment verification is temporarily unavailable' });
         }
 
         const paystackResponse = await axios.get(
@@ -115,6 +154,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     updatedAt: FieldValue.serverTimestamp()
                 }, { merge: true });
             }
+
+            await recordEvent({
+                severity: 'high',
+                category: 'payment',
+                service: 'payment',
+                eventType: 'payment_verify_failed',
+                humanTitle: 'Paystack did not confirm this payment',
+                humanSummary: 'A customer returned from checkout but Paystack reported the transaction was not successful.',
+                suggestedAction: 'Do not mark the order paid. Check the Paystack dashboard for this reference and wait for the bank reversal if a debit occurred.',
+                errorCode: data.status || 'PAYSTACK_NOT_SUCCESS',
+                errorMessage: data.gateway_response || 'Payment was not successful',
+                endpoint: '/api/verify-payment',
+                httpStatus: 400,
+                paymentReference: reference,
+                orderId: orderData?.orderId,
+            });
 
             return res.status(400).json({
                 error: 'Payment was not successful',
@@ -397,6 +452,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         }
 
+        await recordEvent({
+            severity: 'info',
+            category: 'payment',
+            service: 'payment',
+            eventType: 'payment_verify_success',
+            humanTitle: 'Payment verified',
+            humanSummary: 'Paystack confirmed the charge and the order was marked paid.',
+            endpoint: '/api/verify-payment',
+            paymentReference: reference,
+            orderId,
+            persistDocument: false,
+        });
+        await ensurePaymentResolutionAnnouncement(true);
+
         return res.status(200).json({
             data: {
                 success: true,
@@ -410,6 +479,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
     } catch (error: any) {
         console.error('Payment verification error:', error);
-        return res.status(500).json({ error: 'Payment verification failed', details: error.response?.data || error.message });
+        const parsed = monitoringFromError(error);
+        await recordEvent({
+            severity: 'critical',
+            category: 'payment',
+            service: 'payment',
+            eventType: 'payment_verify_failed',
+            humanTitle: 'Payment verification failed',
+            humanSummary: 'A customer may have paid, but CalebDeck could not independently confirm the Paystack transaction.',
+            suggestedAction: 'Do not tell the customer to pay again. Verify the reference in Paystack, then confirm the order from System Health if the charge succeeded.',
+            errorMessage: parsed.message,
+            errorCode: parsed.errorCode || 'VERIFY_FAILED',
+            stack: parsed.stack,
+            httpStatus: parsed.httpStatus || 500,
+            endpoint: '/api/verify-payment',
+            component: 'api/verify-payment',
+            paymentReference: req.body?.reference,
+            orderId: req.body?.orderData?.orderId,
+        });
+        return res.status(500).json({ error: 'Payment verification failed' });
     }
 }

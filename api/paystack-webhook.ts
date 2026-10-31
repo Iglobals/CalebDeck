@@ -7,6 +7,7 @@ import { creditWallet, ensureWalletUser, WALLET_FUNDING_MAX, WALLET_FUNDING_MIN,
 import { resolveOrderVertical } from '../src/services/orderVertical.js';
 import { calculateServerOrderTotal, validateAndResolveOrderHostel } from '../server/order-utils.js';
 import { claimFirstOrderDiscount, mergeDiscountOntoOrder } from '../server/first-order-discount.js';
+import { recordEvent, monitoringFromError } from '../server/monitoring.js';
 
 function metadataValue(metadata: any, key: string) {
     if (metadata?.[key] !== undefined && metadata?.[key] !== null) return metadata[key];
@@ -38,6 +39,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (hash !== req.headers['x-paystack-signature']) {
             console.warn('[Webhook] Invalid signature');
+            await recordEvent({
+                severity: 'high',
+                category: 'payment',
+                service: 'webhook',
+                eventType: 'webhook_failed',
+                humanTitle: 'Paystack webhook signature was invalid',
+                humanSummary: 'A webhook was rejected because its signature did not match. This can be a configuration problem or an untrusted request.',
+                suggestedAction: 'Confirm PAYSTACK_SECRET_KEY matches the Paystack dashboard and that the webhook URL is correct.',
+                errorCode: 'INVALID_WEBHOOK_SIGNATURE',
+                endpoint: '/api/paystack-webhook',
+                httpStatus: 401,
+            });
             return res.status(401).end();
         }
 
@@ -186,6 +199,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     updatedAt: FieldValue.serverTimestamp()
                 });
                 console.log(`[Webhook] Confirmed pre-saved order: ${reference}`);
+                await recordEvent({
+                    severity: 'info',
+                    category: 'payment',
+                    service: 'webhook',
+                    eventType: 'webhook_received',
+                    humanTitle: 'Paystack webhook confirmed a paid order',
+                    humanSummary: 'A pre-saved order was marked paid after Paystack confirmed the charge.',
+                    paymentReference: reference,
+                    orderId: existingData.orderId,
+                    persistDocument: false,
+                });
 
                 if (existingData.foodBatchDayId) {
                     try {
@@ -251,6 +275,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             // Our own webhook skeleton — already exists
             console.log(`[Webhook] Webhook skeleton already exists for ref: ${reference}`);
+            await recordEvent({
+                severity: 'info',
+                category: 'payment',
+                service: 'webhook',
+                eventType: 'duplicate_payment_reference',
+                humanTitle: 'Duplicate payment webhook received',
+                humanSummary: 'Paystack sent a webhook for a reference that already exists. The existing order was left unchanged.',
+                paymentReference: reference,
+                endpoint: '/api/paystack-webhook',
+                persistDocument: true,
+            });
             return res.status(200).json({ received: true, duplicate: true });
         }
 
@@ -376,6 +411,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         await orderRef.set(orderDoc);
         console.log(`[Webhook] Created order ${reference} from ref: ${reference}`);
+        await recordEvent({
+            severity: 'info',
+            category: 'payment',
+            service: 'webhook',
+            eventType: 'webhook_received',
+            humanTitle: 'Paystack webhook created an order',
+            humanSummary: 'A webhook created an order after payment because no pre-saved document was found.',
+            paymentReference: reference,
+            orderId: orderDoc.orderId,
+            persistDocument: false,
+        });
 
         // 5. Admin notification
         try {
@@ -428,6 +474,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ received: true, created: true, orderId: reference });
     } catch (error: any) {
         console.error('[Webhook] Error:', error);
+        const parsed = monitoringFromError(error);
+        await recordEvent({
+            severity: 'critical',
+            category: 'payment',
+            service: 'webhook',
+            eventType: 'webhook_failed',
+            humanTitle: 'Paystack webhook processing failed',
+            humanSummary: 'Paystack notified CalebDeck about a payment, but the webhook could not be processed.',
+            suggestedAction: 'Inspect the related payment reference in Paystack and System Health. Do not mark orders paid from the webhook failure alone.',
+            errorMessage: parsed.message,
+            errorCode: parsed.errorCode || 'WEBHOOK_FAILED',
+            stack: parsed.stack,
+            endpoint: '/api/paystack-webhook',
+            component: 'api/paystack-webhook',
+        });
         // Return 200 to prevent Paystack retries on our errors
         return res.status(200).json({ received: true, error: true });
     }

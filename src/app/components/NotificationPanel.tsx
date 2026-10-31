@@ -56,6 +56,7 @@ export function NotificationPanel() {
             case 'order': return <Package className="w-4 h-4 text-purple-500" />;
             case 'batch': return <Package className="w-4 h-4 text-amber-500" />;
             case 'system': return <AlertCircle className="w-4 h-4 text-blue-500" />;
+            case 'incident': return <AlertCircle className="w-4 h-4 text-red-500" />;
             default: return <Bell className="w-4 h-4 text-gray-500" />;
         }
     };
