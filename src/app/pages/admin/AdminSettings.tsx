@@ -10,6 +10,7 @@ import { HostelRuleType, slugifyHostelId, DAVID_HOSTEL_DEFAULT_MESSAGE, DAVID_HO
 import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
 import { FashionBatchConfig, DEFAULT_FASHION_BATCH_CONFIG } from '../../../services/fashionBatch';
+import { AdminAnnouncementsCard } from './AdminAnnouncementsCard';
 import { uploadMediaToCloudinary } from '../../../services/cloudinary';
 import { auth } from '../../../services/firebase';
 
@@ -866,6 +867,8 @@ export default function AdminSettings() {
             Save Display Messages
           </Button>
         </div>
+
+        <AdminAnnouncementsCard />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           

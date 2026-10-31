@@ -12,6 +12,7 @@ import { ArrowLeft, User, Phone, MapPin, Settings, LogOut, Bell, Shield, Calenda
 import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
 import { ThemeToggle } from '../../components/ThemeToggle';
+import { AnnouncementHistory } from '../../components/student/AnnouncementBanner';
 import SEO from '../../components/SEO';
 
 interface UserProfile {
@@ -418,6 +419,14 @@ export default function Profile() {
                   rows={2}
                   className="bg-background"
                 />
+
+                <div className="pt-4 border-t border-border space-y-3">
+                  <div>
+                    <p className="font-bold text-sm">Service updates</p>
+                    <p className="text-sm text-muted-foreground mt-0.5 mb-3">Important in-app announcements remain available here after you dismiss the banner.</p>
+                    <AnnouncementHistory />
+                  </div>
+                </div>
 
                 <div className="pt-4 border-t border-border">
                   <label className="flex items-start gap-3 cursor-pointer group">

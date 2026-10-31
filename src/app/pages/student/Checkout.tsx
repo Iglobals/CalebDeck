@@ -31,6 +31,7 @@ import { DeliveryTypeSelector, SelectedBatchInfo } from '../../components/Delive
 import { BatchPickerModal } from '../../components/BatchPickerModal';
 import { BatchClock } from '../../components/BatchClock';
 import { PaymentSelector, PaymentMethod } from '../../components/student/PaymentSelector';
+import { reportFrontendError } from '../../../services/monitoring';
 
 const DELIVERY_FEE_SOLO = 750;
 const DELIVERY_FEE_GROUP = 580;
@@ -306,7 +307,7 @@ if (premium) {
   // Stable payment reference — generated once, used for pre-save + Paystack + verify
   const paymentRef = useRef((new Date()).getTime().toString());
 
-  const config = {
+  const config: any = {
     reference: paymentRef.current,
     email: formData.fullName
       ? `${formData.fullName.trim().toLowerCase().replace(/\s+/g, '.')}@calebdeck.com`
@@ -435,7 +436,8 @@ if (premium) {
       source: 'CalebDeck',
       ...formData,
       studentName: formData.fullName,
-      hostelId: hostelRestriction.hostelId || formData.hostel,
+      hostel: selectedHostel?.name || hostelRestriction.hostelName || formData.hostel,
+      hostelId: selectedHostel?.id || hostelRestriction.hostelId || formData.hostel,
       hostelName: selectedHostel?.name || hostelRestriction.hostelName || formData.hostel,
       pickupPoint: hostelRestriction.pickupPoint,
       collectionInstruction: hostelRestriction.collectionInstruction,
@@ -645,6 +647,24 @@ if (premium) {
     if (!orderTotal || isClosed || isSubmitting) return;
     if (!formData.fullName.trim() || !formData.phone.trim() || !formData.hostel) {
       toast.info('Please complete your name, phone number, and hostel selection.');
+      reportFrontendError({
+        eventType: 'missing_hostel',
+        humanTitle: 'Checkout was missing required student details',
+        humanSummary: 'A student tried to pay without completing name, phone or hostel selection.',
+        component: 'Checkout',
+        orderId,
+      });
+      return;
+    }
+    if (!paystackKey && paymentMethod === 'PAYSTACK') {
+      toast.error('Payments are temporarily unavailable. Please try again shortly.');
+      reportFrontendError({
+        eventType: 'payment_init_failed',
+        humanTitle: 'Paystack public key is missing',
+        humanSummary: 'Checkout could not start Paystack because the public key is not configured.',
+        component: 'Checkout',
+        orderId,
+      });
       return;
     }
     if (isRestrictedHostelSelected && !femaleHostelAgreement) {
@@ -769,6 +789,17 @@ if (premium) {
           preSaveResult.message || 'We could not prepare this order for payment. Please try again.',
           { autoClose: 8000, position: 'top-center' }
         );
+        reportFrontendError({
+          eventType: 'payment_init_failed',
+          humanTitle: 'Checkout could not prepare this order',
+          humanSummary: 'The app could not save the order before opening Paystack.',
+          errorMessage: preSaveResult.message || preSaveResult.error,
+          errorCode: preSaveResult.error,
+          component: 'Checkout',
+          endpoint: '/api/pre-save-order',
+          orderId,
+          paymentReference: paymentRef.current,
+        });
         setIsSubmitting(false);
         return;
       }
@@ -781,6 +812,16 @@ if (premium) {
         'We could not securely prepare your order for payment. Check your connection and try again.',
         { autoClose: 8000, position: 'top-center' }
       );
+      reportFrontendError({
+        eventType: 'checkout_failed',
+        humanTitle: 'Checkout lost connection while preparing payment',
+        humanSummary: 'The student app could not reach the order pre-save service.',
+        errorMessage: preSaveErr instanceof Error ? preSaveErr.message : String(preSaveErr),
+        component: 'Checkout',
+        endpoint: '/api/pre-save-order',
+        orderId,
+        paymentReference: paymentRef.current,
+      });
       setIsSubmitting(false);
       return;
     }
@@ -791,10 +832,24 @@ if (premium) {
       return;
     }
 
-    initializePayment({
-      onSuccess: (reference: any) => void onSuccess(reference),
-      onClose: () => { onClose(); setIsSubmitting(false); }
-    });
+    try {
+      initializePayment({
+        onSuccess: (reference: any) => void onSuccess(reference),
+        onClose: () => { onClose(); setIsSubmitting(false); }
+      });
+    } catch (payErr: any) {
+      setIsSubmitting(false);
+      toast.error('We could not start payment. Please try again.');
+      reportFrontendError({
+        eventType: 'paystack_init_failed',
+        humanTitle: 'Paystack checkout could not be opened',
+        humanSummary: 'The order was saved, but the payment popup did not start.',
+        errorMessage: payErr?.message || String(payErr),
+        component: 'Checkout',
+        orderId,
+        paymentReference: paymentRef.current,
+      });
+    }
   };
 
   // Keep button clickable when fields are ready so clicking without checking the hostel agreement triggers explicit validation feedback

@@ -24,6 +24,17 @@ export class ErrorBoundary extends Component<Props, State> {
 
     componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error('[ErrorBoundary] Caught runtime error:', error, errorInfo);
+        import('../../services/monitoring').then(({ reportFrontendError }) => {
+            reportFrontendError({
+                eventType: 'frontend_error',
+                humanTitle: 'The app hit a critical screen error',
+                humanSummary: 'A student or admin page crashed and showed the recovery screen.',
+                suggestedAction: 'Inspect the component stack in System Health and reproduce the route.',
+                errorMessage: error.message,
+                stack: `${error.stack || ''}\n${errorInfo.componentStack || ''}`,
+                component: 'ErrorBoundary',
+            });
+        }).catch(() => {});
         if (isDynamicImportError(error)) {
             attemptGuardedReload('ErrorBoundary');
         }

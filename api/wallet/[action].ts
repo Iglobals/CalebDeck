@@ -11,6 +11,7 @@ import { creditWallet, ensureWalletUser, WALLET_FUNDING_MAX, WALLET_FUNDING_MIN,
 import { resolveOrderVertical } from '../../src/services/orderVertical.js';
 import { confirmFoodBatchReservation } from '../../server/food-batch.js';
 import { isRateLimited, clientIp } from '../../server/rate-limit.js';
+import { recordEvent, monitoringFromError } from '../../server/monitoring.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
 
@@ -170,6 +171,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 enforceActiveAndAck: true,
             });
             if (!hostelValidation.valid) {
+                await recordEvent({
+                    severity: 'medium',
+                    category: 'order',
+                    service: 'checkout',
+                    eventType: hostelValidation.code === 'HOSTEL_REQUIRED' ? 'missing_hostel' : 'invalid_checkout_payload',
+                    humanTitle: 'Wallet checkout was blocked by hostel validation',
+                    humanSummary: hostelValidation.message || 'A wallet payment could not continue because hostel details were incomplete.',
+                    errorCode: hostelValidation.code || 'HOSTEL_VALIDATION_FAILED',
+                    endpoint: '/api/wallet/pay-order',
+                    orderId: orderData?.orderId,
+                    paymentReference: reference,
+                });
                 return res.status(400).json({
                     error: hostelValidation.message || 'Please complete the hostel requirement before proceeding.',
                     code: hostelValidation.code || 'HOSTEL_VALIDATION_FAILED',
@@ -444,7 +457,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         } catch (error: any) {
             console.error('Wallet payment error:', error);
-            return res.status(400).json({ error: error.message || 'Wallet payment failed' });
+            const parsed = monitoringFromError(error);
+            await recordEvent({
+                severity: 'high',
+                category: 'payment',
+                service: 'payment',
+                eventType: 'payment_init_failed',
+                humanTitle: 'Wallet payment failed',
+                humanSummary: 'A customer tried to pay from their wallet, but the charge could not be completed.',
+                suggestedAction: 'Check the wallet balance, order payload and System Health logs. Do not retry blindly if the debit may have succeeded.',
+                errorMessage: parsed.message,
+                errorCode: parsed.errorCode || 'WALLET_PAY_FAILED',
+                stack: parsed.stack,
+                endpoint: '/api/wallet/pay-order',
+            });
+            const known = String(error.message || '');
+            const safe = /hostel|batch|wallet|balance|insufficient|unauthorized|required/i.test(known)
+                ? known
+                : 'Wallet payment failed';
+            return res.status(400).json({ error: safe });
         }
     }
 
