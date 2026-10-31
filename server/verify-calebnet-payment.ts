@@ -8,16 +8,20 @@ import {
     NETWORK_CODES,
     clubkonnectGet,
     getClubkonnectConfig,
+    isClubkonnectAuthFailure,
     isValidNigerianPhone,
+    logClubkonnectCall,
     makeRequestId,
     mapProviderStatus,
     normalizeNetwork,
     normalizeType,
     providerHealthOutcomeForStatus,
+    providerStatusText,
     safePayload,
     setCors,
     updateProviderHealth,
 } from './calebnet.js';
+import { recordEvent } from './monitoring.js';
 
 const FALLBACK_AIRTIME_DISCOUNTS: Record<CalebNetNetwork, number> = {
     MTN: 3,
@@ -384,15 +388,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const fulfillmentStatus = mapProviderStatus(providerResponse);
+        const providerStatus = providerStatusText(providerResponse) || null;
         await orderRef.update({
             fulfillmentStatus,
             providerOrderId: providerResponse?.orderid || providerResponse?.OrderID || null,
             providerStatusCode: providerResponse?.statuscode || providerResponse?.statusCode || null,
             providerStatus: providerResponse?.status || providerResponse?.orderstatus || null,
-            providerRemark: providerResponse?.orderremark || providerResponse?.remark || providerResponse?.message || null,
+            providerRemark: providerResponse?.orderremark || providerResponse?.remark || providerResponse?.message || providerStatus,
             providerResponse,
             updatedAt: FieldValue.serverTimestamp(),
         });
+        logClubkonnectCall({
+            path: type === 'DATA' ? '/APIDatabundleV1.asp' : '/APIAirtimeV1.asp',
+            operation: type === 'DATA' ? 'data_purchase_paystack' : 'airtime_purchase_paystack',
+            httpStatus: 200,
+            body: providerResponse,
+            reference,
+            type,
+            network,
+            fulfillmentStatus,
+            providerOrderId: providerResponse?.orderid || providerResponse?.OrderID || null,
+        });
+        if (isClubkonnectAuthFailure(providerResponse)) {
+            await recordEvent({
+                severity: 'critical',
+                category: 'order',
+                service: 'api',
+                eventType: 'calebnet_provider_auth_failed',
+                humanTitle: 'CalebNet Clubkonnect authentication failed',
+                humanSummary: 'Clubkonnect rejected the configured UserID/APIKey combination after a Paystack-funded CalebNet purchase.',
+                suggestedAction: 'In the Clubkonnect developer dashboard, confirm UserID, regenerate the API key if needed, and clear any Server IP restriction. Then update CLUBKONNECT_USER_ID and CLUBKONNECT_API_KEY on Vercel Production.',
+                errorCode: providerStatus || 'INVALID_CREDENTIALS',
+                endpoint: type === 'DATA' ? '/APIDatabundleV1.asp' : '/APIAirtimeV1.asp',
+                orderId: reference,
+                paymentReference: reference,
+                details: { type, network, paymentProvider: 'paystack' },
+            });
+        }
 
         await updateProviderHealth(
             network,

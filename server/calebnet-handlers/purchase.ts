@@ -7,22 +7,27 @@ import {
     CalebNetType,
     NETWORK_CODES,
     clubkonnectGet,
+    classifyClubkonnectOutcome,
     disableCatalogPlanAfterProviderRejection,
     getClubkonnectConfig,
+    isClubkonnectAuthFailure,
     isRefundableProviderStatus,
     isValidNigerianPhone,
+    logClubkonnectCall,
     makeRequestId,
     mapProviderStatus,
     normalizeNetwork,
     normalizeType,
     providerHealthOutcomeForStatus,
     providerInvalidPlanReason,
+    providerStatusText,
     safePayload,
     setCors,
     updateProviderHealth,
 } from '../calebnet.js';
 import { ensureWalletUser, refundWalletForCalebNetOrder } from '../wallet.js';
 import { recordCalebNetAnalytics } from '../calebnet-analytics.js';
+import { recordEvent } from '../monitoring.js';
 
 const FALLBACK_AIRTIME_DISCOUNTS: Record<CalebNetNetwork, number> = {
     MTN: 3,
@@ -319,6 +324,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
         } catch (error: any) {
             const isTimeout = error.code === 'ECONNABORTED';
+            const providerBody = error.response?.data || { error: error.message };
+            const classified = classifyClubkonnectOutcome(providerBody, { timeout: isTimeout });
             await orderRef.update({
                 fulfillmentStatus: isTimeout ? 'PENDING_PROVIDER' : 'FAILED',
                 providerResponse: { error: isTimeout ? 'Clubkonnect timeout' : (error.response?.data || error.message), timestamp: new Date().toISOString() },
@@ -339,6 +346,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const failureStatus = isTimeout
                 ? 'PENDING_PROVIDER'
                 : (refundResult?.confirmed || refundResult?.refunded ? 'REFUNDED' : 'FAILED');
+            logClubkonnectCall({
+                path: type === 'DATA' ? '/APIDatabundleV1.asp' : '/APIAirtimeV1.asp',
+                operation: type === 'DATA' ? 'data_purchase' : 'airtime_purchase',
+                body: providerBody,
+                timeout: isTimeout,
+                errorMessage: error.message || null,
+                reference: clientRequestId,
+                type,
+                network,
+                walletDebited: true,
+                refunded: Boolean(refundResult?.confirmed || refundResult?.refunded),
+                fulfillmentStatus: failureStatus,
+            });
+            if (classified === 'auth' || classified === 'auth_missing') {
+                await recordEvent({
+                    severity: 'critical',
+                    category: 'order',
+                    service: 'api',
+                    eventType: 'calebnet_provider_auth_failed',
+                    humanTitle: 'CalebNet Clubkonnect authentication failed',
+                    humanSummary: 'Clubkonnect rejected the configured UserID/APIKey combination. Airtime and data purchases cannot be fulfilled until the provider credentials are corrected.',
+                    suggestedAction: 'In the Clubkonnect developer dashboard, confirm UserID, regenerate the API key if needed, and clear any Server IP restriction. Then update CLUBKONNECT_USER_ID and CLUBKONNECT_API_KEY on Vercel Production.',
+                    errorCode: providerStatusText(providerBody) || 'AUTH_FAILURE',
+                    endpoint: type === 'DATA' ? '/APIDatabundleV1.asp' : '/APIAirtimeV1.asp',
+                    orderId: clientRequestId,
+                    paymentReference: clientRequestId,
+                    details: { type, network, classification: classified, walletDebited: true, refunded: Boolean(refundResult?.confirmed || refundResult?.refunded) },
+                });
+            }
             await recordCalebNetAnalytics(orderRef, afterFailure.data(), failureStatus);
 
             return res.status(200).json({ success: true, order: { id: afterFailure.id, ...afterFailure.data() } });
@@ -348,12 +384,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const failedClearly = isRefundableProviderStatus(fulfillmentStatus) || clearProviderFailure(providerResponse);
         const finalFailureStatus = isRefundableProviderStatus(fulfillmentStatus) ? fulfillmentStatus : 'FAILED';
         const invalidPlanReason = type === 'DATA' ? providerInvalidPlanReason(providerResponse) : null;
+        const providerStatus = providerStatusText(providerResponse) || null;
+        const classified = classifyClubkonnectOutcome(providerResponse);
         await orderRef.update({
             fulfillmentStatus: failedClearly ? finalFailureStatus : fulfillmentStatus,
             providerOrderId: providerResponse?.orderid || providerResponse?.OrderID || null,
             providerStatusCode: providerResponse?.statuscode || providerResponse?.statusCode || null,
             providerStatus: providerResponse?.status || providerResponse?.orderstatus || null,
-            providerRemark: providerResponse?.orderremark || providerResponse?.remark || providerResponse?.message || null,
+            providerRemark: providerResponse?.orderremark || providerResponse?.remark || providerResponse?.message || providerStatus,
             providerResponse,
             updatedAt: FieldValue.serverTimestamp(),
         });
@@ -363,7 +401,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             type,
             failedClearly ? 'failure' : providerHealthOutcomeForStatus(fulfillmentStatus),
             failedClearly
-                ? 'Provider returned clear failure'
+                ? (providerStatus || 'Provider returned clear failure')
                 : fulfillmentStatus === 'ORDER_RECEIVED'
                     ? 'Provider accepted the order but has not completed it yet.'
                     : null
@@ -372,7 +410,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (failedClearly) {
             refundResult = await refundWalletForCalebNetOrder({
                 orderId: clientRequestId,
-                reason: 'Provider confirmed failure. Wallet refunded.',
+                reason: providerStatus
+                    ? `Provider confirmed failure (${providerStatus}). Wallet refunded.`
+                    : 'Provider confirmed failure. Wallet refunded.',
                 fulfillmentStatus: 'REFUNDED',
             });
         }
@@ -384,6 +424,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const finalStatus = failedClearly
             ? (refundResult?.confirmed || refundResult?.refunded ? 'REFUNDED' : finalFailureStatus)
             : fulfillmentStatus;
+        logClubkonnectCall({
+            path: type === 'DATA' ? '/APIDatabundleV1.asp' : '/APIAirtimeV1.asp',
+            operation: type === 'DATA' ? 'data_purchase' : 'airtime_purchase',
+            httpStatus: 200,
+            body: providerResponse,
+            reference: clientRequestId,
+            type,
+            network,
+            walletDebited: true,
+            refunded: Boolean(refundResult?.confirmed || refundResult?.refunded),
+            fulfillmentStatus: finalStatus,
+            providerOrderId: providerResponse?.orderid || providerResponse?.OrderID || null,
+        });
+        if (isClubkonnectAuthFailure(providerResponse)) {
+            await recordEvent({
+                severity: 'critical',
+                category: 'order',
+                service: 'api',
+                eventType: 'calebnet_provider_auth_failed',
+                humanTitle: 'CalebNet Clubkonnect authentication failed',
+                humanSummary: 'Clubkonnect rejected the configured UserID/APIKey combination. Airtime and data purchases cannot be fulfilled until the provider credentials are corrected.',
+                suggestedAction: 'In the Clubkonnect developer dashboard, confirm UserID, regenerate the API key if needed, and clear any Server IP restriction. Then update CLUBKONNECT_USER_ID and CLUBKONNECT_API_KEY on Vercel Production.',
+                errorCode: providerStatus || 'INVALID_CREDENTIALS',
+                endpoint: type === 'DATA' ? '/APIDatabundleV1.asp' : '/APIAirtimeV1.asp',
+                orderId: clientRequestId,
+                paymentReference: clientRequestId,
+                details: { type, network, classification: classified, walletDebited: true, refunded: Boolean(refundResult?.confirmed || refundResult?.refunded) },
+            });
+        }
         await recordCalebNetAnalytics(orderRef, finalOrder.data(), finalStatus);
 
         return res.status(200).json({ success: true, order: { id: finalOrder.id, ...finalOrder.data() } });
