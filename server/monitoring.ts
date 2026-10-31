@@ -61,6 +61,7 @@ const INCIDENT_RULES: Array<{
     { eventTypes: ['api_failure', 'unhandled_exception'], threshold: 5, severity: 'high', title: 'Backend or application errors are elevated', service: 'backend' },
     { eventTypes: ['frontend_error', 'unhandled_rejection'], threshold: 10, severity: 'medium', title: 'Frontend errors are elevated', service: 'frontend' },
     { eventTypes: ['admin_test_event'], threshold: 3, severity: 'medium', title: 'Controlled monitoring test', service: 'backend' },
+    { eventTypes: ['calebnet_provider_auth_failed'], threshold: 1, severity: 'critical', title: 'CalebNet Clubkonnect authentication is failing', service: 'api' },
 ];
 
 function envName() {

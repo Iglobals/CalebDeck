@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { clubkonnectGet, getClubkonnectConfig, requireAdmin, setCors } from '../calebnet.js';
+import { clubkonnectGet, getClubkonnectConfig, isClubkonnectAuthFailure, providerStatusText, requireAdmin, setCors } from '../calebnet.js';
+import { recordEvent } from '../monitoring.js';
 
 function parseProviderBalance(value: any) {
     if (value === null || value === undefined || value === '') return null;
@@ -24,6 +25,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const balance = parseProviderBalance(data?.balance);
         const status = String(data?.status || data?.Status || '').toUpperCase();
         if (balance === null || status.includes('INVALID') || status.includes('MISSING') || status.includes('ERROR')) {
+            if (isClubkonnectAuthFailure(data)) {
+                await recordEvent({
+                    severity: 'critical',
+                    category: 'order',
+                    service: 'api',
+                    eventType: 'calebnet_provider_auth_failed',
+                    humanTitle: 'CalebNet Clubkonnect authentication failed',
+                    humanSummary: 'Clubkonnect rejected the configured UserID/APIKey combination while checking wallet balance.',
+                    suggestedAction: 'In the Clubkonnect developer dashboard, confirm UserID, regenerate the API key if needed, and clear any Server IP restriction. Then update CLUBKONNECT_USER_ID and CLUBKONNECT_API_KEY on Vercel Production.',
+                    errorCode: providerStatusText(data) || 'INVALID_CREDENTIALS',
+                    endpoint: '/APIWalletBalanceV1.asp',
+                    details: { operation: 'wallet_balance' },
+                });
+            }
             return res.status(502).json({
                 error: 'Clubkonnect did not return a valid wallet balance. Please check the provider account or API credentials.',
                 providerStatus: data?.status || data?.Status || null,

@@ -2,11 +2,21 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { adminDb } from './firebase-admin.js';
 
+import type { FulfillmentStatus } from './calebnet-status.js';
+import { logClubkonnectCall } from './calebnet-status.js';
+
+export type { ClubkonnectOutcomeClass, FulfillmentStatus } from './calebnet-status.js';
+export {
+    classifyClubkonnectOutcome,
+    isClubkonnectAuthFailure,
+    logClubkonnectCall,
+    mapProviderStatus,
+    providerStatusText,
+    sanitizeClubkonnectBody,
+} from './calebnet-status.js';
+
 export type CalebNetType = 'DATA' | 'AIRTIME';
 export type CalebNetNetwork = 'MTN' | 'GLO' | 'AIRTEL' | '9MOBILE';
-export type FulfillmentStatus =
-    'NOT_STARTED' | 'PROCESSING' | 'ORDER_RECEIVED' | 'PENDING_PROVIDER' |
-    'SUCCESSFUL' | 'FAILED' | 'REFUND_REQUIRED' | 'CANCELLED' | 'REFUNDED';
 
 export const NETWORK_CODES: Record<CalebNetNetwork, string> = {
     MTN: '01',
@@ -72,31 +82,6 @@ export function safePayload(payload: Record<string, any>) {
     return clone;
 }
 
-export function mapProviderStatus(input: any): FulfillmentStatus {
-    const statusCode = String(input?.statuscode || input?.statusCode || input?.code || '').trim();
-    const rawStatus = String(input?.status || input?.orderstatus || input?.orderStatus || input?.response_description || '').trim().toUpperCase();
-
-    if (statusCode === '200' || rawStatus === 'ORDER_COMPLETED' || rawStatus === 'SUCCESSFUL' || rawStatus === 'SUCCESS') {
-        return 'SUCCESSFUL';
-    }
-    if (statusCode === '100' || rawStatus === 'ORDER_RECEIVED') return 'ORDER_RECEIVED';
-    if (rawStatus.includes('ONHOLD') || rawStatus.includes('ON_HOLD')) return 'PENDING_PROVIDER';
-    if (rawStatus.includes('PENDING') || rawStatus.includes('PROCESS')) return 'PENDING_PROVIDER';
-    if (rawStatus.includes('CANCEL')) return 'CANCELLED';
-    if (
-        rawStatus.includes('FAIL') ||
-        rawStatus.includes('DECLIN') ||
-        rawStatus.includes('INVALID') ||
-        rawStatus.includes('MISSING') ||
-        rawStatus.includes('INSUFFICIENT') ||
-        rawStatus.includes('ERROR') ||
-        ['300', '400', '500'].includes(statusCode)
-    ) {
-        return 'REFUND_REQUIRED';
-    }
-    return statusCode || rawStatus ? 'PENDING_PROVIDER' : 'PROCESSING';
-}
-
 export function shouldPreserveSuccessful(current?: string, next?: string) {
     return current === 'SUCCESSFUL' && next !== 'SUCCESSFUL';
 }
@@ -153,6 +138,7 @@ export async function clubkonnectGet(path: string, params: Record<string, any>, 
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
+    const started = Date.now();
     try {
         const response = await fetch(targetUrl.toString(), {
             method: 'GET',
@@ -166,6 +152,12 @@ export async function clubkonnectGet(path: string, params: Record<string, any>, 
         } catch {
             parsedData = rawText;
         }
+        logClubkonnectCall({
+            path,
+            httpStatus: response.status,
+            durationMs: Date.now() - started,
+            body: parsedData,
+        });
         if (!response.ok) {
             const httpErr: any = new Error(`Clubkonnect HTTP ${response.status}`);
             httpErr.response = { status: response.status, data: parsedData };
@@ -174,9 +166,22 @@ export async function clubkonnectGet(path: string, params: Record<string, any>, 
         return parsedData;
     } catch (err: any) {
         if (err?.name === 'AbortError' || err?.name === 'TimeoutError') {
+            logClubkonnectCall({
+                path,
+                durationMs: Date.now() - started,
+                timeout: true,
+                errorMessage: 'Clubkonnect request timed out',
+            });
             const timeoutErr: any = new Error('Clubkonnect request timed out');
             timeoutErr.code = 'ECONNABORTED';
             throw timeoutErr;
+        }
+        if (!err?.response) {
+            logClubkonnectCall({
+                path,
+                durationMs: Date.now() - started,
+                errorMessage: err?.message || 'Clubkonnect request failed',
+            });
         }
         throw err;
     } finally {
