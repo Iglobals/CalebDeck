@@ -12,6 +12,8 @@ import { resolveOrderVertical } from '../../src/services/orderVertical.js';
 import { confirmFoodBatchReservation } from '../../server/food-batch.js';
 import { isRateLimited, clientIp } from '../../server/rate-limit.js';
 import { recordEvent, monitoringFromError } from '../../server/monitoring.js';
+import { GroupOrderError, resolveFoodGroupPricing } from '../../src/services/groupPricing.js';
+import { createTrackingToken } from '../../server/order-tracking.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
 
@@ -279,7 +281,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     cafeteriaId: orderData?.cafeteriaId || '',
                     sectionId: orderData?.sectionId || 'none',
                     deliveryMode: orderData?.deliveryMode || 'solo',
+                    groupSize: 1,
                     deliveryType: orderData?.deliveryType || 'INSTANT',
+                    trackingToken: (existingOrder.exists ? existingOrder.data()?.trackingToken : null) || createTrackingToken(),
                     paymentReference: `WALLET-${displayOrderId}`,
                     paymentMethod: 'WALLET',
                     assignedRiderId: null,
@@ -313,6 +317,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     delete orderDocBase.cafeteriaId;
                     delete orderDocBase.sectionId;
                     delete orderDocBase.deliveryMode;
+                    delete orderDocBase.groupSize;
                 } else if (isFashionOrder) {
                     orderDocBase.type = 'fashion';
                     orderDocBase.orderType = 'FASHION';
@@ -328,16 +333,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     delete orderDocBase.cafeteriaId;
                     delete orderDocBase.sectionId;
                     delete orderDocBase.deliveryMode;
+                    delete orderDocBase.groupSize;
                 } else if (isCombo) {
+                    const foodGroup = resolveFoodGroupPricing(orderData);
                     orderDocBase.type = 'combo';
                     orderDocBase.orderType = 'FOOD';
                     orderDocBase.comboId = orderData.comboId;
                     orderDocBase.comboName = orderData.comboName;
                     orderDocBase.comboItems = orderData.comboItems || []; 
-                    orderDocBase.quantity = orderData.quantity || 1;
-                    orderDocBase.plateCount = orderData.quantity || 1; 
+                    orderDocBase.quantity = foodGroup.plateCount;
+                    orderDocBase.plateCount = foodGroup.plateCount; 
                     orderDocBase.basePrice = orderData.basePrice || 0;
+                    orderDocBase.deliveryMode = foodGroup.deliveryMode;
+                    orderDocBase.groupSize = foodGroup.groupSize;
                 } else {
+                    const foodGroup = resolveFoodGroupPricing(orderData);
+                    orderDocBase.deliveryMode = foodGroup.deliveryMode;
+                    orderDocBase.groupSize = foodGroup.groupSize;
+                    orderDocBase.plateCount = foodGroup.plateCount;
                     orderDocBase.type = 'plate';
                     orderDocBase.orderType = 'FOOD';
 
@@ -452,10 +465,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     amount: finalAmount,
                     orderId: displayOrderId,
                     firestoreOrderId: orderId,
+                    trackingToken: orderDocBase.trackingToken,
                 }
             });
 
         } catch (error: any) {
+            if (error instanceof GroupOrderError || error?.code === 'GROUP_SIZE_INVALID') {
+                return res.status(400).json({ error: error.message, code: 'GROUP_SIZE_INVALID' });
+            }
             console.error('Wallet payment error:', error);
             const parsed = monitoringFromError(error);
             await recordEvent({

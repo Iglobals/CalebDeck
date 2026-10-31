@@ -11,6 +11,8 @@ import { getActiveHostels, subscribeToHostels, Hostel, subscribeToPlatformSettin
 import { isPremiumHostel } from '../../../services/orderFees';
 import { resolveHostelRestriction, normalizeHostelKey } from '../../../services/hostels';
 import { calculateOrderTotal, verifyPayment } from '../../../services/functions';
+import { premiumGroupDeliveryFee, resolveFoodGroupPricing } from '../../../services/groupPricing';
+import { fetchTrackedOrder } from '../../../services/orderTracking';
 import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 import { usePaystackPayment } from 'react-paystack';
@@ -75,7 +77,7 @@ export default function Checkout() {
     drinksSnacks = {},
     drinksSnacksItems = [],
     deliveryMode: initialDeliveryMode = 'solo',
-    groupSize = 2,
+    groupSize: locationGroupSize,
     cafeteria = isCombo ? comboOrder.cafeteria : 'Old Cafeteria',
     cafeteriaId = isCombo ? comboOrder.cafeteriaId : 'old',
     sectionId = isCombo ? comboOrder.sectionId : 'none'
@@ -95,7 +97,21 @@ export default function Checkout() {
     ));
   }, [isCombo, plates, cafeteriaId, sectionId]);
 
-  const currentDeliveryMode = sessionStorage.getItem('cd_deliveryMode') || initialDeliveryMode;
+  const stateDeliveryMode = String(initialDeliveryMode || '').trim().toLowerCase();
+  const sessionDeliveryMode = String(sessionStorage.getItem('cd_deliveryMode') || '').trim().toLowerCase();
+  const currentDeliveryMode = (stateDeliveryMode === 'group' || stateDeliveryMode === 'solo')
+    ? stateDeliveryMode
+    : (sessionDeliveryMode === 'group' ? 'group' : 'solo');
+  const parsedLocationGroupSize = Number(locationGroupSize);
+  const parsedSessionGroupSize = Number(sessionStorage.getItem('cd_groupSize'));
+  const currentGroupSize = currentDeliveryMode === 'group'
+    ? (isCombo
+      ? Math.max(Number(comboOrder?.quantity) || 2, 2)
+      : (Number.isInteger(parsedLocationGroupSize) && parsedLocationGroupSize >= 2
+        ? parsedLocationGroupSize
+        : (Number.isInteger(parsedSessionGroupSize) && parsedSessionGroupSize >= 2 ? parsedSessionGroupSize : 2)))
+    : 1;
+  const trackingTokenRef = useRef<string | null>(null);
 
   const [hostels, setHostels] = useState<Hostel[]>([]);
   const [loadingHostels, setLoadingHostels] = useState(true);
@@ -200,25 +216,30 @@ export default function Checkout() {
     if (!isCombo) return null;
     const qty = comboOrder.quantity || 1;
     const base = comboOrder.basePrice || 0;
-    const dMode = currentDeliveryMode || 'solo';
-    const isGrp = dMode === 'group' || dMode === 'GROUP';
+    let foodGroup;
+    try {
+      foodGroup = resolveFoodGroupPricing({
+        type: 'combo',
+        quantity: qty,
+        deliveryMode: currentDeliveryMode,
+        groupSize: currentGroupSize,
+      });
+    } catch {
+      foodGroup = { deliveryMode: 'solo' as const, groupSize: 1, plateCount: qty, isGroup: false };
+    }
     const premium = isPremiumHostel(formData.hostel, platformSettings);
-
-let baseDeliveryFee;
-if (premium) {
     const premiumFee = platformSettings?.premiumDeliveryFee || 1250;
-    baseDeliveryFee = isGrp ? Math.round(premiumFee * 0.8) : premiumFee; // 20% off for group
-} else {
     const foodSoloFee = platformSettings?.foodDeliveryFee || DELIVERY_FEE_SOLO;
     const foodGroupFee = platformSettings?.foodGroupDeliveryFee || DELIVERY_FEE_GROUP;
-    baseDeliveryFee = isGrp ? foodGroupFee : foodSoloFee;
-}
-    const delivery = baseDeliveryFee * qty;
+    const baseDeliveryFee = premium
+      ? (foodGroup.isGroup ? premiumGroupDeliveryFee(premiumFee) : premiumFee)
+      : (foodGroup.isGroup ? foodGroupFee : foodSoloFee);
+    const delivery = baseDeliveryFee * foodGroup.plateCount;
     return {
       totalAmount: base * qty + delivery,
       breakdown: { food: base * qty, delivery, takeaway: 0, discount: 0, platform: 0, processing: 0 }
     };
-  }, [isCombo, comboOrder?.quantity, comboOrder?.basePrice, currentDeliveryMode, formData.hostel, platformSettings]);
+  }, [isCombo, comboOrder?.quantity, comboOrder?.basePrice, currentDeliveryMode, currentGroupSize, formData.hostel, platformSettings]);
 
   // Calculate Order Total (Server-Side) — only for plate orders
   useEffect(() => {
@@ -240,20 +261,21 @@ if (premium) {
           items,
           plateCount: plates.length,
           deliveryMode: currentDeliveryMode,
+          groupSize: currentGroupSize,
           hostelId: formData.hostel
         });
 
         setOrderTotal(response.data as any);
       } catch (error) {
         console.error("Calculation error:", error);
-        toast.error("Failed to calculate order total");
+        toast.error(error instanceof Error ? error.message : "Failed to calculate order total");
       } finally {
         setCalculating(false);
       }
     };
 
     fetchTotal();
-  }, [plates, drinksSnacks, currentDeliveryMode, formData.hostel, comboTotal, isCombo]);
+  }, [plates, drinksSnacks, currentDeliveryMode, currentGroupSize, formData.hostel, comboTotal, isCombo]);
 
   const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
   const selectedHostel = hostels.find(h => h.id === formData.hostel);
@@ -334,6 +356,7 @@ if (premium) {
       cafeteriaId,
       sectionId,
       deliveryMode: currentDeliveryMode,
+      groupSize: currentGroupSize,
       deliveryType,
       selectedBatchId: deliveryType === 'BATCH' ? selectedBatch?.batchId : undefined,
       foodBatchName: deliveryType === 'BATCH' ? selectedBatch?.batchName : undefined,
@@ -403,12 +426,14 @@ if (premium) {
 
       // Success
       toast.dismiss();
+      if (data.data?.trackingToken) trackingTokenRef.current = data.data.trackingToken;
       navigate('/order-success', {
         state: {
           ...orderPayload,
           firestoreOrderId: data.data.firestoreOrderId || data.data.orderId,
           orderId: data.data.orderId || orderPayload.orderId,
           paymentReference: `WALLET-${data.data.orderId || orderPayload.orderId}`,
+          trackingToken: trackingTokenRef.current,
           total: payableTotal,
           totalAmount: payableTotal,
           status: 'PAID'
@@ -457,6 +482,7 @@ if (premium) {
       cafeteriaId,
       sectionId,
       deliveryMode: currentDeliveryMode,
+      groupSize: currentGroupSize,
       deliveryType,
       selectedBatchId: deliveryType === 'BATCH' ? selectedBatch?.batchId : undefined,
       foodBatchName: deliveryType === 'BATCH' ? selectedBatch?.batchName : undefined,
@@ -522,6 +548,7 @@ if (premium) {
           firestoreOrderId: firestoreId,
           orderId: finalOrderId,
           paymentReference: reference.reference,
+          trackingToken: trackingTokenRef.current,
           status: 'PAID'
         }
       });
@@ -534,6 +561,7 @@ if (premium) {
           firestoreOrderId: firestoreId,
           orderId,
           paymentReference: reference.reference,
+          trackingToken: trackingTokenRef.current,
           status,
           paymentMessage: message
         }
@@ -544,6 +572,7 @@ if (premium) {
     try {
       const result = await verifyPayment({ reference: reference.reference, orderData });
       const serverData = result.data || result;
+      if (serverData.trackingToken) trackingTokenRef.current = serverData.trackingToken;
       goToSuccess(serverData.firestoreOrderId, serverData.orderId || orderId);
       return;
     } catch (firstError) {
@@ -553,6 +582,7 @@ if (premium) {
       try {
         const result = await verifyPayment({ reference: reference.reference, orderData });
         const serverData = result.data || result;
+        if (serverData.trackingToken) trackingTokenRef.current = serverData.trackingToken;
         goToSuccess(serverData.firestoreOrderId, serverData.orderId || orderId);
         return;
       } catch (secondError) {
@@ -560,26 +590,45 @@ if (premium) {
       }
     }
 
-    // Both retries failed — check Firestore directly
-    // The webhook may have already created the order
+    // Both retries failed — confirm via tracking token (guests) or owner get (signed-in).
     try {
-      const orderSnap = await getDoc(doc(db, 'orders', reference.reference));
-      if (orderSnap.exists()) {
-        const existingOrder = orderSnap.data();
-        if (existingOrder.status === 'PAID' || existingOrder.source === 'verified' || existingOrder.source === 'webhook_confirmed') {
-          toast.success('Your payment was successful and your order is confirmed!', { autoClose: 5000 });
-          goToSuccess(orderSnap.id, existingOrder.orderId || orderId);
+      if (trackingTokenRef.current) {
+        const tracked = await fetchTrackedOrder(reference.reference, trackingTokenRef.current);
+        if (tracked) {
+          if (tracked.status === 'PAID' || tracked.status === 'OUT_FOR_DELIVERY' || tracked.status === 'ON_THE_WAY' || tracked.status === 'DELIVERED') {
+            toast.success('Your payment was successful and your order is confirmed!', { autoClose: 5000 });
+            goToSuccess(tracked.firestoreOrderId, tracked.orderId || orderId);
+            return;
+          }
+          toast.warning(
+            tracked.status === 'FAILED'
+              ? 'Payment did not go through. If your bank deducted money, it should be reversed by your bank or Paystack.'
+              : 'Your order details are saved, but payment is not confirmed yet. Try again with a stronger network.',
+            { autoClose: 9000 }
+          );
+          goToPaymentStatus(tracked.status || 'PENDING_PAYMENT', tracked.firestoreOrderId);
           return;
         }
+      }
+      if (user) {
+        const orderSnap = await getDoc(doc(db, 'orders', reference.reference));
+        if (orderSnap.exists()) {
+          const existingOrder = orderSnap.data();
+          if (existingOrder.status === 'PAID' || existingOrder.source === 'verified' || existingOrder.source === 'webhook_confirmed') {
+            toast.success('Your payment was successful and your order is confirmed!', { autoClose: 5000 });
+            goToSuccess(orderSnap.id, existingOrder.orderId || orderId);
+            return;
+          }
 
-        toast.warning(
-          existingOrder.status === 'FAILED'
-            ? 'Payment did not go through. If your bank deducted money, it should be reversed by your bank or Paystack.'
-            : 'Your order details are saved, but payment is not confirmed yet. Try again with a stronger network.',
-          { autoClose: 9000 }
-        );
-        goToPaymentStatus(existingOrder.status || 'PENDING_PAYMENT', orderSnap.id, existingOrder.paymentMessage);
-        return;
+          toast.warning(
+            existingOrder.status === 'FAILED'
+              ? 'Payment did not go through. If your bank deducted money, it should be reversed by your bank or Paystack.'
+              : 'Your order details are saved, but payment is not confirmed yet. Try again with a stronger network.',
+            { autoClose: 9000 }
+          );
+          goToPaymentStatus(existingOrder.status || 'PENDING_PAYMENT', orderSnap.id, existingOrder.paymentMessage);
+          return;
+        }
       }
     } catch (firestoreErr) {
       console.warn('Firestore fallback check failed:', firestoreErr);
@@ -717,6 +766,7 @@ if (premium) {
       cafeteriaId,
       sectionId,
       deliveryMode: currentDeliveryMode,
+      groupSize: currentGroupSize,
       deliveryType,
       selectedBatchId: deliveryType === 'BATCH' ? selectedBatch?.batchId : undefined,
       foodBatchName: deliveryType === 'BATCH' ? selectedBatch?.batchName : undefined,
@@ -748,6 +798,7 @@ if (premium) {
       });
 
       const preSaveResult = await preSaveResponse.json();
+      if (preSaveResult?.trackingToken) trackingTokenRef.current = preSaveResult.trackingToken;
 
       // Handle batch rejection from server
       if (!preSaveResponse.ok) {

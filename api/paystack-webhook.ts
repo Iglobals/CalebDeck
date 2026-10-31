@@ -8,6 +8,8 @@ import { resolveOrderVertical } from '../src/services/orderVertical.js';
 import { calculateServerOrderTotal, validateAndResolveOrderHostel } from '../server/order-utils.js';
 import { claimFirstOrderDiscount, mergeDiscountOntoOrder } from '../server/first-order-discount.js';
 import { recordEvent, monitoringFromError } from '../server/monitoring.js';
+import { resolveFoodGroupPricing } from '../src/services/groupPricing.js';
+import { createTrackingToken } from '../server/order-tracking.js';
 
 function metadataValue(metadata: any, key: string) {
     if (metadata?.[key] !== undefined && metadata?.[key] !== null) return metadata[key];
@@ -330,7 +332,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             cafeteriaId: metadata.cafeteriaId || '',
             sectionId: metadata.sectionId || 'none',
             deliveryMode: metadata.deliveryMode || 'solo',
+            groupSize: 1,
             deliveryType: metadata.deliveryType || 'INSTANT',
+            trackingToken: createTrackingToken(),
             paymentReference: reference,
             assignedRiderId: null,
             batchId: null,
@@ -361,6 +365,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             delete orderDoc.cafeteriaId;
             delete orderDoc.sectionId;
             delete orderDoc.deliveryMode;
+            delete orderDoc.groupSize;
         } else if (isFashionOrder) {
             orderDoc.type = 'fashion';
             orderDoc.orderType = 'FASHION';
@@ -376,6 +381,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             delete orderDoc.cafeteriaId;
             delete orderDoc.sectionId;
             delete orderDoc.deliveryMode;
+            delete orderDoc.groupSize;
         } else if (metadata.type === 'combo') {
             orderDoc.type = 'combo';
             orderDoc.orderType = 'FOOD';
@@ -385,12 +391,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.quantity = metadata.quantity || 1;
             orderDoc.plateCount = metadata.quantity || 1;
             orderDoc.basePrice = metadata.basePrice || 0;
+            try {
+                const foodGroup = resolveFoodGroupPricing(metadata);
+                orderDoc.deliveryMode = foodGroup.deliveryMode;
+                orderDoc.groupSize = foodGroup.groupSize;
+                orderDoc.quantity = foodGroup.plateCount;
+                orderDoc.plateCount = foodGroup.plateCount;
+            } catch {
+                orderDoc.deliveryMode = 'solo';
+                orderDoc.groupSize = 1;
+            }
         } else {
             orderDoc.type = 'plate';
             orderDoc.orderType = 'FOOD';
             orderDoc.plates = metadata.plates || [];
             orderDoc.drinksSnacks = metadata.drinksSnacks || [];
             orderDoc.plateCount = metadata.plateCount || 1;
+            try {
+                const foodGroup = resolveFoodGroupPricing(metadata);
+                orderDoc.deliveryMode = foodGroup.deliveryMode;
+                orderDoc.groupSize = foodGroup.groupSize;
+                orderDoc.plateCount = foodGroup.plateCount;
+            } catch {
+                orderDoc.deliveryMode = 'solo';
+                orderDoc.groupSize = 1;
+            }
         }
 
         try {

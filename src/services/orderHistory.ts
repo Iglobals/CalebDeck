@@ -21,6 +21,7 @@ export interface OrderHistoryEntry {
   pickupPoint?: string;
   collectionInstruction?: string;
   requiresHostelAcknowledgement?: boolean;
+  trackingToken?: string;
   createdAt: string;         // ISO string
 }
 
@@ -64,6 +65,7 @@ export function saveOrderToHistory(entry: OrderHistoryEntry) {
       pickupPoint: entry.pickupPoint || existing.pickupPoint,
       collectionInstruction: entry.collectionInstruction || existing.collectionInstruction,
       requiresHostelAcknowledgement: entry.requiresHostelAcknowledgement ?? existing.requiresHostelAcknowledgement,
+      trackingToken: existing.trackingToken || entry.trackingToken,
       createdAt: existing.createdAt,
     };
     writeHistory(history);
@@ -125,6 +127,7 @@ export function buildFoodOrderEntry(orderState: any): OrderHistoryEntry {
     pickupPoint: orderState.pickupPoint || orderState.hostelAcknowledgement?.pickupPoint,
     collectionInstruction: orderState.collectionInstruction || orderState.hostelAcknowledgement?.collectionInstruction,
     requiresHostelAcknowledgement: Boolean(orderState.requiresHostelAcknowledgement || orderState.hostelAcknowledgement?.accepted || orderState.femaleHostelAgreement),
+    trackingToken: orderState.trackingToken || undefined,
     createdAt: new Date().toISOString()
   };
 }
@@ -146,6 +149,7 @@ export function buildMartOrderEntry(orderState: any): OrderHistoryEntry {
     pickupPoint: orderState.pickupPoint || orderState.hostelAcknowledgement?.pickupPoint,
     collectionInstruction: orderState.collectionInstruction || orderState.hostelAcknowledgement?.collectionInstruction,
     requiresHostelAcknowledgement: Boolean(orderState.requiresHostelAcknowledgement || orderState.hostelAcknowledgement?.accepted || orderState.femaleHostelAgreement),
+    trackingToken: orderState.trackingToken || undefined,
     createdAt: new Date().toISOString()
   };
 }
@@ -192,6 +196,7 @@ export function buildFashionOrderEntry(orderState: any): OrderHistoryEntry {
     pickupPoint: orderState.pickupPoint || orderState.hostelAcknowledgement?.pickupPoint,
     collectionInstruction: orderState.collectionInstruction || orderState.hostelAcknowledgement?.collectionInstruction,
     requiresHostelAcknowledgement: Boolean(orderState.requiresHostelAcknowledgement || orderState.hostelAcknowledgement?.accepted || orderState.femaleHostelAgreement),
+    trackingToken: orderState.trackingToken || undefined,
     createdAt: new Date().toISOString()
   };
 }
@@ -236,6 +241,7 @@ export function buildEntryFromFirestoreOrder(id: string, doc: any): OrderHistory
     pickupPoint: doc.pickupPoint || doc.hostelAcknowledgement?.pickupPoint || undefined,
     collectionInstruction: doc.collectionInstruction || doc.hostelAcknowledgement?.collectionInstruction || undefined,
     requiresHostelAcknowledgement: Boolean(doc.requiresHostelAcknowledgement || doc.hostelAcknowledgement?.accepted || doc.femaleHostelAgreement),
+    trackingToken: doc.trackingToken || undefined,
     createdAt: created,
   };
 }
@@ -245,7 +251,15 @@ export function mergeHistory(local: OrderHistoryEntry[], cloud: OrderHistoryEntr
   const byId = new Map<string, OrderHistoryEntry>();
   for (const entry of cloud) byId.set(entry.id, entry);
   for (const entry of local) {
-    if (!byId.has(entry.id)) byId.set(entry.id, entry);
+    const existing = byId.get(entry.id);
+    if (!existing) {
+      byId.set(entry.id, entry);
+      continue;
+    }
+    byId.set(entry.id, {
+      ...existing,
+      trackingToken: existing.trackingToken || entry.trackingToken,
+    });
   }
   return Array.from(byId.values()).sort((a, b) =>
     (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0));

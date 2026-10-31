@@ -8,6 +8,7 @@ import { ProgressStepper } from '../../components/design-system/ProgressStepper'
 import { CheckCircle, MapPin, Clock, Phone, Sparkles, RefreshCw, AlertCircle, Timer, ShoppingBag, ArrowLeft, Package } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import { subscribeToOrderStatus, getRiderById, getHostelById, Rider, getOrderById, submitReview, subscribeToPlatformSettings, subscribeToAllHostels, Hostel } from '../../../services/db';
+import { fetchTrackedOrder, subscribeToTrackedOrder } from '../../../services/orderTracking';
 import { resolveOrderHostelInfo } from '../../../services/hostels';
 import { useAuth } from '../../../context/AuthContext';
 import { trackOrderTracked } from '../../../services/analytics';
@@ -56,6 +57,9 @@ export default function OrderSuccess() {
     firestoreOrderId = null,
     status = 'PAID',
     paymentMessage = '',
+    trackingToken = '',
+    userId = null,
+    iConId = null,
   } = orderData;
 
   useEffect(() => {
@@ -144,47 +148,59 @@ export default function OrderSuccess() {
     fetchHostelRider();
   }, [hostel]);
 
+  const isOrderOwner = Boolean(user?.uid && (userId === user.uid || iConId === user.uid));
+
+  const applyLiveOrder = (order: any) => {
+    if (!order) return;
+    setLiveOrder(order);
+    setOrderStatus(order.status);
+    setCurrentStep(STATUS_TO_STEP[order.status] ?? 0);
+
+    try {
+      const prevSaved = localStorage.getItem('calebdeck_last_order');
+      const parsedPrev = prevSaved ? JSON.parse(prevSaved) : {};
+      localStorage.setItem('calebdeck_last_order', JSON.stringify({
+        ...parsedPrev,
+        ...order,
+        firestoreOrderId,
+        trackingToken: parsedPrev.trackingToken || trackingToken,
+      }));
+    } catch {
+      // ignore storage quota errors
+    }
+
+    trackOrderTracked(orderId, order.status);
+
+    if (order.rider?.name) {
+      setRider({
+        id: order.assignedRiderId || order.rider.id || 'rider',
+        name: order.rider.name,
+        phone: order.rider.phone || '',
+      } as Rider);
+    } else if (order.assignedRiderId) {
+      getRiderById(order.assignedRiderId).then(r => {
+        if (r) setRider(r);
+      }).catch(() => {});
+    }
+
+    if (order.status === 'DELIVERED') {
+      setTimeout(() => {
+        enjoyMealRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 600);
+    }
+  };
+
   useEffect(() => {
     if (!firestoreOrderId) return;
-    
-    const unsub = subscribeToOrderStatus(firestoreOrderId, (order) => {
-      if (order) {
-        setLiveOrder(order);
-        setOrderStatus(order.status);
-        setCurrentStep(STATUS_TO_STEP[order.status] ?? 0);
 
-        try {
-          const prevSaved = localStorage.getItem('calebdeck_last_order');
-          const parsedPrev = prevSaved ? JSON.parse(prevSaved) : {};
-          localStorage.setItem('calebdeck_last_order', JSON.stringify({
-            ...parsedPrev,
-            ...order,
-            firestoreOrderId,
-          }));
-        } catch {
-          // ignore storage quota errors
-        }
-        
-        // Track order status updates
-        trackOrderTracked(orderId, order.status);
+    let unsub = () => {};
+    if (isOrderOwner) {
+      unsub = subscribeToOrderStatus(firestoreOrderId, applyLiveOrder);
+    } else if (trackingToken) {
+      unsub = subscribeToTrackedOrder(firestoreOrderId, trackingToken, applyLiveOrder);
+    }
 
-        if (order.assignedRiderId) {
-          getRiderById(order.assignedRiderId).then(r => {
-            if (r) setRider(r);
-          });
-        }
-
-        if (order.status === 'DELIVERED') {
-          setTimeout(() => {
-            enjoyMealRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }, 600);
-        }
-      }
-    });
-
-    // Check for network connectivity
     const handleOnline = () => {
-        // Force refresh if back online
         refreshStatus();
     };
     window.addEventListener('online', handleOnline);
@@ -193,23 +209,19 @@ export default function OrderSuccess() {
         unsub();
         window.removeEventListener('online', handleOnline);
     };
-  }, [firestoreOrderId]);
+  }, [firestoreOrderId, trackingToken, isOrderOwner]);
 
   const refreshStatus = async () => {
     if (!firestoreOrderId || isRefreshing) return;
     setIsRefreshing(true);
     try {
-        const orderDataRaw = await getOrderById(firestoreOrderId);
-        const order = orderDataRaw as any;
-        if (order) {
-            setLiveOrder(order);
-            setOrderStatus(order.status);
-            setCurrentStep(STATUS_TO_STEP[order.status] ?? 0);
-            if (order.assignedRiderId) {
-                const r = await getRiderById(order.assignedRiderId);
-                if (r) setRider(r);
-            }
+        let order: any = null;
+        if (isOrderOwner) {
+          order = await getOrderById(firestoreOrderId);
+        } else if (trackingToken) {
+          order = await fetchTrackedOrder(firestoreOrderId, trackingToken);
         }
+        if (order) applyLiveOrder(order);
     } catch (err) {
         console.error("Manual refresh failed:", err);
     } finally {

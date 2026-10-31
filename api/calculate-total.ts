@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { adminDb } from '../server/firebase-admin.js';
 import { isPremiumHostel } from '../src/services/orderFees.js';
+import { GroupOrderError, premiumGroupDeliveryFee, resolveFoodGroupPricing } from '../src/services/groupPricing.js';
 import { isRateLimited, clientIp } from '../server/rate-limit.js';
 import { recordEvent, monitoringFromError } from '../server/monitoring.js';
 
@@ -25,7 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(500).json({ error: 'Firebase not configured — check FB_SA env vars on Vercel' });
         }
 
-        const { items, deliveryMode, plateCount: providedPlateCount, hostelId } = req.body;
+        const { items, deliveryMode, plateCount: providedPlateCount, hostelId, groupSize } = req.body;
 
         if (!items || !Array.isArray(items) || items.length === 0) {
             return res.status(400).json({ error: 'No items provided' });
@@ -67,15 +68,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             foodTotal += currentPrice * qty;
         }
 
-        const plateCount = typeof providedPlateCount === 'number' ? providedPlateCount : 1;
-        const isGroup = deliveryMode === 'group' || deliveryMode === 'GROUP';
+        const foodGroup = resolveFoodGroupPricing({
+            deliveryMode,
+            groupSize,
+            plateCount: providedPlateCount,
+        });
+        const plateCount = foodGroup.plateCount;
+        const isGroup = foodGroup.isGroup;
         const isPremium = isPremiumHostel(hostelId, platformSettings, firestoreHostels);
 
-        // FIXED: Use base delivery fee for breakdown, and correctly calculate discount without double-discounting
         const baseDeliveryFee = isPremium ? premiumDeliveryFee : foodSoloFee;
         let discountPerPlate = 0;
         if (isGroup) {
-             discountPerPlate = isPremium ? (premiumDeliveryFee - Math.round(premiumDeliveryFee * 0.8)) : (foodSoloFee - foodGroupFee);
+             discountPerPlate = isPremium ? (premiumDeliveryFee - premiumGroupDeliveryFee(premiumDeliveryFee)) : (foodSoloFee - foodGroupFee);
         }
 
         const deliveryFee = baseDeliveryFee * plateCount;
@@ -97,6 +102,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         });
     } catch (error: any) {
+        if (error instanceof GroupOrderError || error?.code === 'GROUP_SIZE_INVALID') {
+            return res.status(400).json({ error: error.code || 'GROUP_SIZE_INVALID', message: error.message });
+        }
         console.error('[calculate-total] Error:', error);
         const parsed = monitoringFromError(error);
         await recordEvent({

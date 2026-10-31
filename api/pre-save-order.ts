@@ -3,6 +3,8 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '../server/firebase-admin.js';
 import { calculateServerOrderTotal, validateAndResolveOrderHostel } from '../server/order-utils.js';
 import { resolveOrderVertical } from '../src/services/orderVertical.js';
+import { GroupOrderError, resolveFoodGroupPricing } from '../src/services/groupPricing.js';
+import { createTrackingToken } from '../server/order-tracking.js';
 import { isRateLimited, clientIp } from '../server/rate-limit.js';
 import { recordEvent, monitoringFromError, ensurePaymentResolutionAnnouncement } from '../server/monitoring.js';
 
@@ -67,7 +69,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const data = existing.data()!;
             if (data.status !== 'PENDING_PAYMENT') {
                 // Already processed — don't overwrite
-                return res.status(200).json({ success: true, message: 'Order already exists' });
+                return res.status(200).json({
+                    success: true,
+                    message: 'Order already exists',
+                    trackingToken: data.trackingToken || undefined,
+                });
             }
         }
 
@@ -315,7 +321,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             cafeteriaId: orderData.cafeteriaId || '',
             sectionId: orderData.sectionId || 'none',
             deliveryMode: orderData.deliveryMode || 'solo',
+            groupSize: 1,
             deliveryType: deliveryType,
+            trackingToken: (existing.exists && existing.data()?.trackingToken) || createTrackingToken(),
             paymentReference: reference,
             assignedRiderId: null,
             batchId: null,
@@ -354,6 +362,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             delete orderDoc.cafeteriaId;
             delete orderDoc.sectionId;
             delete orderDoc.deliveryMode;
+            delete orderDoc.groupSize;
         } else if (isMartOrder) {
             orderDoc.type = 'mart';
             orderDoc.orderType = 'MART';
@@ -366,21 +375,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             delete orderDoc.cafeteriaId;
             delete orderDoc.sectionId;
             delete orderDoc.deliveryMode;
+            delete orderDoc.groupSize;
         } else if (orderData.type === 'combo') {
+            const foodGroup = resolveFoodGroupPricing(orderData);
             orderDoc.type = 'combo';
             orderDoc.orderType = 'FOOD';
             orderDoc.comboId = orderData.comboId;
             orderDoc.comboName = orderData.comboName;
             orderDoc.comboItems = orderData.comboItems || [];
-            orderDoc.quantity = orderData.quantity || 1;
-            orderDoc.plateCount = orderData.quantity || 1;
+            orderDoc.quantity = foodGroup.plateCount;
+            orderDoc.plateCount = foodGroup.plateCount;
             orderDoc.basePrice = orderData.basePrice || 0;
+            orderDoc.deliveryMode = foodGroup.deliveryMode;
+            orderDoc.groupSize = foodGroup.groupSize;
         } else {
+            const foodGroup = resolveFoodGroupPricing(orderData);
+            orderDoc.deliveryMode = foodGroup.deliveryMode;
+            orderDoc.groupSize = foodGroup.groupSize;
+            orderDoc.plateCount = foodGroup.plateCount;
             orderDoc.type = 'plate';
             orderDoc.orderType = 'FOOD';
             orderDoc.plates = cleanPlates;
             orderDoc.drinksSnacks = cleanSnacks;
-            orderDoc.plateCount = orderData.plateCount || cleanPlates.length || 1;
         }
 
         await orderRef.set(orderDoc);
@@ -404,9 +420,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({
             success: true,
             reference,
+            trackingToken: orderDoc.trackingToken,
             ...(batchInfo ? { batch: batchInfo } : {}),
         });
     } catch (error: any) {
+        if (error instanceof GroupOrderError || error?.code === 'GROUP_SIZE_INVALID') {
+            return res.status(400).json({ error: 'GROUP_SIZE_INVALID', message: error.message });
+        }
         console.error('[pre-save] Error:', error);
         const parsed = monitoringFromError(error);
         await recordEvent({

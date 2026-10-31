@@ -17,6 +17,26 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'RIDER';
     }
 
+    function isOrderOwner() {
+      return isAuthenticated() &&
+        'userId' in resource.data &&
+        resource.data.userId != null &&
+        resource.data.userId == request.auth.uid;
+    }
+
+    function isAssignedOrderRider() {
+      return isRider() &&
+        resource.data.assignedRiderId == request.auth.uid;
+    }
+
+    function riderOrderStatusAllowed() {
+      return request.resource.data.status in ['ON_THE_WAY', 'DELIVERED'] &&
+        (
+          (resource.data.status == 'OUT_FOR_DELIVERY' && request.resource.data.status in ['ON_THE_WAY', 'DELIVERED']) ||
+          (resource.data.status == 'ON_THE_WAY' && request.resource.data.status == 'DELIVERED')
+        );
+    }
+
     // ─── Menu Items ───
     match /menu_items/{itemId} {
       allow read: if true;
@@ -54,37 +74,52 @@ service cloud.firestore {
     }
 
     // ─── Orders ───
-    // Public read: students track orders by unpredictable document ID
-    // Server creates orders (Firebase Admin SDK bypasses rules)
+    // Server creates orders (Firebase Admin SDK bypasses rules).
+    // Guests track via /api/utils/track-order with a high-entropy trackingToken.
     match /orders/{orderId} {
-      allow read: if true;
+      allow get: if isAdmin() || isOrderOwner() || isAssignedOrderRider();
+      allow list: if isAdmin() || isOrderOwner() || isAssignedOrderRider();
 
       allow create: if isAdmin();
 
-      // Admin or assigned rider can update
       allow update: if isAdmin() ||
-        (isRider() && resource.data.assignedRiderId == request.auth.uid);
+        (isAssignedOrderRider() &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'updatedAt']) &&
+          riderOrderStatusAllowed());
 
       allow delete: if isAdmin();
     }
 
     // ─── Mart Orders ───
     match /mart_orders/{orderId} {
-      allow read: if true;
+      allow get: if isAdmin() ||
+        (isAuthenticated() && resource.data.userId == request.auth.uid) ||
+        (isRider() && resource.data.riderId == request.auth.uid);
+      allow list: if isAdmin() ||
+        (isAuthenticated() && resource.data.userId == request.auth.uid) ||
+        (isRider() && resource.data.riderId == request.auth.uid);
       allow create: if isAdmin();
       allow update: if isAdmin() ||
-        (isRider() && resource.data.riderId == request.auth.uid);
+        (isRider() &&
+          resource.data.riderId == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'updatedAt']) &&
+          request.resource.data.status in ['ON_THE_WAY', 'DELIVERED']);
       allow delete: if isAdmin();
     }
 
     // ─── Batches ───
-    // Riders MUST be able to update their own batches (mark as delivered)
     match /batches/{batchId} {
       allow read: if isAdmin() ||
         (isRider() && resource.data.riderId == request.auth.uid);
       allow create: if isAdmin();
       allow update: if isAdmin() ||
-        (isRider() && resource.data.riderId == request.auth.uid);
+        (isRider() &&
+          resource.data.riderId == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status']) &&
+          request.resource.data.status == 'DELIVERED');
       allow delete: if isAdmin();
     }
 

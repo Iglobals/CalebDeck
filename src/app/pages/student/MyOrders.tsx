@@ -8,6 +8,7 @@ import { Card } from '../../components/design-system/Card';
 import SEO from '../../components/SEO';
 import { getOrderHistory, clearOrderHistory, OrderHistoryEntry, buildEntryFromFirestoreOrder, mergeHistory } from '../../../services/orderHistory';
 import { getOrderById, subscribeToAllHostels, Hostel } from '../../../services/db';
+import { fetchTrackedOrder } from '../../../services/orderTracking';
 import { resolveOrderHostelInfo } from '../../../services/hostels';
 import { resolveOrderVertical } from '../../../services/orderVertical';
 import { useAuth } from '../../../context/AuthContext';
@@ -163,9 +164,12 @@ export default function MyOrders() {
 
     setTrackingOrderId(order.id);
     try {
-      const liveOrder = await getOrderById(order.id);
-      // The cold Firestore doc is the source of truth for the vertical; fall back
-      // to the entry's own saved type only if the doc no longer identifies itself.
+      let liveOrder: any = null;
+      if (user) {
+        liveOrder = await getOrderById(order.id);
+      } else if (order.trackingToken) {
+        liveOrder = await fetchTrackedOrder(order.id, order.trackingToken);
+      }
       const liveVertical = liveOrder
         ? resolveOrderVertical(liveOrder)
         : (order.type === 'fashion' ? 'FASHION' : order.type === 'mart' ? 'MART' : 'FOOD');
@@ -193,6 +197,9 @@ export default function MyOrders() {
             ? (liveOrder?.type === 'combo' ? 'combo' : liveOrder?.type || 'plate')
             : liveOrder?.type || liveVertical.toLowerCase(),
           orderType: liveVertical,
+          trackingToken: order.trackingToken || liveOrder?.trackingToken,
+          userId: liveOrder?.userId || null,
+          iConId: liveOrder?.iConId || null,
           showTracking: true,
         },
       });
@@ -212,6 +219,8 @@ export default function MyOrders() {
           requiresHostelAcknowledgement: order.requiresHostelAcknowledgement,
           type: order.type,
           orderType: order.type === 'fashion' ? 'FASHION' : order.type === 'mart' ? 'MART' : undefined,
+          trackingToken: order.trackingToken,
+          userId: null,
           showTracking: true,
         },
       });
