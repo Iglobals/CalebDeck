@@ -1,10 +1,18 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v2 as cloudinary } from 'cloudinary';
 import { getMessaging } from 'firebase-admin/messaging';
-import { ensureFirebaseAdmin } from '../../server/firebase-admin.js';
+import { adminDb, ensureFirebaseAdmin } from '../../server/firebase-admin.js';
 import { isRateLimited, clientIp } from '../../server/rate-limit.js';
 import { recordEvent } from '../../server/monitoring.js';
 import { verifyAdmin } from '../../server/verify-admin.js';
+import { runScheduledHealthCheck } from '../../server/health-check.js';
+import {
+    cronSecretConfigured,
+    sendTelegramTest,
+    telegramCredentialsPresent,
+    ALERTING_DOC_ID,
+    HEALTH_COLLECTION,
+} from '../../server/telegram.js';
 
 // --- CLOUDINARY HANDLERS ---
 cloudinary.config({
@@ -212,13 +220,134 @@ async function handleAdminRecordEvent(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ success: true });
 }
 
+function cronSecret() {
+    return String(process.env.CRON_SECRET || process.env.MONITORING_CRON_SECRET || '').trim();
+}
+
+function isCronAuthorized(req: VercelRequest) {
+    const expected = cronSecret();
+    if (!expected) return false;
+    const auth = String(req.headers.authorization || '');
+    const header = String(req.headers['x-cron-secret'] || req.headers['x-monitoring-cron-secret'] || '');
+    return auth === `Bearer ${expected}` || header === expected;
+}
+
+function healthCheckSource(req: VercelRequest, adminTriggered: boolean): 'cron' | 'github' | 'admin' {
+    if (String(req.headers['x-health-check-source'] || '').toLowerCase() === 'github') return 'github';
+    if (adminTriggered && !isCronAuthorized(req)) return 'admin';
+    return 'cron';
+}
+
+async function handleHealthCheck(req: VercelRequest, res: VercelResponse) {
+    if (req.method !== 'GET' && req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    let admin: { uid: string } | null = null;
+    try {
+        ensureFirebaseAdmin();
+        admin = await verifyAdmin(req);
+    } catch {
+        admin = null;
+    }
+
+    if (!admin && !isCronAuthorized(req)) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    if (isRateLimited(`health-check:${clientIp(req)}`, 8, 10 * 60 * 1000)) {
+        return res.status(429).json({ error: 'Too many requests' });
+    }
+
+    const result = await runScheduledHealthCheck(healthCheckSource(req, Boolean(admin)));
+    const creds = telegramCredentialsPresent();
+    return res.status(result.ok ? 200 : 503).json({
+        ...result,
+        telegramConfigured: creds.configured,
+        cronSecretConfigured: cronSecretConfigured(),
+    });
+}
+
+async function handleTelegramTest(req: VercelRequest, res: VercelResponse) {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    ensureFirebaseAdmin();
+    const admin = await verifyAdmin(req);
+    if (!admin) return res.status(401).json({ error: 'Unauthorized' });
+    if (isRateLimited(`telegram-test:${admin.uid}`, 5, 10 * 60 * 1000)) {
+        return res.status(429).json({ error: 'Too many requests' });
+    }
+
+    const creds = telegramCredentialsPresent();
+    if (!creds.configured) {
+        return res.status(200).json({
+            configured: false,
+            delivered: false,
+            reason: 'Telegram bot token or chat ID is not configured on the server.',
+            tokenPresent: creds.tokenPresent,
+            chatIdPresent: creds.chatIdPresent,
+        });
+    }
+
+    const result = await sendTelegramTest();
+    return res.status(result.delivered ? 200 : 502).json({
+        configured: true,
+        delivered: result.delivered,
+        skipped: result.skipped || null,
+        reason: result.reason || null,
+    });
+}
+
+async function handleMonitoringStatus(req: VercelRequest, res: VercelResponse) {
+    if (req.method !== 'GET' && req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
+    ensureFirebaseAdmin();
+    const admin = await verifyAdmin(req);
+    if (!admin) return res.status(401).json({ error: 'Unauthorized' });
+
+    const creds = telegramCredentialsPresent();
+    let stored: Record<string, unknown> = {};
+    try {
+        const snap = await adminDb().collection(HEALTH_COLLECTION).doc(ALERTING_DOC_ID).get();
+        stored = snap.data() || {};
+    } catch {
+        stored = {};
+    }
+
+    return res.status(200).json({
+        environment: process.env.VERCEL_ENV || process.env.NODE_ENV || 'unknown',
+        telegram: {
+            configured: creds.configured,
+            tokenPresent: creds.tokenPresent,
+            chatIdPresent: creds.chatIdPresent,
+            lastTestAt: stored.lastTelegramTestAt || null,
+            lastTestSucceeded: stored.lastTelegramTestOk ?? null,
+            lastTestError: stored.lastTelegramTestError || null,
+            lastAlertAt: stored.lastAlertAt || null,
+            lastAlertKind: stored.lastAlertKind || null,
+            lastAlertDelivered: stored.lastAlertDelivered ?? null,
+            lastDeliveryFailureAt: stored.lastDeliveryFailureAt || null,
+            lastDeliveryFailureReason: stored.lastDeliveryFailureReason || null,
+        },
+        healthCheck: {
+            cronSecretConfigured: cronSecretConfigured(),
+            schedule: '0 7 * * *',
+            plan: 'Vercel Hobby allows one cron expression per day. More frequent checks need Pro or GitHub Actions.',
+            lastRunAt: stored.lastHealthCheckAt || null,
+            lastSuccessAt: stored.lastSuccessfulHealthCheckAt || null,
+            lastOk: stored.lastHealthCheckOk ?? null,
+            lastSource: stored.lastHealthCheckSource || null,
+            lastSummary: stored.lastHealthCheckSummary || null,
+        },
+    });
+}
+
 // --- ROUTER ---
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Shared CORS configuration
     res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, X-Api-Key');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, X-Api-Key, X-Cron-Secret, X-Monitoring-Cron-Secret, X-Health-Check-Source');
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
@@ -231,6 +360,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (action === 'send-push') return await handleSendPush(req, res);
         if (action === 'report-error') return await handleReportError(req, res);
         if (action === 'record-event') return await handleAdminRecordEvent(req, res);
+        if (action === 'health-check') return await handleHealthCheck(req, res);
+        if (action === 'telegram-test') return await handleTelegramTest(req, res);
+        if (action === 'monitoring-status') return await handleMonitoringStatus(req, res);
 
         return res.status(404).json({ error: 'Util route not found', action });
     } catch (err: any) {

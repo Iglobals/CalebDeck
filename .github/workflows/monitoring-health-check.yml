@@ -1,0 +1,42 @@
+name: CalebDeck scheduled health check
+
+# Vercel Hobby cron runs once per day. This optional GitHub Action can check
+# every 15 minutes after CRON_SECRET is stored in GitHub Actions secrets.
+# If the secret is missing, the job succeeds and skips so CI is not spammed.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call authenticated health-check
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ secrets.MONITORING_APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET is not set in GitHub Actions secrets. Skipping. Vercel daily cron remains the primary Hobby schedule."
+            exit 0
+          fi
+          BASE="${APP_URL:-https://calebdeck.com}"
+          URL="${BASE%/}/api/utils/health-check"
+          echo "Calling $URL"
+          code=$(curl -sS -o /tmp/health.json -w "%{http_code}" -X POST "$URL" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "X-Cron-Secret: ${CRON_SECRET}" \
+            -H "X-Health-Check-Source: github" \
+            -H "Content-Type: application/json")
+          echo "HTTP $code"
+          cat /tmp/health.json || true
+          if [ "$code" -ge 500 ]; then
+            exit 1
+          fi
+          if [ "$code" -eq 401 ] || [ "$code" -eq 403 ]; then
+            echo "Health-check authentication failed. Confirm CRON_SECRET matches Vercel."
+            exit 1
+          fi

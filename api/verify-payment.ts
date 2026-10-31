@@ -7,7 +7,7 @@ import { calculateServerOrderTotal, validateAndResolveOrderHostel } from '../ser
 import { claimFirstOrderDiscount, mergeDiscountOntoOrder } from '../server/first-order-discount.js';
 import { resolveOrderVertical } from '../src/services/orderVertical.js';
 import { isRateLimited, clientIp } from '../server/rate-limit.js';
-import { recordEvent, monitoringFromError, ensurePaymentResolutionAnnouncement } from '../server/monitoring.js';
+import { recordEvent, monitoringFromError } from '../server/monitoring.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
 
@@ -464,7 +464,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderId,
             persistDocument: false,
         });
-        await ensurePaymentResolutionAnnouncement(true);
 
         return res.status(200).json({
             data: {

@@ -102,15 +102,17 @@ export function NotificationPanel() {
                             </div>
                         ) : (
                             <div className="divide-y divide-gray-100 dark:divide-[#222222]">
-                                {notifications.map(notif => (
+                                {notifications.map(notif => {
+                                    const isIncident = notif.type === 'incident';
+                                    return (
                                     <div
                                         key={notif.id}
                                         onClick={() => !notif.isRead && handleMarkAsRead(notif.id!)}
-                                        className={`px-4 py-3 transition-colors cursor-pointer border-b last:border-0 ${isDark ? 'border-[#222222] hover:bg-[#222222]' : 'border-gray-100 hover:bg-gray-50'} ${!notif.isRead ? (isDark ? 'bg-[#7C3AED]/5' : 'bg-purple-50/50') : ''}`}
+                                        className={`px-4 py-3 transition-colors cursor-pointer border-b last:border-0 ${isIncident ? 'border-l-4 border-l-red-500' : ''} ${isDark ? 'border-[#222222] hover:bg-[#222222]' : 'border-gray-100 hover:bg-gray-50'} ${!notif.isRead ? (isIncident ? (isDark ? 'bg-red-500/10' : 'bg-red-50') : (isDark ? 'bg-[#7C3AED]/5' : 'bg-purple-50/50')) : ''}`}
                                     >
                                         <div className="flex gap-3">
                                             <div className="flex-shrink-0 mt-0.5">
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDark ? 'bg-[#222222]' : 'bg-white shadow-sm border border-gray-100'}`}>
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isIncident ? (isDark ? 'bg-red-500/20' : 'bg-red-100') : (isDark ? 'bg-[#222222]' : 'bg-white shadow-sm border border-gray-100')}`}>
                                                     {getIcon(notif.type)}
                                                 </div>
                                             </div>
@@ -125,23 +127,29 @@ export function NotificationPanel() {
                                                         </span>
                                                     )}
                                                 </div>
+                                                {isIncident && (
+                                                    <span className="mt-1 inline-flex rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-600">
+                                                        Incident
+                                                    </span>
+                                                )}
                                                 <p className={`text-xs mt-0.5 line-clamp-2 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                                                     {notif.message}
                                                 </p>
                                                 {notif.link && (
-                                                    <Link to={notif.link} className={`inline-block mt-2 text-xs font-bold ${isDark ? 'text-[#7C3AED] hover:text-[#6D28D9]' : 'text-purple-600 hover:text-purple-700'}`}>
-                                                        View details →
+                                                    <Link to={notif.link} className={`inline-block mt-2 text-xs font-bold ${isIncident ? 'text-red-600 hover:text-red-700' : (isDark ? 'text-[#7C3AED] hover:text-[#6D28D9]' : 'text-purple-600 hover:text-purple-700')}`}>
+                                                        {isIncident ? 'Open incident →' : 'View details →'}
                                                     </Link>
                                                 )}
                                             </div>
                                             {!notif.isRead && (
                                                 <div className="flex-shrink-0 mt-1.5 pl-2">
-                                                    <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                                                    <div className={`w-2 h-2 rounded-full ${isIncident ? 'bg-red-500' : 'bg-purple-500'}`}></div>
                                                 </div>
                                             )}
                                         </div>
                                     </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </div>

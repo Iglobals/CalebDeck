@@ -386,7 +386,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         await orderRef.set(orderDoc);
         console.log(`[pre-save] Saved order ${orderData.orderId} with ref: ${reference}${batchInfo ? ` [batch: ${batchInfo.batchName}]` : ''}`);
 
-        await ensurePaymentResolutionAnnouncement(false);
+        void ensurePaymentResolutionAnnouncement();
         await recordEvent({
             severity: 'info',
             category: 'order',
