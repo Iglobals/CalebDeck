@@ -4,6 +4,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { requestNotificationPermissionAndSaveToken, onForegroundMessage } from '../../services/messaging';
 import { Bell } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 export function AdminRoleWrapper() {
     const { user, loading } = useAuth();
@@ -39,6 +40,34 @@ export function RiderRoleWrapper() {
     const { riderTheme, applyTheme } = useTheme();
     const navigate = useNavigate();
     const [pushPermissionStatus, setPushPermissionStatus] = useState<string>('granted');
+    const [enablingPush, setEnablingPush] = useState(false);
+    const [showBlockedPushNotice, setShowBlockedPushNotice] = useState(false);
+
+    const handleEnablePush = async () => {
+        if (!user?.uid) return;
+        setEnablingPush(true);
+        try {
+            const res = await requestNotificationPermissionAndSaveToken(user.uid, 'riders');
+            if (typeof window !== 'undefined' && 'Notification' in window) {
+                setPushPermissionStatus(Notification.permission);
+            }
+            if (res.success) {
+                toast.success('Rider push notifications enabled successfully!');
+                setShowBlockedPushNotice(false);
+            } else if (res.needsInstallToHomeScreen) {
+                toast.info('On iPhone, tap Share (square with arrow) > "Add to Home Screen" first, then open CalebDeck from your Home Screen to enable alerts.', { autoClose: 9000 });
+            } else if (res.isBlocked || res.permission === 'denied') {
+                setShowBlockedPushNotice(true);
+                toast.error('Notifications are blocked in your device settings. Allow notifications to receive new batch alerts.', { autoClose: 7000 });
+            } else {
+                toast.warn(res.error || 'Could not enable push notifications.');
+            }
+        } catch (err: any) {
+            toast.error(err.message || 'Notification setup failed.');
+        } finally {
+            setEnablingPush(false);
+        }
+    };
 
     useEffect(() => {
         applyTheme('rider');
@@ -81,7 +110,7 @@ export function RiderRoleWrapper() {
 
             {/* Main Content Area */}
             <main className="flex-1 md:ml-64 pb-20 md:pb-0 min-h-screen relative w-full overflow-x-hidden max-w-[100vw] sm:max-w-full flex flex-col">
-                {/* Push Notification Warning Banner Form Safari iOS */}
+                {/* Push Notification Warning Banner */}
                 {pushPermissionStatus === 'default' && (
                     <div className="bg-amber-500 text-white p-3 px-6 text-center text-sm font-bold flex flex-col sm:flex-row justify-center items-center gap-3 z-50 shadow-md shrink-0 print:hidden sticky top-0">
                         <div className="flex items-center gap-2">
@@ -89,15 +118,28 @@ export function RiderRoleWrapper() {
                             <span>Action Required: Please enable Push Notifications to receive new batch alerts.</span>
                         </div>
                         <button
-                            onClick={async () => {
-                                if (user?.uid) {
-                                    await requestNotificationPermissionAndSaveToken(user.uid, 'riders');
-                                    setPushPermissionStatus(Notification.permission);
-                                }
-                            }}
-                            className="bg-white text-amber-600 px-4 py-1.5 rounded-full text-xs hover:bg-white/90 transition-colors shadow-sm ml-2 whitespace-nowrap"
+                            onClick={handleEnablePush}
+                            disabled={enablingPush}
+                            className="bg-white text-amber-600 px-4 py-1.5 rounded-full text-xs hover:bg-white/90 disabled:opacity-50 transition-colors shadow-sm ml-2 whitespace-nowrap"
                         >
-                            Enable Now
+                            {enablingPush ? 'Enabling...' : 'Enable Now'}
+                        </button>
+                    </div>
+                )}
+
+                {/* Blocked Notification Guidance Banner */}
+                {showBlockedPushNotice && (
+                    <div className="bg-amber-700 text-white p-3 px-6 text-center text-xs sm:text-sm font-medium flex justify-between items-center gap-3 z-50 shadow-md shrink-0 print:hidden sticky top-0">
+                        <div className="flex items-center gap-2 text-left">
+                            <Bell className="w-4 h-4 shrink-0" />
+                            <span>Rider notifications are blocked. Please enable Notifications in your iPhone Settings &gt; Notifications &gt; CalebDeck.</span>
+                        </div>
+                        <button 
+                            onClick={() => setShowBlockedPushNotice(false)}
+                            className="text-white hover:text-white/80 p-1 rounded-full text-base font-bold shrink-0"
+                            aria-label="Dismiss"
+                        >
+                            ✕
                         </button>
                     </div>
                 )}

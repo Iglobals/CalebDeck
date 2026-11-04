@@ -4,7 +4,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 import { getActiveHostels, subscribeToHostels, Hostel, FashionDeliveryConfig } from '../../../services/db';
-import { requestNotificationPermissionAndSaveToken } from '../../../services/messaging';
+import { requestNotificationPermissionAndSaveToken, disableNotifications, checkNotificationSupport, isIOS as checkIsIOS, isStandalonePWA as checkIsStandalonePWA } from '../../../services/messaging';
 import { Button } from '../../components/design-system/Button';
 import { Card } from '../../components/design-system/Card';
 import { Input, Select, Textarea } from '../../components/design-system/Input';
@@ -75,10 +75,11 @@ export default function Profile() {
   }, []);
 
   useEffect(() => {
-    if ('Notification' in window) {
-      setNotificationsEnabled(Notification.permission === 'granted');
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      const userPref = (user as any)?.notificationsEnabled !== false;
+      setNotificationsEnabled(Notification.permission === 'granted' && userPref);
     }
-  }, []);
+  }, [user]);
 
   const memojis = ['😎', '🤓', '🤠', '😇', '👾', '👻', '🤖', '👑', '🚀', '🌟', '🦄', '🦁', '🐶', '🦊', '🐼', '🐯'];
 
@@ -105,24 +106,35 @@ export default function Profile() {
   const handleEnableNotifications = async () => {
     if (!user) return;
     try {
-      if ('Notification' in window && Notification.permission === 'default') {
-         const permission = await Notification.requestPermission();
-         if (permission === 'granted') {
-           await requestNotificationPermissionAndSaveToken(user.uid, 'users');
-           setNotificationsEnabled(true);
-           toast.success("Push notifications enabled!");
-         } else {
-           setNotificationsEnabled(false);
-           toast.error("Notification permission denied");
-         }
-      } else if ('Notification' in window && Notification.permission === 'granted') {
-         await requestNotificationPermissionAndSaveToken(user.uid, 'users');
-         setNotificationsEnabled(true);
-         toast.success("Push notifications updated!");
+      const res = await requestNotificationPermissionAndSaveToken(user.uid, 'users');
+      if (res.success) {
+        setNotificationsEnabled(true);
+        toast.success("Push notifications enabled!");
+      } else if (res.needsInstallToHomeScreen) {
+        setNotificationsEnabled(false);
+        toast.info("On iPhone, tap Share (square with arrow) > 'Add to Home Screen' first, then open CalebDeck from your Home Screen to enable notifications.", { autoClose: 9000 });
+      } else if (res.isBlocked || res.permission === 'denied') {
+        setNotificationsEnabled(false);
+        toast.error("Notification permission is blocked. Open iPhone Settings > Notifications > CalebDeck to allow.", { autoClose: 7000 });
+      } else {
+        setNotificationsEnabled(false);
+        toast.warn(res.error || "Could not enable notifications");
       }
+    } catch (e: any) {
+      setNotificationsEnabled(false);
+      toast.error(e.message || "Could not enable notifications");
+    }
+  };
+
+  const handleDisableNotifications = async () => {
+    if (!user) return;
+    try {
+      await disableNotifications(user.uid, 'users');
+      setNotificationsEnabled(false);
+      toast.success("CalebDeck notifications paused for this device.");
     } catch (e) {
       setNotificationsEnabled(false);
-      toast.error("Could not enable notifications");
+      toast.error("Failed to pause notifications");
     }
   };
 
@@ -463,19 +475,24 @@ export default function Profile() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-bold text-sm">Push Notifications</p>
-                      <p className="text-sm text-muted-foreground mt-0.5">Enable notifications for order updates.</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        {typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'denied'
+                          ? 'Blocked in device settings. Open settings to allow.'
+                          : isIOS && !isStandalone
+                            ? 'Add to Home Screen first to enable push alerts.'
+                            : 'Receive live order and delivery alerts.'}
+                      </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input 
                         type="checkbox" 
                         className="sr-only peer" 
                         checked={notificationsEnabled}
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           if (e.target.checked) {
-                            handleEnableNotifications();
+                            await handleEnableNotifications();
                           } else {
-                            toast.info("You must disable notifications from your browser settings.");
-                            setNotificationsEnabled(true); // reset to true since we can't revoke OS permission via JS
+                            await handleDisableNotifications();
                           }
                         }}
                       />

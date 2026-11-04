@@ -227,9 +227,11 @@ export default function Checkout() {
     } catch {
       foodGroup = { deliveryMode: 'solo' as const, groupSize: 1, plateCount: qty, isGroup: false };
     }
+    const isInstant = deliveryType === 'INSTANT';
+    const instantFee = Number(platformSettings?.instantDeliveryFee) > 0 ? Number(platformSettings.instantDeliveryFee) : 700;
     const premium = isPremiumHostel(formData.hostel, platformSettings);
     const premiumFee = platformSettings?.premiumDeliveryFee || 1250;
-    const foodSoloFee = platformSettings?.foodDeliveryFee || DELIVERY_FEE_SOLO;
+    const foodSoloFee = isInstant ? instantFee : (platformSettings?.foodDeliveryFee || DELIVERY_FEE_SOLO);
     const foodGroupFee = platformSettings?.foodGroupDeliveryFee || DELIVERY_FEE_GROUP;
     const baseDeliveryFee = premium
       ? (foodGroup.isGroup ? premiumGroupDeliveryFee(premiumFee) : premiumFee)
@@ -239,7 +241,7 @@ export default function Checkout() {
       totalAmount: base * qty + delivery,
       breakdown: { food: base * qty, delivery, takeaway: 0, discount: 0, platform: 0, processing: 0 }
     };
-  }, [isCombo, comboOrder?.quantity, comboOrder?.basePrice, currentDeliveryMode, currentGroupSize, formData.hostel, platformSettings]);
+  }, [isCombo, comboOrder?.quantity, comboOrder?.basePrice, currentDeliveryMode, currentGroupSize, formData.hostel, platformSettings, deliveryType]);
 
   // Calculate Order Total (Server-Side) — only for plate orders
   useEffect(() => {
@@ -262,7 +264,8 @@ export default function Checkout() {
           plateCount: plates.length,
           deliveryMode: currentDeliveryMode,
           groupSize: currentGroupSize,
-          hostelId: formData.hostel
+          hostelId: formData.hostel,
+          deliveryType,
         });
 
         setOrderTotal(response.data as any);
@@ -275,7 +278,7 @@ export default function Checkout() {
     };
 
     fetchTotal();
-  }, [plates, drinksSnacks, currentDeliveryMode, currentGroupSize, formData.hostel, comboTotal, isCombo]);
+  }, [plates, drinksSnacks, currentDeliveryMode, currentGroupSize, formData.hostel, comboTotal, isCombo, deliveryType]);
 
   const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
   const selectedHostel = hostels.find(h => h.id === formData.hostel);

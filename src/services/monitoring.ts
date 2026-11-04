@@ -21,19 +21,32 @@ export const SYSTEM_HEALTH = 'system_health';
 
 export type HealthStatus = 'operational' | 'degraded' | 'experiencing_issues' | 'unknown';
 export type IncidentStatus = 'open' | 'investigating' | 'resolved';
+export type FailureCategory = 'client_network' | 'application' | 'provider' | 'unknown';
+
+export interface ServiceHealthData {
+  status: HealthStatus;
+  basis: 'measured' | 'inferred' | 'unknown';
+  lastSuccessAt: number | null;
+  lastFailureAt: number | null;
+  recentSuccesses: number;
+  recentFailures: number;
+  activeWindowSuccesses?: number;
+  activeWindowFailures?: number;
+  totalSuccesses?: number;
+  totalFailures?: number;
+  byCategory?: {
+    client_network: number;
+    application: number;
+    provider: number;
+    unknown: number;
+  };
+  note?: string;
+}
 
 export interface SystemHealth {
   overall: HealthStatus;
   overallBasis?: 'measured' | 'inferred' | 'unknown';
-  services?: Record<string, {
-    status: HealthStatus;
-    basis: 'measured' | 'inferred' | 'unknown';
-    lastSuccessAt: number | null;
-    lastFailureAt: number | null;
-    recentSuccesses: number;
-    recentFailures: number;
-    note?: string;
-  }>;
+  services?: Record<string, ServiceHealthData>;
   failedInitCount?: number;
   failedVerifyCount?: number;
   lastSuccessfulPaymentAt?: number | null;
@@ -105,6 +118,7 @@ export interface SystemLog {
   environment?: string;
   severity: string;
   category: string;
+  failureCategory?: FailureCategory;
   service: string;
   eventType: string;
   humanTitle: string;
@@ -144,6 +158,7 @@ export interface LogGroup {
   severity: string;
   service: string;
   eventType: string;
+  failureCategory?: FailureCategory;
   humanTitle: string;
   humanSummary: string;
   suggestedAction?: string;
@@ -395,4 +410,20 @@ export async function updateIncident(id: string, updates: {
   if (updates.status === 'resolved') payload.resolvedAt = new Date();
   if (updates.acknowledgedBy) payload.acknowledgedBy = updates.acknowledgedBy;
   await updateDoc(doc(db, SYSTEM_INCIDENTS, id), payload);
+}
+
+export async function sendTestPushToCurrentDevice(idToken: string, fcmToken: string) {
+  const response = await fetch('/api/utils?action=test-push', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${idToken}`,
+    },
+    body: JSON.stringify({ token: fcmToken }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to send test push notification.');
+  }
+  return data;
 }

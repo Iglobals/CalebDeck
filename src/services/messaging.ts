@@ -1,15 +1,57 @@
-import { getToken, onMessage } from 'firebase/messaging';
-import { messaging } from './firebase';
-import { doc, setDoc, arrayUnion } from 'firebase/firestore';
-import { db } from './firebase';
+import { getToken, onMessage, Messaging } from 'firebase/messaging';
+import { getMessagingInstance, db } from './firebase';
+import { doc, setDoc, arrayUnion, arrayRemove, getDoc } from 'firebase/firestore';
+
+export interface NotificationRequestResult {
+    success: boolean;
+    permission: NotificationPermission | 'unsupported';
+    token?: string | null;
+    error?: string;
+    needsInstallToHomeScreen?: boolean;
+    isBlocked?: boolean;
+}
+
+export function isIOS(): boolean {
+    if (typeof window === 'undefined') return false;
+    const ua = window.navigator.userAgent || '';
+    const platform = (window.navigator as any)?.platform || '';
+    const maxTouchPoints = window.navigator.maxTouchPoints || 0;
+    return /iPad|iPhone|iPod/.test(ua) || (platform === 'MacIntel' && maxTouchPoints > 1);
+}
+
+export function isStandalonePWA(): boolean {
+    if (typeof window === 'undefined') return false;
+    return (window.navigator as any).standalone === true || 
+        window.matchMedia('(display-mode: standalone)').matches;
+}
+
+export function checkNotificationSupport() {
+    if (typeof window === 'undefined') {
+        return { supported: false, permission: 'unsupported' as const, isIos: false, isStandalone: false, canPrompt: false };
+    }
+    const supported = 'Notification' in window && 'serviceWorker' in navigator;
+    const isIosDevice = isIOS();
+    const isStandalone = isStandalonePWA();
+    const permission: NotificationPermission | 'unsupported' = supported ? Notification.permission : 'unsupported';
+    
+    // On iOS, push is only functional if added to Home Screen (PWA)
+    const canPrompt = supported && (!isIosDevice || isStandalone) && permission !== 'denied';
+
+    return {
+        supported,
+        permission,
+        isIos: isIosDevice,
+        isStandalone,
+        canPrompt,
+    };
+}
 
 /**
  * Explicitly register the Firebase messaging service worker FIRST,
- * then pass its registration to getToken(). This prevents the
- * AbortError caused by Firebase trying to auto-register a conflicting SW.
+ * then pass its registration to getToken().
  */
 const getServiceWorkerRegistration = async (): Promise<ServiceWorkerRegistration | undefined> => {
-    if (!('serviceWorker' in navigator)) return undefined;
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return undefined;
     try {
         const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
             scope: '/',
@@ -22,9 +64,11 @@ const getServiceWorkerRegistration = async (): Promise<ServiceWorkerRegistration
     }
 };
 
-const acquireFCMToken = async (swRegistration?: ServiceWorkerRegistration, retries = 3): Promise<string | null> => {
-    if (!messaging) return null;
-
+const acquireFCMToken = async (
+    messaging: Messaging, 
+    swRegistration?: ServiceWorkerRegistration, 
+    retries = 3
+): Promise<string | null> => {
     for (let attempt = 0; attempt < retries; attempt++) {
         try {
             const tokenOptions: any = {
@@ -41,7 +85,7 @@ const acquireFCMToken = async (swRegistration?: ServiceWorkerRegistration, retri
         } catch (err) {
             console.warn(`FCM token attempt ${attempt + 1} failed:`, err);
             if (attempt < retries - 1) {
-                await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+                await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
             }
         }
     }
@@ -50,51 +94,181 @@ const acquireFCMToken = async (swRegistration?: ServiceWorkerRegistration, retri
 
 /**
  * Request notification permission and save FCM token to Firestore.
- * targetCollection: 'users' for admins, 'riders' for riders
+ * targetCollection: 'users' for admins/students, 'riders' for riders
  */
-export const requestNotificationPermissionAndSaveToken = async (userId: string, targetCollection: 'users' | 'riders') => {
-    if (!messaging) {
-        console.warn('Firebase Messaging not available');
-        return;
+export const requestNotificationPermissionAndSaveToken = async (
+    userId: string, 
+    targetCollection: 'users' | 'riders'
+): Promise<NotificationRequestResult> => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+        return {
+            success: false,
+            permission: 'unsupported',
+            error: 'Push notifications are not supported by this browser.',
+        };
     }
-    try {
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-            console.log('Notification permission not granted.');
-            return;
-        }
 
+    const isIosDevice = isIOS();
+    const isStandalone = isStandalonePWA();
+
+    // iOS requires the app to be added to Home Screen as a PWA for Web Push
+    if (isIosDevice && !isStandalone) {
+        return {
+            success: false,
+            permission: Notification.permission,
+            needsInstallToHomeScreen: true,
+            error: 'On iPhone, push notifications require adding CalebDeck to your Home Screen first.',
+        };
+    }
+
+    if (Notification.permission === 'denied') {
+        return {
+            success: false,
+            permission: 'denied',
+            isBlocked: true,
+            error: 'Notification permission is blocked. Open iPhone Settings > Notifications > CalebDeck to allow.',
+        };
+    }
+
+    // CRITICAL FOR SAFARI/iOS: Request permission synchronously inside user gesture before any await
+    let permission: NotificationPermission = Notification.permission;
+    try {
+        if (permission === 'default') {
+            permission = await new Promise<NotificationPermission>((resolve) => {
+                try {
+                    const result = Notification.requestPermission((p) => resolve(p));
+                    if (result && typeof result.then === 'function') {
+                        result.then(resolve).catch(() => resolve(Notification.permission));
+                    }
+                } catch {
+                    resolve(Notification.permission);
+                }
+            });
+        }
+    } catch (err: any) {
+        console.warn('Failed to request notification permission:', err);
+        return {
+            success: false,
+            permission: Notification.permission,
+            error: err.message || 'Permission request failed.',
+        };
+    }
+
+    if (permission !== 'granted') {
+        return {
+            success: false,
+            permission,
+            isBlocked: permission === 'denied',
+            error: permission === 'denied' 
+                ? 'Notifications were denied. Allow notifications in your device settings to receive alerts.'
+                : 'Notification permission was not granted.',
+        };
+    }
+
+    try {
         // Step 1: Register the SW
         const swRegistration = await getServiceWorkerRegistration();
 
-        // Step 2: Get FCM token (separate from Firestore save)
-        const token = await acquireFCMToken(swRegistration);
-
-        if (!token) {
-            console.warn('Could not acquire FCM token after retries. Push notifications may not work.');
-            return;
+        // Step 2: Initialize Firebase Messaging
+        const messaging = await getMessagingInstance();
+        if (!messaging) {
+            return {
+                success: false,
+                permission: 'granted',
+                error: 'Firebase Messaging could not be initialized on this device.',
+            };
         }
 
-        // Step 3: Save token to Firestore — use setDoc with merge so it works
-        // even if the document doesn't exist yet
+        // Step 3: Get FCM token
+        const token = await acquireFCMToken(messaging, swRegistration);
+        if (!token) {
+            return {
+                success: false,
+                permission: 'granted',
+                error: 'Could not obtain FCM token from notification service. Please try again.',
+            };
+        }
+
+        // Remember active token locally
+        try {
+            localStorage.setItem('calebdeck_fcm_token', token);
+        } catch {}
+
+        // Step 4: Save token to Firestore
         try {
             const userRef = doc(db, targetCollection, userId);
-            await setDoc(userRef, { fcmTokens: arrayUnion(token) }, { merge: true });
-            console.log(`FCM token saved to ${targetCollection}/${userId}`);
+            await setDoc(userRef, { 
+                fcmTokens: arrayUnion(token),
+                notificationsEnabled: true,
+                lastTokenUpdatedAt: Date.now()
+            }, { merge: true });
+            console.log(`FCM token successfully registered for ${targetCollection}/${userId}`);
         } catch (err) {
             console.error('Error saving FCM token to Firestore:', err);
-            // Token was still acquired — push may work if the backend has old tokens
         }
-    } catch (error) {
+
+        return {
+            success: true,
+            permission: 'granted',
+            token,
+        };
+    } catch (error: any) {
         console.error('Failed to set up push notifications:', error);
+        return {
+            success: false,
+            permission: 'granted',
+            error: error.message || 'Failed to complete push setup.',
+        };
+    }
+};
+
+/**
+ * Disable notifications for the current device and update user record in Firestore.
+ */
+export const disableNotifications = async (
+    userId: string, 
+    targetCollection: 'users' | 'riders'
+): Promise<boolean> => {
+    try {
+        const storedToken = typeof localStorage !== 'undefined' ? localStorage.getItem('calebdeck_fcm_token') : null;
+        const userRef = doc(db, targetCollection, userId);
+        const updatePayload: any = { 
+            notificationsEnabled: false,
+            updatedAt: Date.now()
+        };
+        if (storedToken) {
+            updatePayload.fcmTokens = arrayRemove(storedToken);
+        }
+        await setDoc(userRef, updatePayload, { merge: true });
+        if (storedToken && typeof localStorage !== 'undefined') {
+            localStorage.removeItem('calebdeck_fcm_token');
+        }
+        return true;
+    } catch (err) {
+        console.warn('Failed to disable notifications in database:', err);
+        return false;
     }
 };
 
 export const onForegroundMessage = (callback: (payload: any) => void) => {
-    if (!messaging) return () => { };
-    return onMessage(messaging, (payload) => {
-        callback(payload);
-    });
+    let unsubscribe: (() => void) | null = null;
+    let active = true;
+
+    getMessagingInstance().then((msg) => {
+        if (!msg || !active) return;
+        try {
+            unsubscribe = onMessage(msg, (payload) => {
+                callback(payload);
+            });
+        } catch (e) {
+            console.warn('Could not register onMessage listener:', e);
+        }
+    }).catch(() => {});
+
+    return () => {
+        active = false;
+        if (unsubscribe) unsubscribe();
+    };
 };
 
 /**
@@ -126,15 +300,12 @@ export const sendOrderStatusPushNotification = async (
     if (!copy) return;
 
     try {
-        // Fetch user's tokens
-        const { getDoc } = await import('firebase/firestore');
         const userDoc = await getDoc(doc(db, 'users', userId));
         if (!userDoc.exists()) return;
         
         const fcmTokens = userDoc.data().fcmTokens;
         if (!fcmTokens || !Array.isArray(fcmTokens) || fcmTokens.length === 0) return;
 
-        // Call the serverless function securely
         await fetch('/api/utils/send-push', {
             method: 'POST',
             headers: {
@@ -145,7 +316,9 @@ export const sendOrderStatusPushNotification = async (
                 title: copy.title,
                 body: copy.body,
                 tokens: fcmTokens,
-                link: `/my-orders`
+                link: `/my-orders`,
+                userId,
+                targetCollection: 'users'
             })
         });
     } catch (err) {

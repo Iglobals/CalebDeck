@@ -114,6 +114,52 @@ function truncate(value: unknown, max = 1500) {
     return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
+export type FailureCategory = 'client_network' | 'application' | 'provider' | 'unknown';
+
+export function classifyFailure(input: {
+    errorMessage?: string;
+    errorCode?: string;
+    httpStatus?: number | null;
+    stack?: string;
+    eventType?: string;
+    service?: string;
+}): FailureCategory {
+    const text = `${input.errorMessage || ''} ${input.errorCode || ''} ${input.eventType || ''} ${input.stack || ''}`.toLowerCase();
+    
+    // 1. Client / Network / Disconnect / Abort
+    if (
+        /abort|failed to fetch|networkerror|network request failed|offline|socket hang up|econnreset|client timeout|err_network|net::err/i.test(text) ||
+        input.errorCode === 'NETWORK_ERROR' ||
+        input.errorCode === 'FETCH_FAILED' ||
+        input.errorCode === 'ABORT_ERR' ||
+        input.errorCode === 'ECONNRESET'
+    ) {
+        return 'client_network';
+    }
+
+    // 2. Upstream Provider (Paystack, Clubkonnect, Cloudinary, SMS)
+    if (
+        /paystack|clubkonnect|cloudinary|bad gateway|502|503|504|gateway timeout|service unavailable/i.test(text) ||
+        input.eventType?.includes('paystack') ||
+        input.eventType?.includes('clubkonnect')
+    ) {
+        return 'provider';
+    }
+
+    // 3. Application / Backend / Database
+    if (
+        /referenceerror|typeerror|syntaxerror|unhandled_rejection|internal server error|500|firestore|firebase-admin|permission-denied|deadlock/i.test(text) ||
+        input.service === 'backend' ||
+        input.service === 'firebase' ||
+        input.eventType === 'unhandled_exception' ||
+        input.httpStatus === 500
+    ) {
+        return 'application';
+    }
+
+    return 'unknown';
+}
+
 function emptyServiceHealth() {
     return {
         status: 'unknown' as HealthStatus,
@@ -122,6 +168,17 @@ function emptyServiceHealth() {
         lastFailureAt: null as number | null,
         recentSuccesses: 0,
         recentFailures: 0,
+        activeWindowSuccesses: 0,
+        activeWindowFailures: 0,
+        windowStartedAt: nowMs(),
+        totalSuccesses: 0,
+        totalFailures: 0,
+        byCategory: {
+            client_network: 0,
+            application: 0,
+            provider: 0,
+            unknown: 0,
+        },
         note: 'Not enough measured events yet.',
     };
 }
@@ -140,16 +197,65 @@ async function withTimeout<T>(promise: Promise<T>, ms = 1500): Promise<T | null>
     }
 }
 
-function deriveServiceStatus(successes: number, failures: number, lastSuccessAt: number | null, lastFailureAt: number | null) {
+function deriveServiceStatus(service: any) {
     const now = nowMs();
+    const lastFailureAt = service.lastFailureAt || null;
+    const lastSuccessAt = service.lastSuccessAt || null;
     const recentFailure = lastFailureAt && now - lastFailureAt < WINDOW_MS;
     const recentSuccess = lastSuccessAt && now - lastSuccessAt < 2 * 60 * 60 * 1000;
+    
+    const windowFails = Number(service.activeWindowFailures ?? service.recentFailures ?? 0);
+    const windowSuccesses = Number(service.activeWindowSuccesses ?? service.recentSuccesses ?? 0);
+    const cat = service.byCategory || { client_network: 0, application: 0, provider: 0, unknown: 0 };
+    const networkDropsOnly = windowFails > 0 && cat.client_network === windowFails;
 
-    if (failures >= 3 && successes === 0 && recentFailure) {
+    // If failures in the active window are only client-side network disconnects (student elevators/bad network)
+    if (networkDropsOnly) {
+        if (recentSuccess) {
+            return {
+                status: 'operational' as HealthStatus,
+                basis: 'measured' as HealthBasis,
+                note: `Operational. Client-side network drops detected on student devices (${cat.client_network}); backend operations are healthy.`
+            };
+        }
+        return {
+            status: 'operational' as HealthStatus,
+            basis: 'measured' as HealthBasis,
+            note: `Client network drops detected on student devices (${cat.client_network}). Backend is operational.`
+        };
+    }
+
+    // Upstream provider issues (Paystack, Clubkonnect)
+    if (cat.provider > 0 && recentFailure && (cat.application === 0 || cat.provider >= cat.application)) {
+        return {
+            status: 'degraded' as HealthStatus,
+            basis: 'measured' as HealthBasis,
+            note: `Upstream provider disruption (${cat.provider} provider failure(s)). Check external service status.`
+        };
+    }
+
+    // Application / Code / Server 500 issues
+    if (cat.application > 0 && recentFailure) {
+        if (windowSuccesses === 0 && windowFails >= 3) {
+            return {
+                status: 'experiencing_issues' as HealthStatus,
+                basis: 'measured' as HealthBasis,
+                note: `Multiple application/server errors (${cat.application}). Inspect recent error stack traces.`
+            };
+        }
+        return {
+            status: 'degraded' as HealthStatus,
+            basis: 'measured' as HealthBasis,
+            note: `Application errors detected (${cat.application}) alongside successful operations.`
+        };
+    }
+
+    // If recent failures occurred within 15 mins
+    if (windowFails >= 3 && windowSuccesses === 0 && recentFailure) {
         return { status: 'experiencing_issues' as HealthStatus, basis: 'measured' as HealthBasis, note: 'Repeated failures with no recent successes.' };
     }
-    if (failures > 0 && successes > 0 && recentFailure) {
-        return { status: 'degraded' as HealthStatus, basis: 'measured' as HealthBasis, note: 'Successes and failures are both occurring.' };
+    if (windowFails > 0 && windowSuccesses > 0 && recentFailure) {
+        return { status: 'degraded' as HealthStatus, basis: 'measured' as HealthBasis, note: 'Successes and failures are both occurring in recent traffic.' };
     }
     if (recentSuccess && !recentFailure) {
         return { status: 'operational' as HealthStatus, basis: 'measured' as HealthBasis, note: 'Recent successful measured operations.' };
@@ -157,7 +263,7 @@ function deriveServiceStatus(successes: number, failures: number, lastSuccessAt:
     if (recentFailure) {
         return { status: 'experiencing_issues' as HealthStatus, basis: 'measured' as HealthBasis, note: 'Recent measured failures.' };
     }
-    return { status: 'unknown' as HealthStatus, basis: 'unknown' as HealthBasis, note: 'No recent measured events.' };
+    return { status: 'unknown' as HealthStatus, basis: 'unknown' as HealthBasis, note: 'No recent measured events in the active window.' };
 }
 
 function overallFrom(services: Record<string, { status: HealthStatus }>): HealthStatus {
@@ -315,64 +421,70 @@ async function updateHealth(db: Firestore, input: LogEventInput) {
         order: { ...emptyServiceHealth(), ...(current.services?.order || {}) },
         backend: { ...emptyServiceHealth(), ...(current.services?.backend || {}) },
         firebase: { ...emptyServiceHealth(), ...(current.services?.firebase || {}) },
+        push: { ...emptyServiceHealth(), ...(current.services?.push || {}) },
     };
 
     const isFailure = ['critical', 'high', 'medium'].includes(input.severity) && /fail|error|invalid|mismatch/i.test(input.eventType);
-    const isSuccess = /success|verified|paid/.test(input.eventType);
+    const isSuccess = /success|verified|paid|sent/.test(input.eventType);
     const target =
         input.service === 'payment' || input.service === 'webhook' ? 'payment'
             : input.service === 'checkout' ? 'checkout'
                 : input.service === 'order' ? 'order'
                     : input.service === 'firebase' ? 'firebase'
-                        : 'backend';
+                        : input.service === 'push' || input.eventType.includes('push_notification') ? 'push'
+                            : 'backend';
 
     const now = nowMs();
-    if (isSuccess) {
-        services[target].recentSuccesses = Number(services[target].recentSuccesses || 0) + 1;
-        services[target].lastSuccessAt = now;
-    }
-    if (isFailure) {
-        services[target].recentFailures = Number(services[target].recentFailures || 0) + 1;
-        services[target].lastFailureAt = now;
-    }
+    const WINDOW_DURATION = 60 * 60 * 1000; // 1-hour active window
+
+    // Helper to rotate window if expired
+    const updateServiceMetrics = (srvKey: keyof typeof services) => {
+        const s = services[srvKey];
+        if (!s.windowStartedAt || now - s.windowStartedAt > WINDOW_DURATION) {
+            s.activeWindowSuccesses = 0;
+            s.activeWindowFailures = 0;
+            s.windowStartedAt = now;
+            s.byCategory = { client_network: 0, application: 0, provider: 0, unknown: 0 };
+        }
+        if (!s.byCategory) {
+            s.byCategory = { client_network: 0, application: 0, provider: 0, unknown: 0 };
+        }
+
+        if (isSuccess) {
+            s.activeWindowSuccesses = Number(s.activeWindowSuccesses || 0) + 1;
+            s.recentSuccesses = s.activeWindowSuccesses;
+            s.totalSuccesses = Number(s.totalSuccesses || 0) + 1;
+            s.lastSuccessAt = now;
+        }
+        if (isFailure) {
+            const cat = classifyFailure(input);
+            s.byCategory[cat] = Number(s.byCategory[cat] || 0) + 1;
+            s.activeWindowFailures = Number(s.activeWindowFailures || 0) + 1;
+            s.recentFailures = s.activeWindowFailures;
+            s.totalFailures = Number(s.totalFailures || 0) + 1;
+            s.lastFailureAt = now;
+        }
+    };
+
+    updateServiceMetrics(target);
 
     const firebaseFailed = input.service === 'firebase' || /firestore|firebase/i.test(String(input.errorMessage || input.eventType || ''));
     if (firebaseFailed && isFailure) {
-        services.firebase.recentFailures = Number(services.firebase.recentFailures || 0) + 1;
-        services.firebase.lastFailureAt = now;
-    } else {
-        services.firebase.recentSuccesses = Number(services.firebase.recentSuccesses || 0) + 1;
-        services.firebase.lastSuccessAt = now;
+        updateServiceMetrics('firebase');
+    } else if (input.service === 'firebase') {
+        updateServiceMetrics('firebase');
     }
 
     if (input.eventType.startsWith('pre_save') || input.eventType.startsWith('order_')) {
-        if (isSuccess) {
-            services.order.recentSuccesses = Number(services.order.recentSuccesses || 0) + 1;
-            services.order.lastSuccessAt = now;
-        }
-        if (isFailure) {
-            services.order.recentFailures = Number(services.order.recentFailures || 0) + 1;
-            services.order.lastFailureAt = now;
-        }
+        updateServiceMetrics('order');
     }
 
-    if (input.service !== 'frontend') {
-        if (isFailure && (input.service === 'backend' || input.eventType === 'api_failure' || input.eventType === 'unhandled_exception')) {
-            services.backend.recentFailures = Number(services.backend.recentFailures || 0) + 1;
-            services.backend.lastFailureAt = now;
-        } else if (isSuccess) {
-            services.backend.recentSuccesses = Number(services.backend.recentSuccesses || 0) + 1;
-            services.backend.lastSuccessAt = now;
-        }
+    if (input.service !== 'frontend' && (input.service === 'backend' || input.eventType === 'api_failure' || input.eventType === 'unhandled_exception')) {
+        updateServiceMetrics('backend');
     }
 
     for (const key of Object.keys(services) as Array<keyof typeof services>) {
-        const derived = deriveServiceStatus(
-            Number(services[key].recentSuccesses || 0),
-            Number(services[key].recentFailures || 0),
-            services[key].lastSuccessAt || null,
-            services[key].lastFailureAt || null
-        );
+        const derived = deriveServiceStatus(services[key]);
         services[key] = { ...services[key], ...derived };
     }
 
@@ -436,10 +548,12 @@ async function writeEvent(input: LogEventInput) {
     const groupSnap = await groupRef.get();
     const previousCount = Number(groupSnap.data()?.occurrenceCount || 0);
     const occurrenceCount = previousCount + 1;
+    const failureCat = classifyFailure(input);
     await groupRef.set({
         fingerprint,
         severity: input.severity,
         category: input.category,
+        failureCategory: failureCat,
         service: input.service,
         eventType: input.eventType,
         humanTitle: input.humanTitle,
@@ -469,6 +583,7 @@ async function writeEvent(input: LogEventInput) {
             environment: envName(),
             severity: input.severity,
             category: input.category,
+            failureCategory: failureCat,
             service: input.service,
             eventType: input.eventType,
             humanTitle: input.humanTitle,
