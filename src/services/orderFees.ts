@@ -14,6 +14,7 @@ export const DEFAULT_PREMIUM_HOSTELS = ['sussana', 'rebecca', 'mary', 'esme', 'd
 
 export const FEE_DEFAULTS = {
     foodDeliveryFee: 750,
+    instantDeliveryFee: 700,
     foodGroupDeliveryFee: 580,
     premiumDeliveryFee: 1250,
     martDeliveryFee: 1500,
@@ -87,17 +88,21 @@ export function resolveDeliveryFee(order: any, settings?: any): DeliveryFeeResul
         return { vertical, deliveryFee: fee, baseDeliveryFee: fee, isPremium };
     }
 
-    // FOOD — premium/goup/solo rate × plate count
+    // FOOD — premium/group/solo rate × plate count
     const plateCount = Number(
         order?.plateCount ?? order?.quantity ?? (Array.isArray(order?.plates) ? order.plates.length : 1)
     ) || 1;
     const isGroup = String(order?.deliveryMode ?? '').trim().toLowerCase() === 'group';
+    const isInstant = String(order?.deliveryType ?? '').trim().toUpperCase() === 'INSTANT';
     const premiumFee = feeFromSettings(settings, 'premiumDeliveryFee', FEE_DEFAULTS.premiumDeliveryFee);
+    const soloFee = isInstant
+        ? feeFromSettings(settings, 'instantDeliveryFee', FEE_DEFAULTS.instantDeliveryFee)
+        : feeFromSettings(settings, 'foodDeliveryFee', FEE_DEFAULTS.foodDeliveryFee);
     const base = isPremium
         ? (isGroup ? premiumGroupDeliveryFee(premiumFee) : premiumFee)
         : isGroup
             ? feeFromSettings(settings, 'foodGroupDeliveryFee', FEE_DEFAULTS.foodGroupDeliveryFee)
-            : feeFromSettings(settings, 'foodDeliveryFee', FEE_DEFAULTS.foodDeliveryFee);
+            : soloFee;
     return { vertical, deliveryFee: base * plateCount, baseDeliveryFee: base, isPremium };
 }
 

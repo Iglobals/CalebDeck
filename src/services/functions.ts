@@ -8,7 +8,7 @@ import { premiumGroupDeliveryFee, resolveFoodGroupPricing } from './groupPricing
 
 export const calculateOrderTotal = async (data: any) => {
     if (import.meta.env.DEV) {
-        const { items, deliveryMode, plateCount: providedPlateCount, hostelId, groupSize } = data;
+        const { items, deliveryMode, plateCount: providedPlateCount, hostelId, groupSize, deliveryType } = data;
         let total = 0;
 
         items.forEach((item: any) => {
@@ -25,8 +25,9 @@ export const calculateOrderTotal = async (data: any) => {
 
         // This is a local mock for DEV. We don't have direct access to platform settings here so we use defaults,
         // but Checkout.tsx handles its own fallback if it needs it.
+        const isInstant = String(deliveryType || '').trim().toUpperCase() === 'INSTANT';
         const premiumDeliveryFee = 1250;
-        const foodSoloFee = 750;
+        const foodSoloFee = isInstant ? 700 : 750;
         const foodGroupFee = 580;
         const isPremium = isPremiumHostel(hostelId);
 

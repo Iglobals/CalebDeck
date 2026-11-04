@@ -27,6 +27,8 @@ import {
   LogGroup,
   updateIncident,
   IncidentStatus,
+  FailureCategory,
+  sendTestPushToCurrentDevice,
 } from '../../../services/monitoring';
 import { toast } from 'react-toastify';
 import {
@@ -39,6 +41,7 @@ import {
   Search,
   Server,
   ShoppingBag,
+  Send,
   X,
 } from 'lucide-react';
 
@@ -48,6 +51,7 @@ const SERVICE_LABELS: Record<string, string> = {
   order: 'Order creation',
   backend: 'Backend / API',
   firebase: 'Firebase / Database',
+  push: 'Push notifications',
   webhook: 'Payment webhooks',
   frontend: 'Customer app',
   api: 'Backend / API',
@@ -68,47 +72,101 @@ function healthVariant(status?: string): 'green' | 'amber' | 'red' | 'gray' {
   return 'gray';
 }
 
+function categoryBadge(cat?: string): { label: string; variant: 'blue' | 'red' | 'amber' | 'gray' } {
+  if (cat === 'client_network') return { label: 'Client Network', variant: 'blue' };
+  if (cat === 'application') return { label: 'Server / App', variant: 'red' };
+  if (cat === 'provider') return { label: 'Provider Issue', variant: 'amber' };
+  return { label: 'General / Unknown', variant: 'gray' };
+}
+
 function HealthCard({
   title,
   icon,
   service,
+  onAction,
+  actionLabel,
+  actionLoading,
 }: {
   title: string;
   icon: React.ReactNode;
-  service?: {
-    status?: string;
-    basis?: string;
-    lastSuccessAt?: number | null;
-    lastFailureAt?: number | null;
-    recentSuccesses?: number;
-    recentFailures?: number;
-    note?: string;
-  };
+  service?: any;
+  onAction?: () => void;
+  actionLabel?: string;
+  actionLoading?: boolean;
 }) {
   const { adminTheme } = useTheme();
   const isDark = adminTheme === 'dark';
   const status = service?.status || 'unknown';
+  const activeFails = service?.activeWindowFailures ?? service?.recentFailures ?? 0;
+  const activeSuccess = service?.activeWindowSuccesses ?? service?.recentSuccesses ?? 0;
+  const totalFails = service?.totalFailures;
+  const byCat = service?.byCategory || { client_network: 0, application: 0, provider: 0, unknown: 0 };
+
   return (
-    <Card className="p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className={`rounded-xl p-3 ${isDark ? 'bg-[#2A2A2A]' : 'bg-gray-100'}`}>{icon}</div>
-          <div>
-            <p className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{title}</p>
-            <p className={`text-xs ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
-              {service?.basis === 'measured' ? 'Measured from live events' : 'Unknown / not enough measured data'}
-            </p>
+    <Card className="p-5 flex flex-col justify-between">
+      <div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className={`rounded-xl p-3 ${isDark ? 'bg-[#2A2A2A]' : 'bg-gray-100'}`}>{icon}</div>
+            <div>
+              <p className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{title}</p>
+              <p className={`text-xs ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+                {service?.basis === 'measured' ? 'Measured from live events' : 'Unknown / not enough data'}
+              </p>
+            </div>
           </div>
+          <Badge variant={healthVariant(status)}>{statusLabel(status)}</Badge>
         </div>
-        <Badge variant={healthVariant(status)}>{statusLabel(status)}</Badge>
+        <p className={`mt-3 text-xs leading-relaxed ${isDark ? 'text-[#C4B8A8]' : 'text-gray-600'}`}>
+          {service?.note || 'Waiting for measured events.'}
+        </p>
+
+        {/* Categories breakdown pills */}
+        {(byCat.client_network > 0 || byCat.application > 0 || byCat.provider > 0) && (
+          <div className="mt-3 flex flex-wrap gap-1.5 text-[11px]">
+            {byCat.client_network > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-500 font-medium">
+                {byCat.client_network} network drop{byCat.client_network > 1 ? 's' : ''}
+              </span>
+            )}
+            {byCat.application > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-500 font-medium">
+                {byCat.application} app error{byCat.application > 1 ? 's' : ''}
+              </span>
+            )}
+            {byCat.provider > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 font-medium">
+                {byCat.provider} provider error{byCat.provider > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+        )}
+
+        <div className={`mt-4 grid grid-cols-2 gap-3 text-xs ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+          <div>
+            <span className="font-semibold text-emerald-500">Active (1h):</span> {activeSuccess} ok / {activeFails} fail
+          </div>
+          <div>
+            <span className="font-semibold">All-time:</span> {totalFails !== undefined ? `${totalFails} fail` : `${service?.recentFailures ?? 0} fail`}
+          </div>
+          <div>Last success: {service?.lastSuccessAt ? formatWat(service.lastSuccessAt) : 'None recorded'}</div>
+          <div>Last failure: {service?.lastFailureAt ? formatWat(service.lastFailureAt) : 'None recorded'}</div>
+        </div>
       </div>
-      <p className={`mt-4 text-sm ${isDark ? 'text-[#C4B8A8]' : 'text-gray-600'}`}>{service?.note || 'Waiting for measured events.'}</p>
-      <div className={`mt-4 grid grid-cols-2 gap-3 text-xs ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
-        <div>Recent successes: {service?.recentSuccesses ?? 0}</div>
-        <div>Recent failures: {service?.recentFailures ?? 0}</div>
-        <div>Last success: {service?.lastSuccessAt ? formatWat(service.lastSuccessAt) : 'None recorded'}</div>
-        <div>Last failure: {service?.lastFailureAt ? formatWat(service.lastFailureAt) : 'None recorded'}</div>
-      </div>
+
+      {onAction && actionLabel && (
+        <div className="mt-4 pt-3 border-t border-border">
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full text-xs"
+            onClick={onAction}
+            disabled={actionLoading}
+          >
+            {actionLoading ? 'Testing...' : actionLabel}
+          </Button>
+        </div>
+      )}
     </Card>
   );
 }
@@ -286,6 +344,41 @@ export default function AdminMonitoring() {
     }
   };
 
+  const [testingPush, setTestingPush] = useState(false);
+
+  const handleSendTestPush = async () => {
+    setTestingPush(true);
+    try {
+      const token = await user?.getIdToken();
+      if (!token) throw new Error('Admin session expired');
+      const localFcmToken = typeof localStorage !== 'undefined' ? localStorage.getItem('calebdeck_fcm_token') : null;
+      if (!localFcmToken) {
+        toast.info('No device token found on this device. Tap "Enable Now" on the notification banner first.', { autoClose: 7000 });
+        return;
+      }
+      await sendTestPushToCurrentDevice(token, localFcmToken);
+      toast.success('Test notification sent! Check your screen or notification center.');
+    } catch (err: any) {
+      toast.error(err.message || 'Could not send test notification.');
+    } finally {
+      setTestingPush(false);
+    }
+  };
+
+  const categoryTotals = useMemo(() => {
+    const counts = { client_network: 0, application: 0, provider: 0, unknown: 0 };
+    if (!health?.services) return counts;
+    for (const s of Object.values(health.services)) {
+      if ((s as any)?.byCategory) {
+        counts.client_network += Number((s as any).byCategory.client_network || 0);
+        counts.application += Number((s as any).byCategory.application || 0);
+        counts.provider += Number((s as any).byCategory.provider || 0);
+        counts.unknown += Number((s as any).byCategory.unknown || 0);
+      }
+    }
+    return counts;
+  }, [health]);
+
   const inputClass = `rounded-xl border px-3 py-2 text-sm outline-none ${isDark ? 'border-[#333] bg-[#2A2A2A] text-white' : 'border-gray-200 bg-white text-gray-900'}`;
 
   return (
@@ -346,6 +439,35 @@ export default function AdminMonitoring() {
                   </div>
                 </div>
               </div>
+
+              {/* Actionable Failure Classification Breakdown */}
+              <div className="mt-5 pt-4 border-t border-border">
+                <p className={`text-xs font-bold uppercase tracking-wider mb-2.5 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
+                  Failure Root-Cause Classification
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className={`p-3 rounded-2xl border ${isDark ? 'bg-blue-950/20 border-blue-900/40 text-blue-400' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
+                    <p className="text-[11px] font-bold uppercase">Client Network</p>
+                    <p className="text-xl font-black mt-0.5">{categoryTotals.client_network}</p>
+                    <p className="text-[10px] opacity-80 mt-0.5">Mobile disconnects & aborts</p>
+                  </div>
+                  <div className={`p-3 rounded-2xl border ${isDark ? 'bg-red-950/20 border-red-900/40 text-red-400' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                    <p className="text-[11px] font-bold uppercase">Server / App Code</p>
+                    <p className="text-xl font-black mt-0.5">{categoryTotals.application}</p>
+                    <p className="text-[10px] opacity-80 mt-0.5">Internal errors & exceptions</p>
+                  </div>
+                  <div className={`p-3 rounded-2xl border ${isDark ? 'bg-amber-950/20 border-amber-900/40 text-amber-400' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+                    <p className="text-[11px] font-bold uppercase">Provider / Upstream</p>
+                    <p className="text-xl font-black mt-0.5">{categoryTotals.provider}</p>
+                    <p className="text-[10px] opacity-80 mt-0.5">Paystack / 3rd-party outage</p>
+                  </div>
+                  <div className={`p-3 rounded-2xl border ${isDark ? 'bg-[#2A2A2A] border-[#333] text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-600'}`}>
+                    <p className="text-[11px] font-bold uppercase">Unknown / Unclassified</p>
+                    <p className="text-xl font-black mt-0.5">{categoryTotals.unknown}</p>
+                    <p className="text-[10px] opacity-80 mt-0.5">Other edge cases</p>
+                  </div>
+                </div>
+              </div>
             </Card>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -354,6 +476,14 @@ export default function AdminMonitoring() {
               <HealthCard title="Checkout" icon={<CheckCircle2 className="h-5 w-5 text-[#7C3AED]" />} service={health?.services?.checkout} />
               <HealthCard title="Backend / API" icon={<Server className="h-5 w-5 text-[#7C3AED]" />} service={health?.services?.backend} />
               <HealthCard title="Firebase / Database" icon={<Database className="h-5 w-5 text-[#7C3AED]" />} service={health?.services?.firebase} />
+              <HealthCard 
+                title="Push notifications" 
+                icon={<Bell className="h-5 w-5 text-[#7C3AED]" />} 
+                service={health?.services?.push} 
+                onAction={handleSendTestPush}
+                actionLabel="Send Test Push to Device"
+                actionLoading={testingPush}
+              />
             </div>
 
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
@@ -605,6 +735,11 @@ export default function AdminMonitoring() {
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{log.humanTitle}</p>
                     <div className="flex items-center gap-2">
+                      {log.failureCategory && (
+                        <Badge variant={categoryBadge(log.failureCategory).variant}>
+                          {categoryBadge(log.failureCategory).label}
+                        </Badge>
+                      )}
                       <Badge variant={severityVariant(log.severity)}>{log.severity}</Badge>
                       <span className={`text-xs ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{formatWat(log.createdAt || log.timestampMs)}</span>
                     </div>
@@ -655,6 +790,11 @@ export default function AdminMonitoring() {
                 <p className={`text-sm ${isDark ? 'text-[#C4B8A8]' : 'text-gray-600'}`}>Suggested next action: {selectedLog.suggestedAction || 'Review the developer details and related incident.'}</p>
                 <div className="flex flex-wrap gap-2">
                   <Badge variant={severityVariant(selectedLog.severity)}>{selectedLog.severity}</Badge>
+                  {selectedLog.failureCategory && (
+                    <Badge variant={categoryBadge(selectedLog.failureCategory).variant}>
+                      {categoryBadge(selectedLog.failureCategory).label}
+                    </Badge>
+                  )}
                   <Badge variant="gray">{SERVICE_LABELS[selectedLog.service] || selectedLog.service}</Badge>
                   <Badge variant="blue">{selectedLog.eventType}</Badge>
                 </div>

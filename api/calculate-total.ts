@@ -26,7 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(500).json({ error: 'Firebase not configured — check FB_SA env vars on Vercel' });
         }
 
-        const { items, deliveryMode, plateCount: providedPlateCount, hostelId, groupSize } = req.body;
+        const { items, deliveryMode, plateCount: providedPlateCount, hostelId, groupSize, deliveryType } = req.body;
 
         if (!items || !Array.isArray(items) || items.length === 0) {
             return res.status(400).json({ error: 'No items provided' });
@@ -42,8 +42,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const platformSettings = settingsDoc.exists ? settingsDoc.data() : {};
         const firestoreHostels = hostelSnap && hostelSnap.exists ? [{ id: hostelSnap.id, ...hostelSnap.data() }] : undefined;
+        const isInstant = String(deliveryType || '').trim().toUpperCase() === 'INSTANT';
+        const instantDeliveryFee = Number(platformSettings?.instantDeliveryFee) > 0 ? Number(platformSettings.instantDeliveryFee) : 700;
         const premiumDeliveryFee = platformSettings!.premiumDeliveryFee || 1250;
-        const foodSoloFee = platformSettings!.foodDeliveryFee || 750;
+        const foodSoloFee = isInstant ? instantDeliveryFee : (platformSettings!.foodDeliveryFee || 750);
         const foodGroupFee = platformSettings!.foodGroupDeliveryFee || 580;
 
         let foodTotal = 0;

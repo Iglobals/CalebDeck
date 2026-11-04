@@ -241,8 +241,14 @@ export async function calculateServerOrderTotal(
     }
 
     // Food (plate or combo) — premium hostel rate only applies to food orders.
+    const isInstant = String(orderData?.deliveryType || '').trim().toUpperCase() === 'INSTANT';
+    const instantDeliveryFee = Number(platformSettings?.instantDeliveryFee) > 0
+        ? Number(platformSettings.instantDeliveryFee)
+        : 700;
     const premiumFee = platformSettings!.premiumDeliveryFee || FOOD_PLATE_FEE_FALLBACKS.premiumDeliveryFee;
-    const foodSoloFee = platformSettings!.foodDeliveryFee || FOOD_PLATE_FEE_FALLBACKS.foodDeliveryFee;
+    const foodSoloFee = isInstant
+        ? instantDeliveryFee
+        : (platformSettings!.foodDeliveryFee || FOOD_PLATE_FEE_FALLBACKS.foodDeliveryFee);
     const foodGroupFee = platformSettings!.foodGroupDeliveryFee || FOOD_PLATE_FEE_FALLBACKS.foodGroupDeliveryFee;
     const baseDeliveryFee = isPremium
         ? (isGroup ? premiumGroupDeliveryFee(premiumFee) : premiumFee)

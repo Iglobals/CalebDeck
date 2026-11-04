@@ -24,8 +24,9 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
 import { NotificationPanel } from '../../components/NotificationPanel';
-import { requestNotificationPermissionAndSaveToken, onForegroundMessage } from '../../../services/messaging';
+import { requestNotificationPermissionAndSaveToken, onForegroundMessage, checkNotificationSupport } from '../../../services/messaging';
 import { subscribeToOpenIncidentCount } from '../../../services/monitoring';
+import { toast } from 'react-toastify';
 
 interface AdminLayoutProps {
     children: React.ReactNode;
@@ -55,6 +56,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
     const [globalSearch, setGlobalSearch] = useState('');
     const [searchFocused, setSearchFocused] = useState(false);
     const [pushPermissionStatus, setPushPermissionStatus] = useState<string>('granted');
+    const [enablingPush, setEnablingPush] = useState(false);
+    const [showBlockedPushNotice, setShowBlockedPushNotice] = useState(false);
     const [openIncidentCount, setOpenIncidentCount] = useState(0);
     const location = useLocation();
     const navigate = useNavigate();
@@ -123,6 +126,32 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
         const unsub = subscribeToOpenIncidentCount(setOpenIncidentCount);
         return () => unsub();
     }, []);
+
+    const handleEnablePush = async () => {
+        if (!user?.uid) return;
+        setEnablingPush(true);
+        try {
+            const res = await requestNotificationPermissionAndSaveToken(user.uid, 'users');
+            if (typeof window !== 'undefined' && 'Notification' in window) {
+                setPushPermissionStatus(Notification.permission);
+            }
+            if (res.success) {
+                toast.success('Push notifications enabled successfully!');
+                setShowBlockedPushNotice(false);
+            } else if (res.needsInstallToHomeScreen) {
+                toast.info('On iPhone, tap Share (square with arrow) > "Add to Home Screen" first, then open CalebDeck from your Home Screen to enable notifications.', { autoClose: 9000 });
+            } else if (res.isBlocked || res.permission === 'denied') {
+                setShowBlockedPushNotice(true);
+                toast.error('Notifications are blocked in your device settings. Allow notifications to receive alerts.', { autoClose: 7000 });
+            } else {
+                toast.warn(res.error || 'Could not enable push notifications.');
+            }
+        } catch (err: any) {
+            toast.error(err.message || 'Notification setup failed.');
+        } finally {
+            setEnablingPush(false);
+        }
+    };
 
     // Global search suggestions
     const searchResults = useMemo(() => {
@@ -225,7 +254,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col h-[100dvh] overflow-y-auto overflow-x-hidden relative">
 
-                {/* Push Notification Warning Banner Form Safari iOS */}
+                {/* Push Notification Warning Banner */}
                 {pushPermissionStatus === 'default' && (
                     <div className="bg-blue-600 text-white p-3 px-6 text-center text-sm font-bold flex flex-col sm:flex-row justify-center items-center gap-3 z-50 shadow-md">
                         <div className="flex items-center gap-2">
@@ -233,15 +262,28 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
                             <span>Action Required: Please enable Push Notifications to receive live order updates.</span>
                         </div>
                         <button
-                            onClick={async () => {
-                                if (user?.uid) {
-                                    await requestNotificationPermissionAndSaveToken(user.uid, 'users');
-                                    setPushPermissionStatus(Notification.permission);
-                                }
-                            }}
-                            className="bg-white text-blue-600 px-4 py-1.5 rounded-full text-xs hover:bg-white/90 transition-colors shadow-sm ml-2"
+                            onClick={handleEnablePush}
+                            disabled={enablingPush}
+                            className="bg-white text-blue-600 px-4 py-1.5 rounded-full text-xs hover:bg-white/90 disabled:opacity-50 transition-colors shadow-sm ml-2"
                         >
-                            Enable Now
+                            {enablingPush ? 'Enabling...' : 'Enable Now'}
+                        </button>
+                    </div>
+                )}
+
+                {/* Blocked Notification Guidance Banner */}
+                {showBlockedPushNotice && (
+                    <div className="bg-amber-600 text-white p-3 px-6 text-center text-xs sm:text-sm font-medium flex justify-between items-center gap-3 z-50 shadow-md">
+                        <div className="flex items-center gap-2 text-left">
+                            <Bell className="w-4 h-4 shrink-0" />
+                            <span>Push notifications are blocked in your browser or device settings. Open iPhone Settings &gt; Notifications &gt; CalebDeck to allow.</span>
+                        </div>
+                        <button 
+                            onClick={() => setShowBlockedPushNotice(false)}
+                            className="text-white hover:text-white/80 p-1 rounded-full text-base font-bold shrink-0"
+                            aria-label="Dismiss"
+                        >
+                            ✕
                         </button>
                     </div>
                 )}

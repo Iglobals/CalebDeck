@@ -117,7 +117,7 @@ async function handleSendPush(req: VercelRequest, res: VercelResponse) {
 
     try {
         ensureFirebaseAdmin();
-        const { tokens, title, body, link } = req.body;
+        const { tokens, title, body, link, userId, targetCollection = 'users' } = req.body;
 
         if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
             return res.status(400).json({ error: 'Missing or invalid tokens array' });
@@ -126,18 +126,97 @@ async function handleSendPush(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: 'Missing title or body' });
         }
 
-        const message = {
+        const message: any = {
             notification: { title, body },
-            data: { link: link || '/' },
+            data: { 
+                link: link || '/',
+                title: String(title),
+                body: String(body),
+            },
+            webpush: {
+                headers: {
+                    Urgency: 'high',
+                },
+                notification: {
+                    title,
+                    body,
+                    icon: '/calebdeck-logo.jpeg',
+                    badge: '/calebdeck-logo.jpeg',
+                    requireInteraction: false,
+                },
+                fcmOptions: {
+                    link: link || '/',
+                },
+            },
+            apns: {
+                headers: {
+                    'apns-priority': '10',
+                },
+                payload: {
+                    aps: {
+                        alert: {
+                            title,
+                            body,
+                        },
+                        sound: 'default',
+                        badge: 1,
+                    },
+                },
+            },
             tokens: tokens,
         };
 
         const response = await getMessaging().sendEachForMulticast(message);
 
+        // Detect and collect expired/invalid registration tokens
+        const badTokens: string[] = [];
+        response.responses.forEach((resp, idx) => {
+            if (!resp.success && resp.error) {
+                const code = resp.error.code;
+                if (
+                    code === 'messaging/registration-token-not-registered' ||
+                    code === 'messaging/invalid-registration-token' ||
+                    code === 'messaging/invalid-argument'
+                ) {
+                    badTokens.push(tokens[idx]);
+                }
+            }
+        });
+
+        // Automatically prune stale tokens from Firestore
+        if (badTokens.length > 0 && userId) {
+            try {
+                const { FieldValue } = await import('firebase-admin/firestore');
+                await adminDb().collection(targetCollection).doc(userId).update({
+                    fcmTokens: FieldValue.arrayRemove(...badTokens)
+                });
+                console.log(`Pruned ${badTokens.length} expired FCM token(s) for ${targetCollection}/${userId}`);
+            } catch (pruneErr) {
+                console.warn('Could not prune stale tokens:', pruneErr);
+            }
+        }
+
+        // Record health event for push notification
+        await recordEvent({
+            severity: response.failureCount > 0 && response.successCount === 0 ? 'medium' : 'info',
+            category: 'application',
+            service: 'backend',
+            eventType: response.failureCount > 0 && response.successCount === 0 ? 'push_notification_failed' : 'push_notification_sent',
+            humanTitle: response.successCount > 0 ? 'Push notification delivered' : 'Push notification delivery failed',
+            humanSummary: `Push sent to ${tokens.length} device(s): ${response.successCount} succeeded, ${response.failureCount} failed.`,
+            suggestedAction: response.failureCount > 0 ? 'Some tokens have expired or devices were unreachable. Expired tokens are pruned automatically.' : undefined,
+            details: {
+                successCount: response.successCount,
+                failureCount: response.failureCount,
+                badTokensCount: badTokens.length
+            }
+        }).catch(() => {});
+
         return res.status(200).json({
             success: true,
             successCount: response.successCount,
-            failureCount: response.failureCount
+            failureCount: response.failureCount,
+            prunedTokensCount: badTokens.length,
         });
     } catch (error: any) {
         console.error('Error sending push notification:', error);
@@ -365,6 +444,61 @@ async function handleMonitoringStatus(req: VercelRequest, res: VercelResponse) {
     });
 }
 
+async function handleTestPush(req: VercelRequest, res: VercelResponse) {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    ensureFirebaseAdmin();
+    const admin = await verifyAdmin(req);
+    if (!admin) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { token } = req.body || {};
+    if (!token || typeof token !== 'string') {
+        return res.status(400).json({ error: 'Missing device FCM token' });
+    }
+
+    try {
+        const message: any = {
+            notification: {
+                title: 'CalebDeck Push Diagnostics 🔔',
+                body: 'Your device is successfully receiving push notifications from CalebDeck!',
+            },
+            data: {
+                link: '/admin/monitoring',
+                type: 'diagnostic_test',
+            },
+            webpush: {
+                headers: { Urgency: 'high' },
+                notification: {
+                    title: 'CalebDeck Push Diagnostics 🔔',
+                    body: 'Your device is successfully receiving push notifications from CalebDeck!',
+                    icon: '/calebdeck-logo.jpeg',
+                    badge: '/calebdeck-logo.jpeg',
+                },
+                fcmOptions: { link: '/admin/monitoring' }
+            },
+            apns: {
+                headers: { 'apns-priority': '10' },
+                payload: {
+                    aps: {
+                        alert: {
+                            title: 'CalebDeck Push Diagnostics 🔔',
+                            body: 'Your device is successfully receiving push notifications from CalebDeck!',
+                        },
+                        sound: 'default',
+                        badge: 1,
+                    }
+                }
+            },
+            token: token.trim(),
+        };
+
+        const result = await getMessaging().send(message);
+        return res.status(200).json({ success: true, messageId: result });
+    } catch (error: any) {
+        console.error('Error delivering test push:', error);
+        return res.status(500).json({ error: error.message || 'Push delivery failed', code: error.code });
+    }
+}
+
 // --- ROUTER ---
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Shared CORS configuration
@@ -382,6 +516,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         if (action === 'cloudinary') return await handleCloudinary(req, res);
         if (action === 'send-push') return await handleSendPush(req, res);
+        if (action === 'test-push') return await handleTestPush(req, res);
         if (action === 'report-error') return await handleReportError(req, res);
         if (action === 'record-event') return await handleAdminRecordEvent(req, res);
         if (action === 'health-check') return await handleHealthCheck(req, res);

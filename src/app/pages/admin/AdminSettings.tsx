@@ -74,6 +74,7 @@ export default function AdminSettings() {
   
   // Fees and Pricing State
   const [fees, setFees] = useState({
+    instantDeliveryFee: 700,
     foodDeliveryFee: 0,
     foodGroupDeliveryFee: 0,
     premiumDeliveryFee: 0,
@@ -146,6 +147,7 @@ export default function AdminSettings() {
       }
       
       setFees({
+        instantDeliveryFee: data.instantDeliveryFee !== undefined ? Number(data.instantDeliveryFee) : 700,
         foodDeliveryFee: data.foodDeliveryFee || 0,
         foodGroupDeliveryFee: data.foodGroupDeliveryFee || 0,
         premiumDeliveryFee: data.premiumDeliveryFee || 0,
@@ -749,6 +751,13 @@ export default function AdminSettings() {
 
   const handleUpdateFees = async () => {
     try {
+      if (fees.instantDeliveryFee !== undefined) {
+        const instantFee = Number(fees.instantDeliveryFee);
+        if (isNaN(instantFee) || instantFee < 0 || instantFee > 20000) {
+          alert('Instant Order Delivery Fee must be a valid amount between ₦0 and ₦20,000.');
+          return;
+        }
+      }
       const premiumHostels = premiumHostelsText
         .split(',')
         .map(h => h.trim())
@@ -1350,7 +1359,21 @@ export default function AdminSettings() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
               <div>
-                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Food Delivery Fee</label>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Instant Order Delivery Fee (₦)</label>
+                <input 
+                  type="number" min="0"
+                  value={fees.instantDeliveryFee ?? 700}
+                  onChange={(e) => setFees({ ...fees, instantDeliveryFee: Number(e.target.value) })}
+                  className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
+                    isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
+                  }`}
+                />
+                <p className={`text-[10px] mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                  Applies to solo instant orders. Does not affect scheduled batches.
+                </p>
+              </div>
+              <div>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Food Delivery Fee (Scheduled Batch)</label>
                 <input 
                   type="number" min="0"
                   value={fees.foodDeliveryFee}
@@ -1359,6 +1382,9 @@ export default function AdminSettings() {
                     isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
                   }`}
                 />
+                <p className={`text-[10px] mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                  Applies to scheduled batch food orders.
+                </p>
               </div>
               <div>
                 <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Food Group Delivery Fee</label>
