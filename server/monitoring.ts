@@ -13,7 +13,7 @@ export const PAYMENT_RESOLUTION_ANNOUNCEMENT_ID = 'payment-issues-resolved-2026-
 
 export type MonitoringSeverity = 'critical' | 'high' | 'medium' | 'low' | 'info';
 export type MonitoringCategory = 'payment' | 'order' | 'application';
-export type MonitoringService = 'payment' | 'checkout' | 'order' | 'backend' | 'firebase' | 'frontend' | 'webhook' | 'api';
+export type MonitoringService = 'payment' | 'checkout' | 'order' | 'backend' | 'firebase' | 'frontend' | 'webhook' | 'api' | 'push';
 export type HealthStatus = 'operational' | 'degraded' | 'experiencing_issues' | 'unknown';
 export type HealthBasis = 'measured' | 'inferred' | 'unknown';
 export type IncidentStatus = 'open' | 'investigating' | 'resolved';

@@ -109,6 +109,21 @@ export function resolveDeliveryFee(order: any, settings?: any): DeliveryFeeResul
 export const TAKEAWAY_FEE_PER_PLATE = 200;
 export const PLATFORM_FEE = 100;
 export const PROCESSING_FEE = 200;
+export const ADDON_MARKUP_THRESHOLD = 1000;
+export const ADDON_MARKUP_AMOUNT = 50;
+
+/**
+ * Intentional CalebDeck business rule:
+ * Qualifying add-ons (drinks/snacks) priced below ₦1,000 attract an additional ₦50.
+ * Non-add-on items and add-ons priced at ₦1,000 or above are unchanged.
+ */
+export function applyQualifyingAddonMarkup(price: number, isAddon: boolean = true): number {
+    let currentPrice = Number(price) || 0;
+    if (isAddon && currentPrice < ADDON_MARKUP_THRESHOLD) {
+        currentPrice += ADDON_MARKUP_AMOUNT;
+    }
+    return currentPrice;
+}
 
 /**
  * Rider payout for one delivered order — vertical-aware, mirroring the

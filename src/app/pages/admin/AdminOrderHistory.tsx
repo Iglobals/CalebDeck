@@ -6,8 +6,9 @@ import { Button } from '../../components/design-system/Button';
 import { Download, Search, Filter, ChevronDown, Trash2, RotateCcw, AlertTriangle, CheckCircle, Package, Clock, Users, Loader2 } from 'lucide-react';
 import { getRecentOrderHistory, subscribeToRiders, subscribeToAllHostels, orderMatchesHostel, trashOrder, recoverOrder, permanentlyDeleteOrder, Rider, Hostel, subscribeTodayBatchDays, FoodBatchDay } from '../../../services/db';
 import { resolveOrderHostelInfo } from '../../../services/hostels';
+import { resolveOrderCafeteriaLabel } from '../../../services/cafeterias';
 import { resolveOrderVertical } from '../../../services/orderVertical';
-import { resolveDeliveryFee } from '../../../services/orderFees';
+import { resolveDeliveryFee, applyQualifyingAddonMarkup } from '../../../services/orderFees';
 import { useTheme } from '../../../context/ThemeContext';
 import { format } from 'date-fns';
 import { BatchOrderInfo, resolveOrderBatchInfo } from '../../components/BatchOrderInfo';
@@ -175,6 +176,10 @@ export default function AdminOrderHistory() {
                 <div class="label">Delivery Destination</div>
                 <div class="value">${hostelInfo.displayHostel}</div>
                 <div style="font-size:12px;font-weight:700;margin-top:4px;color:#555;">Pickup Point: ${hostelInfo.pickupPoint}</div>
+                ${resolveOrderVertical(order) === 'FOOD' ? `
+                <div class="label">Cafeteria</div>
+                <div class="value">${resolveOrderCafeteriaLabel(order)}</div>
+                ` : ''}
                 ${hostelInfo.requiresAcknowledgement ? `
                 <div style="margin-top:12px;padding:12px;background:#fffbeb;border-left:4px solid #F59E0B;border-radius:6px;">
                     <div class="label" style="margin-top:0;color:#B45309;">Hostel Collection Rule</div>
@@ -242,9 +247,12 @@ export default function AdminOrderHistory() {
                 })()}
                 ${(order.drinksSnacks || []).length > 0 ? `
                     <div style="font-size:11px;font-weight:900;color:#FCD34D;margin-top:10px">EXTRAS</div>
-                    ${order.drinksSnacks.map((it: any) =>
-            `<div class="row"><span>${it?.item?.name || it?.name || 'Add-on'} x ${it?.quantity || 1}</span><span>₦${((it?.item?.price || it?.price || 0) * (it?.quantity || 1)).toLocaleString()}</span></div>`
-        ).join('')}
+                    ${order.drinksSnacks.map((it: any) => {
+                        const basePrice = Number(it?.item?.price ?? it?.price ?? 0);
+                        const effectivePrice = applyQualifyingAddonMarkup(basePrice, true);
+                        const qty = Number(it?.quantity || 1);
+                        return `<div class="row"><span>${it?.item?.name || it?.name || 'Add-on'} x ${qty}</span><span>₦${(effectivePrice * qty).toLocaleString()}</span></div>`;
+                    }).join('')}
                 ` : ''}
                 <div class="total">Total: ₦${getOrderAmount(order).toLocaleString()}</div>
                 <div class="footer">CalebDeck Order Receipt<br/>${date ? format(date, 'PPpp') : ''}</div>
@@ -449,6 +457,9 @@ export default function AdminOrderHistory() {
                                                                 <span className={`font-mono font-bold text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
                                                                     CD-{order.orderId?.slice(-5) || '?????'}
                                                                 </span>
+                                                                {resolveOrderVertical(order) === 'FOOD' && (
+                                                                    <Badge variant="amber" className="text-[9px] uppercase font-black px-2 py-0.5">{resolveOrderCafeteriaLabel(order)}</Badge>
+                                                                )}
                                                                 {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
                                                                     <Badge variant="purple" className="text-[10px] uppercase font-black px-2 py-0.5">Group</Badge>
                                                                 )}
@@ -524,6 +535,9 @@ export default function AdminOrderHistory() {
                                                         <span className={`font-mono font-bold text-xs ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>
                                                             CD-{order.orderId?.slice(-5) || '?????'}
                                                         </span>
+                                                        {resolveOrderVertical(order) === 'FOOD' && (
+                                                            <Badge variant="amber" className="text-[9px] uppercase font-black px-2 py-0.5">{resolveOrderCafeteriaLabel(order)}</Badge>
+                                                        )}
                                                         {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
                                                             <Badge variant="purple" className="text-[10px] uppercase font-black px-2 py-0.5">Group</Badge>
                                                         )}

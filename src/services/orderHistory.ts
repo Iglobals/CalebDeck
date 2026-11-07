@@ -5,6 +5,7 @@
  */
 
 import { getOrderItemCount, resolveOrderVertical } from './orderVertical';
+import { resolveOrderCafeteriaLabel } from './cafeterias';
 
 const STORAGE_KEY = 'calebdeck_order_history';
 const MAX_ORDERS = 50;
@@ -112,7 +113,8 @@ export function buildFoodOrderEntry(orderState: any): OrderHistoryEntry {
   if (isCombo) {
     summary = `${orderState.comboName || 'Combo'} × ${orderState.quantity || 1}`;
   } else {
-    summary = `${plateCount} plate${plateCount !== 1 ? 's' : ''} from ${orderState.cafeteria || 'Cafeteria'}`;
+    const cafeLabel = resolveOrderCafeteriaLabel(orderState, 'Cafeteria');
+    summary = `${plateCount} plate${plateCount !== 1 ? 's' : ''} from ${cafeLabel}`;
   }
 
   return {

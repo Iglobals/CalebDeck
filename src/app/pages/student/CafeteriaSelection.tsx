@@ -11,7 +11,7 @@ import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
 import SEO from '../../components/SEO';
 import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
-import { CAFETERIA_OPTIONS, NEW_CAFETERIA_SECTIONS, cafeteriaNameForId } from '../../../services/cafeterias';
+import { CAFETERIA_OPTIONS, NEW_CAFETERIA_SECTIONS, cafeteriaNameForId, formatCafeteriaSectionLabel, persistSelectedCafeteria } from '../../../services/cafeterias';
 
 export default function CafeteriaSelection() {
   const [selectedCafeteria, setSelectedCafeteria] = useState<string | null>(null);
@@ -59,9 +59,12 @@ export default function CafeteriaSelection() {
     }
     const caf = cafeterias.find(c => c.id === cafeteriaId);
     if (!caf?.hasSections) {
+      const displayLabel = formatCafeteriaSectionLabel(cafeteriaId, 'none', caf?.name);
+      persistSelectedCafeteria({ cafeteria: displayLabel, cafeteriaId, sectionId: 'none' });
       navigate(`/plate-builder/${cafeteriaId}`, {
         state: {
-          cafeteria: caf?.name,
+          cafeteria: displayLabel,
+          cafeteriaDisplay: displayLabel,
           cafeteriaId,
           sectionId: 'none'
         }
@@ -73,9 +76,12 @@ export default function CafeteriaSelection() {
 
   const handleSectionSelect = (sectionId: string) => {
     const cafeteriaName = cafeteriaNameForId(selectedCafeteria || '');
+    const displayLabel = formatCafeteriaSectionLabel(selectedCafeteria, sectionId, cafeteriaName);
+    persistSelectedCafeteria({ cafeteria: displayLabel, cafeteriaId: selectedCafeteria, sectionId });
     navigate(`/plate-builder/${selectedCafeteria}`, {
       state: {
-        cafeteria: cafeteriaName,
+        cafeteria: displayLabel,
+        cafeteriaDisplay: displayLabel,
         cafeteriaId: selectedCafeteria,
         sectionId: sectionId
       }

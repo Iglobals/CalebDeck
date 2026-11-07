@@ -1,7 +1,7 @@
 import type { firestore } from 'firebase-admin';
 import { resolveOrderVertical } from '../src/services/orderVertical.js';
-import { isPremiumHostel as sharedIsPremiumHostel } from '../src/services/orderFees.js';
-import { resolveHostelRestriction, HostelConfig } from '../src/services/hostels.js';
+import { isPremiumHostel as sharedIsPremiumHostel, applyQualifyingAddonMarkup } from '../src/services/orderFees.js';
+import { resolveHostelRestriction, type HostelConfig } from '../src/services/hostels.js';
 import { findFashionDeliveryArea, normaliseFashionDeliveryConfig } from './fashion-delivery.js';
 import { premiumGroupDeliveryFee, resolveFoodGroupPricing } from '../src/services/groupPricing.js';
 
@@ -137,11 +137,27 @@ export async function validateAndResolveOrderHostel(
     return { valid: true, hostelFields };
 }
 
+export interface OrderPricingBreakdown {
+    food: number;
+    delivery: number;
+    takeaway: number;
+    processing: number;
+    discount: number;
+}
+
 export async function calculateServerOrderTotal(
     db: firestore.Firestore,
     orderData: any,
     transaction?: firestore.Transaction
-): Promise<{ serverTotal: number; netDeliveryFee: number; pricedItems?: any[]; itemsDocs?: any[]; comboDoc?: any; paidAmountExpected?: number }> {
+): Promise<{
+    serverTotal: number;
+    netDeliveryFee: number;
+    breakdown?: OrderPricingBreakdown;
+    pricedItems?: any[];
+    itemsDocs?: any[];
+    comboDoc?: any;
+    paidAmountExpected?: number;
+}> {
     const vertical = resolveOrderVertical(orderData);
     const isMartOrder = vertical === 'MART';
     const isFashionOrder = vertical === 'FASHION';
@@ -159,7 +175,24 @@ export async function calculateServerOrderTotal(
         settingsDoc = await settingsRef.get();
     }
     const platformSettings = settingsDoc.exists ? settingsDoc.data() : {};
-    const isPremium = isPremiumHostelFor(orderData, platformSettings);
+
+    let firestoreHostels: Partial<HostelConfig>[] | undefined;
+    const rawHostelId = String(orderData?.hostelId || orderData?.hostel || '').trim();
+    if (rawHostelId && !isMartOrder && !isFashionOrder) {
+        try {
+            const hostelRef = db.collection('hostels').doc(rawHostelId);
+            const hostelSnap = transaction
+                ? await transaction.get(hostelRef)
+                : await hostelRef.get();
+            if (hostelSnap && hostelSnap.exists) {
+                firestoreHostels = [{ id: hostelSnap.id, ...(hostelSnap.data() as any) }];
+            }
+        } catch {
+            // Non-blocking fallback to platformSettings / default hostel rules
+        }
+    }
+
+    const isPremium = isPremiumHostelFor(orderData, platformSettings, firestoreHostels);
 
     let serverTotal = 0;
 
@@ -250,6 +283,7 @@ export async function calculateServerOrderTotal(
         ? instantDeliveryFee
         : (platformSettings!.foodDeliveryFee || FOOD_PLATE_FEE_FALLBACKS.foodDeliveryFee);
     const foodGroupFee = platformSettings!.foodGroupDeliveryFee || FOOD_PLATE_FEE_FALLBACKS.foodGroupDeliveryFee;
+    const grossSoloDeliveryFee = isPremium ? premiumFee : foodSoloFee;
     const baseDeliveryFee = isPremium
         ? (isGroup ? premiumGroupDeliveryFee(premiumFee) : premiumFee)
         : isGroup
@@ -271,30 +305,59 @@ export async function calculateServerOrderTotal(
 
         const comboData = comboDoc.data()!;
         const quantity = foodGroup.plateCount;
+        const grossDelivery = grossSoloDeliveryFee * quantity;
         const deliveryFee = baseDeliveryFee * quantity;
+        const discount = isGroup ? Math.max(0, grossDelivery - deliveryFee) : 0;
+        const foodTotal = comboData.basePrice * quantity;
 
-        serverTotal = (comboData.basePrice * quantity) + deliveryFee;
-        return { serverTotal, netDeliveryFee: deliveryFee, comboDoc: comboData };
+        serverTotal = foodTotal + deliveryFee;
+        return {
+            serverTotal,
+            netDeliveryFee: deliveryFee,
+            breakdown: {
+                food: foodTotal,
+                delivery: grossDelivery,
+                takeaway: 0,
+                processing: 0,
+                discount,
+            },
+            comboDoc: comboData,
+        };
     }
 
-    // Food Plate Order — food orders carry a flat `items` array (wallet path)
-    // or `plates` (client plate-builder); price both through menu_items.
-    const flatItems: any[] = Array.isArray(orderData?.items) ? [...orderData.items] : [];
-    for (const plate of (orderData?.plates || [])) {
-        for (const plateItem of (plate?.items || [])) {
+    // Food Plate Order — build the authoritative item list from `plates` + `drinksSnacks`
+    // when structured plates are present, or fall back to flat `items` (e.g. /api/calculate-total).
+    // Never concatenate `items` and `plates` together (avoids double-counting when both exist)
+    // and always include `drinksSnacks` when reading from `plates`.
+    const flatItems: any[] = [];
+    if (Array.isArray(orderData?.plates) && orderData.plates.length > 0) {
+        for (const plate of orderData.plates) {
+            for (const plateItem of (plate?.items || [])) {
+                flatItems.push({
+                    id: plateItem?.item?.id || plateItem?.id,
+                    price: plateItem?.item?.price ?? plateItem?.price ?? 0,
+                    quantity: plateItem?.quantity || 1,
+                    isAddon: false,
+                });
+            }
+        }
+        for (const snack of (orderData?.drinksSnacks || [])) {
             flatItems.push({
-                id: plateItem?.item?.id || plateItem?.id,
-                price: plateItem?.item?.price || plateItem?.price || 0,
-                quantity: plateItem?.quantity || 1,
-                isAddon: plateItem?.isAddon,
+                id: snack?.item?.id || snack?.id,
+                price: snack?.item?.price ?? snack?.price ?? 0,
+                quantity: snack?.quantity || 1,
+                isAddon: true,
             });
         }
+    } else if (Array.isArray(orderData?.items)) {
+        flatItems.push(...orderData.items);
     }
+
     const items = flatItems;
     let foodTotal = 0;
 
     if (items.length > 0) {
-        const itemRefs = items.map((i: any) => db.collection('menu_items').doc(i.id));
+        const itemRefs = items.map((i: any) => db.collection('menu_items').doc(String(i.id)));
         let itemDocs: firestore.DocumentSnapshot[] = [];
 
         if (transaction) {
@@ -314,18 +377,27 @@ export async function calculateServerOrderTotal(
                 currentPrice = items[idx].price || 0;
             }
 
-            if (items[idx].isAddon && currentPrice < 1000) {
-                currentPrice += 50;
-            }
-
+            currentPrice = applyQualifyingAddonMarkup(currentPrice, Boolean(items[idx].isAddon));
             foodTotal += currentPrice * qty;
         }
     }
 
     const plateCount = foodGroup.plateCount;
+    const grossDelivery = grossSoloDeliveryFee * plateCount;
     const deliveryFee = baseDeliveryFee * plateCount;
+    const discount = isGroup ? Math.max(0, grossDelivery - deliveryFee) : 0;
     const takeawayFee = 200 * plateCount;
     serverTotal = foodTotal + deliveryFee + takeawayFee;
 
-    return { serverTotal, netDeliveryFee: deliveryFee };
+    return {
+        serverTotal,
+        netDeliveryFee: deliveryFee,
+        breakdown: {
+            food: foodTotal,
+            delivery: grossDelivery,
+            takeaway: takeawayFee,
+            processing: 0,
+            discount,
+        },
+    };
 }

@@ -8,8 +8,9 @@ import { Input, Select, Textarea } from '../../components/design-system/Input';
 import { ArrowLeft, Lock, Shield, CreditCard, MapPin, User, AlertTriangle, Timer, Gift } from 'lucide-react';
 import { netDeliveryFeeFromBreakdown, previewFirstOrderDiscount } from '../../../services/firstOrderDiscount';
 import { getActiveHostels, subscribeToHostels, Hostel, subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
-import { isPremiumHostel } from '../../../services/orderFees';
+import { isPremiumHostel, applyQualifyingAddonMarkup } from '../../../services/orderFees';
 import { resolveHostelRestriction, normalizeHostelKey } from '../../../services/hostels';
+import { formatCafeteriaSectionLabel, persistSelectedCafeteria, readPersistedCafeteria } from '../../../services/cafeterias';
 import { calculateOrderTotal, verifyPayment } from '../../../services/functions';
 import { premiumGroupDeliveryFee, resolveFoodGroupPricing } from '../../../services/groupPricing';
 import { fetchTrackedOrder } from '../../../services/orderTracking';
@@ -72,16 +73,24 @@ export default function Checkout() {
     }
   }, [hasPlatesInState]);
 
+  const persistedCafeteria = readPersistedCafeteria();
   const {
     plates = [],
     drinksSnacks = {},
     drinksSnacksItems = [],
     deliveryMode: initialDeliveryMode = 'solo',
     groupSize: locationGroupSize,
-    cafeteria = isCombo ? comboOrder.cafeteria : 'Old Cafeteria',
-    cafeteriaId = isCombo ? comboOrder.cafeteriaId : 'old',
-    sectionId = isCombo ? comboOrder.sectionId : 'none'
+    cafeteria: rawCafeteria = isCombo ? comboOrder.cafeteria : (persistedCafeteria?.cafeteria || 'Old Cafeteria'),
+    cafeteriaId = isCombo ? comboOrder.cafeteriaId : (persistedCafeteria?.cafeteriaId || 'old'),
+    sectionId = isCombo ? comboOrder.sectionId : (persistedCafeteria?.sectionId || 'none')
   } = locationState;
+
+  const resolvedCafeteriaLabel = formatCafeteriaSectionLabel(cafeteriaId, sectionId, locationState.cafeteriaDisplay || rawCafeteria);
+  const cafeteria = resolvedCafeteriaLabel !== 'Not recorded' ? resolvedCafeteriaLabel : rawCafeteria;
+
+  useEffect(() => {
+    persistSelectedCafeteria({ cafeteria, cafeteriaId, sectionId });
+  }, [cafeteria, cafeteriaId, sectionId]);
 
   const hasMixedCafeteriaItems = React.useMemo(() => {
     if (isCombo || !Array.isArray(plates)) return false;
@@ -430,6 +439,7 @@ export default function Checkout() {
       // Success
       toast.dismiss();
       if (data.data?.trackingToken) trackingTokenRef.current = data.data.trackingToken;
+      const verifiedWalletAmount = Number(data.data?.amount) > 0 ? Number(data.data.amount) : payableTotal;
       navigate('/order-success', {
         state: {
           ...orderPayload,
@@ -437,8 +447,8 @@ export default function Checkout() {
           orderId: data.data.orderId || orderPayload.orderId,
           paymentReference: `WALLET-${data.data.orderId || orderPayload.orderId}`,
           trackingToken: trackingTokenRef.current,
-          total: payableTotal,
-          totalAmount: payableTotal,
+          total: verifiedWalletAmount,
+          totalAmount: verifiedWalletAmount,
           status: 'PAID'
         },
         replace: true
@@ -482,6 +492,7 @@ export default function Checkout() {
         : undefined,
       femaleHostelAgreement,
       cafeteria,
+      cafeteriaDisplay: cafeteria,
       cafeteriaId,
       sectionId,
       deliveryMode: currentDeliveryMode,
@@ -766,6 +777,7 @@ export default function Checkout() {
         : undefined,
       femaleHostelAgreement,
       cafeteria,
+      cafeteriaDisplay: cafeteria,
       cafeteriaId,
       sectionId,
       deliveryMode: currentDeliveryMode,
@@ -1266,7 +1278,7 @@ export default function Checkout() {
                         <h4 className="font-bold uppercase tracking-wider text-xs text-primary mb-3">Add-ons</h4>
                         <div className="space-y-1">
                           {drinksSnacksItems.map(({ item, quantity }: any) => {
-                            const inflatedPrice = item.price + (item.price < 1000 && item.isAddon ? 50 : 0);
+                            const inflatedPrice = applyQualifyingAddonMarkup(item.price, true);
                             return (
                               <div key={item.id} className="flex justify-between text-sm font-medium">
                                 <span className="text-muted-foreground font-medium">{item.name} <span className="text-xs opacity-60">×{quantity}</span></span>

@@ -22,8 +22,9 @@ import {
 } from 'lucide-react';
 import { subscribeToAllOrders, subscribeToAllHostels, Hostel, subscribeToRiders, Rider, dispatchBatch, markOrderRefunded, orderMatchesHostel, subscribeTodayBatchDays, advanceFashionBatch, FoodBatchDay, subscribeToPlatformSettings } from '../../../services/db';
 import { resolveOrderHostelInfo } from '../../../services/hostels';
+import { resolveOrderCafeteriaLabel } from '../../../services/cafeterias';
 import { resolveOrderVertical } from '../../../services/orderVertical';
-import { resolveDeliveryFee } from '../../../services/orderFees';
+import { resolveDeliveryFee, applyQualifyingAddonMarkup } from '../../../services/orderFees';
 import { formatDistanceToNow } from 'date-fns';
 import { useTheme } from '../../../context/ThemeContext';
 import { BatchOrderInfo, resolveOrderBatchInfo } from '../../components/BatchOrderInfo';
@@ -263,8 +264,9 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
         }
         const studentNote = (order.notes || order.instructions || '').trim();
         const studentNumber = getStudentNumber(order);
-        const cafeName = order.type === 'mart' ? '' : (order.cafeteria || (order.cafeteriaId === 'old' ? 'Old Cafeteria' : order.cafeteriaId === 'new' ? 'New Cafeteria' : ''));
-        const cafeId = order.type === 'mart' ? '' : (order.cafeteriaId || '');
+        const isFoodPrint = resolveOrderVertical(order) === 'FOOD';
+        const cafeName = isFoodPrint ? resolveOrderCafeteriaLabel(order) : '';
+        const cafeId = isFoodPrint ? (order.cafeteriaId || '') : '';
 
         const html = `
             <html>
@@ -405,12 +407,17 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                         })()}
                         ${order.drinksSnacks?.length > 0 ? `
                             <div class="plate-header">Add-ons</div>
-                            ${order.drinksSnacks.map((item: any) => `
+                            ${order.drinksSnacks.map((item: any) => {
+                                const basePrice = Number(item?.item?.price ?? item?.price ?? 0);
+                                const effectivePrice = applyQualifyingAddonMarkup(basePrice, true);
+                                const qty = Number(item?.quantity || 1);
+                                return `
                                 <div class="item-row">
                                     <span>${item.item?.name || item.name}</span>
-                                    <span>x${item.quantity}</span>
+                                    <span>x${qty} · ₦${(effectivePrice * qty).toLocaleString()}</span>
                                 </div>
-                            `).join('')}
+                            `;
+                            }).join('')}
                         ` : ''}
                     </div>
                     <span class="total">₦${getOrderAmount(order).toLocaleString()}</span>
@@ -647,8 +654,8 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                                     <span className={`font-mono text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                                                                         CD-{order.orderId?.slice(-6) || 'N/A'}
                                                                     </span>
-                                                                    {order.cafeteria && (
-                                                                        <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5">{order.cafeteria}</Badge>
+                                                                    {resolveOrderVertical(order) === 'FOOD' && (
+                                                                        <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5">{resolveOrderCafeteriaLabel(order)}</Badge>
                                                                     )}
                                                                     {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
                                                                         <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5">Group</Badge>
@@ -703,8 +710,8 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                     <span className={`text-[10px] font-bold ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                                                         {resolveOrderHostelInfo(order, hostels, platformSettings).displayHostel}
                                                     </span>
-                                                    {order.cafeteria && (
-                                                        <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5 ml-2 mt-1">{order.cafeteria}</Badge>
+                                                    {resolveOrderVertical(order) === 'FOOD' && (
+                                                        <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5 ml-2 mt-1">{resolveOrderCafeteriaLabel(order)}</Badge>
                                                     )}
                                                     {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
                                                         <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 ml-2 mt-1">Group</Badge>
@@ -806,8 +813,8 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                         <h3 className={`text-lg lg:text-xl font-black tracking-tight mb-1 truncate ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>Order Details</h3>
                                         <div className="flex flex-wrap items-center gap-2">
                                             <p className={`text-xs font-black uppercase tracking-[0.2em] shrink-0 ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>{selectedOrder.orderId}</p>
-                                            {selectedOrder.cafeteria && (
-                                                <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5 shrink-0">{selectedOrder.cafeteria}</Badge>
+                                            {resolveOrderVertical(selectedOrder) === 'FOOD' && (
+                                                <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5 shrink-0">{resolveOrderCafeteriaLabel(selectedOrder)}</Badge>
                                             )}
                                             {(selectedOrder.deliveryMode === 'group' || selectedOrder.deliveryMode === 'GROUP') && (
                                                 <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5 shrink-0">Group</Badge>
@@ -869,6 +876,12 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                 );
                                             })()}
                                         </div>
+                                        {resolveOrderVertical(selectedOrder) === 'FOOD' && (
+                                            <div className="space-y-1">
+                                                <p className="text-[10px] font-black text-[#9C8F7F] uppercase tracking-[0.3em]">Cafeteria</p>
+                                                <p className={`text-lg font-black ${isDark ? 'text-[#FCD34D]' : 'text-amber-600'}`}>{resolveOrderCafeteriaLabel(selectedOrder)}</p>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <Card className={`p-8 border-none ${isDark ? 'bg-[#222222]' : 'bg-gray-50'} min-w-0`}>
@@ -1015,15 +1028,20 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                         <div className={`p-8 rounded-3xl border ${isDark ? 'border-[#333333] bg-[#222222]/50' : 'border-gray-100 bg-white'}`}>
                                             <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#FCD34D] mb-6">Add-ons</h5>
                                             <div className="space-y-4">
-                                                {selectedOrder.drinksSnacks.map((item: any, idx: number) => (
+                                                {selectedOrder.drinksSnacks.map((item: any, idx: number) => {
+                                                    const basePrice = Number(item?.item?.price ?? item?.price ?? 0);
+                                                    const effectivePrice = applyQualifyingAddonMarkup(basePrice, true);
+                                                    const qty = Number(item?.quantity || 1);
+                                                    return (
                                                     <div key={idx} className="flex justify-between items-center py-2 border-b border-dashed border-gray-500/10 last:border-0">
                                                         <p className={`text-sm font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-900'}`}>{item.item?.name || item.name}</p>
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-xs font-black px-2 py-1 rounded bg-[#FCD34D]/10 text-[#FCD34D]">x{item.quantity}</span>
-                                                            <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>₦{((item.item?.price || item.price || 0) * (item.quantity || 1)).toLocaleString()}</span>
+                                                            <span className="text-xs font-black px-2 py-1 rounded bg-[#FCD34D]/10 text-[#FCD34D]">x{qty}</span>
+                                                            <span className={`text-xs font-bold ${isDark ? 'text-[#FAF9F6]' : 'text-gray-700'}`}>₦{(effectivePrice * qty).toLocaleString()}</span>
                                                         </div>
                                                     </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     )}

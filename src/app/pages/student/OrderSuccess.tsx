@@ -10,6 +10,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import { subscribeToOrderStatus, getRiderById, getHostelById, Rider, getOrderById, submitReview, subscribeToPlatformSettings, subscribeToAllHostels, Hostel } from '../../../services/db';
 import { fetchTrackedOrder, subscribeToTrackedOrder } from '../../../services/orderTracking';
 import { resolveOrderHostelInfo } from '../../../services/hostels';
+import { resolveOrderCafeteriaLabel } from '../../../services/cafeterias';
 import { useAuth } from '../../../context/AuthContext';
 import { trackOrderTracked } from '../../../services/analytics';
 import { saveOrderToHistory, buildFoodOrderEntry, buildMartOrderEntry, buildCalebNetEntry, buildFashionOrderEntry } from '../../../services/orderHistory';
@@ -120,6 +121,7 @@ export default function OrderSuccess() {
   const hostelInfo = resolveOrderHostelInfo(mergedOrderData, hostels, platformSettings);
   const displayHostel = hostelInfo.displayHostel;
   const pickupPoint = hostelInfo.pickupPoint;
+  const resolvedCafeteriaLabel = resolveOrderCafeteriaLabel(mergedOrderData, '');
 
   useEffect(() => {
     const unsubSettings = subscribeToPlatformSettings(setPlatformSettings);
@@ -238,7 +240,7 @@ export default function OrderSuccess() {
         studentName: fullName || 'Student',
         rating: reviewRating,
         feedback: reviewText,
-        cafeteria: cafeteria || 'General',
+        cafeteria: resolvedCafeteriaLabel || cafeteria || 'General',
         riderName: rider?.name || 'Unknown'
       });
       localStorage.setItem(`reviewed_${orderId}`, 'true');
@@ -527,6 +529,17 @@ export default function OrderSuccess() {
             ) : (
               <Card className="text-left mb-10 p-8 border-none shadow-2xl bg-card">
                 <div className="space-y-6">
+                  {orderVertical === 'FOOD' && resolvedCafeteriaLabel && (
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <ShoppingBag className="w-6 h-6 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">Cafeteria</p>
+                        <p className="text-xl font-bold">{resolvedCafeteriaLabel}</p>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-start gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center flex-shrink-0">
                       <MapPin className="w-6 h-6 text-secondary" />
@@ -933,7 +946,7 @@ export default function OrderSuccess() {
                    ×
                 </button>
                 <h3 className="text-2xl font-black mb-2 text-center text-[#7C3AED]">Rate Your Experience</h3>
-                <p className="text-sm text-center text-muted-foreground mb-6">How was your order and delivery from {cafeteria || 'us'}?</p>
+                <p className="text-sm text-center text-muted-foreground mb-6">How was your order and delivery from {resolvedCafeteriaLabel || cafeteria || 'us'}?</p>
                 <div className="flex justify-center gap-2 mb-6">
                    {[1, 2, 3, 4, 5].map((star) => (
                       <button key={star} onClick={() => setReviewRating(star)} className={`text-4xl transition-transform ${star <= reviewRating ? 'text-[#FCD34D] scale-110' : 'text-gray-300'}`}>

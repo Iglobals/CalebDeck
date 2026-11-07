@@ -9,6 +9,7 @@ import { resolveOrderVertical } from '../src/services/orderVertical.js';
 import { isRateLimited, clientIp } from '../server/rate-limit.js';
 import { recordEvent, monitoringFromError } from '../server/monitoring.js';
 import { GroupOrderError, resolveFoodGroupPricing } from '../src/services/groupPricing.js';
+import { formatCafeteriaSectionLabel } from '../src/services/cafeterias.js';
 import { createTrackingToken } from '../server/order-tracking.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
@@ -181,7 +182,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // 3. Recalculate total from Firestore prices (server-side validation)
-        const { serverTotal: rawTotal, netDeliveryFee, comboDoc, pricedItems } = await calculateServerOrderTotal(db, orderData);
+        const { serverTotal: rawTotal, netDeliveryFee, breakdown: serverBreakdown, comboDoc, pricedItems } = await calculateServerOrderTotal(db, orderData);
         const discountUserId = orderData?.userId || orderData?.iConId || null;
         let firstOrderEval = {
             applied: false,
@@ -219,6 +220,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         //    ALWAYS write the full order — this overwrites any webhook skeleton
         const orderId = orderData?.orderId || `CD-${Math.floor(10000 + Math.random() * 90000)}`;
 
+        const existingDataForCafe = existingDoc.exists ? existingDoc.data() : null;
+        const resolvedCafeteriaId = orderData?.cafeteriaId || existingDataForCafe?.cafeteriaId || '';
+        const resolvedSectionId = orderData?.sectionId || existingDataForCafe?.sectionId || 'none';
+        const resolvedCafeLabel = (!isMartOrder && !isFashionOrder)
+            ? formatCafeteriaSectionLabel(
+                resolvedCafeteriaId,
+                resolvedSectionId,
+                orderData?.cafeteriaDisplay || orderData?.cafeteria || existingDataForCafe?.cafeteriaDisplay || existingDataForCafe?.cafeteria
+            )
+            : '';
+
         const orderDoc: any = {
             orderId,
             userId: orderData?.userId || orderData?.iConId || null,
@@ -230,9 +242,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             ...hostelValidation.hostelFields,
             instructions: orderData?.instructions || '',
             total: paidAmount, // Use Paystack-verified amount
-            cafeteria: orderData?.cafeteria || '',
-            cafeteriaId: orderData?.cafeteriaId || '',
-            sectionId: orderData?.sectionId || 'none',
+            ...(serverBreakdown && !isMartOrder && !isFashionOrder ? { breakdown: serverBreakdown } : (orderData?.breakdown ? { breakdown: orderData.breakdown } : {})),
+            cafeteria: resolvedCafeLabel !== 'Not recorded' ? resolvedCafeLabel : (orderData?.cafeteria || existingDataForCafe?.cafeteria || ''),
+            cafeteriaDisplay: resolvedCafeLabel !== 'Not recorded' ? resolvedCafeLabel : '',
+            cafeteriaId: resolvedCafeteriaId,
+            sectionId: resolvedSectionId,
             deliveryMode: orderData?.deliveryMode || 'solo',
             groupSize: 1,
             deliveryType: orderData?.deliveryType || 'INSTANT',
@@ -327,7 +341,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             orderDoc.plates = cleanPlates;
             orderDoc.drinksSnacks = cleanSnacks;
-            orderDoc.plateCount = orderData?.plateCount || 1;
+            orderDoc.plateCount = foodGroup.plateCount;
         }
 
         Object.assign(orderDoc, mergeDiscountOntoOrder(orderDoc, firstOrderEval));
@@ -374,16 +388,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     backfill.serviceProcessingFee = FieldValue.delete();
                 }
             }
+            const baseBreakdownForPreSaved = serverBreakdown && !isMartOrder && !isFashionOrder
+                ? serverBreakdown
+                : preSavedData.breakdown;
             await orderRef.set({
                 status: 'PAID',
                 source: 'verified',
                 total: paidAmount, // Use Paystack-verified amount
+                ...(baseBreakdownForPreSaved ? { breakdown: baseBreakdownForPreSaved } : {}),
+                ...(orderDoc.cafeteria ? { cafeteria: orderDoc.cafeteria } : {}),
+                ...(orderDoc.cafeteriaDisplay ? { cafeteriaDisplay: orderDoc.cafeteriaDisplay } : {}),
+                ...(orderDoc.cafeteriaId ? { cafeteriaId: orderDoc.cafeteriaId } : {}),
+                ...(orderDoc.sectionId && orderDoc.sectionId !== 'none' ? { sectionId: orderDoc.sectionId } : {}),
                 paymentStatus: data.status,
                 paymentMessage: data.gateway_response || 'Payment confirmed',
                 paymentMethod: 'PAYSTACK',
                 paidAt: data.paid_at || null,
                 ...backfill,
-                ...(firstOrderEval.applied ? mergeDiscountOntoOrder({ breakdown: preSavedData.breakdown }, firstOrderEval) : {}),
+                ...(firstOrderEval.applied ? mergeDiscountOntoOrder({ breakdown: baseBreakdownForPreSaved }, firstOrderEval) : {}),
                 updatedAt: FieldValue.serverTimestamp()
             }, { merge: true });
             console.log(`[verify-payment] Updated pre-saved order to PAID: ${reference}${needsVerticalBackfill ? ` [backfilled vertical=${orderDoc.orderType}]` : ''}`);
