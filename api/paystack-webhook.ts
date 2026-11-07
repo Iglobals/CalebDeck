@@ -9,6 +9,7 @@ import { calculateServerOrderTotal, validateAndResolveOrderHostel } from '../ser
 import { claimFirstOrderDiscount, mergeDiscountOntoOrder } from '../server/first-order-discount.js';
 import { recordEvent, monitoringFromError } from '../server/monitoring.js';
 import { resolveFoodGroupPricing } from '../src/services/groupPricing.js';
+import { formatCafeteriaSectionLabel } from '../src/services/cafeterias.js';
 import { createTrackingToken } from '../server/order-tracking.js';
 
 function metadataValue(metadata: any, key: string) {
@@ -317,6 +318,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             enforceActiveAndAck: false,
         });
 
+        const resolvedCafeLabel = (!isMartOrder && !isFashionOrder)
+            ? formatCafeteriaSectionLabel(metadata.cafeteriaId, metadata.sectionId, metadata.cafeteriaDisplay || metadata.cafeteria)
+            : '';
+
         const orderDoc: any = {
             orderId: metadata.orderId || `CD-WH-${Math.floor(10000 + Math.random() * 90000)}`,
             userId: metadataValue(metadata, 'userId') || null,
@@ -328,7 +333,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             ...hostelValidation.hostelFields,
             instructions: metadata.instructions || '',
             total: paidAmount,
-            cafeteria: metadata.cafeteria || '',
+            cafeteria: resolvedCafeLabel !== 'Not recorded' ? resolvedCafeLabel : (metadata.cafeteria || ''),
+            cafeteriaDisplay: resolvedCafeLabel !== 'Not recorded' ? resolvedCafeLabel : '',
             cafeteriaId: metadata.cafeteriaId || '',
             sectionId: metadata.sectionId || 'none',
             deliveryMode: metadata.deliveryMode || 'solo',

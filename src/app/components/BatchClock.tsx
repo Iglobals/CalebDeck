@@ -4,6 +4,7 @@ import { useBatchTimer } from '../../context/BatchTimerContext';
 interface BatchClockProps {
   size?: number;      // diameter in px (default 80)
   className?: string;
+  isOpen?: boolean;
 }
 
 /**

@@ -15,6 +15,8 @@ import {
 } from '../../components/ui/collapsible';
 
 import { MenuItem, ComboDefinition, subscribeToCombos, seedCombos } from '../../../services/db';
+import { formatCafeteriaSectionLabel, persistSelectedCafeteria, readPersistedCafeteria } from '../../../services/cafeterias';
+import { applyQualifyingAddonMarkup } from '../../../services/orderFees';
 import { collection, limit, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 import { useTheme } from '../../../context/ThemeContext';
@@ -72,11 +74,21 @@ export default function PlateBuilder() {
   const { studentTheme } = useTheme();
 
   const params = useParams<{ cafeteriaId: string }>();
-  const cafeteria = location.state?.cafeteria || 'Old Cafeteria';
   const cafeteriaId = params.cafeteriaId || location.state?.cafeteriaId || 'old';
-  const sectionId = location.state?.sectionId || (cafeteriaId === 'old' ? 'none' : 'front');
+  const persistedCafeteria = readPersistedCafeteria(cafeteriaId);
+  const sectionId = location.state?.sectionId || persistedCafeteria?.sectionId || (cafeteriaId === 'old' ? 'none' : 'front');
+  const resolvedCafeDisplay = formatCafeteriaSectionLabel(
+    cafeteriaId,
+    sectionId,
+    location.state?.cafeteriaDisplay || location.state?.cafeteria || persistedCafeteria?.cafeteria
+  );
+  const cafeteria = resolvedCafeDisplay !== 'Not recorded' ? resolvedCafeDisplay : (cafeteriaId === 'new' ? 'New Cafeteria' : 'Old Cafeteria');
   const isOldCafe = cafeteriaId === 'old';
   const storagePrefix = `cd_plate_builder_${cafeteriaId}_${sectionId}`;
+
+  useEffect(() => {
+    persistSelectedCafeteria({ cafeteria, cafeteriaId, sectionId });
+  }, [cafeteria, cafeteriaId, sectionId]);
 
   const [foodItems, setFoodItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -292,6 +304,7 @@ export default function PlateBuilder() {
       quantity: qty,
       basePrice: combo.basePrice,
       cafeteria,
+      cafeteriaDisplay: cafeteria,
       cafeteriaId,
       sectionId,
       deliveryMode: 'solo',
@@ -503,9 +516,8 @@ export default function PlateBuilder() {
   const drinksSnacksTotal = Object.entries(drinksSnacks).reduce((sum, [itemId, qty]) => {
     const item = foodItems.find(f => f.id === itemId);
     if (!item) return sum;
-    // Mirror server-side markup: +₦50 for addons under ₦1000
-    const price = item.price < 1000 ? item.price + 50 : item.price;
-    return sum + price * qty;
+    const inflatedPrice = applyQualifyingAddonMarkup(item.price, true);
+    return sum + inflatedPrice * qty;
   }, 0);
 
   const deliveryFee = deliveryMode === 'solo' ? DELIVERY_FEE_SOLO : DELIVERY_FEE_GROUP;
@@ -1045,7 +1057,7 @@ export default function PlateBuilder() {
                             </div>
                             <div>
                               <h4 className="font-semibold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
-                              <p className="text-sm text-muted-foreground mt-1">₦{item.price}/{getUnitDisplay(item)}</p>
+                              <p className="text-sm text-muted-foreground mt-1">₦{applyQualifyingAddonMarkup(item.price, true)}/{getUnitDisplay(item)}</p>
                             </div>
                             <div className="flex items-center justify-between mt-2">
                               <button
@@ -1100,7 +1112,7 @@ export default function PlateBuilder() {
                               </div>
                               <div>
                                 <h4 className="font-semibold text-card-foreground line-clamp-2 min-h-[2.5rem] text-sm leading-tight flex items-center">{item.name}</h4>
-                                <p className="text-sm text-muted-foreground mt-1">₦{item.price}/{getUnitDisplay(item)}</p>
+                                <p className="text-sm text-muted-foreground mt-1">₦{applyQualifyingAddonMarkup(item.price, true)}/{getUnitDisplay(item)}</p>
                               </div>
                               <div className="flex items-center justify-between mt-2">
                                 <button
@@ -1219,6 +1231,7 @@ export default function PlateBuilder() {
                     {Object.entries(drinksSnacks).map(([itemId, quantity]) => {
                       const item = foodItems.find(f => f.id === itemId);
                       if (!item) return null;
+                      const inflatedPrice = applyQualifyingAddonMarkup(item.price, true);
                       return (
                         <div key={itemId} className="flex justify-between items-center text-sm font-medium">
                           <div className="flex items-center gap-2">
@@ -1230,7 +1243,7 @@ export default function PlateBuilder() {
                               <X className="w-3 h-3 text-destructive opacity-50 hover:opacity-100" />
                             </button>
                           </div>
-                          <span className="font-bold text-card-foreground">₦{(item.price * quantity).toLocaleString()}</span>
+                          <span className="font-bold text-card-foreground">₦{(inflatedPrice * quantity).toLocaleString()}</span>
                         </div>
                       );
                     })}
@@ -1356,6 +1369,7 @@ export default function PlateBuilder() {
                     if (item) acc.push({ item, quantity });
                     return acc;
                   }, []);
+                  persistSelectedCafeteria({ cafeteria, cafeteriaId, sectionId });
                   navigate('/checkout', {
                     state: {
                       plates,
@@ -1365,6 +1379,7 @@ export default function PlateBuilder() {
                       groupSize,
                       grandTotal,
                       cafeteria,
+                      cafeteriaDisplay: cafeteria,
                       cafeteriaId,
                       sectionId
                     }

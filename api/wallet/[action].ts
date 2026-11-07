@@ -13,6 +13,7 @@ import { confirmFoodBatchReservation } from '../../server/food-batch.js';
 import { isRateLimited, clientIp } from '../../server/rate-limit.js';
 import { recordEvent, monitoringFromError } from '../../server/monitoring.js';
 import { GroupOrderError, resolveFoodGroupPricing } from '../../src/services/groupPricing.js';
+import { formatCafeteriaSectionLabel } from '../../src/services/cafeterias.js';
 import { createTrackingToken } from '../../server/order-tracking.js';
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://calebdeck.com';
@@ -204,6 +205,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             let finalAmount = 0;
             let isPreSaved = false;
+            let alreadyPaid = false;
+            let resolvedTrackingToken = '';
 
             await db.runTransaction(async (t) => {
                 const userRef = db.collection('users').doc(uid);
@@ -215,12 +218,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 // Firestore transactions require ALL reads before ANY writes.
                 const orderRef = db.collection('orders').doc(orderId);
                 const existingOrder = await t.get(orderRef);
-                isPreSaved = existingOrder.exists && existingOrder.data()?.source === 'pre_saved';
+                const existingData = existingOrder.exists ? existingOrder.data() : null;
+
+                // Idempotency guard: if this order was already paid/verified, do not debit the wallet again.
+                if (
+                    existingData &&
+                    (existingData.source === 'verified' ||
+                        (existingData.status && !['PENDING_PAYMENT', 'FAILED'].includes(existingData.status)))
+                ) {
+                    alreadyPaid = true;
+                    finalAmount = Number(existingData.total ?? existingData.totalAmount ?? 0);
+                    resolvedTrackingToken = existingData.trackingToken || '';
+                    return;
+                }
+
+                isPreSaved = Boolean(existingData && existingData.source === 'pre_saved');
 
                 const userData = userDoc.data()!;
                 const walletBalance = Number(userData.walletBalance || 0);
 
-                const { serverTotal: rawTotal, netDeliveryFee, pricedItems } = await calculateServerOrderTotal(db, orderData, t);
+                const { serverTotal: rawTotal, netDeliveryFee, breakdown: serverBreakdown, pricedItems } = await calculateServerOrderTotal(db, orderData, t);
                 const firstOrderEval = await evaluateFirstOrderDiscountTx(t, db, {
                     userId: uid,
                     userData,
@@ -259,12 +276,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     userId: uid,
                     type: 'debit',
                     amount: serverTotal,
+                    balanceBefore: walletBalance,
                     balanceAfter: walletBalance - serverTotal,
                     purpose: isFashionOrder ? 'FASHION_PURCHASE' : isMartOrder ? 'MART_PURCHASE' : 'FOOD_PURCHASE',
                     status: 'successful',
                     reference: orderId,
+                    relatedOrderId: displayOrderId,
                     createdAt: FieldValue.serverTimestamp()
                 });
+
+                const resolvedCafeteriaId = orderData?.cafeteriaId || existingData?.cafeteriaId || '';
+                const resolvedSectionId = orderData?.sectionId || existingData?.sectionId || 'none';
+                const resolvedCafeLabel = (!isMartOrder && !isFashionOrder)
+                    ? formatCafeteriaSectionLabel(
+                        resolvedCafeteriaId,
+                        resolvedSectionId,
+                        orderData?.cafeteriaDisplay || orderData?.cafeteria || existingData?.cafeteriaDisplay || existingData?.cafeteria
+                    )
+                    : '';
 
                 const orderDocBase: any = {
                     orderId,
@@ -277,32 +306,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     ...hostelValidation.hostelFields,
                     instructions: orderData?.instructions || '',
                     total: serverTotal,
-                    cafeteria: orderData?.cafeteria || '',
-                    cafeteriaId: orderData?.cafeteriaId || '',
-                    sectionId: orderData?.sectionId || 'none',
+                    cafeteria: resolvedCafeLabel !== 'Not recorded' ? resolvedCafeLabel : (orderData?.cafeteria || existingData?.cafeteria || ''),
+                    cafeteriaDisplay: resolvedCafeLabel !== 'Not recorded' ? resolvedCafeLabel : '',
+                    cafeteriaId: resolvedCafeteriaId,
+                    sectionId: resolvedSectionId,
                     deliveryMode: orderData?.deliveryMode || 'solo',
                     groupSize: 1,
                     deliveryType: orderData?.deliveryType || 'INSTANT',
-                    trackingToken: (existingOrder.exists ? existingOrder.data()?.trackingToken : null) || createTrackingToken(),
+                    trackingToken: existingData?.trackingToken || createTrackingToken(),
                     paymentReference: `WALLET-${displayOrderId}`,
                     paymentMethod: 'WALLET',
                     assignedRiderId: null,
                     batchId: null,
                     status: 'PAID',
                     source: 'verified',
-                    createdAt: existingOrder.exists ? existingOrder.data()?.createdAt : FieldValue.serverTimestamp(),
+                    createdAt: existingData?.createdAt || FieldValue.serverTimestamp(),
                     updatedAt: FieldValue.serverTimestamp()
                 };
+                resolvedTrackingToken = orderDocBase.trackingToken;
 
                 if (orderDocBase.deliveryType === 'BATCH') {
-                    const existing = existingOrder.exists ? existingOrder.data() : null;
-                    orderDocBase.foodBatchId = orderData?.selectedBatchId || orderData?.foodBatchId || existing?.foodBatchId || null;
-                    orderDocBase.foodBatchName = orderData?.foodBatchName || existing?.foodBatchName || 'Scheduled Batch';
-                    orderDocBase.orderWindowStart = orderData?.orderWindowStart || existing?.orderWindowStart || null;
-                    orderDocBase.orderWindowEnd = orderData?.orderWindowEnd || existing?.orderWindowEnd || null;
-                    orderDocBase.deliveryWindowStart = orderData?.deliveryWindowStart || existing?.deliveryWindowStart || null;
-                    orderDocBase.deliveryWindowEnd = orderData?.deliveryWindowEnd || existing?.deliveryWindowEnd || null;
-                    orderDocBase.foodBatchDayId = existing?.foodBatchDayId || orderData?.foodBatchDayId || null;
+                    orderDocBase.foodBatchId = orderData?.selectedBatchId || orderData?.foodBatchId || existingData?.foodBatchId || null;
+                    orderDocBase.foodBatchName = orderData?.foodBatchName || existingData?.foodBatchName || 'Scheduled Batch';
+                    orderDocBase.orderWindowStart = orderData?.orderWindowStart || existingData?.orderWindowStart || null;
+                    orderDocBase.orderWindowEnd = orderData?.orderWindowEnd || existingData?.orderWindowEnd || null;
+                    orderDocBase.deliveryWindowStart = orderData?.deliveryWindowStart || existingData?.deliveryWindowStart || null;
+                    orderDocBase.deliveryWindowEnd = orderData?.deliveryWindowEnd || existingData?.deliveryWindowEnd || null;
+                    orderDocBase.foodBatchDayId = existingData?.foodBatchDayId || orderData?.foodBatchDayId || null;
                 }
 
                 if (isMartOrder) {
@@ -314,6 +344,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     orderDocBase.deliveryFee = orderData?.deliveryFee || 1500;
                     delete orderDocBase.total;
                     delete orderDocBase.cafeteria;
+                    delete orderDocBase.cafeteriaDisplay;
                     delete orderDocBase.cafeteriaId;
                     delete orderDocBase.sectionId;
                     delete orderDocBase.deliveryMode;
@@ -330,6 +361,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     orderDocBase.fashionBatchStatus = orderData?.fashionBatchStatus || null;
                     delete orderDocBase.total;
                     delete orderDocBase.cafeteria;
+                    delete orderDocBase.cafeteriaDisplay;
                     delete orderDocBase.cafeteriaId;
                     delete orderDocBase.sectionId;
                     delete orderDocBase.deliveryMode;
@@ -375,10 +407,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
                     orderDocBase.plates = cleanPlates;
                     orderDocBase.drinksSnacks = cleanSnacks;
-                    orderDocBase.plateCount = orderData?.plateCount || 1;
+                    orderDocBase.plateCount = foodGroup.plateCount;
                 }
 
-                if (orderData?.breakdown) {
+                if (serverBreakdown && !isMartOrder && !isFashionOrder) {
+                    orderDocBase.breakdown = serverBreakdown;
+                } else if (orderData?.breakdown) {
                     const restBreakdown = { ...orderData.breakdown };
                     delete restBreakdown.firstOrderDiscount;
                     delete restBreakdown.firstOrderDiscountPercent;
@@ -387,6 +421,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                 t.set(orderRef, mergeDiscountOntoOrder(orderDocBase, firstOrderEval), { merge: true });
             });
+
+            if (alreadyPaid) {
+                return res.status(200).json({
+                    data: {
+                        success: true,
+                        message: 'Order already paid',
+                        amount: finalAmount,
+                        orderId: displayOrderId,
+                        firestoreOrderId: orderId,
+                        trackingToken: resolvedTrackingToken,
+                    }
+                });
+            }
 
             try {
                 await confirmFoodBatchReservation({
@@ -465,7 +512,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     amount: finalAmount,
                     orderId: displayOrderId,
                     firestoreOrderId: orderId,
-                    trackingToken: orderDocBase.trackingToken,
+                    trackingToken: resolvedTrackingToken,
                 }
             });
 

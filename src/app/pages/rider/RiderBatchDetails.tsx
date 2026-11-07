@@ -10,6 +10,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import { useNavigate, useParams } from 'react-router';
 import { subscribeToRiderOrders, subscribeToBatches, updateOrder, updateBatch, Batch, recordDelivery, subscribeToPlatformSettings, PlatformSettings, subscribeTodayBatchDays, FoodBatchDay, subscribeToAllHostels, Hostel } from '../../../services/db';
 import { resolveOrderHostelInfo } from '../../../services/hostels';
+import { resolveOrderCafeteriaLabel } from '../../../services/cafeterias';
 import { resolveOrderVertical, getOrderItemCount } from '../../../services/orderVertical';
 import { riderEarningForOrder } from '../../../services/orderFees';
 import { format } from 'date-fns';
@@ -234,11 +235,11 @@ export default function RiderBatchDetails() {
                             <div style="font-weight: 700; color: #666; font-size: 14px; margin-bottom: 6px;">📞 ${order.phone || 'N/A'}</div>
                             <div style="font-weight: 700; color: #444; font-size: 13px; margin-bottom: 15px;">📍 ${orderHostelInfo.displayHostel} — ${orderHostelInfo.pickupPoint}</div>
 
-                            ${resolveOrderVertical(order) === 'FOOD' && (order.cafeteria || order.cafeteriaId) ? `
+                            ${resolveOrderVertical(order) === 'FOOD' ? `
                                 <div style="margin-bottom: 15px; padding: 10px; background: #f8fafc; border-left: 3px solid #FCD34D; border-radius: 4px;">
                                     <div class="label">Cafe Source</div>
-                                    <div style="font-size: 14px; font-weight: 900;">${order.cafeteria || (order.cafeteriaId === 'old' ? 'Old Cafeteria' : order.cafeteriaId === 'new' ? 'New Cafeteria' : 'Food Cafe')}</div>
-                                    ${order.cafeteriaId ? `<div style="font-size: 12px; font-weight: 700; color: #666; margin-top: 4px;">Cafe ID: ${order.cafeteriaId}</div>` : ''}
+                                    <div style="font-size: 14px; font-weight: 900;">${resolveOrderCafeteriaLabel(order)}</div>
+                                    ${order.cafeteriaId ? `<div style="font-size: 12px; font-weight: 700; color: #666; margin-top: 4px;">Cafe ID: ${order.cafeteriaId}${order.sectionId ? ` (${order.sectionId})` : ''}</div>` : ''}
                                 </div>
                             ` : ''}
 
@@ -488,8 +489,8 @@ export default function RiderBatchDetails() {
                                                 <span className={`text-[10px] font-bold tracking-widest font-mono ${isDark ? 'text-[#9C8F7F]' : 'text-gray-500'}`}>
                                                     CD-{order.orderId?.slice(-6) || order.id?.slice(-6)}
                                                 </span>
-                                                {order.cafeteria && (
-                                                    <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5">{order.cafeteria}</Badge>
+                                                {resolveOrderVertical(order) === 'FOOD' && (
+                                                    <Badge variant="amber" className="text-[9px] uppercase font-black px-1.5 py-0.5">{resolveOrderCafeteriaLabel(order)}</Badge>
                                                 )}
                                                 {(order.deliveryMode === 'group' || order.deliveryMode === 'GROUP') && (
                                                     <Badge variant="purple" className="text-[9px] uppercase font-black px-1.5 py-0.5">Group</Badge>

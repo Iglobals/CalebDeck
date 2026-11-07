@@ -4,6 +4,7 @@ import { adminDb } from '../server/firebase-admin.js';
 import { calculateServerOrderTotal, validateAndResolveOrderHostel } from '../server/order-utils.js';
 import { resolveOrderVertical } from '../src/services/orderVertical.js';
 import { GroupOrderError, resolveFoodGroupPricing } from '../src/services/groupPricing.js';
+import { formatCafeteriaSectionLabel } from '../src/services/cafeterias.js';
 import { createTrackingToken } from '../server/order-tracking.js';
 import { isRateLimited, clientIp } from '../server/rate-limit.js';
 import { recordEvent, monitoringFromError, ensurePaymentResolutionAnnouncement } from '../server/monitoring.js';
@@ -107,9 +108,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
         }
 
-        const { pricedItems, serverTotal: serverFashionTotal, netDeliveryFee: serverFashionDeliveryFee } = isFashionOrder
-            ? await calculateServerOrderTotal(db, orderData)
-            : {};
+        const {
+            pricedItems,
+            serverTotal: calculatedServerTotal,
+            netDeliveryFee: serverFashionDeliveryFee,
+            breakdown: serverBreakdown,
+        } = await calculateServerOrderTotal(db, orderData);
 
         // ─── Delivery Type Validation (food orders only — fashion batches are managed separately) ───
         let batchInfo: {
@@ -298,6 +302,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return rest;
         });
 
+        const resolvedCafeLabel = (!isMartOrder && !isFashionOrder)
+            ? formatCafeteriaSectionLabel(orderData.cafeteriaId, orderData.sectionId, orderData.cafeteriaDisplay || orderData.cafeteria)
+            : '';
+
         const orderDoc: any = {
             orderId: orderData.orderId,
             userId: orderData.userId || orderData.iConId || null,
@@ -316,8 +324,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             zoneName: orderData.zoneName || '',
             streetAddress: orderData.streetAddress || orderData.address || '',
             addressDetails: orderData.addressDetails || '',
-            total: (isMartOrder || isFashionOrder) ? undefined : (orderData.total || 0),
-            cafeteria: orderData.cafeteria || '',
+            total: (isMartOrder || isFashionOrder) ? undefined : (calculatedServerTotal || orderData.total || 0),
+            ...(serverBreakdown && !isMartOrder && !isFashionOrder ? { breakdown: serverBreakdown } : (orderData.breakdown ? { breakdown: orderData.breakdown } : {})),
+            cafeteria: resolvedCafeLabel !== 'Not recorded' ? resolvedCafeLabel : (orderData.cafeteria || ''),
+            cafeteriaDisplay: resolvedCafeLabel !== 'Not recorded' ? resolvedCafeLabel : '',
             cafeteriaId: orderData.cafeteriaId || '',
             sectionId: orderData.sectionId || 'none',
             deliveryMode: orderData.deliveryMode || 'solo',
@@ -351,7 +361,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.type = 'fashion';
             orderDoc.orderType = 'FASHION';
             orderDoc.items = pricedItems || orderData.items || [];
-            orderDoc.totalAmount = serverFashionTotal || orderData.totalAmount || orderData.total || 0;
+            orderDoc.totalAmount = calculatedServerTotal || orderData.totalAmount || orderData.total || 0;
             orderDoc.subtotal = orderData.subtotal || 0;
             orderDoc.deliveryFee = serverFashionDeliveryFee || orderData.deliveryFee || 1500;
             orderDoc.fashionBatchName = orderData.fashionBatchName || null;
@@ -359,6 +369,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.fashionBatchStatus = orderData.fashionBatchStatus || null;
             delete orderDoc.total;
             delete orderDoc.cafeteria;
+            delete orderDoc.cafeteriaDisplay;
             delete orderDoc.cafeteriaId;
             delete orderDoc.sectionId;
             delete orderDoc.deliveryMode;
@@ -367,11 +378,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             orderDoc.type = 'mart';
             orderDoc.orderType = 'MART';
             orderDoc.items = orderData.items || [];
-            orderDoc.totalAmount = orderData.totalAmount || orderData.total || 0;
+            orderDoc.totalAmount = calculatedServerTotal || orderData.totalAmount || orderData.total || 0;
             orderDoc.subtotal = orderData.subtotal || 0;
             orderDoc.deliveryFee = orderData.deliveryFee || 1500;
             delete orderDoc.total;
             delete orderDoc.cafeteria;
+            delete orderDoc.cafeteriaDisplay;
             delete orderDoc.cafeteriaId;
             delete orderDoc.sectionId;
             delete orderDoc.deliveryMode;
