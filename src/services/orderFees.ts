@@ -8,7 +8,7 @@
  */
 import { resolveOrderVertical, type OrderVertical } from './orderVertical.js';
 import { findHostelConfig, isDavidHostelKey } from './hostels.js';
-import { premiumGroupDeliveryFee } from './groupPricing.js';
+import { premiumGroupDeliveryFee, resolveFoodDeliveryPricing, instantGroupDeliveryFee } from './groupPricing.js';
 
 export const DEFAULT_PREMIUM_HOSTELS = ['sussana', 'rebecca', 'mary', 'esme', 'deborah', 'mercy'];
 
@@ -52,11 +52,17 @@ export function isPremiumHostel(hostel: any, settings?: any, hostels?: any[]): b
 
 export interface DeliveryFeeResult {
     vertical: OrderVertical;
-    /** Total delivery fee charged for the whole order. */
+    /** Total delivery fee charged for the whole order (net of group discount). */
     deliveryFee: number;
-    /** Per-plate (food) or flat (fashion/mart) base rate before multiplying. */
+    /** Per-plate (food) or flat (fashion/mart) base rate before multiplying (net of group discount). */
     baseDeliveryFee: number;
     isPremium: boolean;
+    /** Per-plate (food) or flat (fashion/mart) gross rate before group discount. */
+    grossBaseDeliveryFee?: number;
+    /** Total gross delivery fee before group discount. */
+    grossDeliveryFee?: number;
+    /** Total group discount deducted from delivery fee. */
+    discount?: number;
 }
 
 function feeFromSettings(settings: any, key: string, fallback: number): number {
@@ -78,14 +84,30 @@ export function resolveDeliveryFee(order: any, settings?: any): DeliveryFeeResul
         const fee = Number(order?.deliveryFee) > 0
             ? Number(order.deliveryFee)
             : feeFromSettings(settings, 'fashionDeliveryFee', FEE_DEFAULTS.fashionDeliveryFee);
-        return { vertical, deliveryFee: fee, baseDeliveryFee: fee, isPremium };
+        return {
+            vertical,
+            deliveryFee: fee,
+            baseDeliveryFee: fee,
+            grossBaseDeliveryFee: fee,
+            grossDeliveryFee: fee,
+            discount: 0,
+            isPremium,
+        };
     }
 
     if (vertical === 'MART') {
         const fee = Number(order?.deliveryFee) > 0
             ? Number(order.deliveryFee)
             : feeFromSettings(settings, 'martDeliveryFee', FEE_DEFAULTS.martDeliveryFee);
-        return { vertical, deliveryFee: fee, baseDeliveryFee: fee, isPremium };
+        return {
+            vertical,
+            deliveryFee: fee,
+            baseDeliveryFee: fee,
+            grossBaseDeliveryFee: fee,
+            grossDeliveryFee: fee,
+            discount: 0,
+            isPremium,
+        };
     }
 
     // FOOD — premium/group/solo rate × plate count
@@ -94,16 +116,23 @@ export function resolveDeliveryFee(order: any, settings?: any): DeliveryFeeResul
     ) || 1;
     const isGroup = String(order?.deliveryMode ?? '').trim().toLowerCase() === 'group';
     const isInstant = String(order?.deliveryType ?? '').trim().toUpperCase() === 'INSTANT';
-    const premiumFee = feeFromSettings(settings, 'premiumDeliveryFee', FEE_DEFAULTS.premiumDeliveryFee);
-    const soloFee = isInstant
-        ? feeFromSettings(settings, 'instantDeliveryFee', FEE_DEFAULTS.instantDeliveryFee)
-        : feeFromSettings(settings, 'foodDeliveryFee', FEE_DEFAULTS.foodDeliveryFee);
-    const base = isPremium
-        ? (isGroup ? premiumGroupDeliveryFee(premiumFee) : premiumFee)
-        : isGroup
-            ? feeFromSettings(settings, 'foodGroupDeliveryFee', FEE_DEFAULTS.foodGroupDeliveryFee)
-            : soloFee;
-    return { vertical, deliveryFee: base * plateCount, baseDeliveryFee: base, isPremium };
+    const pricing = resolveFoodDeliveryPricing({
+        isInstant,
+        isGroup,
+        isPremium,
+        plateCount,
+        platformSettings: settings,
+    });
+
+    return {
+        vertical,
+        deliveryFee: pricing.totalNetDelivery,
+        baseDeliveryFee: pricing.netFeePerPlate,
+        grossBaseDeliveryFee: pricing.grossFeePerPlate,
+        grossDeliveryFee: pricing.totalGrossDelivery,
+        discount: pricing.totalDiscount,
+        isPremium,
+    };
 }
 
 export const TAKEAWAY_FEE_PER_PLATE = 200;

@@ -1057,18 +1057,8 @@ export default function AdminOrders({ orderType = 'food', title = "Today's Order
                                                 const plateCount = getOrderItemCount(selectedOrder) || 1;
                                                 const isGroup = selectedOrder.deliveryMode === 'group' || selectedOrder.deliveryMode === 'GROUP';
                                                 const feeInfo = resolveDeliveryFee(selectedOrder, platformSettings);
-                                                let calculatedDeliveryAmount = feeInfo.deliveryFee;
-                                                let calculatedDiscount = 0;
-                                                if (isGroup && isFood) {
-                                                    const foodGroupFee = Number(platformSettings?.foodGroupDeliveryFee) || 580;
-                                                    const groupDiscount = feeInfo.isPremium
-                                                        ? (feeInfo.baseDeliveryFee - Math.round(feeInfo.baseDeliveryFee * 0.8))
-                                                        : (feeInfo.baseDeliveryFee - foodGroupFee);
-                                                    calculatedDiscount = groupDiscount * plateCount;
-                                                }
-
-                                                const deliveryFee = hasBreakdown ? selectedOrder.breakdown.delivery : calculatedDeliveryAmount;
-                                                const discount = hasBreakdown ? selectedOrder.breakdown.discount : calculatedDiscount;
+                                                const deliveryFee = hasBreakdown ? selectedOrder.breakdown.delivery : (feeInfo.grossDeliveryFee ?? feeInfo.deliveryFee);
+                                                const discount = hasBreakdown ? selectedOrder.breakdown.discount : (feeInfo.discount ?? 0);
 
                                                 return (
                                                     <>

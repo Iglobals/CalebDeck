@@ -3,7 +3,7 @@ import { resolveOrderVertical } from '../src/services/orderVertical.js';
 import { isPremiumHostel as sharedIsPremiumHostel, applyQualifyingAddonMarkup } from '../src/services/orderFees.js';
 import { resolveHostelRestriction, type HostelConfig } from '../src/services/hostels.js';
 import { findFashionDeliveryArea, normaliseFashionDeliveryConfig } from './fashion-delivery.js';
-import { premiumGroupDeliveryFee, resolveFoodGroupPricing } from '../src/services/groupPricing.js';
+import { premiumGroupDeliveryFee, resolveFoodGroupPricing, resolveFoodDeliveryPricing } from '../src/services/groupPricing.js';
 
 const FOOD_PLATE_FEE_FALLBACKS = { foodDeliveryFee: 750, foodGroupDeliveryFee: 580, premiumDeliveryFee: 1250 };
 
@@ -275,20 +275,19 @@ export async function calculateServerOrderTotal(
 
     // Food (plate or combo) — premium hostel rate only applies to food orders.
     const isInstant = String(orderData?.deliveryType || '').trim().toUpperCase() === 'INSTANT';
-    const instantDeliveryFee = Number(platformSettings?.instantDeliveryFee) > 0
-        ? Number(platformSettings.instantDeliveryFee)
-        : 700;
-    const premiumFee = platformSettings!.premiumDeliveryFee || FOOD_PLATE_FEE_FALLBACKS.premiumDeliveryFee;
-    const foodSoloFee = isInstant
-        ? instantDeliveryFee
-        : (platformSettings!.foodDeliveryFee || FOOD_PLATE_FEE_FALLBACKS.foodDeliveryFee);
-    const foodGroupFee = platformSettings!.foodGroupDeliveryFee || FOOD_PLATE_FEE_FALLBACKS.foodGroupDeliveryFee;
-    const grossSoloDeliveryFee = isPremium ? premiumFee : foodSoloFee;
-    const baseDeliveryFee = isPremium
-        ? (isGroup ? premiumGroupDeliveryFee(premiumFee) : premiumFee)
-        : isGroup
-            ? foodGroupFee
-            : foodSoloFee;
+    const plateCount = foodGroup.plateCount;
+    const pricing = resolveFoodDeliveryPricing({
+        isInstant,
+        isGroup,
+        isPremium,
+        plateCount,
+        platformSettings,
+    });
+    const grossSoloDeliveryFee = pricing.grossFeePerPlate;
+    const baseDeliveryFee = pricing.netFeePerPlate;
+    const grossDelivery = pricing.totalGrossDelivery;
+    const deliveryFee = pricing.totalNetDelivery;
+    const discount = pricing.totalDiscount;
 
     if (isCombo) {
         const comboRef = db.collection('combo_packs').doc(orderData.comboId);
@@ -382,10 +381,6 @@ export async function calculateServerOrderTotal(
         }
     }
 
-    const plateCount = foodGroup.plateCount;
-    const grossDelivery = grossSoloDeliveryFee * plateCount;
-    const deliveryFee = baseDeliveryFee * plateCount;
-    const discount = isGroup ? Math.max(0, grossDelivery - deliveryFee) : 0;
     const takeawayFee = 200 * plateCount;
     serverTotal = foodTotal + deliveryFee + takeawayFee;
 

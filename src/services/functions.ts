@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 import { isPremiumHostel } from './orderFees';
-import { premiumGroupDeliveryFee, resolveFoodGroupPricing } from './groupPricing';
+import { premiumGroupDeliveryFee, resolveFoodGroupPricing, resolveFoodDeliveryPricing } from './groupPricing';
 
 // In DEV: mock server-side calculations locally
 // In PRODUCTION: call Vercel API routes (server-side, secure)
@@ -26,32 +26,26 @@ export const calculateOrderTotal = async (data: any) => {
         // This is a local mock for DEV. We don't have direct access to platform settings here so we use defaults,
         // but Checkout.tsx handles its own fallback if it needs it.
         const isInstant = String(deliveryType || '').trim().toUpperCase() === 'INSTANT';
-        const premiumDeliveryFee = 1250;
-        const foodSoloFee = isInstant ? 700 : 750;
-        const foodGroupFee = 580;
         const isPremium = isPremiumHostel(hostelId);
+        const pricing = resolveFoodDeliveryPricing({
+            isInstant,
+            isGroup,
+            isPremium,
+            plateCount,
+        });
 
-        const baseDeliveryFee = isPremium ? premiumDeliveryFee : foodSoloFee;
-        let discountPerPlate = 0;
-        if (isGroup) {
-             discountPerPlate = isPremium ? (premiumDeliveryFee - premiumGroupDeliveryFee(premiumDeliveryFee)) : (foodSoloFee - foodGroupFee);
-        }
-
-        const deliveryFee = baseDeliveryFee * plateCount;
         const takeawayFee = plateCount * 200;
-        const discount = discountPerPlate * plateCount;
-
-        const finalTotal = total + deliveryFee + takeawayFee - discount;
+        const finalTotal = total + pricing.totalNetDelivery + takeawayFee;
 
         return {
             data: {
                 totalAmount: finalTotal,
                 breakdown: {
                     food: total,
-                    delivery: deliveryFee,
+                    delivery: pricing.totalGrossDelivery,
                     takeaway: takeawayFee,
                     processing: 0,
-                    discount
+                    discount: pricing.totalDiscount,
                 },
             }
         };

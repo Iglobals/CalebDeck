@@ -819,6 +819,7 @@ export interface PlatformSettings {
     groupRatePerDelivery?: number;
     foodDeliveryFee?: number;
     instantDeliveryFee?: number;
+    instantGroupDeliveryFee?: number;
     foodGroupDeliveryFee?: number;
     premiumDeliveryFee?: number;
     /** Girls'-hostel list that triggers the premium FOOD delivery rate (admin-editable). */
