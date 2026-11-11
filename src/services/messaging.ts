@@ -46,6 +46,8 @@ export function checkNotificationSupport() {
     };
 }
 
+export const DEFAULT_VAPID_KEY = 'BBonlp_UU5DKw0-wD57O3ocIdQE9alzmXev_fYaWqiGk9KFXwV3ayczXV0s1-QYQOxgOgdba_JjNC7Yu1EJSuNg';
+
 /**
  * Explicitly register the Firebase messaging service worker FIRST,
  * then pass its registration to getToken().
@@ -56,7 +58,11 @@ const getServiceWorkerRegistration = async (): Promise<ServiceWorkerRegistration
         const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
             scope: '/',
         });
-        await navigator.serviceWorker.ready;
+        // Race ready with a short timeout so registration doesn't hang in restricted contexts
+        await Promise.race([
+            navigator.serviceWorker.ready,
+            new Promise((resolve) => setTimeout(resolve, 3000)),
+        ]);
         return registration;
     } catch (err) {
         console.warn('Service worker registration failed:', err);
@@ -69,10 +75,12 @@ const acquireFCMToken = async (
     swRegistration?: ServiceWorkerRegistration, 
     retries = 3
 ): Promise<string | null> => {
+    const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || DEFAULT_VAPID_KEY;
+
     for (let attempt = 0; attempt < retries; attempt++) {
         try {
             const tokenOptions: any = {
-                vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
+                vapidKey,
             };
             if (swRegistration) {
                 tokenOptions.serviceWorkerRegistration = swRegistration;

@@ -30,6 +30,7 @@ import {
   FailureCategory,
   sendTestPushToCurrentDevice,
 } from '../../../services/monitoring';
+import { requestNotificationPermissionAndSaveToken } from '../../../services/messaging';
 import { toast } from 'react-toastify';
 import {
   Activity,
@@ -351,9 +352,19 @@ export default function AdminMonitoring() {
     try {
       const token = await user?.getIdToken();
       if (!token) throw new Error('Admin session expired');
-      const localFcmToken = typeof localStorage !== 'undefined' ? localStorage.getItem('calebdeck_fcm_token') : null;
+      let localFcmToken = typeof localStorage !== 'undefined' ? localStorage.getItem('calebdeck_fcm_token') : null;
+
+      if (!localFcmToken && user?.uid) {
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          const res = await requestNotificationPermissionAndSaveToken(user.uid, 'users');
+          if (res.token) {
+            localFcmToken = res.token;
+          }
+        }
+      }
+
       if (!localFcmToken) {
-        toast.info('No device token found on this device. Tap "Enable Now" on the notification banner first.', { autoClose: 7000 });
+        toast.info('No device token found. Click "Enable Notifications" or allow notifications in your browser first.', { autoClose: 7000 });
         return;
       }
       await sendTestPushToCurrentDevice(token, localFcmToken);

@@ -115,8 +115,29 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
         // Listen for foreground pushes
         const unsub = onForegroundMessage((payload) => {
             console.log("Foreground Admin Push Received:", payload);
-            // The unread badge will automatically update via Firestore, 
-            // but we could also trigger a toast here if desired.
+            const title = payload.notification?.title || payload.data?.title || 'CalebDeck Notification';
+            const body = payload.notification?.body || payload.data?.body || '';
+
+            toast.info(
+                <div className="flex flex-col gap-1">
+                    <p className="font-bold text-sm text-foreground">{title}</p>
+                    {body && <p className="text-xs text-muted-foreground">{body}</p>}
+                </div>,
+                { autoClose: 6000 }
+            );
+
+            if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+                try {
+                    new Notification(title, {
+                        body,
+                        icon: '/calebdeck-logo.jpeg',
+                        badge: '/calebdeck-logo.jpeg',
+                        data: payload.data,
+                    });
+                } catch {
+                    // Browser document context may restrict Notification constructor in some environments
+                }
+            }
         });
 
         return () => unsub();

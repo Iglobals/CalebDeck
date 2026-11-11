@@ -86,6 +86,29 @@ export function RiderRoleWrapper() {
 
         const unsub = onForegroundMessage((payload) => {
             console.log("Foreground Rider Push Received:", payload);
+            const title = payload.notification?.title || payload.data?.title || 'CalebDeck Rider Alert';
+            const body = payload.notification?.body || payload.data?.body || '';
+
+            toast.info(
+                <div className="flex flex-col gap-1">
+                    <p className="font-bold text-sm">{title}</p>
+                    {body && <p className="text-xs">{body}</p>}
+                </div>,
+                { autoClose: 6000 }
+            );
+
+            if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+                try {
+                    new Notification(title, {
+                        body,
+                        icon: '/calebdeck-logo.jpeg',
+                        badge: '/calebdeck-logo.jpeg',
+                        data: payload.data,
+                    });
+                } catch {
+                    // Document context fallback
+                }
+            }
         });
 
         return () => unsub();
