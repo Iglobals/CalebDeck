@@ -75,6 +75,7 @@ export default function AdminSettings() {
   // Fees and Pricing State
   const [fees, setFees] = useState({
     instantDeliveryFee: 700,
+    instantGroupDeliveryFee: 0,
     foodDeliveryFee: 0,
     foodGroupDeliveryFee: 0,
     premiumDeliveryFee: 0,
@@ -148,6 +149,7 @@ export default function AdminSettings() {
       
       setFees({
         instantDeliveryFee: data.instantDeliveryFee !== undefined ? Number(data.instantDeliveryFee) : 700,
+        instantGroupDeliveryFee: data.instantGroupDeliveryFee !== undefined ? Number(data.instantGroupDeliveryFee) : 0,
         foodDeliveryFee: data.foodDeliveryFee || 0,
         foodGroupDeliveryFee: data.foodGroupDeliveryFee || 0,
         premiumDeliveryFee: data.premiumDeliveryFee || 0,
@@ -755,6 +757,13 @@ export default function AdminSettings() {
         const instantFee = Number(fees.instantDeliveryFee);
         if (isNaN(instantFee) || instantFee < 0 || instantFee > 20000) {
           alert('Instant Order Delivery Fee must be a valid amount between ₦0 and ₦20,000.');
+          return;
+        }
+      }
+      if (fees.instantGroupDeliveryFee !== undefined && fees.instantGroupDeliveryFee > 0) {
+        const instantGroupFee = Number(fees.instantGroupDeliveryFee);
+        if (isNaN(instantGroupFee) || instantGroupFee < 0 || instantGroupFee > 20000) {
+          alert('Instant Group Delivery Fee must be a valid amount between ₦0 and ₦20,000.');
           return;
         }
       }
@@ -1369,7 +1378,7 @@ export default function AdminSettings() {
                   }`}
                 />
                 <p className={`text-[10px] mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-                  Applies to solo instant orders. Does not affect scheduled batches.
+                  Base fee for instant delivery orders (qualifying group orders receive the 20% group discount on this fee). Does not affect scheduled batches.
                 </p>
               </div>
               <div>
@@ -1383,11 +1392,11 @@ export default function AdminSettings() {
                   }`}
                 />
                 <p className={`text-[10px] mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-                  Applies to scheduled batch food orders.
+                  Applies to solo scheduled batch food orders.
                 </p>
               </div>
               <div>
-                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Food Group Delivery Fee</label>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Food Group Delivery Fee (Scheduled Batch)</label>
                 <input 
                   type="number" min="0"
                   value={fees.foodGroupDeliveryFee}
@@ -1396,6 +1405,9 @@ export default function AdminSettings() {
                     isDark ? 'bg-[#2A2A2A] border-[#333333] text-white' : 'bg-white border-gray-200 text-gray-900'
                   }`}
                 />
+                <p className={`text-[10px] mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                  Applies to scheduled batch group orders.
+                </p>
               </div>
               <div>
                 <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Mart Delivery Fee</label>

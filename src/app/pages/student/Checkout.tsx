@@ -12,7 +12,7 @@ import { isPremiumHostel, applyQualifyingAddonMarkup } from '../../../services/o
 import { resolveHostelRestriction, normalizeHostelKey } from '../../../services/hostels';
 import { formatCafeteriaSectionLabel, persistSelectedCafeteria, readPersistedCafeteria } from '../../../services/cafeterias';
 import { calculateOrderTotal, verifyPayment } from '../../../services/functions';
-import { premiumGroupDeliveryFee, resolveFoodGroupPricing } from '../../../services/groupPricing';
+import { premiumGroupDeliveryFee, resolveFoodGroupPricing, resolveFoodDeliveryPricing } from '../../../services/groupPricing';
 import { fetchTrackedOrder } from '../../../services/orderTracking';
 import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
@@ -237,18 +237,24 @@ export default function Checkout() {
       foodGroup = { deliveryMode: 'solo' as const, groupSize: 1, plateCount: qty, isGroup: false };
     }
     const isInstant = deliveryType === 'INSTANT';
-    const instantFee = Number(platformSettings?.instantDeliveryFee) > 0 ? Number(platformSettings.instantDeliveryFee) : 700;
-    const premium = isPremiumHostel(formData.hostel, platformSettings);
-    const premiumFee = platformSettings?.premiumDeliveryFee || 1250;
-    const foodSoloFee = isInstant ? instantFee : (platformSettings?.foodDeliveryFee || DELIVERY_FEE_SOLO);
-    const foodGroupFee = platformSettings?.foodGroupDeliveryFee || DELIVERY_FEE_GROUP;
-    const baseDeliveryFee = premium
-      ? (foodGroup.isGroup ? premiumGroupDeliveryFee(premiumFee) : premiumFee)
-      : (foodGroup.isGroup ? foodGroupFee : foodSoloFee);
-    const delivery = baseDeliveryFee * foodGroup.plateCount;
+    const isPremium = isPremiumHostel(formData.hostel, platformSettings);
+    const pricing = resolveFoodDeliveryPricing({
+      isInstant,
+      isGroup: foodGroup.isGroup,
+      isPremium,
+      plateCount: qty,
+      platformSettings,
+    });
     return {
-      totalAmount: base * qty + delivery,
-      breakdown: { food: base * qty, delivery, takeaway: 0, discount: 0, platform: 0, processing: 0 }
+      totalAmount: base * qty + pricing.totalNetDelivery,
+      breakdown: {
+        food: base * qty,
+        delivery: pricing.totalGrossDelivery,
+        takeaway: 0,
+        discount: pricing.totalDiscount,
+        platform: 0,
+        processing: 0,
+      }
     };
   }, [isCombo, comboOrder?.quantity, comboOrder?.basePrice, currentDeliveryMode, currentGroupSize, formData.hostel, platformSettings, deliveryType]);
 

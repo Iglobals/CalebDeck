@@ -77,3 +77,85 @@ export function resolveFoodGroupPricing(orderData: any): {
 export function premiumGroupDeliveryFee(premiumFee: number): number {
     return Math.round(Number(premiumFee) * 0.8);
 }
+
+/**
+ * Calculates the group delivery fee per plate for instant orders.
+ * If an explicit instantGroupDeliveryFee is configured in platformSettings, that is used;
+ * otherwise, it defaults to the authoritative 20% group discount on the instant solo fee.
+ */
+export function instantGroupDeliveryFee(instantSoloFee: number, settings?: any): number {
+    const configured = Number(settings?.instantGroupDeliveryFee);
+    if (Number.isFinite(configured) && configured > 0) {
+        return configured;
+    }
+    return Math.round(Number(instantSoloFee) * 0.8);
+}
+
+export interface FoodDeliveryPricingResult {
+    grossFeePerPlate: number;
+    netFeePerPlate: number;
+    discountPerPlate: number;
+    totalGrossDelivery: number;
+    totalNetDelivery: number;
+    totalDiscount: number;
+}
+
+/**
+ * Authoritative single source of truth for food delivery pricing (solo, group, instant, scheduled, premium).
+ */
+export function resolveFoodDeliveryPricing(params: {
+    isInstant: boolean;
+    isGroup: boolean;
+    isPremium: boolean;
+    plateCount: number;
+    platformSettings?: any;
+}): FoodDeliveryPricingResult {
+    const { isInstant, isGroup, isPremium, plateCount, platformSettings } = params;
+    const count = Math.max(1, Number(plateCount) || 1);
+
+    const premiumFee = Number(platformSettings?.premiumDeliveryFee) > 0
+        ? Number(platformSettings.premiumDeliveryFee)
+        : 1250;
+
+    const scheduledSoloFee = Number(platformSettings?.foodDeliveryFee) > 0
+        ? Number(platformSettings.foodDeliveryFee)
+        : 750;
+
+    const scheduledGroupFee = Number(platformSettings?.foodGroupDeliveryFee) > 0
+        ? Number(platformSettings.foodGroupDeliveryFee)
+        : 580;
+
+    const instantSoloFee = Number(platformSettings?.instantDeliveryFee) > 0
+        ? Number(platformSettings.instantDeliveryFee)
+        : 700;
+
+    const instantGroupFee = instantGroupDeliveryFee(instantSoloFee, platformSettings);
+
+    let grossFeePerPlate: number;
+    let netFeePerPlate: number;
+
+    if (isPremium) {
+        grossFeePerPlate = premiumFee;
+        netFeePerPlate = isGroup ? premiumGroupDeliveryFee(premiumFee) : premiumFee;
+    } else if (isInstant) {
+        grossFeePerPlate = instantSoloFee;
+        netFeePerPlate = isGroup ? instantGroupFee : instantSoloFee;
+    } else {
+        grossFeePerPlate = scheduledSoloFee;
+        netFeePerPlate = isGroup ? scheduledGroupFee : scheduledSoloFee;
+    }
+
+    const discountPerPlate = isGroup ? Math.max(0, grossFeePerPlate - netFeePerPlate) : 0;
+    const totalGrossDelivery = grossFeePerPlate * count;
+    const totalNetDelivery = netFeePerPlate * count;
+    const totalDiscount = discountPerPlate * count;
+
+    return {
+        grossFeePerPlate,
+        netFeePerPlate,
+        discountPerPlate,
+        totalGrossDelivery,
+        totalNetDelivery,
+        totalDiscount,
+    };
+}
