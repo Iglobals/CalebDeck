@@ -21,7 +21,8 @@ export async function verifyAdmin(req: VercelRequest): Promise<{ uid: string; em
         const db = getFirestore();
         const userDoc = await db.collection('users').doc(decodedToken.uid).get();
 
-        if (!userDoc.exists || userDoc.data()?.role !== 'ADMIN') {
+        const role = String(userDoc.data()?.role || '').trim().toUpperCase();
+        if (!userDoc.exists || role !== 'ADMIN') {
             return null;
         }
 

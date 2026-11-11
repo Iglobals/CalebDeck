@@ -413,7 +413,7 @@ export async function updateIncident(id: string, updates: {
 }
 
 export async function sendTestPushToCurrentDevice(idToken: string, fcmToken: string) {
-  const response = await fetch('/api/utils?action=test-push', {
+  const response = await fetch('/api/utils/test-push', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

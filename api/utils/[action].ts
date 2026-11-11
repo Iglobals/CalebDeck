@@ -464,6 +464,8 @@ async function handleTestPush(req: VercelRequest, res: VercelResponse) {
             data: {
                 link: '/admin/monitoring',
                 type: 'diagnostic_test',
+                title: 'CalebDeck Push Diagnostics 🔔',
+                body: 'Your device is successfully receiving push notifications from CalebDeck!',
             },
             webpush: {
                 headers: { Urgency: 'high' },
@@ -511,7 +513,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).end();
     }
 
-    const action = req.query.action;
+    let action = (req.query.action as string) || undefined;
+    if (!action && req.url) {
+        try {
+            const urlObj = new URL(req.url, 'http://localhost');
+            const queryAction = urlObj.searchParams.get('action');
+            if (queryAction) {
+                action = queryAction;
+            } else {
+                const segments = urlObj.pathname.split('/').filter(Boolean);
+                const last = segments[segments.length - 1];
+                if (last && last !== 'utils') {
+                    action = last;
+                }
+            }
+        } catch {
+            // fallback
+        }
+    }
 
     try {
         if (action === 'cloudinary') return await handleCloudinary(req, res);
