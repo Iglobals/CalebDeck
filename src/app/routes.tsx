@@ -5,6 +5,7 @@ import StudentRoleWrapper from './layouts/StudentRoleWrapper';
 import { IconGate } from './layouts/IconGate';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { RouteErrorBoundary, FriendlyErrorFallback } from './components/RouteErrorBoundary';
+import { DiscontinuedServicePage } from './components/DiscontinuedServicePage';
 import { RootWrapper } from './components/RootWrapper';
 import { lazyWithRetry, lazyRoute, installVitePreloadErrorHandler } from '../utils/lazyWithRetry';
 
@@ -16,9 +17,19 @@ const CafeteriaSelection = lazyWithRetry(() => import("./pages/student/Cafeteria
 const PlateBuilder = lazyWithRetry(() => import("./pages/student/PlateBuilder"), "PlateBuilder");
 const Checkout = lazyWithRetry(() => import("./pages/student/Checkout"), "Checkout");
 const OrderSuccess = lazyWithRetry(() => import("./pages/student/OrderSuccess"), "OrderSuccess");
-const MartPage = lazyWithRetry(() => import("./pages/student/MartPage"), "MartPage");
-const MartCart = lazyWithRetry(() => import("./pages/student/MartCart"), "MartCart");
-const MartCheckout = lazyWithRetry(() => import("./pages/student/MartCheckout"), "MartCheckout");
+
+const MartDiscontinuedElement = (
+  <DiscontinuedServicePage
+    serviceName="CalebDeck Mart"
+    description="CalebDeck Mart (groceries and essentials) has been discontinued as we focus on weekend campus food delivery and CalebDeck Fashion."
+  />
+);
+const CalebNetDiscontinuedElement = (
+  <DiscontinuedServicePage
+    serviceName="CalebNet"
+    description="CalebNet (Airtime & Data top-up) has been discontinued and is no longer accepting new transactions."
+  />
+);
 
 // --- Lazy Load Fashion Pages ---
 const FashionPage = lazyWithRetry(() => import("./pages/student/FashionPage"), "FashionPage");
@@ -90,10 +101,10 @@ export const router = createBrowserRouter([
           { path: "plate-builder/:cafeteriaId", Component: PlateBuilder },
           { path: "checkout", Component: Checkout },
           { path: "order-success", Component: OrderSuccess },
-          { path: "mart", Component: MartPage },
-          { path: "cart", Component: MartCart },
-          { path: "mart/checkout", Component: MartCheckout },
-          { path: "calebnet", lazy: lazyRoute(() => import("./pages/student/CalebNet"), "CalebNet") },
+          { path: "mart", element: MartDiscontinuedElement },
+          { path: "cart", element: MartDiscontinuedElement },
+          { path: "mart/checkout", element: MartDiscontinuedElement },
+          { path: "calebnet", element: CalebNetDiscontinuedElement },
           { path: "calebnet/status/:paymentReference", lazy: lazyRoute(() => import("./pages/student/CalebNetStatus"), "CalebNetStatus") },
           { path: "my-orders", lazy: lazyRoute(() => import("./pages/student/MyOrders"), "MyOrders") },
           
@@ -170,8 +181,8 @@ export const router = createBrowserRouter([
       { path: "/terms", Component: TermsOfService },
       { path: "/support", Component: Support },
       { path: "/learn-more", Component: LearnMore },
-      { path: "/calebdeck-mart", lazy: lazyRoute(() => import("./pages/CalebDeckMartLanding"), "CalebDeckMartLanding") },
-      { path: "/calebnet-info", lazy: lazyRoute(() => import("./pages/CalebNetLanding"), "CalebNetLanding") },
+      { path: "/calebdeck-mart", element: MartDiscontinuedElement },
+      { path: "/calebnet-info", element: CalebNetDiscontinuedElement },
       { path: "*", element: <FriendlyErrorFallback error={{ status: 404 }} /> },
     ]
   },

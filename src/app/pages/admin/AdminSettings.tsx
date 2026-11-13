@@ -6,6 +6,15 @@ import { Button } from '../../components/design-system/Button';
 import { Badge } from '../../components/design-system/Badge';
 import { Settings, ShieldAlert, Store, Pizza, Clock, Wifi, Utensils, MessageSquare, Plus, Trash2, Edit3, ArrowUp, ArrowDown, Image as ImageIcon, Sparkles, Check, X, Gift, Upload, Loader2, ChevronDown, ChevronUp, Building2, MapPin, AlertTriangle, Search } from 'lucide-react';
 import { subscribeToPlatformSettings, updatePlatformSettings, subscribeToFirstOrderDiscountClaims, subscribeToAllHostels, saveHostelConfig, toggleHostelStatus, removeOrArchiveHostel, Hostel, PlatformSettings, PromoSlide, DEFAULT_PROMO_SLIDES, FirstOrderDiscountClaim, FashionDeliveryConfig } from '../../../services/db';
+import {
+  WEEKDAY_OPTIONS,
+  DEFAULT_FOOD_OPERATING_DAYS,
+  normalizeFoodOperatingDays,
+  validateFoodOperatingDaysInput,
+  formatFoodOperatingDays,
+  getFoodDeliveryAvailability,
+  WeekdayNumber,
+} from '../../../services/foodSchedule';
 import { HostelRuleType, slugifyHostelId, DAVID_HOSTEL_DEFAULT_MESSAGE, DAVID_HOSTEL_DEFAULT_CHECKBOX, DAVID_HOSTEL_DEFAULT_COLLECTION_INSTRUCTION, DAVID_HOSTEL_DEFAULT_PICKUP_POINT, FEMALE_HOSTEL_DEFAULT_MESSAGE, FEMALE_HOSTEL_DEFAULT_CHECKBOX } from '../../../services/hostels';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
@@ -127,6 +136,8 @@ export default function AdminSettings() {
   });
 
   const [slideDraft, setSlideDraft] = useState<PromoSlide>(createEmptySlide());
+  const [foodOperatingDaysDraft, setFoodOperatingDaysDraft] = useState<WeekdayNumber[]>([...DEFAULT_FOOD_OPERATING_DAYS]);
+  const [savingFoodSchedule, setSavingFoodSchedule] = useState(false);
 
   useEffect(() => {
     const unsub = subscribeToPlatformSettings((data) => {
@@ -141,6 +152,7 @@ export default function AdminSettings() {
       setFashionMessage(data.fashionClosedMessage || DEFAULT_MESSAGES.fashion);
       setCalebNetMessage(data.calebNetClosedMessage || DEFAULT_MESSAGES.calebNet);
       setPromoSlides(data.promoSlides || DEFAULT_PROMO_SLIDES);
+      setFoodOperatingDaysDraft(normalizeFoodOperatingDays(data.foodOperatingDays));
       if (data.fashionBatchConfig) setFashionBatchConfig(data.fashionBatchConfig);
       if (data.fashionDeliveryConfig) {
         setFashionDeliveryConfig(data.fashionDeliveryConfig);
@@ -739,6 +751,38 @@ export default function AdminSettings() {
     }
   };
 
+  const handleToggleOperatingDay = (day: WeekdayNumber) => {
+    setFoodOperatingDaysDraft((prev) =>
+      prev.includes(day)
+        ? prev.filter((d) => d !== day)
+        : normalizeFoodOperatingDays([...prev, day])
+    );
+  };
+
+  const handleSaveFoodSchedule = async () => {
+    const validation = validateFoodOperatingDaysInput(foodOperatingDaysDraft);
+    if ('message' in validation) {
+      toast.error(validation.message);
+      return;
+    }
+    if (validation.days.length === 0) {
+      const confirmed = confirm(
+        'Warning: Disabling all 7 days will suspend Food Delivery across the entire week until you re-enable at least one day. Continue?'
+      );
+      if (!confirmed) return;
+    }
+    setSavingFoodSchedule(true);
+    try {
+      await updatePlatformSettings({ foodOperatingDays: validation.days });
+      toast.success(`Food Delivery schedule updated: ${formatFoodOperatingDays(validation.days)}`);
+    } catch (err: any) {
+      console.error('Failed to update food operating days:', err);
+      toast.error(err?.message || 'Failed to save Food Delivery schedule. Ensure you have admin permissions.');
+    } finally {
+      setSavingFoodSchedule(false);
+    }
+  };
+
   const handleUpdateFashionBatch = async () => {
     try {
       await updatePlatformSettings({
@@ -1189,6 +1233,98 @@ export default function AdminSettings() {
                 Set to 0 and 24 to keep the system open 24/7. Current schedule is from {platformSettings?.systemOpeningHour ?? 10}:00 to {platformSettings?.systemClosingHour ?? 18}:00.
               </p>
             </div>
+
+            {/* Food Delivery Availability (Operating Days in Africa/Lagos) */}
+            <div className="mb-6 space-y-3 pt-4 border-t">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h4 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Food Delivery Availability</h4>
+                  <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Active operating days in Africa/Lagos (WAT). Applies to instant, scheduled, and group food orders.
+                  </p>
+                </div>
+                <Badge className={foodOperatingDaysDraft.length === 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}>
+                  {foodOperatingDaysDraft.length} day{foodOperatingDaysDraft.length === 1 ? '' : 's'}/wk
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                {WEEKDAY_OPTIONS.map((opt) => {
+                  const active = foodOperatingDaysDraft.includes(opt.day);
+                  return (
+                    <button
+                      key={opt.day}
+                      type="button"
+                      onClick={() => handleToggleOperatingDay(opt.day)}
+                      className={`px-2 py-2 rounded-lg text-xs font-bold border transition-all ${
+                        active
+                          ? 'bg-[#7C3AED] text-white border-[#7C3AED] shadow-sm'
+                          : isDark
+                            ? 'bg-[#2A2A2A] text-gray-300 border-[#333333] hover:border-gray-500'
+                            : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
+                      }`}
+                    >
+                      {opt.shortLabel}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFoodOperatingDaysDraft([5, 6, 0])}
+                  className={`text-xs px-2.5 py-1 rounded-md border ${isDark ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                >
+                  Fri – Sun (Weekend)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFoodOperatingDaysDraft([1, 2, 3, 4, 5])}
+                  className={`text-xs px-2.5 py-1 rounded-md border ${isDark ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                >
+                  Mon – Fri
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFoodOperatingDaysDraft([1, 2, 3, 4, 5, 6, 0])}
+                  className={`text-xs px-2.5 py-1 rounded-md border ${isDark ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                >
+                  All 7 Days
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFoodOperatingDaysDraft([])}
+                  className="text-xs px-2.5 py-1 rounded-md border border-red-300 text-red-600 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/30"
+                >
+                  Suspend All
+                </button>
+              </div>
+
+              <div className={`p-3 rounded-lg text-xs border ${
+                foodOperatingDaysDraft.length === 0
+                  ? 'bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400'
+                  : isDark
+                    ? 'bg-[#2A2A2A] border-[#333333] text-gray-300'
+                    : 'bg-gray-50 border-gray-200 text-gray-700'
+              }`}>
+                <p className="font-semibold">Selected schedule: {formatFoodOperatingDays(foodOperatingDaysDraft)}</p>
+                <p className="opacity-80 mt-0.5">
+                  Live status right now: {getFoodDeliveryAvailability({ ...platformSettings, foodOperatingDays: foodOperatingDaysDraft }).userMessage}
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                variant="primary"
+                className="w-full"
+                disabled={savingFoodSchedule}
+                onClick={handleSaveFoodSchedule}
+              >
+                {savingFoodSchedule ? 'Saving Food Schedule...' : 'Save Food Delivery Availability'}
+              </Button>
+            </div>
+
             <div className="mb-6 space-y-3 pt-4 border-t">
               <h4 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Fashion Hours</h4>
               <div>

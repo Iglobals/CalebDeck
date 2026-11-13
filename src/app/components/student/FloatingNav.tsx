@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShoppingBag, Wifi, Home, Shirt, User } from 'lucide-react';
+import { Utensils, Receipt, Home, Shirt, User } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 
 // Routes where the nav should slide away to avoid blocking product UI
@@ -18,9 +18,9 @@ const HIDDEN_ROUTE_PREFIXES = [
   '/business/product'
 ];
 
-const navItems = [
-  { id: 'mart', label: 'Mart', icon: ShoppingBag, path: '/mart' },
-  { id: 'calebnet', label: 'CalebNet', icon: Wifi, path: '/calebnet' },
+const navItems: Array<{ id: string; label: string; icon: any; path: string; disabled?: boolean }> = [
+  { id: 'food', label: 'Food', icon: Utensils, path: '/cafeteria' },
+  { id: 'orders', label: 'Orders', icon: Receipt, path: '/my-orders' },
   { id: 'home', label: 'Home', icon: Home, path: '/' },
   { id: 'fashion', label: 'Fashion', icon: Shirt, path: '/fashion' },
   { id: 'profile', label: 'i-CON', icon: User, path: '/profile' },

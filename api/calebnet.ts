@@ -3,7 +3,6 @@ import adminRoleRepairHandler from '../server/calebnet-handlers/admin-role-repai
 import catalogHandler from '../server/calebnet-handlers/catalog.js';
 import diagnosticsHandler from '../server/calebnet-handlers/diagnostics.js';
 import markRefundedHandler from '../server/calebnet-handlers/orders/mark-refunded.js';
-import purchaseHandler from '../server/calebnet-handlers/purchase.js';
 import resetProviderStatusHandler from '../server/calebnet-handlers/provider-status/reset.js';
 import requeryHandler from '../server/calebnet-handlers/requery.js';
 import statusHandler from '../server/calebnet-handlers/status.js';
@@ -13,7 +12,6 @@ import walletBalanceHandler from '../server/calebnet-handlers/wallet-balance.js'
 import walletFundingCreditHandler from '../server/calebnet-handlers/wallet-funding-credit.js';
 import walletProfileHandler from '../server/calebnet-handlers/wallet-profile.js';
 import walletUserDeleteHandler from '../server/calebnet-handlers/wallet-user-delete.js';
-import verifyCalebnetPaymentHandler from '../server/verify-calebnet-payment.js';
 
 function getPath(req: VercelRequest) {
     const queryPath = req.query.path;
@@ -36,10 +34,15 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
         });
     };
 
+    if (path === 'purchase' || path === 'verify-payment') {
+        return res.status(410).json({
+            error: 'CALEBNET_DISCONTINUED',
+            message: 'CalebNet (Airtime & Data) has been discontinued and is no longer accepting new transactions.',
+        });
+    }
     if (path === 'catalog') return run(catalogHandler(req, res));
     if (path === 'admin-role-repair') return run(adminRoleRepairHandler(req, res));
     if (path === 'diagnostics') return run(diagnosticsHandler(req, res));
-    if (path === 'purchase') return run(purchaseHandler(req, res));
     if (path === 'requery') return run(requeryHandler(req, res));
     if (path === 'status') return run(statusHandler(req, res));
     if (path === 'sync-airtime-discounts') return run(syncAirtimeDiscountsHandler(req, res));
@@ -50,7 +53,6 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     if (path === 'wallet-users/delete') return run(walletUserDeleteHandler(req, res));
     if (path === 'orders/mark-refunded') return run(markRefundedHandler(req, res));
     if (path === 'provider-status/reset') return run(resetProviderStatusHandler(req, res));
-    if (path === 'verify-payment') return run(verifyCalebnetPaymentHandler(req, res));
 
     return res.status(404).json({ error: 'CalebNet endpoint not found', path });
 }
