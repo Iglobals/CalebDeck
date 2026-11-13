@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '../server/firebase-admin.js';
 import { calculateServerOrderTotal, validateAndResolveOrderHostel } from '../server/order-utils.js';
+import { validateServiceAndSchedule, getLagosDateParts } from '../server/order-guards.js';
 import { resolveOrderVertical } from '../src/services/orderVertical.js';
 import { GroupOrderError, resolveFoodGroupPricing } from '../src/services/groupPricing.js';
 import { formatCafeteriaSectionLabel } from '../src/services/cafeterias.js';
@@ -82,6 +83,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const isMartOrder = vertical === 'MART';
         const isFashionOrder = vertical === 'FASHION';
 
+        const serviceGuard = await validateServiceAndSchedule(db, {
+            vertical,
+            scheduledDateStr: orderData?.scheduledDateStr || orderData?.batchDateStr || null,
+        });
+        if (!serviceGuard.allowed) {
+            return res.status(serviceGuard.httpStatus || 400).json({
+                error: serviceGuard.code || 'SERVICE_UNAVAILABLE',
+                message: serviceGuard.message || 'This service is currently unavailable.',
+            });
+        }
+
         // Trusted server-side hostel & mandatory acknowledgement validation
         const hostelValidation = await validateAndResolveOrderHostel(db, orderData, {
             enforceActiveAndAck: true,
@@ -128,8 +140,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const deliveryType = orderData.deliveryType || 'INSTANT';
 
         if (vertical === 'FOOD') {
-            const settingsSnap = await db.collection('settings').doc('platform').get();
-            const settings = settingsSnap.exists ? settingsSnap.data()! : {};
+            const settings = serviceGuard.settings || {};
 
             if (deliveryType === 'BATCH' && settings.orderWindowsEnabled === true) {
                 // Read batch schedules
@@ -139,7 +150,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     : [];
 
                 const now = new Date();
-                const nowMinutes = now.getHours() * 60 + now.getMinutes();
+                const lagosNow = getLagosDateParts(now);
+                const nowMinutes = lagosNow.minutesSinceMidnight;
                 const selectedBatchId = orderData.selectedBatchId;
 
                 if (!selectedBatchId) {
@@ -170,8 +182,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     });
                 }
 
-                // Check capacity & atomic reservation
-                const todayStr = now.toLocaleDateString('en-CA');
+                // Check capacity & atomic reservation (using Africa/Lagos calendar date)
+                const todayStr = lagosNow.dateStr;
                 const batchDayId = `${todayStr}_${targetBatch.id}`;
                 const batchDayRef = db.collection('food_batch_days').doc(batchDayId);
                 

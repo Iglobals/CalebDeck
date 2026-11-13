@@ -11,6 +11,7 @@ import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
 import SEO from '../../components/SEO';
 import { subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
+import { getFoodDeliveryAvailability, getLagosDateParts } from '../../../services/foodSchedule';
 import { CAFETERIA_OPTIONS, NEW_CAFETERIA_SECTIONS, cafeteriaNameForId, formatCafeteriaSectionLabel, persistSelectedCafeteria } from '../../../services/cafeterias';
 
 export default function CafeteriaSelection() {
@@ -25,24 +26,34 @@ export default function CafeteriaSelection() {
   }, []);
 
   const currentTime = new Date();
-  const hour = currentTime.getHours();
+  const hour = getLagosDateParts(currentTime).hour;
   
   const openingHour = platformSettings?.systemOpeningHour ?? 10;
   const closingHour = platformSettings?.systemClosingHour ?? 18;
   const isOutOfHours = hour < openingHour || hour >= closingHour;
   const isFoodLocked = platformSettings?.isFoodOrderingClosed === true;
   const isGlobalLocked = platformSettings?.isAcceptingOrders === false;
+  const foodAvailability = getFoodDeliveryAvailability(platformSettings, currentTime);
+  const isOutsideOperatingDays = !foodAvailability.isAvailable && (foodAvailability.reason === 'OUTSIDE_OPERATING_DAYS' || foodAvailability.reason === 'ALL_DAYS_DISABLED');
 
-  // Closed only by global/food locks or operating hours. Batch state does NOT block cafeteria access.
-  const isClosed = !!platformSettings && (isGlobalLocked || isFoodLocked || isOutOfHours);
-  const statusLabel = isClosed ? 'CalebDeck is Closed' : 'Open now';
+  // Closed by global/food locks, operating days, or operating hours. Batch state does NOT block cafeteria access.
+  const isClosed = !!platformSettings && (isGlobalLocked || isFoodLocked || isOutsideOperatingDays || isOutOfHours);
+  const statusLabel = isClosed ? 'Food Delivery Closed' : 'Open now';
   const statusType = isClosed ? 'inactive' : 'active';
-  const closedTitle = isFoodLocked ? 'Food Ordering is Closed' : isGlobalLocked ? 'CalebDeck is Paused' : 'Ordering Currently Closed';
+  const closedTitle = isFoodLocked
+    ? 'Food Ordering is Closed'
+    : isGlobalLocked
+      ? 'CalebDeck is Paused'
+      : isOutsideOperatingDays
+        ? 'Outside Operating Days'
+        : 'Ordering Currently Closed';
   const closedMessage = isFoodLocked
     ? (platformSettings?.foodOrderingClosedMessage || 'Food ordering is currently closed. Cafeterias are preparing for the next order window.')
     : isGlobalLocked
       ? (platformSettings?.globalClosedMessage || 'CalebDeck is temporarily paused while we make a quick operational update. Please check back shortly.')
-      : `CalebDeck food ordering hours are ${openingHour}:00 to ${closingHour}:00.`;
+      : isOutsideOperatingDays
+        ? foodAvailability.userMessage
+        : `CalebDeck food ordering hours are ${openingHour}:00 to ${closingHour}:00.`;
 
   const cafeterias = CAFETERIA_OPTIONS.map((cafeteria) => ({
     ...cafeteria,

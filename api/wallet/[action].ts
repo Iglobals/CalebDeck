@@ -4,6 +4,7 @@ import { getAuth } from 'firebase-admin/auth';
 import axios from 'axios';
 import { adminDb, ensureFirebaseAdmin } from '../../server/firebase-admin.js';
 import { calculateServerOrderTotal, validateAndResolveOrderHostel } from '../../server/order-utils.js';
+import { validateServiceAndSchedule } from '../../server/order-guards.js';
 import { evaluateFirstOrderDiscountTx, writeFirstOrderDiscountClaim, mergeDiscountOntoOrder } from '../../server/first-order-discount.js';
 import { setCors } from '../../server/calebnet.js';
 import { verifyUser } from '../../server/verify-user.js';
@@ -168,6 +169,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             if (!orderData) {
                 return res.status(400).json({ error: 'orderData is required' });
+            }
+
+            const vertical = resolveOrderVertical(orderData);
+            const serviceGuard = await validateServiceAndSchedule(db, {
+                vertical,
+                scheduledDateStr: orderData?.scheduledDateStr || orderData?.batchDateStr || null,
+            });
+            if (!serviceGuard.allowed) {
+                return res.status(serviceGuard.httpStatus || 400).json({
+                    error: serviceGuard.message || 'This service is currently unavailable.',
+                    code: serviceGuard.code || 'SERVICE_UNAVAILABLE',
+                });
             }
 
             const hostelValidation = await validateAndResolveOrderHostel(db, orderData, {

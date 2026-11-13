@@ -9,6 +9,7 @@ import { ArrowLeft, Lock, Shield, CreditCard, MapPin, User, AlertTriangle, Timer
 import { netDeliveryFeeFromBreakdown, previewFirstOrderDiscount } from '../../../services/firstOrderDiscount';
 import { getActiveHostels, subscribeToHostels, Hostel, subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
 import { isPremiumHostel, applyQualifyingAddonMarkup } from '../../../services/orderFees';
+import { getFoodDeliveryAvailability, getLagosDateParts } from '../../../services/foodSchedule';
 import { resolveHostelRestriction, normalizeHostelKey } from '../../../services/hostels';
 import { formatCafeteriaSectionLabel, persistSelectedCafeteria, readPersistedCafeteria } from '../../../services/cafeterias';
 import { calculateOrderTotal, verifyPayment } from '../../../services/functions';
@@ -680,18 +681,20 @@ export default function Checkout() {
     });
   };
 
-  const currentHour = new Date().getHours();
+  const currentHour = getLagosDateParts().hour;
   const openingHour = platformSettings?.systemOpeningHour ?? 10;
   const closingHour = platformSettings?.systemClosingHour ?? 18;
   const isOutOfHours = currentHour < openingHour || currentHour >= closingHour; 
   const isMaintenance = platformSettings?.isAcceptingOrders === false || platformSettings?.isFoodOrderingClosed === true;
+  const foodAvailability = getFoodDeliveryAvailability(platformSettings);
+  const isOutsideOperatingDays = !foodAvailability.isAvailable && (foodAvailability.reason === 'OUTSIDE_OPERATING_DAYS' || foodAvailability.reason === 'ALL_DAYS_DISABLED');
   
   // Batch-aware closing: if batch system is active, use batch state instead of hours
   // BUT if the student chose INSTANT delivery, batch window state should NOT block them
   const isBatchWindowClosed = isBatchSystemActive && !batchTimer.isBatchOpen && !batchTimer.isManualOverride;
   const isBatchFull = isBatchSystemActive && batchTimer.isBatchFull;
   const isInstantSelected = deliveryType === 'INSTANT';
-  const isClosed = isMaintenance || (isBatchSystemActive
+  const isClosed = isMaintenance || isOutsideOperatingDays || (isBatchSystemActive
     ? (isInstantSelected ? isOutOfHours : (isBatchWindowClosed || isBatchFull))
     : isOutOfHours);
   
@@ -699,7 +702,9 @@ export default function Checkout() {
     ? (platformSettings?.foodOrderingClosedMessage || 'Food ordering is currently closed. Cafeterias are preparing for the next order window.')
     : platformSettings?.isAcceptingOrders === false
       ? (platformSettings?.globalClosedMessage || 'CalebDeck is temporarily paused while we make a quick operational update. Please check back shortly.')
-      : isBatchSystemActive
+      : isOutsideOperatingDays
+        ? foodAvailability.userMessage
+        : isBatchSystemActive
         ? (isBatchFull
           ? `The ${batchTimer.activeBatch?.batchName || 'current batch'} is at full capacity. ${batchTimer.nextBatch ? `The next window is the ${batchTimer.nextBatch.batchName}.` : ''}`
           : batchTimer.nextBatch

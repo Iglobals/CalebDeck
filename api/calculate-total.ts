@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { adminDb } from '../server/firebase-admin.js';
 import { calculateServerOrderTotal } from '../server/order-utils.js';
+import { resolveOrderVertical } from '../src/services/orderVertical.js';
 import { GroupOrderError } from '../src/services/groupPricing.js';
 import { isRateLimited, clientIp } from '../server/rate-limit.js';
 import { recordEvent, monitoringFromError } from '../server/monitoring.js';
@@ -25,6 +26,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const { items, plates, drinksSnacks, deliveryMode, plateCount: providedPlateCount, hostelId, groupSize, deliveryType } = req.body;
+
+        if (resolveOrderVertical(req.body) === 'MART') {
+            return res.status(410).json({
+                error: 'MART_DISCONTINUED',
+                message: 'CalebDeck Mart has been discontinued and is no longer accepting new orders.',
+            });
+        }
 
         const hasItems = Array.isArray(items) && items.length > 0;
         const hasPlates = Array.isArray(plates) && plates.length > 0;

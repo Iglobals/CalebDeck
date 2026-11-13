@@ -9,8 +9,7 @@ export default function Footer() {
   const links: Array<{ to: string; label: string }> = [
     { to: '/', label: 'Home' },
     { to: '/cafeteria', label: 'Cafeterias' },
-    { to: '/calebdeck-mart', label: 'CalebDeck Mart' },
-    { to: '/calebnet-info', label: 'CalebNet' },
+    { to: '/fashion', label: 'Fashion' },
     { to: '/learn-more', label: 'Learn More' },
     { to: '/privacy', label: 'Privacy' },
     { to: '/terms', label: 'Terms' },

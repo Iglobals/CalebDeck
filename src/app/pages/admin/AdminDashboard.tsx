@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { Link } from 'react-router';
 import { AdminLayout } from './AdminLayout';
 import { Card } from '../../components/design-system/Card';
 import { Badge } from '../../components/design-system/Badge';
@@ -20,6 +21,7 @@ import { subscribeToAllOrders, subscribeToRiders, subscribeToAllHostels, dispatc
 import { resolveOrderHostelInfo } from '../../../services/hostels';
 import { resolveOrderVertical } from '../../../services/orderVertical';
 import { resolveDeliveryFee } from '../../../services/orderFees';
+import { getFoodDeliveryAvailability } from '../../../services/foodSchedule';
 import { useTheme } from '../../../context/ThemeContext';
 import { isToday, isYesterday, format } from 'date-fns';
 import { BatchOrderInfo, resolveOrderBatchInfo } from '../../components/BatchOrderInfo';
@@ -271,8 +273,38 @@ export default function AdminDashboard() {
     );
   }
 
+  const foodAvailability = getFoodDeliveryAvailability(platformSettings);
+
   return (
     <AdminLayout title="Dashboard">
+      {/* Food Delivery Schedule & Historical Archives Strip */}
+      <Card className={`mb-6 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-l-4 ${foodAvailability.isAvailable ? 'border-l-emerald-500' : 'border-l-amber-500'} ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'}`}>
+        <div className="flex items-start gap-3">
+          <div className={`px-2.5 py-1 rounded-full text-xs font-bold shrink-0 ${foodAvailability.isAvailable ? 'bg-emerald-500/15 text-emerald-500' : 'bg-amber-500/15 text-amber-500'}`}>
+            {foodAvailability.isAvailable ? `Open Today (${foodAvailability.currentDayName})` : `Closed Today (${foodAvailability.currentDayName})`}
+          </div>
+          <div className="text-sm">
+            <p className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Food Delivery Schedule: {foodAvailability.scheduleLabel}
+            </p>
+            <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              {foodAvailability.userMessage}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <Link to="/admin/settings" className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#7C3AED]/15 text-[#7C3AED] hover:bg-[#7C3AED]/25 transition-colors">
+            Configure Schedule
+          </Link>
+          <Link to="/admin/mart/orders" className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border ${isDark ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+            Mart Archive
+          </Link>
+          <Link to="/admin/calebnet" className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border ${isDark ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+            CalebNet Archive
+          </Link>
+        </div>
+      </Card>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6 mb-6 lg:mb-8">
         {kpis.map((kpi, index) => (

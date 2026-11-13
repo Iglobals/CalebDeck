@@ -8,8 +8,8 @@ export function GlobalCart() {
   const location = useLocation();
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
-  // Only show on shopping hubs to prevent clutter
-  const showPaths = ['/mart', '/fashion', '/gadgets'];
+  // Mart has been discontinued; hide Mart cart button across student routes
+  const showPaths: string[] = [];
   const hidePaths = ['/cart', '/checkout', '/profile', '/plate-builder', '/cafeteria'];
   
   const isShoppingPath = showPaths.some(path => location.pathname.startsWith(path));

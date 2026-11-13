@@ -8,7 +8,8 @@ import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
 import SEO from '../../components/SEO';
-import { submitReview } from '../../../services/db';
+import { submitReview, subscribeToPlatformSettings, PlatformSettings } from '../../../services/db';
+import { getFoodDeliveryAvailability } from '../../../services/foodSchedule';
 import { toast } from 'react-toastify';
 import { ThemeToggle } from '../../components/ThemeToggle';
 import { PaperBagHamburger } from '../../components/design-system/PaperBagHamburger';
@@ -31,6 +32,14 @@ export default function LandingPage() {
   const [reviewText, setReviewText] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [pastOrder, setPastOrder] = useState<any>(null);
+  const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+
+  useEffect(() => {
+    const unsub = subscribeToPlatformSettings(setPlatformSettings);
+    return () => unsub();
+  }, []);
+
+  const foodAvailability = getFoodDeliveryAvailability(platformSettings);
 
   useEffect(() => {
     try {
@@ -158,7 +167,7 @@ export default function LandingPage() {
       <ThemeToggle theme={studentTheme} onToggle={toggleStudentTheme} variant="floating" />
       <SEO
         title="CalebDeck — EVERYTHING CAMPUS | Caleb University"
-        description="CalebDeck is the smart campus platform for Caleb University. Order cafeteria food, shop groceries on CalebDeck Mart, explore CalebDeck Fashion, CalebDeck Gadgets, CalebDeck Business, and buy cheap student data with CalebNet."
+        description="CalebDeck is the smart campus platform for Caleb University. Order cafeteria food on active delivery days, explore CalebDeck Fashion, and discover Campus Brands."
         canonical="https://calebdeck.com/"
         jsonLd={{
           '@type': 'LocalBusiness',
@@ -171,16 +180,14 @@ export default function LandingPage() {
           geo: { '@type': 'GeoCoordinates', latitude: 6.6433, longitude: 3.6593 },
           parentOrganization: { '@id': 'https://iglobalstech.com.ng/#organization' },
           sameAs: ['https://x.com/iglobalstechinc'],
-          description: 'Smart campus food delivery, grocery, exclusive fashion, gadgets, business services, and digital services for Caleb University students. A product of IGLOBALS TECHNOLOGY.',
+          description: 'Smart campus food delivery, exclusive fashion, and campus brand services for Caleb University students. A product of IGLOBALS TECHNOLOGY.',
           hasOfferCatalog: {
             '@type': 'OfferCatalog',
             name: 'CalebDeck Services',
             itemListElement: [
-              { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'CalebDeck Mart' } },
+              { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Food Delivery' } },
               { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'CalebDeck Fashion' } },
-              { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'CalebDeck Gadgets' } },
-              { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'CalebDeck Business' } },
-              { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'CalebNet' } }
+              { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'CalebDeck Business' } }
             ]
           }
         }}
@@ -216,14 +223,11 @@ export default function LandingPage() {
               <Link to="/cafeteria">
                 <Button variant="primary" className="text-xs px-2 xl:px-3 py-2 whitespace-nowrap">Order Food</Button>
               </Link>
-              <Link to="/mart" className="text-sm font-bold text-[#10B981] hover:text-[#059669] transition-colors px-1 xl:px-2 py-1 whitespace-nowrap">
-                Mart
-              </Link>
               <Link to="/fashion" className="text-sm font-bold text-[#F97316] hover:text-[#EA580C] transition-colors px-1 xl:px-2 py-1 whitespace-nowrap">
                 Fashion
               </Link>
-              <Link to="/calebnet" className="text-sm font-bold text-blue-500 hover:text-blue-600 transition-colors px-1 xl:px-2 py-1 whitespace-nowrap">
-                CalebNet
+              <Link to="/business" className="text-sm font-bold text-purple-500 hover:text-purple-600 transition-colors px-1 xl:px-2 py-1 whitespace-nowrap">
+                Campus Brands
               </Link>
               {user?.icaSub ? (
                 <Link to="/profile" className="text-sm font-bold text-[#7C3AED] hover:text-[#6D28D9] transition-colors px-1 xl:px-2 py-1 whitespace-nowrap flex items-center gap-1.5 bg-[#7C3AED]/10 rounded-lg">
@@ -270,23 +274,25 @@ export default function LandingPage() {
               without stress.
             </h1>
             <p className="text-base sm:text-xl text-muted-foreground leading-relaxed max-w-lg">
-              Order meals, groceries, exclusive campus fashion, and other campus essentials through CalebDeck. We also offer products from selected external brands, giving you more options—all delivered conveniently to your hostel area.
+              Order cafeteria meals on active food delivery days, shop exclusive campus fashion, and explore selected campus brands—all delivered conveniently to your hostel area.
             </p>
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs sm:text-sm font-semibold border ${foodAvailability.isAvailable ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/25'}`}>
+              <Clock className="w-4 h-4 shrink-0" />
+              <span>
+                {foodAvailability.isAvailable
+                  ? `Food Delivery Open Today · ${foodAvailability.scheduleLabel}`
+                  : `Food Delivery: ${foodAvailability.scheduleLabel}${foodAvailability.nextOperatingDay ? ` · Reopens ${foodAvailability.nextOperatingDay.label}` : ''}`}
+              </span>
+            </div>
             <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
               <Link to="/cafeteria">
                 <Button variant="primary" size="lg" className="w-full sm:w-auto px-10">
                   Order Food <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
-              <Link to="/mart">
-                <Button variant="secondary" size="lg" className="w-full sm:w-auto border-[#10B981] text-[#10B981] hover:bg-[#10B981]/10">
-                  Shop Mart <ArrowRight className="w-5 h-5 ml-2" />
-                </Button>
-              </Link>
-
-              <Link to="/calebnet">
-                <Button variant="secondary" size="lg" className="w-full sm:w-auto border-blue-500 text-blue-500 hover:bg-blue-500/10">
-                  CalebNet Top-Up <Wifi className="w-5 h-5 ml-2" />
+              <Link to="/fashion">
+                <Button variant="secondary" size="lg" className="w-full sm:w-auto border-[#F97316] text-[#F97316] hover:bg-[#F97316]/10">
+                  Explore Fashion <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
               <Link to="/business">
@@ -340,26 +346,16 @@ export default function LandingPage() {
 
       {/* Services Section */}
       <section className="py-16 md:py-24 max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-8">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
           <Link to="/cafeteria" className="group">
             <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl h-full ${isAuth ? 'bg-card border-border hover:border-[#FCD34D]/50' : (studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#FCD34D]/20' : 'bg-amber-50/50 border-amber-200')}`}>
               <div className="w-16 h-16 rounded-2xl bg-[#FCD34D]/20 flex items-center justify-center mb-6">
                 <Utensils className="w-8 h-8 text-[#FCD34D]" />
               </div>
               <h3 className={`text-2xl font-bold mb-3 ${isAuth ? 'text-foreground' : (studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900')}`}>Food Delivery</h3>
-              <p className={`text-lg mb-6 ${isAuth ? 'text-muted-foreground' : (studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600')}`}>Hot meals from campus cafeterias delivered to your hostel area or agreed pickup point.</p>
+              <p className={`text-lg mb-4 ${isAuth ? 'text-muted-foreground' : (studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600')}`}>Hot meals from campus cafeterias delivered to your hostel area or agreed pickup point.</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-5">{foodAvailability.scheduleLabel}</p>
               <span className="text-[#FCD34D] font-bold flex items-center gap-2 group-hover:gap-4 transition-all">Order Now <ArrowRight className="w-5 h-5" /></span>
-            </div>
-          </Link>
-          
-          <Link to="/mart" className="group">
-            <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl h-full ${isAuth ? 'bg-card border-border hover:border-[#10B981]/50' : (studentTheme === 'dark' ? 'bg-[#1A1A1A] border-[#10B981]/20' : 'bg-emerald-50/50 border-emerald-200')}`}>
-              <div className="w-16 h-16 rounded-2xl bg-[#10B981]/20 flex items-center justify-center mb-6">
-                <ShoppingBag className="w-8 h-8 text-[#10B981]" />
-              </div>
-              <h3 className={`text-2xl font-bold mb-3 ${isAuth ? 'text-foreground' : (studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900')}`}>CalebDeck Mart</h3>
-              <p className={`text-lg mb-6 ${isAuth ? 'text-muted-foreground' : (studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600')}`}>Groceries, snacks, drinks, and essentials delivered around campus when you need them.</p>
-              <span className="text-[#10B981] font-bold flex items-center gap-2 group-hover:gap-4 transition-all">Shop Mart <ArrowRight className="w-5 h-5" /></span>
             </div>
           </Link>
 
@@ -371,17 +367,6 @@ export default function LandingPage() {
               <h3 className={`text-2xl font-bold mb-3 ${isAuth ? 'text-foreground' : (studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900')}`}>CalebDeck Fashion</h3>
               <p className={`text-lg mb-6 ${isAuth ? 'text-muted-foreground' : (studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600')}`}>Exclusive i-CON only campus merch, apparel, and style from top student brands.</p>
               <span className="text-[#F97316] font-bold flex items-center gap-2 group-hover:gap-4 transition-all">Explore <ArrowRight className="w-5 h-5" /></span>
-            </div>
-          </Link>
-
-          <Link to="/calebnet" className="group">
-            <div className={`p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl h-full ${isAuth ? 'bg-card border-border hover:border-blue-500/50' : (studentTheme === 'dark' ? 'bg-[#1A1A1A] border-blue-500/20' : 'bg-blue-50/50 border-blue-200')}`}>
-              <div className="w-16 h-16 rounded-2xl bg-blue-500/20 flex items-center justify-center mb-6">
-                <Wifi className="w-8 h-8 text-blue-500" />
-              </div>
-              <h3 className={`text-2xl font-bold mb-3 ${isAuth ? 'text-foreground' : (studentTheme === 'dark' ? 'text-[#FAF9F6]' : 'text-gray-900')}`}>CalebNet</h3>
-              <p className={`text-lg mb-6 ${isAuth ? 'text-muted-foreground' : (studentTheme === 'dark' ? 'text-[#9C8F7F]' : 'text-gray-600')}`}>Instant data and airtime top-up for MTN, Airtel, Glo, and 9Mobile directly from CalebDeck.</p>
-              <span className="text-blue-500 font-bold flex items-center gap-2 group-hover:gap-4 transition-all">Top Up <ArrowRight className="w-5 h-5" /></span>
             </div>
           </Link>
 
@@ -643,11 +628,10 @@ export default function LandingPage() {
                 <Logo size="md" />
               </div>
               <div className="flex flex-wrap justify-center gap-6 sm:gap-10 text-sm font-semibold uppercase tracking-wider">
-                <Link to="/calebdeck-mart" className="text-muted-foreground hover:text-[#10B981] transition-colors">CalebDeck Mart</Link>
+                <Link to="/cafeteria" className="text-muted-foreground hover:text-[#FCD34D] transition-colors">Order Food</Link>
                 <Link to="/fashion" className="text-muted-foreground hover:text-[#F97316] transition-colors">Fashion</Link>
                 <Link to="/gadgets" className="text-muted-foreground hover:text-blue-400 transition-colors">Gadgets</Link>
                 <Link to="/business" className="text-muted-foreground hover:text-purple-400 transition-colors">Business</Link>
-                <Link to="/calebnet-info" className="text-muted-foreground hover:text-blue-500 transition-colors">CalebNet</Link>
                 <Link to="/privacy" className="text-muted-foreground hover:text-secondary transition-colors">Privacy</Link>
                 <Link to="/terms" className="text-muted-foreground hover:text-secondary transition-colors">Terms</Link>
                 <Link to="/support" className="text-muted-foreground hover:text-secondary transition-colors">Support</Link>

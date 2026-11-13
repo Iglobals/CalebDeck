@@ -4,6 +4,7 @@ import axios from 'axios';
 import { adminDb } from '../server/firebase-admin.js';
 import { confirmFoodBatchReservation } from '../server/food-batch.js';
 import { calculateServerOrderTotal, validateAndResolveOrderHostel } from '../server/order-utils.js';
+import { validateServiceAndSchedule } from '../server/order-guards.js';
 import { claimFirstOrderDiscount, mergeDiscountOntoOrder } from '../server/first-order-discount.js';
 import { resolveOrderVertical } from '../src/services/orderVertical.js';
 import { isRateLimited, clientIp } from '../server/rate-limit.js';
@@ -65,6 +66,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const isFashionOrder = vertical === 'FASHION';
         const orderRef = db.collection('orders').doc(reference);
         const existingDoc = await orderRef.get();
+
+        if (!existingDoc.exists && isMartOrder) {
+            return res.status(410).json({
+                error: 'MART_DISCONTINUED',
+                message: 'CalebDeck Mart has been discontinued and is no longer accepting new orders.',
+            });
+        }
+        if (!existingDoc.exists && vertical === 'FOOD') {
+            const scheduleGuard = await validateServiceAndSchedule(db, { vertical: 'FOOD' });
+            if (!scheduleGuard.allowed) {
+                console.warn(`[verify-payment] Food order verify attempted outside schedule (${scheduleGuard.code}), ref=${reference}`);
+            }
+        }
 
         if (existingDoc.exists) {
             const existingData = existingDoc.data()!;

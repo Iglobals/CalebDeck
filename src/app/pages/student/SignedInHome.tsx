@@ -8,31 +8,13 @@ import { Search, Wallet, Package, Clock, Utensils, ShoppingBag, Wifi, Shirt, Tre
 import { CAFETERIA_OPTIONS, NEW_CAFETERIA_SECTIONS, cafeteriaNameForId } from '../../../services/cafeterias';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { subscribeToPlatformSettings, PlatformSettings, PromoSlide } from '../../../services/db';
+import { getFoodDeliveryAvailability } from '../../../services/foodSchedule';
 import { useMartCart } from '../../../context/MartCartContext';
-import { subscribeToMartItems, MartItem } from '../../../services/mart';
 import { subscribeToFashionItems, FashionItem } from '../../../services/fashion';
 import { subscribeToActiveBusinessProducts, BusinessProduct } from '../../../services/business';
 import { Logo } from '../../components/design-system/Logo';
 
-const STATIC_CALEBNET_PRODUCTS = [
-  { id: 'calebnet-mtn-1gb', type: 'CalebNet', name: 'MTN 1GB SME (30 Days)', price: 280, path: '/calebnet', disabled: false, icon: 'wifi', network: 'MTN' },
-  { id: 'calebnet-mtn-2gb', type: 'CalebNet', name: 'MTN 2GB SME (30 Days)', price: 560, path: '/calebnet', disabled: false, icon: 'wifi', network: 'MTN' },
-  { id: 'calebnet-glo-1gb', type: 'CalebNet', name: 'GLO 1GB (30 Days)', price: 250, path: '/calebnet', disabled: false, icon: 'wifi', network: 'GLO' },
-  { id: 'calebnet-glo-2gb', type: 'CalebNet', name: 'GLO 2GB (30 Days)', price: 500, path: '/calebnet', disabled: false, icon: 'wifi', network: 'GLO' }
-];
-
-
 const PROMO_SLIDES: PromoSlide[] = [
-  { 
-    id: 'slide-mart',
-    badge: 'Mart Live',
-    title: 'CalebDeck Mart',
-    tagline: 'Groceries and essentials delivered straight to your hostel.',
-    gradient: 'from-[#047857] via-[#10B981] to-[#022c22]',
-    logoUrl: '/avaters/calebdeck-business-logo-transparent.png',
-    link: '/mart',
-    buttonText: 'Shop Mart'
-  },
   { 
     id: 'slide-fashion',
     badge: 'Fashion Drops',
@@ -42,16 +24,6 @@ const PROMO_SLIDES: PromoSlide[] = [
     logoUrl: '/avaters/calebdeck-fashion-logo-transparent.png',
     link: '/fashion',
     buttonText: 'Explore Styles'
-  },
-  { 
-    id: 'slide-calebnet',
-    badge: 'Campus Data',
-    title: 'CalebNet Instant Topup',
-    tagline: 'Discounted mobile data for MTN, Glo & Airtel from your wallet.',
-    gradient: 'from-[#1D4ED8] via-[#3B82F6] to-[#172554]',
-    logoUrl: '/avaters/calebdeck-business-logo-transparent.png',
-    link: '/calebnet',
-    buttonText: 'Buy Data'
   }
 ];
 
@@ -61,10 +33,8 @@ export function SignedInHome() {
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
   const { items: cartItems, addItem, updateQuantity } = useMartCart();
-  const [exploreMartItems, setExploreMartItems] = useState<any[]>([]);
   const [exploreFashionItems, setExploreFashionItems] = useState<any[]>([]);
   const [exploreBusinessItems, setExploreBusinessItems] = useState<BusinessProduct[]>([]);
-  const [loadingMart, setLoadingMart] = useState(true);
   const [loadingFashion, setLoadingFashion] = useState(true);
   const [loadingBusiness, setLoadingBusiness] = useState(true);
 
@@ -92,21 +62,6 @@ export function SignedInHome() {
     const unsubSettings = subscribeToPlatformSettings((s) => {
       setPlatformSettings(s);
     });
-    const unsubMart = subscribeToMartItems((items) => {
-      // Pick top 4 in-stock items
-      setExploreMartItems(items.filter(i => i.inStock).slice(0, 4).map(item => ({
-        id: item.id,
-        type: 'Mart',
-        productType: 'mart',
-        name: item.name,
-        price: item.price,
-        path: '/mart',
-        disabled: false,
-        image: item.imageUrl,
-        category: item.category
-      })));
-      setLoadingMart(false);
-    });
 
     const unsubFashion = subscribeToFashionItems((items) => {
       setExploreFashionItems(items.filter(i => i.inStock).slice(0, 4).map(item => ({
@@ -133,7 +88,6 @@ export function SignedInHome() {
 
     return () => {
       unsubSettings();
-      unsubMart();
       unsubFashion();
       unsubBusiness();
     };
@@ -200,6 +154,7 @@ export function SignedInHome() {
   const rawName = user?.displayNameFromProfile || user?.fullName || user?.email?.split('@')[0] || 'Student';
   const displayName = rawName.split(' ')[0];
   const money = (amount: number) => `₦${amount.toLocaleString()}`;
+  const foodAvailability = getFoodDeliveryAvailability(platformSettings);
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-32">
@@ -254,6 +209,19 @@ export function SignedInHome() {
           </Link>
         </div>
 
+        {/* Food Delivery Availability Banner */}
+        <div className={`rounded-2xl p-4 border flex items-start gap-3 ${foodAvailability.isAvailable ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-700 dark:text-emerald-300' : 'bg-amber-500/10 border-amber-500/25 text-amber-800 dark:text-amber-300'}`}>
+          <Clock className="w-5 h-5 shrink-0 mt-0.5" />
+          <div className="text-xs sm:text-sm leading-relaxed">
+            <p className="font-bold">
+              {foodAvailability.isAvailable
+                ? `Food Delivery Open Today (${foodAvailability.currentDayName})`
+                : `Food Delivery Closed Today (${foodAvailability.currentDayName})`}
+            </p>
+            <p className="opacity-90 mt-0.5">{foodAvailability.userMessage}</p>
+          </div>
+        </div>
+
         {/* Search Bar */}
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
@@ -261,7 +229,7 @@ export function SignedInHome() {
           </div>
           <input
             type="text"
-            placeholder="Search food, snacks, data..."
+            placeholder="Search food, fashion, campus brands..."
             className="w-full pl-14 pr-6 py-5 rounded-[2rem] bg-card border-2 border-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all text-lg font-medium shadow-sm"
           />
         </div>
@@ -271,7 +239,14 @@ export function SignedInHome() {
           const rawSlides = (platformSettings?.promoSlides && platformSettings.promoSlides.length > 0) 
             ? platformSettings.promoSlides 
             : PROMO_SLIDES;
-          const slides = rawSlides.filter(s => s.isActive !== false);
+          const slides = rawSlides.filter(
+            (s) =>
+              s.isActive !== false &&
+              s.destination !== 'MART' &&
+              s.destination !== 'CALEBNET' &&
+              !String(s.link || '').startsWith('/mart') &&
+              !String(s.link || '').startsWith('/calebnet')
+          );
           const activeSlides = slides.length > 0 ? slides : PROMO_SLIDES;
           const slideIndex = currentSlide % activeSlides.length;
           const activeSlide = activeSlides[slideIndex] || activeSlides[0];
@@ -347,7 +322,7 @@ export function SignedInHome() {
                 Explore
               </div>
             </Link>
-            {(loadingMart || loadingFashion) && [...Array(3)].map((_, i) => (
+            {loadingFashion && [...Array(3)].map((_, i) => (
               <div key={`skel-explore-${i}`} className="flex flex-col min-w-[140px] max-w-[140px] animate-pulse">
                 <div className="w-full aspect-square rounded-2xl bg-muted mb-3 squircle" />
                 <div className="h-3 bg-muted rounded-full w-3/4 mb-2" />
@@ -355,7 +330,7 @@ export function SignedInHome() {
                 <div className="h-8 bg-muted rounded-xl w-full" />
               </div>
             ))}
-            {[...exploreMartItems, ...exploreFashionItems, ...STATIC_CALEBNET_PRODUCTS].map((product) => {
+            {exploreFashionItems.map((product) => {
               if (product.type === 'Mart' || product.type === 'Fashion') {
                 const qty = getCartQuantity(product.id);
                 const isFashion = product.type === 'Fashion';
