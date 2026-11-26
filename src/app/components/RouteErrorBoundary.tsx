@@ -16,7 +16,7 @@ function resolveSectionContext(pathname: string): {
   sectionLabel?: string;
 } {
   const clean = (pathname || '/').toLowerCase();
-  if (clean.startsWith('/fashion')) {
+  if (clean.startsWith('/fashion') || clean === '/cart') {
     return {
       eyebrow: 'CalebDeck Fashion',
       homePath: '/',
@@ -25,22 +25,13 @@ function resolveSectionContext(pathname: string): {
       sectionLabel: 'Browse Fashion',
     };
   }
-  if (clean.startsWith('/mart') || clean === '/cart') {
+  if (clean.startsWith('/mart') || clean.startsWith('/calebnet') || clean.startsWith('/cafeteria') || clean.startsWith('/plate-builder')) {
     return {
-      eyebrow: 'CalebDeck Mart',
+      eyebrow: 'CalebDeck',
       homePath: '/',
       homeLabel: 'Back to CalebDeck',
-      sectionPath: clean !== '/mart' ? '/mart' : undefined,
-      sectionLabel: 'Back to Mart',
-    };
-  }
-  if (clean.startsWith('/calebnet')) {
-    return {
-      eyebrow: 'CalebNet',
-      homePath: '/',
-      homeLabel: 'Back to CalebDeck',
-      sectionPath: clean !== '/calebnet' ? '/calebnet' : undefined,
-      sectionLabel: 'Open CalebNet',
+      sectionPath: '/fashion',
+      sectionLabel: 'Explore CalebDeck Fashion',
     };
   }
   if (clean.startsWith('/business')) {

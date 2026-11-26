@@ -20,19 +20,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        const db = adminDb();
-        if (false) {
-            return res.status(500).json({ error: 'Firebase not configured — check FB_SA env vars on Vercel' });
-        }
-
-        const { items, plates, drinksSnacks, deliveryMode, plateCount: providedPlateCount, hostelId, groupSize, deliveryType } = req.body;
-
-        if (resolveOrderVertical(req.body) === 'MART') {
+        const vertical = resolveOrderVertical(req.body);
+        if (vertical === 'MART') {
             return res.status(410).json({
                 error: 'MART_DISCONTINUED',
                 message: 'CalebDeck Mart has been discontinued and is no longer accepting new orders.',
             });
         }
+        if (vertical === 'FOOD') {
+            return res.status(410).json({
+                error: 'FOOD_DISCONTINUED',
+                message: 'CalebDeck Food Delivery has been discontinued and is no longer accepting new orders.',
+            });
+        }
+
+        const db = adminDb();
+        const { items, plates, drinksSnacks, deliveryMode, plateCount: providedPlateCount, hostelId, groupSize, deliveryType } = req.body;
 
         const hasItems = Array.isArray(items) && items.length > 0;
         const hasPlates = Array.isArray(plates) && plates.length > 0;

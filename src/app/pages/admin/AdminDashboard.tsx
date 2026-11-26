@@ -273,28 +273,29 @@ export default function AdminDashboard() {
     );
   }
 
-  const foodAvailability = getFoodDeliveryAvailability(platformSettings);
-
   return (
     <AdminLayout title="Dashboard">
-      {/* Food Delivery Schedule & Historical Archives Strip */}
-      <Card className={`mb-6 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-l-4 ${foodAvailability.isAvailable ? 'border-l-emerald-500' : 'border-l-amber-500'} ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'}`}>
+      {/* Operational Focus & Historical Archives Strip */}
+      <Card className={`mb-6 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-l-4 border-l-[#7C3AED] ${isDark ? 'bg-[#222222] border-[#333333]' : 'bg-white border-gray-100'}`}>
         <div className="flex items-start gap-3">
-          <div className={`px-2.5 py-1 rounded-full text-xs font-bold shrink-0 ${foodAvailability.isAvailable ? 'bg-emerald-500/15 text-emerald-500' : 'bg-amber-500/15 text-amber-500'}`}>
-            {foodAvailability.isAvailable ? `Open Today (${foodAvailability.currentDayName})` : `Closed Today (${foodAvailability.currentDayName})`}
+          <div className="px-2.5 py-1 rounded-full text-xs font-bold shrink-0 bg-[#7C3AED]/15 text-[#7C3AED]">
+            Active Chapter
           </div>
           <div className="text-sm">
             <p className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              Food Delivery Schedule: {foodAvailability.scheduleLabel}
+              CalebDeck Fashion &amp; CalebDeck Business (Active) · Caleb Life (In Development)
             </p>
             <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              {foodAvailability.userMessage}
+              Food Delivery, Mart, and CalebNet are discontinued for new orders; all historical records remain preserved below.
             </p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <Link to="/admin/settings" className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#7C3AED]/15 text-[#7C3AED] hover:bg-[#7C3AED]/25 transition-colors">
-            Configure Schedule
+          <Link to="/admin/fashion/orders" className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#7C3AED]/15 text-[#7C3AED] hover:bg-[#7C3AED]/25 transition-colors">
+            Fashion Orders
+          </Link>
+          <Link to="/admin/orders" className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border ${isDark ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+            Food Archive
           </Link>
           <Link to="/admin/mart/orders" className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border ${isDark ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
             Mart Archive

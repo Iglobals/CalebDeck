@@ -1,21 +1,21 @@
 {
-    "name": "CalebDeck",
-    "short_name": "CalebDeck",
-    "description": "Smart campus food, grocery & digital services for Caleb University students. Powered by IGLOBALS TECHNOLOGY.",
-    "start_url": "/",
-    "display": "standalone",
-    "background_color": "#0A0A0A",
-    "theme_color": "#7C3AED",
-    "icons": [
-        {
-            "src": "/calebdeck-logo.jpeg",
-            "sizes": "192x192",
-            "type": "image/jpeg"
-        },
-        {
-            "src": "/calebdeck-logo.jpeg",
-            "sizes": "512x512",
-            "type": "image/jpeg"
-        }
-    ]
+  "name": "CalebDeck",
+  "short_name": "CalebDeck",
+  "description": "CalebDeck — Curated fashion and interactive digital experiences. Powered by IGLOBALS TECHNOLOGY.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0D0D10",
+  "theme_color": "#121212",
+  "icons": [
+    {
+      "src": "/calebdeck-logo.jpeg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "/calebdeck-logo.jpeg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
 }

@@ -67,17 +67,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const orderRef = db.collection('orders').doc(reference);
         const existingDoc = await orderRef.get();
 
-        if (!existingDoc.exists && isMartOrder) {
-            return res.status(410).json({
-                error: 'MART_DISCONTINUED',
-                message: 'CalebDeck Mart has been discontinued and is no longer accepting new orders.',
+        if (!existingDoc.exists && (isMartOrder || vertical === 'FOOD')) {
+            const guard = await validateServiceAndSchedule(db, { vertical });
+            return res.status(guard.httpStatus || 410).json({
+                error: guard.code || 'SERVICE_DISCONTINUED',
+                message: guard.message || 'This service has been discontinued and is no longer accepting new orders.',
             });
-        }
-        if (!existingDoc.exists && vertical === 'FOOD') {
-            const scheduleGuard = await validateServiceAndSchedule(db, { vertical: 'FOOD' });
-            if (!scheduleGuard.allowed) {
-                console.warn(`[verify-payment] Food order verify attempted outside schedule (${scheduleGuard.code}), ref=${reference}`);
-            }
         }
 
         if (existingDoc.exists) {

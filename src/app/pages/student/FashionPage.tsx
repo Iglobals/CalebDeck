@@ -209,9 +209,17 @@ export default function FashionPage() {
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300 pb-24">
       <SEO
-        title="CalebDeck Fashion"
-        description="Exclusive campus merch, apparel, and style."
+        title="CalebDeck Fashion | Curated Streetwear, Footwear & Accessories"
+        description="Shop curated streetwear, statement tees, footwear, bags, and accessories on CalebDeck Fashion — active weekly drops and seamless delivery."
         canonical="https://calebdeck.com/fashion"
+        keywords="CalebDeck Fashion, CalebDeck streetwear, curated apparel Nigeria, footwear, accessories"
+        jsonLd={{
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'CalebDeck', item: 'https://calebdeck.com/' },
+            { '@type': 'ListItem', position: 2, name: 'CalebDeck Fashion', item: 'https://calebdeck.com/fashion' },
+          ],
+        }}
       />
 
       {isFashionClosed && (

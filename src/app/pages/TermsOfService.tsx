@@ -6,8 +6,8 @@ export default function TermsOfService() {
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       <SEO
-        title="Terms of Service - CalebDeck"
-        description="Review CalebDeck terms covering campus food delivery, CalebDeck Mart, CalebNet, payments, delivery rules, and platform usage."
+        title="Terms of Service | CalebDeck"
+        description="Review CalebDeck terms governing CalebDeck Fashion purchases, i-CON Wallet usage, payments, delivery rules, and digital products."
         canonical="https://calebdeck.com/terms"
       />
       <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border transition-colors duration-300">

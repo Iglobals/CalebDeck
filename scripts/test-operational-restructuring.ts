@@ -1,32 +1,18 @@
 import assert from 'node:assert/strict';
-import {
-  DEFAULT_FOOD_OPERATING_DAYS,
-  formatFoodOperatingDays,
-  getFoodDeliveryAvailability,
-  getLagosDateParts,
-  isDateStrFoodOperatingDay,
-  isFoodOperatingDay,
-  normalizeFoodOperatingDays,
-  validateFoodOperatingDaysInput,
-} from '../src/services/foodSchedule.ts';
+import fs from 'node:fs';
+import path from 'node:path';
 import { validateServiceAndSchedule } from '../server/order-guards.ts';
+import calculateTotalHandler from '../api/calculate-total.ts';
 import calebnetHandler from '../api/calebnet.ts';
-
-function createMockDb(platformSettings: Record<string, any> | null) {
-  return {
-    collection: (name: string) => ({
-      doc: (id: string) => ({
-        get: async () => ({
-          exists: name === 'settings' && id === 'platform' && platformSettings !== null,
-          data: () => platformSettings,
-        }),
-      }),
-    }),
-  } as any;
-}
+import {
+  BRAND_CONFIG,
+  PRODUCTS_CONFIG,
+  HISTORICAL_IMPACT_METRICS,
+  VERIFIED_TESTIMONIALS,
+} from '../src/config/brand.ts';
 
 function createMockRes() {
-  const res: any = {
+  return {
     statusCode: 200,
     headers: {} as Record<string, string>,
     body: null as any,
@@ -48,121 +34,104 @@ function createMockRes() {
       return this;
     },
   };
-  return res;
 }
 
 async function run() {
-  console.log('1. Testing Africa/Lagos timezone weekday resolution across all 7 days...');
-  // 2026-11-09 is Monday in Lagos (noon UTC = 13:00 WAT)
-  const lagosWeekDates = [
-    { dayName: 'Monday', expectedDay: 1, date: new Date('2026-11-09T12:00:00Z'), expectedOpenDefault: false },
-    { dayName: 'Tuesday', expectedDay: 2, date: new Date('2026-11-10T12:00:00Z'), expectedOpenDefault: false },
-    { dayName: 'Wednesday', expectedDay: 3, date: new Date('2026-11-11T12:00:00Z'), expectedOpenDefault: false },
-    { dayName: 'Thursday', expectedDay: 4, date: new Date('2026-11-12T12:00:00Z'), expectedOpenDefault: false },
-    { dayName: 'Friday', expectedDay: 5, date: new Date('2026-11-13T12:00:00Z'), expectedOpenDefault: true },
-    { dayName: 'Saturday', expectedDay: 6, date: new Date('2026-11-14T12:00:00Z'), expectedOpenDefault: true },
-    { dayName: 'Sunday', expectedDay: 0, date: new Date('2026-11-15T12:00:00Z'), expectedOpenDefault: true },
-  ];
+  const repoRoot = process.cwd();
 
-  for (const entry of lagosWeekDates) {
-    const parts = getLagosDateParts(entry.date);
-    assert.equal(parts.weekday, entry.expectedDay, `Expected ${entry.dayName} weekday`);
-    assert.equal(parts.weekdayName, entry.dayName);
-    assert.equal(
-      isFoodOperatingDay(DEFAULT_FOOD_OPERATING_DAYS, entry.date),
-      entry.expectedOpenDefault,
-      `Default Fri-Sun check failed for ${entry.dayName}`
-    );
+  console.log('1. Testing backend discontinuation guards (Food, Mart, CalebNet) & active Fashion...');
+  const mockDb = {} as any;
 
-    const avail = getFoodDeliveryAvailability({ foodOperatingDays: DEFAULT_FOOD_OPERATING_DAYS }, entry.date);
-    assert.equal(avail.isAvailable, entry.expectedOpenDefault);
-    if (!entry.expectedOpenDefault) {
-      assert.equal(avail.reason, 'OUTSIDE_OPERATING_DAYS');
-      assert.equal(avail.nextOperatingDay?.label, 'Friday');
-    }
-  }
+  const foodGuard = await validateServiceAndSchedule(mockDb, { vertical: 'FOOD' });
+  assert.equal(foodGuard.allowed, false);
+  assert.equal(foodGuard.httpStatus, 410);
+  assert.equal(foodGuard.code, 'FOOD_DISCONTINUED');
 
-  // Timezone boundary: Thursday 23:30 UTC is Friday 00:30 Africa/Lagos (WAT) -> MUST be Friday (open!)
-  const thuUtcFriLagos = new Date('2026-11-12T23:30:00Z');
-  assert.equal(getLagosDateParts(thuUtcFriLagos).weekdayName, 'Friday');
-  assert.equal(isFoodOperatingDay(DEFAULT_FOOD_OPERATING_DAYS, thuUtcFriLagos), true);
-
-  // Sunday 23:30 UTC is Monday 00:30 Africa/Lagos -> MUST be Monday (closed!)
-  const sunUtcMonLagos = new Date('2026-11-15T23:30:00Z');
-  assert.equal(getLagosDateParts(sunUtcMonLagos).weekdayName, 'Monday');
-  assert.equal(isFoodOperatingDay(DEFAULT_FOOD_OPERATING_DAYS, sunUtcMonLagos), false);
-  console.log('   PASSED: All 7 weekdays & Africa/Lagos midnight boundary');
-
-  console.log('2. Testing admin schedule configurations & validation...');
-  assert.deepEqual(normalizeFoodOperatingDays(undefined), [5, 6, 0]);
-  assert.deepEqual(normalizeFoodOperatingDays([]), []);
-  assert.equal(formatFoodOperatingDays([5, 6, 0]), 'Fridays, Saturdays & Sundays');
-  assert.equal(formatFoodOperatingDays([1, 2, 3, 4, 5, 6, 0]), 'Every day (Monday – Sunday)');
-  assert.equal(formatFoodOperatingDays([]), 'Temporarily suspended (No operating days)');
-
-  assert.equal(validateFoodOperatingDaysInput([7]).valid, false);
-  assert.equal(validateFoodOperatingDaysInput([-1]).valid, false);
-  assert.equal(validateFoodOperatingDaysInput('Fri').valid, false);
-  assert.equal(validateFoodOperatingDaysInput([3, 1, 2, 1]).valid, true);
-
-  // Mon-Wed schedule
-  const monWedDb = createMockDb({ foodOperatingDays: [1, 2, 3], isAcceptingOrders: true, isFoodOrderingClosed: false });
-  const monCheck = await validateServiceAndSchedule(monWedDb, { vertical: 'FOOD', now: lagosWeekDates[0].date });
-  assert.equal(monCheck.allowed, true);
-  const friOnMonWedCheck = await validateServiceAndSchedule(monWedDb, { vertical: 'FOOD', now: lagosWeekDates[4].date });
-  assert.equal(friOnMonWedCheck.allowed, false);
-  assert.equal(friOnMonWedCheck.code, 'FOOD_OUTSIDE_OPERATING_DAYS');
-
-  // All 7 days enabled
-  const allDaysDb = createMockDb({ foodOperatingDays: [0, 1, 2, 3, 4, 5, 6], isAcceptingOrders: true, isFoodOrderingClosed: false });
-  for (const entry of lagosWeekDates) {
-    const res = await validateServiceAndSchedule(allDaysDb, { vertical: 'FOOD', now: entry.date });
-    assert.equal(res.allowed, true, `All-7-days should allow ${entry.dayName}`);
-  }
-
-  // All 7 days disabled
-  const suspendedDb = createMockDb({ foodOperatingDays: [], isAcceptingOrders: true, isFoodOrderingClosed: false });
-  for (const entry of lagosWeekDates) {
-    const res = await validateServiceAndSchedule(suspendedDb, { vertical: 'FOOD', now: entry.date });
-    assert.equal(res.allowed, false, `Suspended schedule should reject ${entry.dayName}`);
-    assert.equal(res.code, 'FOOD_OUTSIDE_OPERATING_DAYS');
-  }
-  console.log('   PASSED: Admin schedule variants & validation');
-
-  console.log('3. Testing scheduled batch date validation...');
-  assert.equal(isDateStrFoodOperatingDay('2026-11-14', [5, 6, 0]), true); // Saturday
-  assert.equal(isDateStrFoodOperatingDay('2026-11-18', [5, 6, 0]), false); // Wednesday
-  const friDb = createMockDb({ foodOperatingDays: [5, 6, 0], isAcceptingOrders: true, isFoodOrderingClosed: false });
-  const badBatchDate = await validateServiceAndSchedule(friDb, {
-    vertical: 'FOOD',
-    scheduledDateStr: '2026-11-18',
-    now: lagosWeekDates[4].date, // Even if today is Friday, scheduling for Wednesday is rejected
-  });
-  assert.equal(badBatchDate.allowed, false);
-  assert.equal(badBatchDate.code, 'FOOD_OUTSIDE_OPERATING_DAYS');
-  console.log('   PASSED: Scheduled batch date validation');
-
-  console.log('4. Testing discontinued Mart & CalebNet + Fashion unaffected...');
-  const martGuard = await validateServiceAndSchedule(friDb, { vertical: 'MART', now: lagosWeekDates[4].date });
+  const martGuard = await validateServiceAndSchedule(mockDb, { vertical: 'MART' });
   assert.equal(martGuard.allowed, false);
   assert.equal(martGuard.httpStatus, 410);
   assert.equal(martGuard.code, 'MART_DISCONTINUED');
 
-  const fashionGuard = await validateServiceAndSchedule(suspendedDb, { vertical: 'FASHION', now: lagosWeekDates[0].date });
+  const fashionGuard = await validateServiceAndSchedule(mockDb, { vertical: 'FASHION' });
   assert.equal(fashionGuard.allowed, true);
 
-  const calebnetPurchaseRes = createMockRes();
-  await calebnetHandler({ query: { path: 'purchase' }, url: '/api/calebnet/purchase', method: 'POST' } as any, calebnetPurchaseRes);
-  assert.equal(calebnetPurchaseRes.statusCode, 410);
-  assert.equal(calebnetPurchaseRes.body?.error, 'CALEBNET_DISCONTINUED');
+  // calculate-total blocks FOOD and MART with 410
+  const calcFoodRes = createMockRes();
+  await calculateTotalHandler(
+    { method: 'POST', headers: {}, socket: { remoteAddress: '127.0.0.1' }, body: { orderType: 'FOOD', plates: [{ id: '1' }] } } as any,
+    calcFoodRes as any
+  );
+  assert.equal(calcFoodRes.statusCode, 410);
+  assert.equal(calcFoodRes.body?.error, 'FOOD_DISCONTINUED');
 
-  const calebnetVerifyRes = createMockRes();
-  await calebnetHandler({ query: { path: 'verify-payment' }, url: '/api/calebnet/verify-payment', method: 'POST' } as any, calebnetVerifyRes);
-  assert.equal(calebnetVerifyRes.statusCode, 410);
-  assert.equal(calebnetVerifyRes.body?.error, 'CALEBNET_DISCONTINUED');
-  console.log('   PASSED: Mart & CalebNet discontinued; Fashion unaffected');
+  const calcMartRes = createMockRes();
+  await calculateTotalHandler(
+    { method: 'POST', headers: {}, socket: { remoteAddress: '127.0.0.1' }, body: { orderType: 'MART', items: [{ id: '1' }] } } as any,
+    calcMartRes as any
+  );
+  assert.equal(calcMartRes.statusCode, 410);
+  assert.equal(calcMartRes.body?.error, 'MART_DISCONTINUED');
 
-  console.log('\nALL OPERATIONAL RESTRUCTURING TESTS PASSED!');
+  // CalebNet purchase & verify-payment return 410
+  const cnPurchaseRes = createMockRes();
+  await calebnetHandler({ query: { path: 'purchase' }, url: '/api/calebnet/purchase', method: 'POST' } as any, cnPurchaseRes as any);
+  assert.equal(cnPurchaseRes.statusCode, 410);
+  assert.equal(cnPurchaseRes.body?.error, 'CALEBNET_DISCONTINUED');
+
+  const cnVerifyRes = createMockRes();
+  await calebnetHandler({ query: { path: 'verify-payment' }, url: '/api/calebnet/verify-payment', method: 'POST' } as any, cnVerifyRes as any);
+  assert.equal(cnVerifyRes.statusCode, 410);
+  assert.equal(cnVerifyRes.body?.error, 'CALEBNET_DISCONTINUED');
+  console.log('   PASSED: Food, Mart & CalebNet blocked (410); Fashion remains allowed');
+
+  console.log('2. Testing brand configuration, verified metrics & testimonials integrity...');
+  assert.equal(BRAND_CONFIG.name, 'CalebDeck');
+  assert.equal(PRODUCTS_CONFIG.fashion.status, 'ACTIVE');
+  assert.equal(PRODUCTS_CONFIG.fashion.path, '/fashion');
+  assert.equal(PRODUCTS_CONFIG.business.status, 'ACTIVE');
+  assert.equal(PRODUCTS_CONFIG.business.path, '/business');
+  assert.equal(PRODUCTS_CONFIG.gaming.name, 'Caleb Life');
+  assert.equal(PRODUCTS_CONFIG.gaming.status, 'COMING_SOON');
+  assert.equal(HISTORICAL_IMPACT_METRICS.length, 2);
+  assert.equal(HISTORICAL_IMPACT_METRICS[0].value, '1,000+');
+  assert.equal(HISTORICAL_IMPACT_METRICS[1].value, '₦3M+');
+  assert.ok(VERIFIED_TESTIMONIALS.length >= 3);
+  console.log('   PASSED: Brand architecture & historical metrics verified');
+
+  console.log('3. Testing SEO metadata, JSON-LD validity, sitemap.xml & robots.txt...');
+  const indexHtml = fs.readFileSync(path.join(repoRoot, 'index.html'), 'utf8');
+  assert.ok(indexHtml.includes('CalebDeck | Fashion, Business Showcase &amp; Gaming Experiences'));
+  assert.ok(!indexHtml.includes('CalebDeck Mart'));
+  assert.ok(!indexHtml.includes('student data plans'));
+
+  // Parse every <script type="application/ld+json"> block in index.html
+  const ldBlocks = [...indexHtml.matchAll(/<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/g)];
+  assert.ok(ldBlocks.length >= 4, 'Expected at least 4 JSON-LD blocks in index.html');
+  for (const [, rawJson] of ldBlocks) {
+    const parsed = JSON.parse(rawJson);
+    assert.equal(parsed['@context'], 'https://schema.org');
+    assert.ok(parsed['@type']);
+  }
+
+  const sitemap = fs.readFileSync(path.join(repoRoot, 'public', 'sitemap.xml'), 'utf8');
+  assert.ok(sitemap.includes('<loc>https://calebdeck.com/</loc>'));
+  assert.ok(sitemap.includes('<loc>https://calebdeck.com/fashion</loc>'));
+  assert.ok(sitemap.includes('<loc>https://calebdeck.com/business</loc>'));
+  assert.ok(!sitemap.includes('/cafeteria'));
+  assert.ok(!sitemap.includes('/mart'));
+  assert.ok(!sitemap.includes('/calebnet'));
+  assert.ok(!sitemap.includes('/gadgets'));
+
+  const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, 'public', 'manifest.json'), 'utf8'));
+  assert.equal(manifest.name, 'CalebDeck');
+  assert.ok(!manifest.description.toLowerCase().includes('grocery'));
+
+  const robots = fs.readFileSync(path.join(repoRoot, 'public', 'robots.txt'), 'utf8');
+  assert.ok(robots.includes('Allow: /fashion'));
+  assert.ok(robots.includes('Sitemap: https://calebdeck.com/sitemap.xml'));
+  console.log('   PASSED: HTML SEO, JSON-LD schemas, sitemap, manifest & robots.txt valid');
+
+  console.log('\nALL BRAND EVOLUTION & SEO REPOSITIONING TESTS PASSED!');
 }
 
 run().catch((err) => {

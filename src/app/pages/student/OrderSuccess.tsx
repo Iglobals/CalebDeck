@@ -258,7 +258,7 @@ export default function OrderSuccess() {
   const orderVertical = resolveOrderVertical(orderData);
   const isFashionOrder = orderVertical === 'FASHION';
   const isMartOrder = orderVertical === 'MART';
-  const retryPath = isFashionOrder ? '/fashion' : (isMartOrder ? '/mart' : (user?.icaSub ? '/' : '/cafeteria'));
+  const retryPath = isFashionOrder ? '/fashion' : '/';
   
   // Map fashion statuses to the 4-stage tracking flow:
   // Step 0: Received (PAID, CONSOLIDATING, PROCUREMENT_IN_PROGRESS, ARRIVING_AT_CAMPUS, READY_FOR_DELIVERY)

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router";
-import { Utensils, ShoppingBag, Headset, Bike, Wifi, LogIn, User } from "lucide-react";
+import { Shirt, Store, ShoppingBag, Headset, Sparkles, LogIn, User, Wallet } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 
 const PaperBagSVG = () => (
@@ -113,14 +113,17 @@ export function PaperBagHamburger() {
 
   const { user } = useAuth();
   
-  const navLinks = [
-    { label: "Order Food", icon: <Utensils className="w-5 h-5 text-[#FCD34D]" />, to: "/cafeteria" },
-    { label: "CalebDeck Mart", icon: <ShoppingBag className="w-5 h-5 text-[#10B981]" />, to: "/mart" },
-    { label: "CalebNet", icon: <Wifi className="w-5 h-5 text-blue-500" />, to: "/calebnet" },
-    user?.icaSub 
-      ? { label: "i-CON Profile", icon: <User className="w-5 h-5 text-[#7C3AED]" />, to: "/profile" }
-      : { label: "My Orders", icon: <ShoppingBag className="w-5 h-5 text-[#A78BFA]" />, to: "/my-orders" },
-    { label: "Become a Rider", icon: <Bike className="w-5 h-5 text-[#10B981]" />, to: "/rider/signup" },
+  const navLinks: Array<{ label: string; icon: React.ReactElement; to: string; isExternal?: boolean; highlight?: boolean }> = [
+    { label: "CalebDeck Fashion", icon: <Shirt className="w-5 h-5 text-[#F97316]" />, to: "/fashion" },
+    { label: "CalebDeck Business", icon: <Store className="w-5 h-5 text-[#7C3AED]" />, to: "/business" },
+    { label: "Caleb Life · Soon", icon: <Sparkles className="w-5 h-5 text-emerald-500" />, to: "/#caleb-life" },
+    ...(user?.icaSub
+      ? [
+          { label: "i-CON Profile", icon: <User className="w-5 h-5 text-[#7C3AED]" />, to: "/profile" },
+          { label: "i-CON Wallet", icon: <Wallet className="w-5 h-5 text-[#10B981]" />, to: "/wallet" },
+        ]
+      : []),
+    { label: "My Orders", icon: <ShoppingBag className="w-5 h-5 text-[#A78BFA]" />, to: "/my-orders" },
     { label: "Support", icon: <Headset className="w-5 h-5 text-[#7C3AED]" />, to: "/support" }
   ];
 

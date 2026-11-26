@@ -6,8 +6,8 @@ export default function PrivacyPolicy() {
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       <SEO
-        title="Privacy Policy - CalebDeck"
-        description="Read how CalebDeck handles student information, order details, payment records, support messages, and service data."
+        title="Privacy Policy | CalebDeck"
+        description="Read how CalebDeck handles customer account information, CalebDeck Fashion order details, payment records, and platform data."
         canonical="https://calebdeck.com/privacy"
       />
       <header className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border transition-colors duration-300">
@@ -32,7 +32,7 @@ export default function PrivacyPolicy() {
               We collect several different types of information for various purposes to provide and improve our Service to you.
             </p>
             <ul className="list-disc list-inside space-y-2 ml-4">
-              <li>Personal Data: Name, email address, phone number, and cafeteria preferences</li>
+              <li>Personal Data: Name, email address, phone number, and delivery preferences</li>
               <li>Payment Information: Payment method details processed through secure payment gateways</li>
 
             </ul>

@@ -13,21 +13,25 @@ installVitePreloadErrorHandler();
 
 // --- Lazy Load Student Pages ---
 const LandingPage = lazyWithRetry(() => import("./pages/student/LandingPage"), "LandingPage");
-const CafeteriaSelection = lazyWithRetry(() => import("./pages/student/CafeteriaSelection"), "CafeteriaSelection");
-const PlateBuilder = lazyWithRetry(() => import("./pages/student/PlateBuilder"), "PlateBuilder");
-const Checkout = lazyWithRetry(() => import("./pages/student/Checkout"), "Checkout");
 const OrderSuccess = lazyWithRetry(() => import("./pages/student/OrderSuccess"), "OrderSuccess");
+const MartCart = lazyWithRetry(() => import("./pages/student/MartCart"), "MartCart");
 
+const FoodDiscontinuedElement = (
+  <DiscontinuedServicePage
+    serviceName="CalebDeck Food Delivery"
+    canonicalPath="/cafeteria"
+  />
+);
 const MartDiscontinuedElement = (
   <DiscontinuedServicePage
     serviceName="CalebDeck Mart"
-    description="CalebDeck Mart (groceries and essentials) has been discontinued as we focus on weekend campus food delivery and CalebDeck Fashion."
+    canonicalPath="/mart"
   />
 );
 const CalebNetDiscontinuedElement = (
   <DiscontinuedServicePage
     serviceName="CalebNet"
-    description="CalebNet (Airtime & Data top-up) has been discontinued and is no longer accepting new transactions."
+    canonicalPath="/calebnet"
   />
 );
 
@@ -97,12 +101,12 @@ export const router = createBrowserRouter([
         errorElement: <RouteErrorBoundary />,
         children: [
           { index: true, Component: LandingPage },
-          { path: "cafeteria", Component: CafeteriaSelection },
-          { path: "plate-builder/:cafeteriaId", Component: PlateBuilder },
-          { path: "checkout", Component: Checkout },
+          { path: "cafeteria", element: FoodDiscontinuedElement },
+          { path: "plate-builder/:cafeteriaId", element: FoodDiscontinuedElement },
+          { path: "checkout", element: FoodDiscontinuedElement },
           { path: "order-success", Component: OrderSuccess },
           { path: "mart", element: MartDiscontinuedElement },
-          { path: "cart", element: MartDiscontinuedElement },
+          { path: "cart", Component: MartCart },
           { path: "mart/checkout", element: MartDiscontinuedElement },
           { path: "calebnet", element: CalebNetDiscontinuedElement },
           { path: "calebnet/status/:paymentReference", lazy: lazyRoute(() => import("./pages/student/CalebNetStatus"), "CalebNetStatus") },
