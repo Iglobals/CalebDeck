@@ -127,7 +127,7 @@ export function PaperBagHamburger() {
   const navLinks = [
     { label: "CalebDeck Fashion", emoji: "👕", to: "/fashion", external: false },
     { label: "CalebDeck Business", emoji: "🏪", to: "/business", external: false },
-    { label: "Caleb Life · Soon", emoji: "🎮", to: "/#caleb-life", external: false },
+    { label: "Caleb Life · Soon", emoji: "🎮", to: "/caleb-life", external: false },
     user?.icaSub 
         ? { label: "i-CON Profile", emoji: "👤", to: "/profile", external: false }
         : { label: "Become an i-CON", emoji: "🌟", to: `/api/auth/login?return_to=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`, external: true },

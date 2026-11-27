@@ -30,8 +30,20 @@ import {
   CURATED_FASHION_SHOWCASE_FALLBACK,
   type FashionShowcaseItem,
 } from '../../../config/brand';
+import { SignedInHome } from './SignedInHome';
 
 export default function LandingPage() {
+  const { user } = useAuth();
+
+  // Signed-in i-CON users get the native app Home screen directly
+  if (user?.icaSub) {
+    return <SignedInHome />;
+  }
+
+  return <PublicLandingPage />;
+}
+
+function PublicLandingPage() {
   const { user } = useAuth();
   const { studentTheme, toggleStudentTheme } = useTheme();
   const navigate = useNavigate();

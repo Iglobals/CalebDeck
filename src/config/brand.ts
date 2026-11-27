@@ -50,6 +50,7 @@ export const PRODUCTS_CONFIG = {
     shortName: 'Caleb Life',
     status: 'COMING_SOON' as const,
     statusLabel: 'Coming Soon · In Development',
+    path: '/caleb-life',
     sectionId: 'caleb-life',
     anchor: '/#caleb-life',
     tagline: 'An interactive social gaming experience built around culture, choices, and everyday hustle.',

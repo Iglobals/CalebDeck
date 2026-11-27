@@ -120,6 +120,7 @@ export const router = createBrowserRouter([
           { path: "fashion", Component: FashionPage },
           { path: "fashion/product/:id", Component: FashionPDP },
           { path: "fashion/checkout", Component: FashionCheckout },
+          { path: "caleb-life", lazy: lazyRoute(() => import("./pages/student/CalebLifePage"), "CalebLifePage") },
           
           /* ICON-Only Routes */
           {
