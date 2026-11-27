@@ -116,7 +116,7 @@ export function PaperBagHamburger() {
   const navLinks: Array<{ label: string; icon: React.ReactElement; to: string; isExternal?: boolean; highlight?: boolean }> = [
     { label: "CalebDeck Fashion", icon: <Shirt className="w-5 h-5 text-[#F97316]" />, to: "/fashion" },
     { label: "CalebDeck Business", icon: <Store className="w-5 h-5 text-[#7C3AED]" />, to: "/business" },
-    { label: "Caleb Life · Soon", icon: <Sparkles className="w-5 h-5 text-emerald-500" />, to: "/#caleb-life" },
+    { label: "Caleb Life · Soon", icon: <Sparkles className="w-5 h-5 text-emerald-500" />, to: "/caleb-life" },
     ...(user?.icaSub
       ? [
           { label: "i-CON Profile", icon: <User className="w-5 h-5 text-[#7C3AED]" />, to: "/profile" },
