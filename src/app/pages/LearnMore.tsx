@@ -149,7 +149,9 @@ export default function LearnMore() {
                 <Sparkles className="w-3.5 h-3.5" />
                 Coming Soon
               </div>
-              <h3 className="text-xl font-black">{PRODUCTS_CONFIG.gaming.name}</h3>
+              <h3 className="text-xl font-black text-white" style={{ color: '#FFFFFF' }}>
+                {PRODUCTS_CONFIG.gaming.name}
+              </h3>
               <p className="text-sm text-white/75 leading-relaxed">
                 {PRODUCTS_CONFIG.gaming.description}
               </p>

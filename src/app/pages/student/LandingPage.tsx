@@ -387,21 +387,21 @@ export default function LandingPage() {
             </motion.div>
 
             {/* Right Dual-Phone Hardware Stage */}
-            <div className="lg:col-span-6 xl:col-span-6 relative pt-4 pb-6 sm:py-6">
-              <div className="relative mx-auto max-w-[500px] lg:max-w-none h-[430px] sm:h-[510px] flex items-center justify-center">
+            <div className="lg:col-span-6 xl:col-span-6 relative pt-2 pb-4 sm:py-6">
+              <div className="relative mx-auto max-w-[360px] sm:max-w-[500px] lg:max-w-none h-[385px] sm:h-[510px] flex items-center justify-center">
                 {/* Ambient Brand Plinth Behind Devices */}
                 <div
                   aria-hidden="true"
-                  className="absolute inset-x-6 bottom-4 h-64 rounded-[2.5rem] bg-gradient-to-br from-[#7C3AED]/15 via-[#FCD34D]/20 to-[#110C1D]/5 dark:from-[#7C3AED]/25 dark:via-[#19122B] dark:to-[#FCD34D]/10 border border-[#7C3AED]/15 dark:border-white/10"
+                  className="absolute inset-x-3 sm:inset-x-6 bottom-3 sm:bottom-4 h-52 sm:h-64 rounded-[2rem] sm:rounded-[2.5rem] bg-gradient-to-br from-[#7C3AED]/15 via-[#FCD34D]/20 to-[#110C1D]/5 dark:from-[#7C3AED]/25 dark:via-[#19122B] dark:to-[#FCD34D]/10 border border-[#7C3AED]/15 dark:border-white/10"
                 />
 
                 {/* Rear Phone: CalebDeck Business / Campus Brand Screen */}
                 <motion.div
                   style={{ y: backPhoneY }}
-                  initial={prefersReducedMotion ? undefined : { opacity: 0, x: 28, rotate: 6 }}
+                  initial={prefersReducedMotion ? undefined : { opacity: 0, x: 24, rotate: 6 }}
                   animate={prefersReducedMotion ? undefined : { opacity: 1, x: 0, rotate: 6 }}
                   transition={{ duration: 0.75, delay: 0.14, ease: [0.16, 1, 0.3, 1] }}
-                  className="w-[205px] sm:w-[248px] translate-x-14 sm:translate-x-24 -translate-y-4 z-10 hover:rotate-2 transition-transform duration-500"
+                  className="w-[172px] sm:w-[248px] translate-x-12 sm:translate-x-24 -translate-y-2 sm:-translate-y-4 z-10 hover:rotate-2 transition-transform duration-500"
                 >
                   <PhoneMockup
                     src="/showcase/business-app-screen.jpg"
@@ -414,10 +414,10 @@ export default function LandingPage() {
                 {/* Front Phone: CalebDeck Fashion Store Screen */}
                 <motion.div
                   style={{ y: frontPhoneY }}
-                  initial={prefersReducedMotion ? undefined : { opacity: 0, x: -28, rotate: -4 }}
+                  initial={prefersReducedMotion ? undefined : { opacity: 0, x: -24, rotate: -4 }}
                   animate={prefersReducedMotion ? undefined : { opacity: 1, x: 0, rotate: -4 }}
                   transition={{ duration: 0.75, delay: 0.06, ease: [0.16, 1, 0.3, 1] }}
-                  className="absolute left-2 sm:left-8 top-4 sm:top-6 w-[215px] sm:w-[260px] z-20 hover:rotate-0 transition-transform duration-500"
+                  className="absolute left-1 sm:left-8 top-6 sm:top-6 w-[182px] sm:w-[260px] z-20 hover:rotate-0 transition-transform duration-500"
                 >
                   <PhoneMockup
                     src="/showcase/fashion-app-screen.jpg"
@@ -427,37 +427,41 @@ export default function LandingPage() {
                   />
                 </motion.div>
 
-                {/* Tactile Floating Callout 1: Weekly Drops */}
+                {/* Tactile Floating Callout 1: Weekly Drops (Visible on Mobile & Desktop) */}
                 <motion.div
                   initial={prefersReducedMotion ? undefined : { opacity: 0, scale: 0.92 }}
                   animate={prefersReducedMotion ? undefined : { opacity: 1, scale: 1 }}
                   transition={{ duration: 0.5, delay: 0.32 }}
-                  className="hidden sm:flex items-center gap-3 absolute -left-3 bottom-8 z-30 rounded-2xl px-4 py-3 bg-[#110C1D] text-white shadow-[0_20px_45px_-10px_rgba(17,12,29,0.55)] border border-white/10"
+                  className="flex items-center gap-2 sm:gap-3 absolute left-0 sm:-left-3 bottom-1.5 sm:bottom-8 z-30 rounded-xl sm:rounded-2xl px-3 py-2 sm:px-4 sm:py-3 bg-[#110C1D] text-white shadow-[0_20px_45px_-10px_rgba(17,12,29,0.55)] border border-white/15"
                 >
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#FCD34D] ring-4 ring-[#FCD34D]/20" />
+                  <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#FCD34D] ring-4 ring-[#FCD34D]/20 shrink-0" />
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#FCD34D]">
+                    <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-[#FCD34D] leading-tight">
                       Live Storefront
                     </p>
-                    <p className="text-xs font-bold">Weekly Curated Fashion Drops</p>
+                    <p className="text-[11px] sm:text-xs font-bold text-white leading-tight">
+                      Weekly Curated Fashion Drops
+                    </p>
                   </div>
                 </motion.div>
 
-                {/* Tactile Floating Callout 2: Student Brand Reach */}
+                {/* Tactile Floating Callout 2: Student Brand Reach (Visible on Mobile & Desktop) */}
                 <motion.div
                   initial={prefersReducedMotion ? undefined : { opacity: 0, scale: 0.92 }}
                   animate={prefersReducedMotion ? undefined : { opacity: 1, scale: 1 }}
                   transition={{ duration: 0.5, delay: 0.42 }}
-                  className="hidden sm:flex items-center gap-3 absolute -right-2 top-3 z-30 rounded-2xl px-4 py-3 bg-white/95 dark:bg-[#1A142B]/95 backdrop-blur-md text-[#110C1D] dark:text-white shadow-[0_20px_45px_-12px_rgba(124,58,237,0.28)] border border-[#7C3AED]/20"
+                  className="flex items-center gap-2 sm:gap-3 absolute right-0 sm:-right-2 top-0 sm:top-3 z-30 rounded-xl sm:rounded-2xl px-2.5 py-2 sm:px-4 sm:py-3 bg-white/95 dark:bg-[#1A142B]/95 backdrop-blur-md text-[#110C1D] dark:text-white shadow-[0_20px_45px_-12px_rgba(124,58,237,0.28)] border border-[#7C3AED]/25"
                 >
-                  <div className="w-8 h-8 rounded-xl bg-[#7C3AED] text-white font-black text-xs flex items-center justify-center">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#7C3AED] text-white font-black text-[10px] sm:text-xs flex items-center justify-center shrink-0">
                     AD
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#7C3AED] dark:text-[#FCD34D]">
+                    <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.14em] text-[#7C3AED] dark:text-[#FCD34D] leading-tight">
                       CalebDeck Business
                     </p>
-                    <p className="text-xs font-bold">Homepage Student Brand Slots</p>
+                    <p className="text-[11px] sm:text-xs font-bold leading-tight">
+                      Homepage Student Brand Slots
+                    </p>
                   </div>
                 </motion.div>
               </div>
@@ -489,7 +493,7 @@ export default function LandingPage() {
                 <div>
                   <h2
                     className="text-xl font-black tracking-tight text-white"
-                    style={{ fontFamily: 'Satoshi, Inter, sans-serif' }}
+                    style={{ fontFamily: 'Satoshi, Inter, sans-serif', color: '#FFFFFF' }}
                   >
                     {PRODUCTS_CONFIG.fashion.name}
                   </h2>
@@ -513,7 +517,7 @@ export default function LandingPage() {
                 <div>
                   <h2
                     className="text-xl font-black tracking-tight text-white"
-                    style={{ fontFamily: 'Satoshi, Inter, sans-serif' }}
+                    style={{ fontFamily: 'Satoshi, Inter, sans-serif', color: '#FFFFFF' }}
                   >
                     {PRODUCTS_CONFIG.business.name}
                   </h2>
@@ -543,7 +547,7 @@ export default function LandingPage() {
                 <div>
                   <h2
                     className="text-xl font-bold tracking-tight text-white"
-                    style={{ fontFamily: '"Space Grotesk", Satoshi, sans-serif' }}
+                    style={{ fontFamily: '"Space Grotesk", Satoshi, sans-serif', color: '#FFFFFF' }}
                   >
                     {PRODUCTS_CONFIG.gaming.name}
                   </h2>
@@ -560,83 +564,83 @@ export default function LandingPage() {
       {/* ───────── SECTIONS 2, 3 & 4: EDITORIAL BENTO — IMPACT, JOURNEY & VOICES ───────── */}
       <section id="our-journey" className="scroll-mt-20 py-16 sm:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
-          {/* 4-Column Architectural Proof Strip */}
+          {/* 4-Column Architectural Proof Strip (2x2 Bento Mosaic on Mobile, 4-Col on Desktop) */}
           <motion.div
             id="our-impact"
             {...reveal()}
-            className="scroll-mt-24 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+            className="scroll-mt-24 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4"
           >
             {HISTORICAL_IMPACT_METRICS.map((metric, idx) => (
               <div
                 key={metric.label}
-                className={`rounded-3xl p-6 flex flex-col justify-between border ${
+                className={`rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex flex-col justify-between border ${
                   idx === 0
                     ? 'bg-[#7C3AED] text-white border-[#7C3AED]'
                     : 'bg-[#110C1D] text-white border-[#110C1D] dark:bg-[#171228] dark:border-white/10'
                 }`}
               >
-                <div className="flex items-center justify-between gap-2 mb-4">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] opacity-80">
-                    Chapter I Milestone
+                <div className="flex flex-wrap items-center justify-between gap-1.5 mb-3 sm:mb-4">
+                  <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-white/80">
+                    Chapter I
                   </span>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#FCD34D] text-[#110C1D]">
+                  <span className="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-[#FCD34D] text-[#110C1D]">
                     Verified
                   </span>
                 </div>
                 <div>
                   <p
-                    className="text-4xl sm:text-5xl font-black tracking-[-0.04em] leading-none mb-2"
+                    className="text-3xl sm:text-5xl font-black tracking-[-0.04em] leading-none text-white mb-1.5 sm:mb-2"
                     style={{ fontFamily: 'Satoshi, Inter, sans-serif' }}
                   >
                     {metric.value}
                   </p>
-                  <p className="text-sm font-bold">{metric.label}</p>
-                  <p className="text-xs opacity-75 mt-1.5 leading-relaxed">{metric.context}</p>
+                  <p className="text-xs sm:text-sm font-bold text-white">{metric.label}</p>
+                  <p className="hidden sm:block text-xs text-white/75 mt-1.5 leading-relaxed">{metric.context}</p>
                 </div>
               </div>
             ))}
 
-            <div className="rounded-3xl p-6 flex flex-col justify-between bg-white dark:bg-[#141022] border border-[#110C1D]/[0.08] dark:border-white/10">
-              <div className="flex items-center justify-between gap-2 mb-4">
-                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#110C1D]/55 dark:text-white/55">
-                  Active Storefront
+            <div className="rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex flex-col justify-between bg-white dark:bg-[#141022] border border-[#110C1D]/[0.08] dark:border-white/10">
+              <div className="flex flex-wrap items-center justify-between gap-1.5 mb-3 sm:mb-4">
+                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-[#110C1D]/55 dark:text-white/55">
+                  Storefront
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#7C3AED]/12 text-[#7C3AED] dark:text-[#C4B5FD]">
-                  Chapter II
+                <span className="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wider bg-[#7C3AED]/12 text-[#7C3AED] dark:text-[#C4B5FD]">
+                  Live
                 </span>
               </div>
               <div>
                 <p
-                  className="text-4xl sm:text-5xl font-black tracking-[-0.04em] leading-none text-[#110C1D] dark:text-white mb-2"
+                  className="text-3xl sm:text-5xl font-black tracking-[-0.04em] leading-none text-[#110C1D] dark:text-white mb-1.5 sm:mb-2"
                   style={{ fontFamily: 'Satoshi, Inter, sans-serif' }}
                 >
                   100+
                 </p>
-                <p className="text-sm font-bold">Curated Fashion Pieces</p>
-                <p className="text-xs text-[#110C1D]/65 dark:text-white/60 mt-1.5 leading-relaxed">
+                <p className="text-xs sm:text-sm font-bold">Curated Pieces</p>
+                <p className="hidden sm:block text-xs text-[#110C1D]/65 dark:text-white/60 mt-1.5 leading-relaxed">
                   Streetwear, footwear, headwear, and bags live on CalebDeck Fashion today.
                 </p>
               </div>
             </div>
 
-            <div className="rounded-3xl p-6 flex flex-col justify-between bg-[#FCD34D] text-[#110C1D] border border-[#F59E0B]/30">
-              <div className="flex items-center justify-between gap-2 mb-4">
-                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#110C1D]/70">
-                  Founder Flywheel
+            <div className="rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex flex-col justify-between bg-[#FCD34D] text-[#110C1D] border border-[#F59E0B]/30">
+              <div className="flex flex-wrap items-center justify-between gap-1.5 mb-3 sm:mb-4">
+                <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-[#110C1D]/70">
+                  Business
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#110C1D] text-[#FCD34D]">
+                <span className="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-[#110C1D] text-[#FCD34D]">
                   Live Ads
                 </span>
               </div>
               <div>
                 <p
-                  className="text-4xl sm:text-5xl font-black tracking-[-0.04em] leading-none mb-2"
+                  className="text-3xl sm:text-5xl font-black tracking-[-0.04em] leading-none text-[#110C1D] mb-1.5 sm:mb-2"
                   style={{ fontFamily: 'Satoshi, Inter, sans-serif' }}
                 >
                   1-Tap
                 </p>
-                <p className="text-sm font-black">Direct Brand Discovery</p>
-                <p className="text-xs text-[#110C1D]/80 mt-1.5 leading-relaxed">
+                <p className="text-xs sm:text-sm font-black text-[#110C1D]">Brand Discovery</p>
+                <p className="hidden sm:block text-xs text-[#110C1D]/80 mt-1.5 leading-relaxed">
                   Student vendors get homepage visibility, click tracking, and direct WhatsApp buyers.
                 </p>
               </div>
@@ -648,28 +652,28 @@ export default function LandingPage() {
             {/* Block 1: The CalebDeck Story (Dark Obsidian Editorial Tile) */}
             <motion.div
               {...reveal(0.05)}
-              className="lg:col-span-4 rounded-[2rem] bg-[#110C1D] dark:bg-[#151024] text-white p-8 sm:p-9 flex flex-col justify-between border border-white/10"
+              className="lg:col-span-4 rounded-[2rem] bg-[#110C1D] dark:bg-[#151024] text-white p-7 sm:p-9 flex flex-col justify-between border border-white/10"
             >
-              <div className="space-y-5">
+              <div className="space-y-4 sm:space-y-5">
                 <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#FCD34D]">
                   Our Story
                 </span>
                 <h2
-                  className="text-2xl sm:text-3xl font-black tracking-tight leading-[1.12]"
-                  style={{ fontFamily: 'Satoshi, Inter, sans-serif' }}
+                  className="text-2xl sm:text-3xl font-black tracking-tight leading-[1.12] text-white"
+                  style={{ fontFamily: 'Satoshi, Inter, sans-serif', color: '#FFFFFF' }}
                 >
                   Built on real experiences.{' '}
                   <span
-                    className="font-normal italic text-[#C4B5FD]"
+                    className="font-normal italic text-[#FCD34D]"
                     style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: '1.12em' }}
                   >
                     Moving towards what’s next.
                   </span>
                 </h2>
-                <p className="text-sm text-white/72 leading-relaxed">
+                <p className="text-sm text-white/82 leading-relaxed">
                   CalebDeck began on campus solving everyday student logistics — running cafeteria food delivery, CalebDeck Mart, and CalebNet data top-ups across hostels.
                 </p>
-                <p className="text-sm text-white/72 leading-relaxed">
+                <p className="text-sm text-white/82 leading-relaxed">
                   Having concluded those Chapter I services, we are pouring every lesson in trust, payments, and execution into products built for far bigger reach.
                 </p>
               </div>
@@ -872,8 +876,8 @@ export default function LandingPage() {
                       {leadFashionItem.brand}
                     </p>
                     <h3
-                      className="text-2xl sm:text-3xl font-black leading-tight truncate"
-                      style={{ fontFamily: 'Satoshi, Inter, sans-serif' }}
+                      className="text-2xl sm:text-3xl font-black leading-tight truncate text-white"
+                      style={{ fontFamily: 'Satoshi, Inter, sans-serif', color: '#FFFFFF' }}
                     >
                       {leadFashionItem.name}
                     </h3>
@@ -885,11 +889,15 @@ export default function LandingPage() {
               </Link>
             </motion.div>
 
-            {/* Right 7 Columns: 3 Pieces + Live Batch Strip */}
+            {/* Right 7 Columns: Horizontal Swipe Rail on Mobile, 3-Col Grid on Desktop + Live Batch Strip */}
             <div className="lg:col-span-7 flex flex-col justify-between gap-6">
-              <div className="grid sm:grid-cols-3 gap-5">
+              <div className="flex sm:grid sm:grid-cols-3 gap-4 sm:gap-5 overflow-x-auto sm:overflow-visible snap-x snap-mandatory pb-2 sm:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0 hide-scrollbar">
                 {secondaryFashionItems.map((item, idx) => (
-                  <motion.div key={item.id} {...reveal(0.08 + idx * 0.05)}>
+                  <motion.div
+                    key={item.id}
+                    {...reveal(0.08 + idx * 0.05)}
+                    className="min-w-[66vw] max-w-[250px] sm:min-w-0 sm:max-w-none shrink-0 snap-start"
+                  >
                     <Link to={`/fashion/product/${item.id}`} className="group block">
                       <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-[#EAE6DF] dark:bg-[#171226] border border-[#110C1D]/[0.08] dark:border-white/10 mb-3">
                         <ImageWithFallback
@@ -948,7 +956,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <motion.div
             {...reveal()}
-            className="relative rounded-[2.5rem] overflow-hidden bg-[#120C22] text-white border border-[#7C3AED]/30 px-6 py-12 sm:px-12 sm:py-16 lg:px-16 lg:py-20 shadow-[0_32px_90px_-20px_rgba(24,12,56,0.55)]"
+            className="relative rounded-[2.25rem] sm:rounded-[2.5rem] overflow-hidden bg-[#120C22] text-white border border-[#7C3AED]/30 px-5 pt-9 pb-0 sm:px-12 sm:pt-14 sm:pb-0 lg:px-16 lg:py-20 shadow-[0_32px_90px_-20px_rgba(24,12,56,0.55)]"
           >
             {/* Brand Dual-Tone Aura */}
             <div
@@ -960,16 +968,16 @@ export default function LandingPage() {
               className="pointer-events-none absolute -bottom-32 right-10 w-[380px] h-[380px] rounded-full bg-[#FCD34D]/15 blur-3xl"
             />
 
-            <div className="relative z-10 grid lg:grid-cols-12 gap-12 items-center">
+            <div className="relative z-10 grid lg:grid-cols-12 gap-8 lg:gap-12 items-center">
               {/* Left Pitch & Flywheel */}
-              <div className="lg:col-span-7 space-y-6">
-                <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#FCD34D]">
+              <div className="lg:col-span-7 space-y-5 sm:space-y-6">
+                <p className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.22em] text-[#FCD34D]">
                   02 / Active Founder Platform · {PRODUCTS_CONFIG.business.name}
                 </p>
 
                 <h2
-                  className="text-3xl sm:text-5xl font-black tracking-[-0.03em] leading-[1.05]"
-                  style={{ fontFamily: 'Satoshi, Inter, sans-serif' }}
+                  className="text-[2rem] sm:text-5xl font-black tracking-[-0.03em] leading-[1.06] text-white"
+                  style={{ fontFamily: 'Satoshi, Inter, sans-serif', color: '#FFFFFF' }}
                 >
                   Put your student brand right where the{' '}
                   <span
@@ -980,61 +988,61 @@ export default function LandingPage() {
                   </span>
                 </h2>
 
-                <p className="text-base sm:text-lg text-white/75 leading-relaxed max-w-xl">
+                <p className="text-sm sm:text-lg text-white/82 leading-relaxed max-w-xl">
                   Great student products shouldn’t get buried in group chats. As shoppers visit{' '}
                   <strong className="text-white">{PRODUCTS_CONFIG.fashion.name}</strong> today and players arrive for{' '}
                   <strong className="text-white">{PRODUCTS_CONFIG.gaming.name}</strong> tomorrow,{' '}
                   <strong className="text-[#FCD34D]">{PRODUCTS_CONFIG.business.name}</strong> places your catalog directly in front of high-attention traffic.
                 </p>
 
-                {/* 3 Crisp Founder Proof Pillars */}
-                <div className="grid sm:grid-cols-3 gap-4 pt-2">
-                  <div className="rounded-2xl bg-white/[0.05] border border-white/10 p-4">
+                {/* 3 Crisp Founder Proof Pillars: Horizontal Swipe Strip on Mobile, 3-Col Grid on Desktop */}
+                <div className="flex sm:grid sm:grid-cols-3 gap-3 sm:gap-4 pt-1 sm:pt-2 overflow-x-auto sm:overflow-visible snap-x snap-mandatory -mx-5 px-5 sm:mx-0 sm:px-0 pb-1 sm:pb-0 hide-scrollbar">
+                  <div className="min-w-[210px] sm:min-w-0 shrink-0 snap-start rounded-2xl bg-white/[0.06] border border-white/12 p-4">
                     <p className="text-xs font-black uppercase tracking-wider text-[#FCD34D] mb-1">
                       Prime Placement
                     </p>
-                    <p className="text-xs text-white/70 leading-relaxed">
+                    <p className="text-xs text-white/75 leading-relaxed">
                       Featured directly on CalebDeck where real campus &amp; youth traffic lands.
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-white/[0.05] border border-white/10 p-4">
+                  <div className="min-w-[210px] sm:min-w-0 shrink-0 snap-start rounded-2xl bg-white/[0.06] border border-white/12 p-4">
                     <p className="text-xs font-black uppercase tracking-wider text-[#C4B5FD] mb-1">
                       Click Analytics
                     </p>
-                    <p className="text-xs text-white/70 leading-relaxed">
+                    <p className="text-xs text-white/75 leading-relaxed">
                       Your Vendor Dashboard counts every product tap so you see real ROI.
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-white/[0.05] border border-white/10 p-4">
+                  <div className="min-w-[210px] sm:min-w-0 shrink-0 snap-start rounded-2xl bg-white/[0.06] border border-white/12 p-4">
                     <p className="text-xs font-black uppercase tracking-wider text-emerald-300 mb-1">
                       Direct WhatsApp
                     </p>
-                    <p className="text-xs text-white/70 leading-relaxed">
+                    <p className="text-xs text-white/75 leading-relaxed">
                       Customers tap straight into your WhatsApp chat ready to buy.
                     </p>
                   </div>
                 </div>
 
-                <div className="pt-3 flex flex-wrap items-center gap-4">
+                <div className="pt-2 sm:pt-3 flex flex-row flex-wrap items-center gap-3 sm:gap-4">
                   <Link
                     to={PRODUCTS_CONFIG.business.path}
-                    className="group inline-flex items-center gap-2.5 px-8 py-4 rounded-full font-black text-sm bg-[#FCD34D] text-[#110C1D] hover:bg-[#FDE047] shadow-[0_16px_40px_-10px_rgba(252,211,77,0.45)] transition-all"
+                    className="group flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 sm:px-8 py-3.5 sm:py-4 rounded-full font-black text-xs sm:text-sm bg-[#FCD34D] text-[#110C1D] hover:bg-[#FDE047] shadow-[0_16px_40px_-10px_rgba(252,211,77,0.45)] transition-all whitespace-nowrap"
                   >
                     <span>Showcase Your Brand</span>
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </Link>
                   <Link
                     to={PRODUCTS_CONFIG.business.path}
-                    className="inline-flex items-center gap-2 px-6 py-4 rounded-full text-sm font-semibold text-white border border-white/20 hover:bg-white/10 transition-colors"
+                    className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-3.5 sm:py-4 rounded-full text-xs sm:text-sm font-semibold text-white border border-white/20 hover:bg-white/10 transition-colors whitespace-nowrap"
                   >
-                    Vendor Dashboard Login
+                    Vendor Login
                   </Link>
                 </div>
               </div>
 
-              {/* Right Real Campus Brand Mockup */}
+              {/* Right Real Campus Brand Mockup — Docked Stage Crop on Mobile, Full Frame on Desktop */}
               <div className="lg:col-span-5 flex justify-center">
-                <div className="relative w-[250px] sm:w-[285px]">
+                <div className="relative w-[240px] sm:w-[275px] lg:w-[285px] max-h-[310px] sm:max-h-[370px] lg:max-h-none overflow-hidden lg:overflow-visible pt-1 lg:pt-0">
                   <PhoneMockup
                     src="/showcase/business-app-screen.jpg"
                     alt="CalebDeck Business live vendor spotlight card for Isi's Collection"
@@ -1046,7 +1054,7 @@ export default function LandingPage() {
 
             {/* Live Active Vendor Products Strip (automatically renders when vendors have active items) */}
             {businessItems.length > 0 && (
-              <div className="relative z-10 mt-14 pt-10 border-t border-white/10 space-y-5">
+              <div className="relative z-10 mt-8 lg:mt-14 pt-8 pb-10 lg:pb-0 lg:pt-10 border-t border-white/10 space-y-5">
                 <div className="flex items-center justify-between gap-4">
                   <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FCD34D]">
                     Live Student Brands on CalebDeck Right Now
@@ -1059,12 +1067,12 @@ export default function LandingPage() {
                   </Link>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
                   {businessItems.map((bItem) => (
                     <Link
                       key={bItem.id}
                       to={`/business/product/${bItem.id}`}
-                      className="group rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 p-3.5 transition-colors"
+                      className="group rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 p-3 sm:p-3.5 transition-colors"
                     >
                       <div className="relative aspect-square rounded-xl overflow-hidden bg-black/30 mb-3">
                         <ImageWithFallback
@@ -1073,11 +1081,16 @@ export default function LandingPage() {
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           loading="lazy"
                         />
-                        <span className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#110C1D]/85 text-[#FCD34D]">
+                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wider bg-[#110C1D]/85 text-[#FCD34D] max-w-[85%] truncate">
                           {bItem.vendorBusinessName || 'Featured Brand'}
                         </span>
                       </div>
-                      <h3 className="font-bold text-sm text-white truncate">{bItem.name}</h3>
+                      <h3
+                        className="font-bold text-xs sm:text-sm text-white truncate"
+                        style={{ color: '#FFFFFF' }}
+                      >
+                        {bItem.name}
+                      </h3>
                       <div className="flex items-center justify-between mt-1">
                         <span className="text-xs text-white/55 truncate">
                           {bItem.category || 'Catalog'}
@@ -1161,7 +1174,7 @@ export default function LandingPage() {
 
                 <h2
                   className="text-5xl sm:text-7xl lg:text-[5.5rem] font-bold tracking-[-0.04em] leading-[0.95] text-white"
-                  style={{ fontFamily: '"Space Grotesk", Satoshi, sans-serif' }}
+                  style={{ fontFamily: '"Space Grotesk", Satoshi, sans-serif', color: '#FFFFFF' }}
                 >
                   {PRODUCTS_CONFIG.gaming.name}
                 </h2>
@@ -1250,8 +1263,8 @@ export default function LandingPage() {
               </p>
 
               <h2
-                className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-[-0.03em] leading-[1.05]"
-                style={{ fontFamily: 'Satoshi, Inter, sans-serif' }}
+                className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-[-0.03em] leading-[1.05] text-white"
+                style={{ fontFamily: 'Satoshi, Inter, sans-serif', color: '#FFFFFF' }}
               >
                 The next chapter is{' '}
                 <span
