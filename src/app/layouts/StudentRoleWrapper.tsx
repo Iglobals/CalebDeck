@@ -31,14 +31,19 @@ export default function StudentRoleWrapper() {
         return () => document.documentElement.classList.remove('i-con');
     }, [isIconUser]);
 
+    const isProductShopRoute =
+        location.pathname.startsWith('/fashion') ||
+        location.pathname.startsWith('/cart') ||
+        location.pathname.startsWith('/my-orders');
+
     return (
         <div className={`min-h-screen bg-background transition-colors duration-300 ${isIconUser ? 'pb-28 md:pb-0 md:pl-24' : ''}`}>
             <MartCartProvider>
                 <BatchTimerProvider>
                     <MaintenanceGate>
                         <Outlet />
-                        <AnnouncementBanner />
-                        <GuestBanner />
+                        {isProductShopRoute && <AnnouncementBanner />}
+                        {location.pathname.startsWith('/fashion') && <GuestBanner />}
                         {isIconUser && 
                          !location.pathname.startsWith('/calebnet') && 
                          !location.pathname.startsWith('/cart') &&

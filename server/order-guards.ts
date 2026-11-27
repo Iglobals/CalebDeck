@@ -1,9 +1,4 @@
-import {
-  getFoodDeliveryAvailability,
-  isDateStrFoodOperatingDay,
-  getLagosDateParts,
-  type FoodDeliveryAvailability,
-} from '../src/services/foodSchedule.js';
+import { getLagosDateParts } from '../src/services/foodSchedule.js';
 import type { OrderVertical } from '../src/services/orderVertical.js';
 
 export interface ServiceGuardResult {
@@ -12,72 +7,49 @@ export interface ServiceGuardResult {
   code?: string;
   message?: string;
   settings?: Record<string, any>;
-  availability?: FoodDeliveryAvailability;
 }
 
 /**
- * Server-side enforcement for discontinued services (Mart) and
- * admin-configurable Food Delivery operating days in Africa/Lagos.
+ * Server-side enforcement for discontinued CalebDeck services (Food Delivery & Mart).
  *
- * Accepts an injectable `now` Date for deterministic unit/integration testing.
+ * - FOOD -> HTTP 410 FOOD_DISCONTINUED
+ * - MART -> HTTP 410 MART_DISCONTINUED
+ * - FASHION -> Allowed (active product)
+ *
+ * Historical records in Firestore remain untouched and readable.
  */
 export async function validateServiceAndSchedule(
-  db: FirebaseFirestore.Firestore,
+  _db: FirebaseFirestore.Firestore,
   options: {
     vertical: OrderVertical;
     scheduledDateStr?: string | null;
     now?: Date;
   }
 ): Promise<ServiceGuardResult> {
-  const { vertical, scheduledDateStr, now = new Date() } = options;
+  const { vertical } = options;
 
   if (vertical === 'MART') {
     return {
       allowed: false,
       httpStatus: 410,
       code: 'MART_DISCONTINUED',
-      message: 'CalebDeck Mart has been discontinued and is no longer accepting new orders.',
+      message:
+        'Thank you for being part of our journey. CalebDeck Mart has been discontinued as CalebDeck transitions into its next chapter. Explore our active offerings on CalebDeck Fashion.',
     };
   }
 
-  if (vertical !== 'FOOD') {
-    return { allowed: true };
-  }
-
-  const settingsSnap = await db.collection('settings').doc('platform').get();
-  const settings = settingsSnap.exists ? (settingsSnap.data() || {}) : {};
-  const availability = getFoodDeliveryAvailability(settings, now);
-
-  if (!availability.isAvailable) {
-    const code =
-      availability.reason === 'OUTSIDE_OPERATING_DAYS' || availability.reason === 'ALL_DAYS_DISABLED'
-        ? 'FOOD_OUTSIDE_OPERATING_DAYS'
-        : 'FOOD_ORDERING_CLOSED';
+  if (vertical === 'FOOD') {
     return {
       allowed: false,
-      httpStatus: 400,
-      code,
-      message: availability.userMessage,
-      settings,
-      availability,
-    };
-  }
-
-  if (scheduledDateStr && !isDateStrFoodOperatingDay(scheduledDateStr, settings.foodOperatingDays)) {
-    return {
-      allowed: false,
-      httpStatus: 400,
-      code: 'FOOD_OUTSIDE_OPERATING_DAYS',
-      message: `Scheduled date (${scheduledDateStr}) is not an active food delivery day. Operating days: ${availability.scheduleLabel}.`,
-      settings,
-      availability,
+      httpStatus: 410,
+      code: 'FOOD_DISCONTINUED',
+      message:
+        'Thank you for being part of our journey. CalebDeck Food Delivery has been discontinued as CalebDeck transitions into its next chapter. Explore our active offerings on CalebDeck Fashion.',
     };
   }
 
   return {
     allowed: true,
-    settings,
-    availability,
   };
 }
 

@@ -1,77 +1,117 @@
 import React from 'react';
 import { Link } from 'react-router';
-import { ArrowLeft, Utensils, Shirt, Receipt, Info } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Shirt, Sparkles, Receipt } from 'lucide-react';
+import SEO from './SEO';
+import { Logo } from './design-system/Logo';
 import { Button } from './design-system/Button';
+import { PRODUCTS_CONFIG } from '../../config/brand';
+
+export type DiscontinuedServiceName =
+  | 'CalebDeck Food Delivery'
+  | 'CalebDeck Mart'
+  | 'CalebNet';
 
 interface DiscontinuedServicePageProps {
-  serviceName: 'CalebNet' | 'CalebDeck Mart';
-  description: string;
+  serviceName: DiscontinuedServiceName;
+  canonicalPath?: string;
+  customNote?: string;
 }
 
 export const DiscontinuedServicePage: React.FC<DiscontinuedServicePageProps> = ({
   serviceName,
-  description,
+  canonicalPath,
+  customNote,
 }) => {
+  const description =
+    customNote ||
+    `Thank you for being part of our journey. ${serviceName} has been discontinued as CalebDeck transitions into its next chapter. You can continue exploring our active offerings through ${PRODUCTS_CONFIG.fashion.name}.`;
+
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4 py-12 bg-[#FAF9F6] dark:bg-[#121212]">
-      <div className="max-w-lg w-full bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-white/10 rounded-3xl p-8 shadow-sm text-center">
-        <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
-          <Info className="w-7 h-7" />
-        </div>
+    <div className="min-h-screen flex flex-col justify-between bg-[#FAF9F6] dark:bg-[#0F0F11] text-gray-900 dark:text-[#FAF9F6] px-4 py-8 sm:py-12">
+      <SEO
+        title={`${serviceName} — Service Transition | CalebDeck`}
+        description={description}
+        canonical={canonicalPath ? `https://calebdeck.com${canonicalPath}` : undefined}
+        robots="noindex,follow"
+      />
 
-        <span className="inline-block text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 mb-3">
-          Service Update
-        </span>
+      <header className="max-w-3xl w-full mx-auto flex items-center justify-between">
+        <Logo size="md" />
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          CalebDeck Home
+        </Link>
+      </header>
 
-        <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-[#FAF9F6] mb-3">
-          {serviceName} Has Been Discontinued
-        </h1>
+      <main className="max-w-xl w-full mx-auto my-12">
+        <div className="bg-white dark:bg-[#17171A] border border-gray-200/90 dark:border-white/10 rounded-3xl p-8 sm:p-10 shadow-sm">
+          <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] px-3 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 mb-6">
+            <Sparkles className="w-3.5 h-3.5" />
+            Next Chapter Notice
+          </div>
 
-        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 leading-relaxed mb-6">
-          {description}
-        </p>
-
-        <div className="rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-200/80 dark:border-white/10 p-4 text-left text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-7">
-          <p className="font-semibold text-gray-900 dark:text-[#FAF9F6] mb-1">
-            Looking for past orders or wallet history?
-          </p>
-          <p>
-            All historical {serviceName} transactions and receipts remain preserved in your order history and i-CON Wallet.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-          <Link to="/cafeteria">
-            <Button variant="primary" className="w-full justify-center gap-2">
-              <Utensils className="w-4 h-4" />
-              Order Food
-            </Button>
-          </Link>
-          <Link to="/fashion">
-            <Button variant="outline" className="w-full justify-center gap-2">
-              <Shirt className="w-4 h-4" />
-              Explore Fashion
-            </Button>
-          </Link>
-        </div>
-
-        <div className="flex items-center justify-center gap-5 pt-2 text-sm">
-          <Link
-            to="/my-orders"
-            className="inline-flex items-center gap-1.5 font-semibold text-[#7C3AED] hover:underline"
+          <h1
+            className="text-2xl sm:text-3xl font-black tracking-tight text-gray-900 dark:text-[#FAF9F6] mb-4 leading-tight"
+            style={{ fontFamily: 'Satoshi, Inter, sans-serif' }}
           >
-            <Receipt className="w-4 h-4" />
-            My Orders
-          </Link>
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 font-semibold text-gray-600 dark:text-gray-300 hover:underline"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Home
-          </Link>
+            {serviceName} has concluded its chapter.
+          </h1>
+
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 leading-relaxed mb-6">
+            {description}
+          </p>
+
+          <div className="rounded-2xl bg-[#FAF9F6] dark:bg-white/[0.04] border border-gray-200/80 dark:border-white/10 p-4 text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-8">
+            <p className="font-semibold text-gray-900 dark:text-[#FAF9F6] mb-1">
+              Historical orders & i-CON Wallet records remain safe
+            </p>
+            <p>
+              All previous {serviceName} receipts, order records, and wallet balances remain preserved and accessible in your account history.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 mb-6">
+            <Link to={PRODUCTS_CONFIG.fashion.path} className="flex-1">
+              <Button
+                variant="primary"
+                className="w-full justify-center gap-2 py-3.5 bg-[#121212] text-[#FAF9F6] dark:bg-[#FAF9F6] dark:text-[#121212] hover:opacity-90 border-none"
+              >
+                <Shirt className="w-4 h-4" />
+                Explore {PRODUCTS_CONFIG.fashion.name}
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+            <Link to="/" className="sm:w-auto">
+              <Button variant="outline" className="w-full justify-center gap-2 py-3.5">
+                Discover What’s Next
+              </Button>
+            </Link>
+          </div>
+
+          <div className="pt-5 border-t border-gray-100 dark:border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
+            <Link
+              to="/my-orders"
+              className="inline-flex items-center gap-1.5 font-semibold text-[#7C3AED] dark:text-[#A78BFA] hover:underline"
+            >
+              <Receipt className="w-4 h-4" />
+              View Past Order History
+            </Link>
+            <Link
+              to="/support"
+              className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+            >
+              Need help with a past order? Contact Support
+            </Link>
+          </div>
         </div>
-      </div>
+      </main>
+
+      <footer className="max-w-3xl w-full mx-auto text-center text-xs text-gray-400 dark:text-gray-500">
+        © {new Date().getFullYear()} CalebDeck · An IGLOBALS TECHNOLOGY Brand
+      </footer>
     </div>
   );
 };

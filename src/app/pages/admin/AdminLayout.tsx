@@ -76,12 +76,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => 
     const menuItems = [
         { id: 'dashboard', path: '/admin', icon: <LayoutDashboard className="w-5 h-5" />, label: 'Dashboard' },
         { id: 'monitoring', path: '/admin/monitoring', icon: <Activity className="w-5 h-5" />, label: 'System Health' },
-        { id: 'orders', path: '/admin/orders', icon: <ShoppingBag className="w-5 h-5" />, label: 'Food Orders' },
-        { id: 'batches', path: '/admin/batches', icon: <Clock className="w-5 h-5" />, label: 'Food Batches' },
         { id: 'fashion-orders', path: '/admin/fashion/orders', icon: <ShoppingBag className="w-5 h-5" />, label: 'Fashion Orders' },
         { id: 'fashion-inventory', path: '/admin/fashion', icon: <Shirt className="w-5 h-5" />, label: 'Fashion Inventory' },
         { id: 'business', path: '/admin/business', icon: <Store className="w-5 h-5" />, label: 'Business Vendors' },
-        { id: 'menu', path: '/admin/menu', icon: <UtensilsCrossed className="w-5 h-5" />, label: 'Menu Management' },
         { id: 'riders', path: '/admin/riders', icon: <Users className="w-5 h-5" />, label: 'Riders' },
         { id: 'analytics', path: '/admin/analytics', icon: <BarChart3 className="w-5 h-5" />, label: 'Analytics' },
         { id: 'directory', path: '/admin/directory', icon: <Users className="w-5 h-5" />, label: 'i-CON Directory' },

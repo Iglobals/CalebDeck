@@ -116,8 +116,9 @@ I would like to onboard my business to CalebDeck.`;
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300 relative pb-20">
       <SEO 
-        title="CalebDeck Business — Campus Vendor Visibility" 
-        description="Grow your campus business by reaching every student on CalebDeck. List your products on the Campus Brand section." 
+        title="CalebDeck Business | Showcase Your Brand to Real Platform Traffic" 
+        description="List your student or independent brand on CalebDeck Business. Reach shoppers across CalebDeck Fashion and our growing Caleb Life community with direct WhatsApp leads and click tracking."
+        canonical="https://calebdeck.com/business"
       />
 
       {/* Navigation */}
@@ -150,7 +151,7 @@ I would like to onboard my business to CalebDeck.`;
           <span className="text-primary">CalebDeck.</span>
         </h1>
         <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-          The subscription-based catalog for independent campus vendors. We showcase your products on the CalebDeck homepage, where students already are.
+          Put your products in front of real visitors across the CalebDeck ecosystem — from CalebDeck Fashion shoppers today to the audience coming for Caleb Life. Direct WhatsApp enquiries and transparent click tracking included.
         </p>
 
         <div className="grid sm:grid-cols-3 gap-6 text-left max-w-4xl mx-auto mb-16">
