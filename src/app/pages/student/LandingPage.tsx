@@ -322,7 +322,7 @@ export default function LandingPage() {
           <div className="grid lg:grid-cols-12 gap-12 lg:gap-8 items-center">
             {/* Left Copy Column */}
             <motion.div
-              className="lg:col-span-6 xl:col-span-6 space-y-7"
+              className="lg:col-span-6 xl:col-span-6 min-w-0 space-y-6 sm:space-y-7"
               initial={prefersReducedMotion ? undefined : { opacity: 0, y: 20 }}
               animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
               transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
@@ -333,11 +333,11 @@ export default function LandingPage() {
               </div>
 
               <h1
-                className="text-[2.65rem] sm:text-6xl xl:text-[4.35rem] font-black tracking-[-0.035em] leading-[1.01] text-[#110C1D] dark:text-white"
+                className="text-[2.35rem] sm:text-6xl xl:text-[4.35rem] font-black tracking-[-0.035em] leading-[1.03] text-[#110C1D] dark:text-white"
                 style={{ fontFamily: 'Satoshi, Inter, sans-serif' }}
               >
                 We’ve built, we’ve grown, and we’re{' '}
-                <span className="relative inline-block whitespace-nowrap">
+                <span className="relative inline-block sm:whitespace-nowrap">
                   <span
                     className="relative z-10 font-normal italic text-[#7C3AED] dark:text-[#FCD34D]"
                     style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: '1.1em' }}
@@ -387,7 +387,7 @@ export default function LandingPage() {
             </motion.div>
 
             {/* Right Dual-Phone Hardware Stage */}
-            <div className="lg:col-span-6 xl:col-span-6 relative pt-2 pb-4 sm:py-6">
+            <div className="lg:col-span-6 xl:col-span-6 min-w-0 relative pt-2 pb-4 sm:py-6">
               <div className="relative mx-auto max-w-[360px] sm:max-w-[500px] lg:max-w-none h-[385px] sm:h-[510px] flex items-center justify-center">
                 {/* Ambient Brand Plinth Behind Devices */}
                 <div
@@ -652,7 +652,7 @@ export default function LandingPage() {
             {/* Block 1: The CalebDeck Story (Dark Obsidian Editorial Tile) */}
             <motion.div
               {...reveal(0.05)}
-              className="lg:col-span-4 rounded-[2rem] bg-[#110C1D] dark:bg-[#151024] text-white p-7 sm:p-9 flex flex-col justify-between border border-white/10"
+              className="lg:col-span-4 min-w-0 rounded-[2rem] bg-[#110C1D] dark:bg-[#151024] text-white p-7 sm:p-9 flex flex-col justify-between border border-white/10"
             >
               <div className="space-y-4 sm:space-y-5">
                 <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#FCD34D]">
@@ -691,7 +691,7 @@ export default function LandingPage() {
             {/* Block 2: Documentary Campus Roots (Warm Alabaster Split Photo Tile) */}
             <motion.div
               {...reveal(0.1)}
-              className="lg:col-span-4 rounded-[2rem] bg-[#EFECE4] dark:bg-[#171324] p-6 sm:p-7 flex flex-col justify-between border border-[#110C1D]/[0.07] dark:border-white/10"
+              className="lg:col-span-4 min-w-0 rounded-[2rem] bg-[#EFECE4] dark:bg-[#171324] p-6 sm:p-7 flex flex-col justify-between border border-[#110C1D]/[0.07] dark:border-white/10"
             >
               <div className="grid grid-cols-2 gap-3 mb-5">
                 <div className="aspect-[3/4] rounded-2xl overflow-hidden bg-black/10">
@@ -734,7 +734,7 @@ export default function LandingPage() {
               {...reveal(0.15)}
               onMouseEnter={() => setQuotePaused(true)}
               onMouseLeave={() => setQuotePaused(false)}
-              className="lg:col-span-4 rounded-[2rem] bg-white dark:bg-[#141022] p-7 sm:p-8 flex flex-col justify-between border border-[#110C1D]/[0.08] dark:border-white/10 shadow-[0_20px_50px_-20px_rgba(17,12,29,0.12)]"
+              className="lg:col-span-4 min-w-0 rounded-[2rem] bg-white dark:bg-[#141022] p-7 sm:p-8 flex flex-col justify-between border border-[#110C1D]/[0.08] dark:border-white/10 shadow-[0_20px_50px_-20px_rgba(17,12,29,0.12)]"
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#7C3AED] dark:text-[#C4B5FD]">
@@ -848,10 +848,10 @@ export default function LandingPage() {
           {/* Asymmetric Lookbook Grid: 1 Monumental Feature + 3 Editorial Cards */}
           <div className="grid lg:grid-cols-12 gap-6 items-stretch">
             {/* Lead Lookbook Feature */}
-            <motion.div {...reveal(0.05)} className="lg:col-span-5">
+            <motion.div {...reveal(0.05)} className="lg:col-span-5 min-w-0">
               <Link
                 to={`/fashion/product/${leadFashionItem.id}`}
-                className="group relative block h-full min-h-[420px] sm:min-h-[520px] rounded-[2rem] overflow-hidden bg-[#191528] border border-[#110C1D]/10 dark:border-white/10"
+                className="group relative block h-full min-h-[380px] sm:min-h-[520px] rounded-[2rem] overflow-hidden bg-[#191528] border border-[#110C1D]/10 dark:border-white/10"
               >
                 <ImageWithFallback
                   src={leadFashionItem.imageUrl}
@@ -861,42 +861,42 @@ export default function LandingPage() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0D0917]/90 via-[#0D0917]/20 to-transparent" />
 
-                <div className="absolute top-5 left-5 right-5 flex items-center justify-between">
-                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.16em] bg-[#FCD34D] text-[#110C1D]">
-                    Featured Drop · {leadFashionItem.category}
+                <div className="absolute top-4 left-4 right-4 sm:top-5 sm:left-5 sm:right-5 flex items-center justify-between gap-2">
+                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.14em] bg-[#FCD34D] text-[#110C1D] truncate">
+                    Featured · {leadFashionItem.category}
                   </span>
-                  <span className="w-10 h-10 rounded-full bg-white/95 text-[#110C1D] flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/95 text-[#110C1D] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                     <ArrowUpRight className="w-4 h-4" />
                   </span>
                 </div>
 
-                <div className="absolute bottom-6 left-6 right-6 text-white flex items-end justify-between gap-4">
+                <div className="absolute bottom-5 left-5 right-5 sm:bottom-6 sm:left-6 sm:right-6 text-white flex items-end justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#FCD34D] mb-1">
+                    <p className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.18em] text-[#FCD34D] mb-1 truncate">
                       {leadFashionItem.brand}
                     </p>
                     <h3
-                      className="text-2xl sm:text-3xl font-black leading-tight truncate text-white"
+                      className="text-xl sm:text-3xl font-black leading-tight truncate text-white"
                       style={{ fontFamily: 'Satoshi, Inter, sans-serif', color: '#FFFFFF' }}
                     >
                       {leadFashionItem.name}
                     </h3>
                   </div>
-                  <span className="px-4 py-2 rounded-full text-sm font-black bg-white text-[#110C1D] shrink-0">
+                  <span className="px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-black bg-white text-[#110C1D] shrink-0">
                     ₦{leadFashionItem.price.toLocaleString()}
                   </span>
                 </div>
               </Link>
             </motion.div>
 
-            {/* Right 7 Columns: Horizontal Swipe Rail on Mobile, 3-Col Grid on Desktop + Live Batch Strip */}
-            <div className="lg:col-span-7 flex flex-col justify-between gap-6">
-              <div className="flex sm:grid sm:grid-cols-3 gap-4 sm:gap-5 overflow-x-auto sm:overflow-visible snap-x snap-mandatory pb-2 sm:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0 hide-scrollbar">
+            {/* Right 7 Columns: Contained Horizontal Swipe Rail on Mobile, 3-Col Grid on Desktop + Live Batch Strip */}
+            <div className="lg:col-span-7 min-w-0 w-full flex flex-col justify-between gap-5 sm:gap-6">
+              <div className="w-full max-w-full flex sm:grid sm:grid-cols-3 gap-3.5 sm:gap-5 overflow-x-auto sm:overflow-visible snap-x snap-mandatory pb-2 sm:pb-0 hide-scrollbar">
                 {secondaryFashionItems.map((item, idx) => (
                   <motion.div
                     key={item.id}
                     {...reveal(0.08 + idx * 0.05)}
-                    className="min-w-[66vw] max-w-[250px] sm:min-w-0 sm:max-w-none shrink-0 snap-start"
+                    className="w-[62%] sm:w-auto shrink-0 snap-start min-w-0"
                   >
                     <Link to={`/fashion/product/${item.id}`} className="group block">
                       <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-[#EAE6DF] dark:bg-[#171226] border border-[#110C1D]/[0.08] dark:border-white/10 mb-3">
@@ -925,9 +925,9 @@ export default function LandingPage() {
               {/* Tactile Batch & Wallet Bar */}
               <motion.div
                 {...reveal(0.18)}
-                className="rounded-3xl p-6 sm:p-7 bg-[#F3EFE6] dark:bg-[#151024] border border-[#110C1D]/[0.07] dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-5"
+                className="w-full rounded-3xl p-5 sm:p-7 bg-[#F3EFE6] dark:bg-[#151024] border border-[#110C1D]/[0.07] dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-5"
               >
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#7C3AED] dark:text-[#FCD34D]">
                     Structured Weekly Fulfillment
                   </p>
@@ -941,7 +941,7 @@ export default function LandingPage() {
 
                 <Link
                   to={PRODUCTS_CONFIG.fashion.path}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full text-xs font-black uppercase tracking-wider bg-[#7C3AED] text-white hover:bg-[#6D28D9] transition-colors shrink-0"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full text-xs font-black uppercase tracking-wider bg-[#7C3AED] text-white hover:bg-[#6D28D9] transition-colors shrink-0"
                 >
                   Browse All Drops <ArrowUpRight className="w-4 h-4" />
                 </Link>
@@ -956,7 +956,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <motion.div
             {...reveal()}
-            className="relative rounded-[2.25rem] sm:rounded-[2.5rem] overflow-hidden bg-[#120C22] text-white border border-[#7C3AED]/30 px-5 pt-9 pb-0 sm:px-12 sm:pt-14 sm:pb-0 lg:px-16 lg:py-20 shadow-[0_32px_90px_-20px_rgba(24,12,56,0.55)]"
+            className="relative rounded-[2.25rem] sm:rounded-[2.5rem] overflow-hidden bg-[#120C22] text-white border border-[#7C3AED]/30 px-5 py-8 sm:px-12 sm:py-14 lg:px-16 lg:py-20 shadow-[0_32px_90px_-20px_rgba(24,12,56,0.55)]"
           >
             {/* Brand Dual-Tone Aura */}
             <div
@@ -970,13 +970,13 @@ export default function LandingPage() {
 
             <div className="relative z-10 grid lg:grid-cols-12 gap-8 lg:gap-12 items-center">
               {/* Left Pitch & Flywheel */}
-              <div className="lg:col-span-7 space-y-5 sm:space-y-6">
-                <p className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.22em] text-[#FCD34D]">
+              <div className="lg:col-span-7 min-w-0 space-y-5 sm:space-y-6">
+                <p className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-[#FCD34D]">
                   02 / Active Founder Platform · {PRODUCTS_CONFIG.business.name}
                 </p>
 
                 <h2
-                  className="text-[2rem] sm:text-5xl font-black tracking-[-0.03em] leading-[1.06] text-white"
+                  className="text-[1.85rem] sm:text-5xl font-black tracking-[-0.03em] leading-[1.08] text-white"
                   style={{ fontFamily: 'Satoshi, Inter, sans-serif', color: '#FFFFFF' }}
                 >
                   Put your student brand right where the{' '}
@@ -995,26 +995,26 @@ export default function LandingPage() {
                   <strong className="text-[#FCD34D]">{PRODUCTS_CONFIG.business.name}</strong> places your catalog directly in front of high-attention traffic.
                 </p>
 
-                {/* 3 Crisp Founder Proof Pillars: Horizontal Swipe Strip on Mobile, 3-Col Grid on Desktop */}
-                <div className="flex sm:grid sm:grid-cols-3 gap-3 sm:gap-4 pt-1 sm:pt-2 overflow-x-auto sm:overflow-visible snap-x snap-mandatory -mx-5 px-5 sm:mx-0 sm:px-0 pb-1 sm:pb-0 hide-scrollbar">
-                  <div className="min-w-[210px] sm:min-w-0 shrink-0 snap-start rounded-2xl bg-white/[0.06] border border-white/12 p-4">
-                    <p className="text-xs font-black uppercase tracking-wider text-[#FCD34D] mb-1">
+                {/* 3 Crisp Founder Proof Pillars: Clean Compact Stack on Mobile, 3-Col Grid on Desktop */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-4 pt-1 sm:pt-2">
+                  <div className="rounded-2xl bg-white/[0.06] border border-white/12 p-3.5 sm:p-4">
+                    <p className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-[#FCD34D] mb-0.5 sm:mb-1">
                       Prime Placement
                     </p>
                     <p className="text-xs text-white/75 leading-relaxed">
                       Featured directly on CalebDeck where real campus &amp; youth traffic lands.
                     </p>
                   </div>
-                  <div className="min-w-[210px] sm:min-w-0 shrink-0 snap-start rounded-2xl bg-white/[0.06] border border-white/12 p-4">
-                    <p className="text-xs font-black uppercase tracking-wider text-[#C4B5FD] mb-1">
+                  <div className="rounded-2xl bg-white/[0.06] border border-white/12 p-3.5 sm:p-4">
+                    <p className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-[#C4B5FD] mb-0.5 sm:mb-1">
                       Click Analytics
                     </p>
                     <p className="text-xs text-white/75 leading-relaxed">
                       Your Vendor Dashboard counts every product tap so you see real ROI.
                     </p>
                   </div>
-                  <div className="min-w-[210px] sm:min-w-0 shrink-0 snap-start rounded-2xl bg-white/[0.06] border border-white/12 p-4">
-                    <p className="text-xs font-black uppercase tracking-wider text-emerald-300 mb-1">
+                  <div className="rounded-2xl bg-white/[0.06] border border-white/12 p-3.5 sm:p-4">
+                    <p className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-emerald-300 mb-0.5 sm:mb-1">
                       Direct WhatsApp
                     </p>
                     <p className="text-xs text-white/75 leading-relaxed">
@@ -1023,30 +1023,34 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                <div className="pt-2 sm:pt-3 flex flex-row flex-wrap items-center gap-3 sm:gap-4">
+                <div className="pt-2 sm:pt-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
                   <Link
                     to={PRODUCTS_CONFIG.business.path}
-                    className="group flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 sm:px-8 py-3.5 sm:py-4 rounded-full font-black text-xs sm:text-sm bg-[#FCD34D] text-[#110C1D] hover:bg-[#FDE047] shadow-[0_16px_40px_-10px_rgba(252,211,77,0.45)] transition-all whitespace-nowrap"
+                    className="group inline-flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 sm:py-4 rounded-full font-black text-xs sm:text-sm bg-[#FCD34D] text-[#110C1D] hover:bg-[#FDE047] shadow-[0_16px_40px_-10px_rgba(252,211,77,0.45)] transition-all"
                   >
                     <span>Showcase Your Brand</span>
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </Link>
                   <Link
                     to={PRODUCTS_CONFIG.business.path}
-                    className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-3.5 sm:py-4 rounded-full text-xs sm:text-sm font-semibold text-white border border-white/20 hover:bg-white/10 transition-colors whitespace-nowrap"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3.5 sm:py-4 rounded-full text-xs sm:text-sm font-semibold text-white border border-white/20 hover:bg-white/10 transition-colors"
                   >
-                    Vendor Login
+                    Vendor Dashboard Login
                   </Link>
                 </div>
               </div>
 
-              {/* Right Real Campus Brand Mockup — Docked Stage Crop on Mobile, Full Frame on Desktop */}
-              <div className="lg:col-span-5 flex justify-center">
-                <div className="relative w-[240px] sm:w-[275px] lg:w-[285px] max-h-[310px] sm:max-h-[370px] lg:max-h-none overflow-hidden lg:overflow-visible pt-1 lg:pt-0">
+              {/* Right Real Campus Brand Mockup — Centered with Soft Fade on Mobile, Full Frame on Desktop */}
+              <div className="lg:col-span-5 min-w-0 flex justify-center">
+                <div className="relative mx-auto w-[228px] sm:w-[270px] lg:w-[285px] max-h-[340px] sm:max-h-[410px] lg:max-h-none overflow-hidden lg:overflow-visible">
                   <PhoneMockup
                     src="/showcase/business-app-screen.jpg"
                     alt="CalebDeck Business live vendor spotlight card for Isi's Collection"
                     accent="gold"
+                  />
+                  <div
+                    aria-hidden="true"
+                    className="lg:hidden pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#120C22] via-[#120C22]/70 to-transparent z-20"
                   />
                 </div>
               </div>
@@ -1163,23 +1167,23 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="relative z-10 px-6 py-14 sm:px-12 sm:py-20 lg:px-16 lg:py-24 grid lg:grid-cols-12 gap-12 items-end">
-              <div className="lg:col-span-7 space-y-6">
+            <div className="relative z-10 px-5 py-12 sm:px-12 sm:py-20 lg:px-16 lg:py-24 grid lg:grid-cols-12 gap-10 lg:gap-12 items-end">
+              <div className="lg:col-span-7 min-w-0 space-y-5 sm:space-y-6">
                 <p
-                  className="text-xs font-bold uppercase tracking-[0.26em] text-[#FCD34D]"
+                  className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.22em] text-[#FCD34D]"
                   style={{ fontFamily: '"Space Grotesk", Inter, sans-serif' }}
                 >
                   03 / Upcoming Original World · Coming Soon
                 </p>
 
                 <h2
-                  className="text-5xl sm:text-7xl lg:text-[5.5rem] font-bold tracking-[-0.04em] leading-[0.95] text-white"
+                  className="text-4xl sm:text-7xl lg:text-[5.5rem] font-bold tracking-[-0.04em] leading-[0.95] text-white"
                   style={{ fontFamily: '"Space Grotesk", Satoshi, sans-serif', color: '#FFFFFF' }}
                 >
                   {PRODUCTS_CONFIG.gaming.name}
                 </h2>
 
-                <p className="text-xl sm:text-2xl text-white/90 font-medium leading-snug max-w-xl">
+                <p className="text-lg sm:text-2xl text-white/90 font-medium leading-snug max-w-xl">
                   {PRODUCTS_CONFIG.gaming.tagline}
                 </p>
 
@@ -1190,7 +1194,7 @@ export default function LandingPage() {
 
               {/* Honest World Dossier (Zero invented gameplay claims) */}
               <div
-                className="lg:col-span-5 rounded-3xl bg-white/[0.04] backdrop-blur-md border border-white/12 p-6 sm:p-8 space-y-6"
+                className="lg:col-span-5 min-w-0 rounded-3xl bg-white/[0.04] backdrop-blur-md border border-white/12 p-5 sm:p-8 space-y-5 sm:space-y-6"
                 style={{ fontFamily: '"Space Grotesk", Inter, sans-serif' }}
               >
                 <div className="flex items-center justify-between pb-4 border-b border-white/10">
